@@ -11,6 +11,7 @@ PROJECT_KNOWLEDGE.md
 
 # Local AI Context & MCP Configuration (Chỉ lưu trên máy tính)
 /mcp/
+/.agents/
 
 # Database Schemas & DDL (Đã triển khai trực tiếp trên Supabase)
 /code/database/
