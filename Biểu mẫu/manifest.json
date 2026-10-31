@@ -82,301 +82,151 @@
   {
     "stt": 9,
     "id": "form_dskhach",
-    "code": "DSKM-TTXT",
+    "code": "",
     "title": "Bảng danh sách khách mời VIP & Doanh nghiệp (Kiểm soát định mức ≥ 130%)",
     "group": "cap_trungtam",
     "groupName": "3. Cấp Trung tâm (SCE)",
     "description": "Bảng tính quản lý danh sách đại biểu, kiểm soát chỉ tiêu mời tối thiểu 130% số lượng dự kiến",
-    "filename": "09. [SCE] DSKM-TTXT - Bảng danh sách khách mời VIP & Doanh nghiệp (Kiểm soát định mức ≥ 130%).doc"
+    "filename": "09. [SCE] Bảng danh sách khách mời VIP & Doanh nghiệp (Kiểm soát định mức ≥ 130%).doc"
   },
   {
     "stt": 10,
     "id": "form_giaymoi_vip",
-    "code": "GMVIP-TTXT",
-    "title": "Mẫu Giấy mời Đại biểu VIP (Trang trọng)",
+    "code": "GM-TTXT",
+    "title": "Mẫu Giấy mời Đại biểu",
     "group": "cap_trungtam",
     "groupName": "3. Cấp Trung tâm (SCE)",
     "description": "Mẫu giấy mời trang trọng dành riêng cho Lãnh đạo UBND TP, Sở ngành, Lãnh sự và Đối tác chiến lược",
-    "filename": "10. [SCE] GMVIP-TTXT - Mẫu Giấy mời Đại biểu VIP (Trang trọng).doc"
+    "filename": "10. [SCE] GM-TTXT - Mẫu Giấy mời Đại biểu.doc"
   },
   {
     "stt": 11,
-    "id": "form_giaymoi_dn",
-    "code": "GMDN-TTXT",
-    "title": "Mẫu Giấy mời Doanh nghiệp & Nhà đầu tư",
-    "group": "cap_trungtam",
-    "groupName": "3. Cấp Trung tâm (SCE)",
-    "description": "Mẫu giấy mời gửi doanh nghiệp, tổ chức hiệp hội kèm số bảo đảm bưu điện EMS",
-    "filename": "11. [SCE] GMDN-TTXT - Mẫu Giấy mời Doanh nghiệp & Nhà đầu tư.doc"
-  },
-  {
-    "stt": 12,
-    "id": "form_giaymoi_en",
-    "code": "GMEN-TTXT",
-    "title": "Mẫu Thư mời Song ngữ Anh - Việt (Invitation Letter)",
-    "group": "cap_trungtam",
-    "groupName": "3. Cấp Trung tâm (SCE)",
-    "description": "Thư mời đối ngoại song ngữ gửi các Đại sứ quán, Tổ chức Xúc tiến Quốc tế (JETRO, KOTRA, EuroCham, AmCham...)",
-    "filename": "12. [SCE] GMEN-TTXT - Mẫu Thư mời Song ngữ Anh - Việt (Invitation Letter).doc"
-  },
-  {
-    "stt": 13,
-    "id": "form_so_buudien",
-    "code": "SOEMS-TTXT",
-    "title": "Sổ theo dõi gửi Giấy mời bảo đảm qua Bưu điện (EMS)",
-    "group": "cap_trungtam",
-    "groupName": "3. Cấp Trung tâm (SCE)",
-    "description": "Sổ nhật ký chuyển phát giấy mời doanh nghiệp qua bưu điện bảo đảm phục vụ kiểm tra đối soát",
-    "filename": "13. [SCE] SOEMS-TTXT - Sổ theo dõi gửi Giấy mời bảo đảm qua Bưu điện (EMS).doc"
-  },
-  {
-    "stt": 14,
-    "id": "form_rsvp",
-    "code": "RSVP-TTXT",
-    "title": "Bảng tổng hợp Xác nhận đại biểu tham dự (RSVP Tracker)",
-    "group": "cap_trungtam",
-    "groupName": "3. Cấp Trung tâm (SCE)",
-    "description": "Bảng theo dõi phản hồi đại biểu tham dự mốc T - 3 ngày làm việc để chốt tiệc và sơ đồ chỗ ngồi",
-    "filename": "14. [SCE] RSVP-TTXT - Bảng tổng hợp Xác nhận đại biểu tham dự (RSVP Tracker).doc"
-  },
-  {
-    "stt": 15,
-    "id": "form_thoa_thuan_gianhang",
-    "code": "PTNGH-TTXT",
-    "title": "Phiếu thống nhất Gian hàng, Sản phẩm & Kinh phí hỗ trợ (Hội chợ)",
-    "group": "cap_trungtam",
-    "groupName": "3. Cấp Trung tâm (SCE)",
-    "description": "Biên bản thống nhất vị trí gian hàng, mức hỗ trợ kinh phí và điều kiện tham gia Hội chợ (Phụ lục III)",
-    "filename": "15. [SCE] PTNGH-TTXT - Phiếu thống nhất Gian hàng, Sản phẩm & Kinh phí hỗ trợ (Hội chợ).doc"
-  },
-  {
-    "stt": 16,
-    "id": "form_phuongan_dontiep",
-    "code": "PADT-TTXT",
-    "title": "Phương án đón tiếp Đại biểu VIP và Tiệc chiêu đãi",
-    "group": "cap_trungtam",
-    "groupName": "3. Cấp Trung tâm (SCE)",
-    "description": "Kế hoạch chi tiết phân công đón VIP từ sảnh chính, phòng chờ khánh tiết đến hội trường và bàn tiệc",
-    "filename": "16. [SCE] PADT-TTXT - Phương án đón tiếp Đại biểu VIP và Tiệc chiêu đãi.doc"
-  },
-  {
-    "stt": 17,
-    "id": "form_bienten",
-    "code": "BT-TTXT",
-    "title": "Mẫu in Biển tên để bàn chữ A cho Đại biểu VIP",
-    "group": "cap_trungtam",
-    "groupName": "3. Cấp Trung tâm (SCE)",
-    "description": "Mẫu in biển tên chữ A để bàn đại biểu VIP theo đúng quy định kích thước và phông chữ trang trọng",
-    "filename": "17. [SCE] BT-TTXT - Mẫu in Biển tên để bàn chữ A cho Đại biểu VIP.doc"
-  },
-  {
-    "stt": 18,
-    "id": "form_the_daibieu",
-    "code": "THEDB-TTXT",
-    "title": "Mẫu Thẻ Đại biểu tham dự (Kiểm soát định mức ≥ 120%)",
-    "group": "cap_trungtam",
-    "groupName": "3. Cấp Trung tâm (SCE)",
-    "description": "Mẫu thiết kế thẻ đeo ngực đại biểu, định mức sản xuất bằng 120% số lượng khách dự kiến",
-    "filename": "18. [SCE] THEDB-TTXT - Mẫu Thẻ Đại biểu tham dự (Kiểm soát định mức ≥ 120%).doc"
-  },
-  {
-    "stt": 19,
-    "id": "form_the_baochi",
-    "code": "THEBC-TTXT",
-    "title": "Mẫu Thẻ Báo chí (Trực tiếp & Gián tiếp màn hình)",
-    "group": "cap_trungtam",
-    "groupName": "3. Cấp Trung tâm (SCE)",
-    "description": "Mẫu thẻ phân loại phóng viên tác nghiệp trực tiếp tại hội trường hoặc gián tiếp tại phòng báo chí",
-    "filename": "19. [SCE] THEBC-TTXT - Mẫu Thẻ Báo chí (Trực tiếp & Gián tiếp màn hình).doc"
-  },
-  {
-    "stt": 20,
     "id": "form_the_xe_vip",
     "code": "THEXE-TTXT",
     "title": "Mẫu Thẻ xe VIP (Gửi kèm Giấy mời)",
     "group": "cap_trungtam",
     "groupName": "3. Cấp Trung tâm (SCE)",
     "description": "Thẻ xe ô tô ưu tiên ra vào sảnh danh dự và bãi đỗ xe lễ tân (gửi kèm giấy mời đại biểu VIP)",
-    "filename": "20. [SCE] THEXE-TTXT - Mẫu Thẻ xe VIP (Gửi kèm Giấy mời).doc"
+    "filename": "11. [SCE] THEXE-TTXT - Mẫu Thẻ xe VIP (Gửi kèm Giấy mời).doc"
   },
   {
-    "stt": 21,
+    "stt": 12,
     "id": "form_bienban_giaothe",
-    "code": "BBGT-TTXT",
-    "title": "Biên bản bàn giao Thẻ Đại biểu và Tài liệu cho Bàn Lễ tân",
+    "code": "BB-TTXT",
+    "title": "Biên bản bàn giao Thẻ Đại biểu và Tài liệu",
     "group": "cap_trungtam",
     "groupName": "3. Cấp Trung tâm (SCE)",
     "description": "Biên bản bàn giao số lượng thẻ, tài liệu ấn phẩm giữa Tổ in ấn thẻ và Tổ Lễ tân",
-    "filename": "21. [SCE] BBGT-TTXT - Biên bản bàn giao Thẻ Đại biểu và Tài liệu cho Bàn Lễ tân.doc"
+    "filename": "12. [SCE] BB-TTXT - Biên bản bàn giao Thẻ Đại biểu và Tài liệu.doc"
   },
   {
-    "stt": 22,
-    "id": "form_sodo_chongoi",
-    "code": "SDCN-TTXT",
-    "title": "Sơ đồ Phân khu chỗ ngồi Hội trường & Mặt bằng Gian hàng",
-    "group": "cap_trungtam",
-    "groupName": "3. Cấp Trung tâm (SCE)",
-    "description": "Bản mô tả phân bổ sơ đồ chỗ ngồi phân khu đại biểu và sơ đồ gian hàng tiêu chuẩn",
-    "filename": "22. [SCE] SDCN-TTXT - Sơ đồ Phân khu chỗ ngồi Hội trường & Mặt bằng Gian hàng.doc"
-  },
-  {
-    "stt": 23,
-    "id": "form_duyet_anpham",
-    "code": "BCAP-TTXT",
-    "title": "Báo cáo thẩm định duyệt Phim trình chiếu, Kỷ yếu & Quà tặng",
-    "group": "cap_trungtam",
-    "groupName": "3. Cấp Trung tâm (SCE)",
-    "description": "Báo cáo Lãnh đạo Trung tâm phê duyệt nội dung video clip, ấn phẩm tài liệu và quà tặng đại biểu",
-    "filename": "23. [SCE] BCAP-TTXT - Báo cáo thẩm định duyệt Phim trình chiếu, Kỷ yếu & Quà tặng.doc"
-  },
-  {
-    "stt": 24,
+    "stt": 13,
     "id": "form_congvan_mou_ngoaivu",
-    "code": "CVNV-TTXT",
+    "code": "TTXT-XTĐT",
     "title": "Công văn gửi Sở Ngoại vụ rà soát dự thảo MOU song ngữ",
     "group": "cap_trungtam",
     "groupName": "3. Cấp Trung tâm (SCE)",
     "description": "Văn bản gửi Sở Ngoại vụ Hà Nội rà soát quy chuẩn pháp luật và đối ngoại của các biên bản ghi nhớ hợp tác quốc tế",
-    "filename": "24. [SCE] CVNV-TTXT - Công văn gửi Sở Ngoại vụ rà soát dự thảo MOU song ngữ.doc"
+    "filename": "13. [SCE] TTXT-XTĐT - Công văn gửi Sở Ngoại vụ rà soát dự thảo MOU song ngữ.doc"
   },
   {
-    "stt": 25,
+    "stt": 14,
     "id": "form_mou_template",
-    "code": "MOU-TTXT",
+    "code": "",
     "title": "Dự thảo Bản ghi nhớ hợp tác (MOU) Song ngữ mẫu",
     "group": "cap_trungtam",
     "groupName": "3. Cấp Trung tâm (SCE)",
     "description": "Mẫu biên bản ghi nhớ hợp tác xúc tiến đầu tư thương mại song ngữ Việt - Anh chuẩn hóa",
-    "filename": "25. [SCE] MOU-TTXT - Dự thảo Bản ghi nhớ hợp tác (MOU) Song ngữ mẫu.doc"
+    "filename": "14. [SCE] Dự thảo Bản ghi nhớ hợp tác (MOU) Song ngữ mẫu.doc"
   },
   {
-    "stt": 26,
-    "id": "form_hopdong_mc",
-    "code": "HDMC-TTXT",
-    "title": "Hợp đồng & Phiếu giao việc MC chuyên nghiệp & Dịch cabin",
-    "group": "cap_trungtam",
-    "groupName": "3. Cấp Trung tâm (SCE)",
-    "description": "Hợp đồng giao việc thuê MC song ngữ và đội ngũ dịch cabin chuyên nghiệp phục vụ sự kiện",
-    "filename": "26. [SCE] HDMC-TTXT - Hợp đồng & Phiếu giao việc MC chuyên nghiệp & Dịch cabin.doc"
-  },
-  {
-    "stt": 27,
+    "stt": 15,
     "id": "form_kichban_mc",
-    "code": "KB-TTXT",
+    "code": "",
     "title": "Kịch bản Chương trình tổng thể (Run-sheet) & Lời dẫn MC",
     "group": "cap_trungtam",
     "groupName": "3. Cấp Trung tâm (SCE)",
     "description": "Kịch bản điều hành chương trình chi tiết từng phút kèm lời dẫn MC song ngữ và phân công kỹ thuật",
-    "filename": "27. [SCE] KB-TTXT - Kịch bản Chương trình tổng thể (Run-sheet) & Lời dẫn MC.doc"
+    "filename": "15. [SCE] Kịch bản Chương trình tổng thể (Run-sheet) & Lời dẫn MC.doc"
   },
   {
-    "stt": 28,
-    "id": "form_khaosat_diadiem",
-    "code": "KSDD-TTXT",
-    "title": "Phiếu khảo sát Địa điểm & Yêu cầu 03 Báo giá lập dự toán",
-    "group": "cap_trungtam",
-    "groupName": "3. Cấp Trung tâm (SCE)",
-    "description": "Biên bản khảo sát thực tế địa điểm tổ chức sự kiện và bảng đối soát 03 báo giá theo Luật Đấu thầu",
-    "filename": "28. [SCE] KSDD-TTXT - Phiếu khảo sát Địa điểm & Yêu cầu 03 Báo giá lập dự toán.doc"
-  },
-  {
-    "stt": 29,
-    "id": "form_checklist_kythuat",
-    "code": "BBKT-TTXT",
-    "title": "Biên bản nghiệm thu Kỹ thuật (Âm thanh, Ánh sáng, Cabin, Backdrop)",
-    "group": "cap_trungtam",
-    "groupName": "3. Cấp Trung tâm (SCE)",
-    "description": "Checklist 15 hạng mục kỹ thuật cần nghiệm thu trước giờ khai mạc 24 tiếng",
-    "filename": "29. [SCE] BBKT-TTXT - Biên bản nghiệm thu Kỹ thuật (Âm thanh, Ánh sáng, Cabin, Backdrop).doc"
-  },
-  {
-    "stt": 30,
+    "stt": 16,
     "id": "form_thongcao_baochi",
-    "code": "TCBC-TTXT",
+    "code": "",
     "title": "Thông cáo Báo chí chính thức (Press Release)",
     "group": "cap_trungtam",
     "groupName": "3. Cấp Trung tâm (SCE)",
     "description": "Bản thông cáo báo chí chính thức gửi các cơ quan thông tấn, truyền hình trước sự kiện",
-    "filename": "30. [SCE] TCBC-TTXT - Thông cáo Báo chí chính thức (Press Release).doc"
+    "filename": "16. [SCE] Thông cáo Báo chí chính thức (Press Release).doc"
   },
   {
-    "stt": 31,
-    "id": "form_thumoi_hpa",
-    "code": "BV-TTXT",
-    "title": "Bài viết tuyên truyền & Thư mời đăng Cổng thông tin HPA",
-    "group": "cap_trungtam",
-    "groupName": "3. Cấp Trung tâm (SCE)",
-    "description": "Nội dung bài viết thông báo và thư mời doanh nghiệp đăng tải trên Cổng xúc tiến điện tử",
-    "filename": "31. [SCE] BV-TTXT - Bài viết tuyên truyền & Thư mời đăng Cổng thông tin HPA.doc"
-  },
-  {
-    "stt": 32,
+    "stt": 17,
     "id": "form_ds_baochi",
-    "code": "DSBC-TTXT",
+    "code": "",
     "title": "Danh sách Cơ quan Thông tấn, Báo chí đăng ký tác nghiệp",
     "group": "cap_trungtam",
     "groupName": "3. Cấp Trung tâm (SCE)",
     "description": "Bảng tổng hợp danh sách phóng viên, đài truyền hình đăng ký tác nghiệp và cấp thẻ báo chí",
-    "filename": "32. [SCE] DSBC-TTXT - Danh sách Cơ quan Thông tấn, Báo chí đăng ký tác nghiệp.doc"
+    "filename": "17. [SCE] Danh sách Cơ quan Thông tấn, Báo chí đăng ký tác nghiệp.doc"
   },
   {
-    "stt": 33,
+    "stt": 18,
     "id": "form_baocao_truyenthong",
-    "code": "BCTT-TTXT",
+    "code": "BC-TTXT",
     "title": "Báo cáo tổng hợp Kết quả truyền thông & Link bài báo (T + 1)",
     "group": "cap_trungtam",
     "groupName": "3. Cấp Trung tâm (SCE)",
     "description": "Báo cáo số lượng phóng sự, bài viết phát sóng và hiệu ứng truyền thông sau sự kiện 01 ngày",
-    "filename": "33. [SCE] BCTT-TTXT - Báo cáo tổng hợp Kết quả truyền thông & Link bài báo (T + 1).doc"
+    "filename": "18. [SCE] BC-TTXT - Báo cáo tổng hợp Kết quả truyền thông & Link bài báo (T + 1).doc"
   },
   {
-    "stt": 34,
+    "stt": 19,
     "id": "form_baocao_tiendo_hangngay",
-    "code": "BCTD-TTXT",
+    "code": "BC-TTXT",
     "title": "Báo cáo tiến độ hàng ngày (Mốc T - 10) trình Lãnh đạo TT & UBND TP",
     "group": "cap_trungtam",
     "groupName": "3. Cấp Trung tâm (SCE)",
     "description": "Bản báo cáo tiến độ chuẩn hóa hàng ngày từ mốc T - 10 ngày trình Lãnh đạo Trung tâm và UBND Thành phố",
-    "filename": "34. [SCE] BCTD-TTXT - Báo cáo tiến độ hàng ngày (Mốc T - 10) trình Lãnh đạo TT & UBND TP.doc"
+    "filename": "19. [SCE] BC-TTXT - Báo cáo tiến độ hàng ngày (Mốc T - 10) trình Lãnh đạo TT & UBND TP.doc"
   },
   {
-    "stt": 35,
+    "stt": 20,
     "id": "form_checklist_hientruong",
-    "code": "CLHT-TTXT",
+    "code": "",
     "title": "Checklist kiểm tra Hiện trường trước giờ khai mạc (T0 - 2h)",
     "group": "cap_trungtam",
     "groupName": "3. Cấp Trung tâm (SCE)",
     "description": "Bảng kiểm tra 12 hạng mục hiện trường bắt buộc hoàn tất trước giờ G 2 tiếng",
-    "filename": "35. [SCE] CLHT-TTXT - Checklist kiểm tra Hiện trường trước giờ khai mạc (T0 - 2h).doc"
+    "filename": "20. [SCE] Checklist kiểm tra Hiện trường trước giờ khai mạc (T0 - 2h).doc"
   },
   {
-    "stt": 36,
+    "stt": 21,
     "id": "form_phieu_cauhoi_hoidap",
-    "code": "PHCH-TTXT",
+    "code": "",
     "title": "Phiếu tổng hợp Câu hỏi & Kiến nghị của Doanh nghiệp",
     "group": "cap_trungtam",
     "groupName": "3. Cấp Trung tâm (SCE)",
     "description": "Phiếu ghi nhận ý kiến, vướng mắc của doanh nghiệp tại hội trường gửi Lãnh đạo trả lời",
-    "filename": "36. [SCE] PHCH-TTXT - Phiếu tổng hợp Câu hỏi & Kiến nghị của Doanh nghiệp.doc"
+    "filename": "21. [SCE] Phiếu tổng hợp Câu hỏi & Kiến nghị của Doanh nghiệp.doc"
   },
   {
-    "stt": 37,
+    "stt": 22,
     "id": "form_truc_gianhang",
-    "code": "LTGH-TTXT",
+    "code": "",
     "title": "Lịch phân công Cán bộ trực hỗ trợ Doanh nghiệp Hội chợ/Triển lãm",
     "group": "cap_trungtam",
     "groupName": "3. Cấp Trung tâm (SCE)",
     "description": "Bảng phân công trực ca hỗ trợ các gian hàng doanh nghiệp suốt thời gian diễn ra Hội chợ",
-    "filename": "37. [SCE] LTGH-TTXT - Lịch phân công Cán bộ trực hỗ trợ Doanh nghiệp Hội chợ_Triển lãm.doc"
+    "filename": "22. [SCE] Lịch phân công Cán bộ trực hỗ trợ Doanh nghiệp Hội chợ_Triển lãm.doc"
   },
   {
-    "stt": 38,
+    "stt": 23,
     "id": "form_thu_camon",
-    "code": "CAMON-TTXT",
+    "code": "TTXT-XTĐT",
     "title": "Thư cảm ơn Đại biểu & Doanh nghiệp sau sự kiện (Mốc T + 3)",
     "group": "cap_trungtam",
     "groupName": "3. Cấp Trung tâm (SCE)",
     "description": "Mẫu thư cảm ơn trang trọng gửi các đại biểu, diễn giả và doanh nghiệp sau khi sự kiện kết thúc thành công",
-    "filename": "38. [SCE] CAMON-TTXT - Thư cảm ơn Đại biểu & Doanh nghiệp sau sự kiện (Mốc T + 3).doc"
+    "filename": "23. [SCE] TTXT-XTĐT - Thư cảm ơn Đại biểu & Doanh nghiệp sau sự kiện (Mốc T + 3).doc"
   }
 ]
