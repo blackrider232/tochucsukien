@@ -260,36 +260,36 @@
             </div>
 
             <!-- Thanh Điều hướng Nghiệp vụ (Tabs Navigation) -->
-            <div class="bg-blue-950/90 border-t border-blue-800/30 overflow-x-auto scrollbar-none">
-                <div class="max-w-7xl mx-auto px-2 sm:px-6 flex space-x-1 sm:space-x-2 text-xs py-1.5 whitespace-nowrap">
-                    <button onclick="switchMainTab('tab-events')" id="tabBtn-events" class="px-3 py-1.5 rounded-lg font-semibold flex items-center gap-2 bg-blue-600 text-white shadow-sm transition">
-                        <i class="fas fa-calendar-check text-sm text-blue-300"></i>
-                        <span>Tiến độ Sự kiện (4 Tầng)</span>
+            <div class="bg-blue-950/90 border-t border-blue-800/30 overflow-x-auto hide-scrollbar">
+                <div class="max-w-7xl mx-auto px-2.5 sm:px-4 flex gap-1 sm:gap-1.5 text-xs py-1 whitespace-nowrap">
+                    <button onclick="switchMainTab('tab-events')" id="tabBtn-events" class="px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1.5 bg-blue-600 text-white shadow-sm transition text-xs cursor-pointer">
+                        <i class="fas fa-calendar-check text-xs text-blue-300"></i>
+                        <span>Tiến độ (4 Tầng)</span>
                     </button>
-                    <button onclick="switchMainTab('tab-templates')" id="tabBtn-templates" class="px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-1.5">
-                        <i class="fas fa-file-signature text-sm text-purple-300"></i>
-                        <span>Kho Biểu Mẫu Chuẩn</span>
+                    <button onclick="switchMainTab('tab-templates')" id="tabBtn-templates" class="px-2.5 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-1.5 text-xs cursor-pointer">
+                        <i class="fas fa-file-signature text-xs text-purple-300"></i>
+                        <span>Biểu mẫu chuẩn</span>
                     </button>
-                    <button onclick="switchMainTab('tab-guests')" id="tabBtn-guests" class="px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-1.5">
-                        <i class="fas fa-users-rectangle text-sm text-amber-300"></i>
-                        <span>Khách Mời & Gian Hàng</span>
+                    <button onclick="switchMainTab('tab-guests')" id="tabBtn-guests" class="px-2.5 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-1.5 text-xs cursor-pointer">
+                        <i class="fas fa-users-rectangle text-xs text-amber-300"></i>
+                        <span>Khách mời & Gian hàng</span>
                     </button>
-                    <button onclick="switchMainTab('tab-live')" id="tabBtn-live" class="px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-1.5">
-                        <i class="fas fa-mobile-screen-button text-sm text-emerald-300"></i>
-                        <span>Hiện Trường Giờ G</span>
+                    <button onclick="switchMainTab('tab-live')" id="tabBtn-live" class="px-2.5 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-1.5 text-xs cursor-pointer">
+                        <i class="fas fa-mobile-screen-button text-xs text-emerald-300"></i>
+                        <span>Hiện trường Giờ G</span>
                     </button>
-                    <button onclick="switchMainTab('tab-reports')" id="tabBtn-reports" class="px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-1.5">
-                        <i class="fas fa-chart-line text-sm text-rose-300"></i>
-                        <span>Báo Cáo & Tổng Kết</span>
+                    <button onclick="switchMainTab('tab-reports')" id="tabBtn-reports" class="px-2.5 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-1.5 text-xs cursor-pointer">
+                        <i class="fas fa-chart-line text-xs text-rose-300"></i>
+                        <span>Báo cáo & Tổng kết</span>
                     </button>
-                    <button onclick="switchMainTab('tab-users')" id="tabBtn-users" class="px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-1.5">
-                        <i class="fas fa-users-gear text-sm text-cyan-300"></i>
+                    <button onclick="switchMainTab('tab-users')" id="tabBtn-users" class="px-2.5 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-1.5 text-xs cursor-pointer">
+                        <i class="fas fa-users-gear text-xs text-cyan-300"></i>
                         <span>Tài khoản</span>
                         <span id="tabUsersPendingBadge" class="hidden px-1.5 py-0.5 bg-amber-500 text-white rounded-full text-[10px] font-bold">0</span>
                     </button>
-                    <button onclick="switchMainTab('tab-admin')" id="tabBtn-admin" class="px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-1.5">
-                        <i class="fas fa-sliders text-sm text-slate-400"></i>
-                        <span>Cài Đặt & Quản Trị</span>
+                    <button onclick="switchMainTab('tab-admin')" id="tabBtn-admin" class="px-2.5 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-1.5 text-xs cursor-pointer">
+                        <i class="fas fa-sliders text-xs text-slate-400"></i>
+                        <span>Cài đặt & Quản trị</span>
                     </button>
                 </div>
             </div>
@@ -298,13 +298,13 @@
         <!-- ========================================================================= -->
         <!-- 2. NỘI DUNG CHÍNH (MAIN BODY) -->
         <!-- ========================================================================= -->
-        <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 lg:p-8 space-y-6">
+        <main class="flex-1 max-w-7xl w-full mx-auto px-2.5 sm:px-4 py-2.5 sm:py-3.5 space-y-3.5">
 
             <!-- TAB QUẢN TRỊ & CÀI ĐẶT (ADMIN ONLY) -->
                         <!-- TAB TÀI KHOẢN (USERS MANAGEMENT) CHUẨN /QUANLYDAUTHAU -->
-            <section id="mainTab-users" class="hidden space-y-6">
-                <div class="bg-white dark:bg-slate-800 p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 space-y-5">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-4 border-b border-slate-100 dark:border-slate-700">
+            <section id="mainTab-users" class="hidden space-y-3.5">
+                <div class="bg-white dark:bg-slate-800 p-3.5 sm:p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 space-y-3.5">
+                    <div class="flex items-center justify-between gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-700">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 rounded-xl bg-cyan-100 dark:bg-cyan-900/60 text-cyan-700 dark:text-cyan-300 flex items-center justify-center text-lg font-bold">
                                 <i class="fas fa-users-gear"></i>
@@ -314,7 +314,7 @@
                                 <p class="text-xs text-slate-500 dark:text-slate-400">Cấp tài khoản, phân quyền RBAC và quản lý danh sách cán bộ Trung tâm Xúc tiến đầu tư (SCE)</p>
                             </div>
                         </div>
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap">
                             <button onclick="window.approveAllPendingUsers()" id="btnApproveAllTop" class="hidden px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1.5">
                                 <i class="fas fa-user-check"></i> Duyệt tất cả tài khoản chờ
                             </button>
@@ -423,10 +423,10 @@
                 </div>
             </section>
 
-            <section id="mainTab-admin" class="hidden space-y-6">
+            <section id="mainTab-admin" class="hidden space-y-3.5">
 
             <!-- Card Giới thiệu & Trạng thái phân hệ -->
-            <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+            <div class="bg-white dark:bg-slate-800 rounded-xl p-3.5 sm:p-4 shadow-sm border border-slate-200 dark:border-slate-700">
                 <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-5 border-b border-slate-100 dark:border-slate-700">
                     <div class="flex items-center gap-4">
                         <div class="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center text-2xl font-bold shadow-inner">
@@ -440,7 +440,7 @@
                             <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Quản lý tài khoản 4 phòng ban chuyên môn, phân quyền RBAC, sao lưu dữ liệu và cấu hình định mức tham số sự kiện.</p>
                         </div>
                     </div>
-                    <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                    <div class="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap">
                         <button onclick="openUserMgmtModal()" class="flex-1 md:flex-initial px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm transition flex items-center justify-center gap-2">
                             <i class="fas fa-users-cog"></i>
                             <span>Quản lý 4 Phòng</span>
@@ -511,7 +511,7 @@
             <!-- Cấu hình Tham số Hệ thống Sự kiện & Đơn vị chủ quản -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- Cột trái: Cấu hình chung SCE -->
-                <div class="lg:col-span-2 bg-white dark:bg-slate-800 rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700 space-y-4">
+                <div class="lg:col-span-2 bg-white dark:bg-slate-800 rounded-xl p-3.5 sm:p-4 shadow-sm border border-slate-200 dark:border-slate-700 space-y-4">
                     <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
                         <h3 class="font-bold text-sm sm:text-base text-slate-800 dark:text-white flex items-center gap-2">
                             <i class="fas fa-sliders-h text-blue-600"></i>
@@ -568,7 +568,7 @@
                 </div>
 
                 <!-- Cột phải: Ma trận Phân quyền 4 Phòng ban -->
-                <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700 space-y-4">
+                <div class="bg-white dark:bg-slate-800 rounded-xl p-3.5 sm:p-4 shadow-sm border border-slate-200 dark:border-slate-700 space-y-4">
                     <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
                         <h3 class="font-bold text-sm sm:text-base text-slate-800 dark:text-white flex items-center gap-2">
                             <i class="fas fa-sitemap text-emerald-600"></i>
@@ -619,7 +619,7 @@
             </div>
 
             <!-- Bảng Tóm tắt Kế hoạch Triển khai 06 Phân hệ -->
-            <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+            <div class="bg-white dark:bg-slate-800 rounded-xl p-3.5 sm:p-4 shadow-sm border border-slate-200 dark:border-slate-700">
                 <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-700">
                     <div>
                         <h3 class="font-bold text-sm sm:text-base text-slate-800 dark:text-white flex items-center gap-2">
@@ -731,54 +731,56 @@
         <!-- ========================================================================= -->
         <!-- TAB 2: PHÂN HỆ 2 - QUẢN LÝ TIẾN ĐỘ SỰ KIỆN 4 TẦNG & ĐỘNG CƠ ĐẾM NGƯỢC -->
         <!-- ========================================================================= -->
-        <section id="mainTab-events" class="space-y-6">
+        <section id="mainTab-events" class="space-y-3.5">
 
             <!-- Card Bảng Điều Khiển & Thống Kê Nhanh (KPI Dashboard) -->
-            <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-                <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pb-5 border-b border-slate-100 dark:border-slate-700">
-                    <div class="flex items-center gap-3 sm:gap-4">
-                        <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-xl sm:text-2xl font-bold shadow-md shadow-blue-500/20">
+            <div class="bg-white dark:bg-slate-800 rounded-xl p-3 sm:p-4 shadow-sm border border-slate-200 dark:border-slate-700">
+                <div class="flex items-center justify-between gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-700">
+                    <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-base sm:text-lg font-bold shadow-sm shrink-0">
                             <i class="fas fa-calendar-check"></i>
                         </div>
-                        <div>
-                            <div class="flex flex-wrap items-center gap-2">
-                                <h2 class="text-base sm:text-xl font-bold text-slate-800 dark:text-white">Tiến Độ Tổ Chức Sự Kiện</h2>
-                                <span class="bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-blue-300 dark:border-blue-700">Progressive Disclosure 4 Tầng</span>
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <h2 class="text-sm sm:text-base font-bold text-slate-800 dark:text-white truncate">Tiến Độ Tổ Chức Sự Kiện</h2>
+                                <span class="bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300 text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-semibold border border-blue-300 dark:border-blue-700 hidden sm:inline">Progressive Disclosure 4 Tầng</span>
                             </div>
-                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Tự động tính ngày làm việc ($T-X$), cảnh báo báo cáo hàng ngày ($T-10$), tác nghiệp $T_0-2	ext{h}$ và phân quyền 4 phòng ban.</p>
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400 truncate hidden md:block">Tự động tính ngày làm việc (T-X), cảnh báo báo cáo hàng ngày (T-10) và phân quyền 4 phòng ban.</p>
                         </div>
                     </div>
 
-                    <!-- Thanh nút chức năng cấp cao -->
-                    <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end">
-                        <button onclick="openCreateEventModal()" class="flex-1 sm:flex-initial bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-md shadow-blue-600/20 transition flex items-center justify-center gap-1.5">
-                            <i class="fas fa-plus-circle text-sm"></i>
-                            <span>Tạo Sự Kiện Mới</span>
+                    <!-- Thanh nút chức năng cấp cao: TẤT CẢ CÙNG HÀNG (FLEX-NOWRAP SHRINK-0) -->
+                    <div class="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap">
+                        <!-- 1. Tạo Sự Kiện Mới -->
+                        <button onclick="openCreateEventModal()" class="px-2.5 sm:px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm transition flex items-center gap-1.5 shrink-0 cursor-pointer" title="Tạo Sự Kiện Mới">
+                            <i class="fas fa-plus text-xs"></i>
+                            <span class="hidden sm:inline">Tạo Sự Kiện</span>
+                            <span class="sm:hidden">Tạo SK</span>
                         </button>
 
-                        <!-- Dropdown Chế độ xem -->
-                        <div class="relative">
-                            <button onclick="toggleViewModeDropdown()" id="btnViewModeDropdown" class="bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 px-3 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 border border-slate-200 dark:border-slate-600">
-                                <i class="fas fa-layer-group text-slate-500"></i>
-                                <span id="currentViewModeLabel">Thu gọn tất cả</span>
+                        <!-- 2. Dropdown Chế độ xem -->
+                        <div class="relative shrink-0">
+                            <button onclick="toggleViewModeDropdown()" id="btnViewModeDropdown" class="px-2.5 sm:px-3 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-medium transition flex items-center gap-1.5 border border-slate-200 dark:border-slate-600 shrink-0 cursor-pointer" title="Chế độ hiển thị thu gọn / mở rộng">
+                                <i class="fas fa-layer-group text-blue-500 text-xs"></i>
+                                <span id="currentViewModeLabel" class="hidden md:inline">Thu gọn tất cả</span>
                                 <i class="fas fa-chevron-down text-[10px] ml-0.5"></i>
                             </button>
-                            <div id="viewModeDropdownMenu" class="hidden absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-2xl py-2 z-50 border border-slate-200 dark:border-slate-700 text-xs">
-                                <button onclick="setViewMode('collapse_all')" class="w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-200">
+                            <div id="viewModeDropdownMenu" class="hidden absolute right-0 mt-1.5 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-2xl py-1.5 z-50 border border-slate-200 dark:border-slate-700 text-xs">
+                                <button onclick="setViewMode('collapse_all')" class="w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-200 cursor-pointer">
                                     <i class="fas fa-compress text-slate-400 w-4"></i>
                                     <div>
                                         <div class="font-semibold">Thu gọn tất cả (Mặc định)</div>
                                         <div class="text-[10px] text-slate-400">Chỉ hiển thị thanh Sự kiện chính</div>
                                     </div>
                                 </button>
-                                <button onclick="setViewMode('expand_groups')" class="w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-200">
+                                <button onclick="setViewMode('expand_groups')" class="w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-200 cursor-pointer">
                                     <i class="fas fa-list text-blue-500 w-4"></i>
                                     <div>
                                         <div class="font-semibold">Mở rộng Nhóm việc (Tầng 2)</div>
                                         <div class="text-[10px] text-slate-400">Hiện danh sách các nhóm công việc</div>
                                     </div>
                                 </button>
-                                <button onclick="setViewMode('expand_all')" class="w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-200">
+                                <button onclick="setViewMode('expand_all')" class="w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-200 cursor-pointer">
                                     <i class="fas fa-expand text-emerald-500 w-4"></i>
                                     <div>
                                         <div class="font-semibold">Mở rộng toàn bộ chi tiết (Tầng 4)</div>
@@ -788,102 +790,104 @@
                             </div>
                         </div>
 
-                        <!-- In danh sách & Báo cáo -->
-                        <button onclick="printAllEventsPlan()" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs transition border border-slate-200 dark:border-slate-600" title="In tổng hợp tiến độ sự kiện (A4)">
+                        <!-- 3. In danh sách & Báo cáo -->
+                        <button onclick="printAllEventsPlan()" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs transition border border-slate-200 dark:border-slate-600 shrink-0 cursor-pointer" title="In tổng hợp tiến độ sự kiện (A4)">
                             <i class="fas fa-print"></i>
                         </button>
-                        <button onclick="exportEventsExcel()" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs transition border border-slate-200 dark:border-slate-600" title="Xuất báo cáo Excel / CSV">
-                            <i class="fas fa-file-excel text-emerald-600"></i>
+
+                        <!-- 4. Xuất Excel -->
+                        <button onclick="exportEventsExcel()" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-emerald-600 dark:text-emerald-400 text-xs transition border border-slate-200 dark:border-slate-600 shrink-0 cursor-pointer" title="Xuất báo cáo Excel / CSV">
+                            <i class="fas fa-file-excel"></i>
                         </button>
                     </div>
                 </div>
 
                 <!-- 4 Thẻ KPI Tóm Tắt Nhanh -->
-                <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 pt-5">
-                    <div class="bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-xl border border-slate-100 dark:border-slate-700 flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300 flex items-center justify-center text-lg">
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 pt-3">
+                    <div class="bg-slate-50 dark:bg-slate-900/50 p-2.5 sm:p-3 rounded-lg border border-slate-100 dark:border-slate-700 flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300 flex items-center justify-center text-sm shrink-0">
                             <i class="fas fa-calendar-days"></i>
                         </div>
-                        <div>
-                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Tổng Sự Kiện</div>
-                            <div class="text-lg font-bold text-slate-800 dark:text-white" id="kpiTotalEvents">0</div>
+                        <div class="min-w-0">
+                            <div class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate">Tổng Sự Kiện</div>
+                            <div class="text-base sm:text-lg font-bold text-slate-800 dark:text-white" id="kpiTotalEvents">0</div>
                         </div>
                     </div>
 
-                    <div class="bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-xl border border-slate-100 dark:border-slate-700 flex items-center gap-3" id="kpiDailyReportCard">
-                        <div class="w-10 h-10 rounded-lg bg-rose-100 dark:bg-rose-900/50 text-rose-600 dark:text-rose-300 flex items-center justify-center text-lg">
+                    <div class="bg-slate-50 dark:bg-slate-900/50 p-2.5 sm:p-3 rounded-lg border border-slate-100 dark:border-slate-700 flex items-center gap-2.5" id="kpiDailyReportCard">
+                        <div class="w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-900/50 text-rose-600 dark:text-rose-300 flex items-center justify-center text-sm shrink-0">
                             <i class="fas fa-bell"></i>
                         </div>
-                        <div>
-                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Báo Cáo Hàng Ngày (T≤10)</div>
-                            <div class="text-lg font-bold text-rose-600 dark:text-rose-400" id="kpiDailyReportCount">0</div>
+                        <div class="min-w-0">
+                            <div class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate">Báo Cáo Hàng Ngày (T≤10)</div>
+                            <div class="text-base sm:text-lg font-bold text-rose-600 dark:text-rose-400" id="kpiDailyReportCount">0</div>
                         </div>
                     </div>
 
-                    <div class="bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-xl border border-slate-100 dark:border-slate-700 flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-300 flex items-center justify-center text-lg">
+                    <div class="bg-slate-50 dark:bg-slate-900/50 p-2.5 sm:p-3 rounded-lg border border-slate-100 dark:border-slate-700 flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-300 flex items-center justify-center text-sm shrink-0">
                             <i class="fas fa-flag-checkered"></i>
                         </div>
-                        <div>
-                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Hôm Nay / Trong Tuần</div>
-                            <div class="text-lg font-bold text-emerald-600 dark:text-emerald-400" id="kpiThisWeekCount">0</div>
+                        <div class="min-w-0">
+                            <div class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate">Hôm Nay / Trong Tuần</div>
+                            <div class="text-base sm:text-lg font-bold text-emerald-600 dark:text-emerald-400" id="kpiThisWeekCount">0</div>
                         </div>
                     </div>
 
-                    <div class="bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-xl border border-slate-100 dark:border-slate-700 flex items-center gap-3" id="kpiOverdueCard">
-                        <div class="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-300 flex items-center justify-center text-lg">
+                    <div class="bg-slate-50 dark:bg-slate-900/50 p-2.5 sm:p-3 rounded-lg border border-slate-100 dark:border-slate-700 flex items-center gap-2.5" id="kpiOverdueCard">
+                        <div class="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-300 flex items-center justify-center text-sm shrink-0">
                             <i class="fas fa-triangle-exclamation"></i>
                         </div>
-                        <div>
-                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Việc Chậm Tiến Độ</div>
-                            <div class="text-lg font-bold text-amber-600 dark:text-amber-400" id="kpiOverdueStepsCount">0</div>
+                        <div class="min-w-0">
+                            <div class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate">Việc Chậm Tiến Độ</div>
+                            <div class="text-base sm:text-lg font-bold text-amber-600 dark:text-amber-400" id="kpiOverdueStepsCount">0</div>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Banner Cảnh Báo Khẩn Cấp Báo Cáo Hàng Ngày (T-10 Engine) -->
-            <div id="module2DailyReportAlert" class="hidden bg-gradient-to-r from-rose-500/15 via-red-500/10 to-amber-500/10 border-2 border-rose-500/40 rounded-2xl p-4 sm:p-5 shadow-sm text-slate-800 dark:text-slate-100 space-y-3">
-                <div class="flex items-start sm:items-center justify-between gap-3">
-                    <div class="flex items-center gap-3">
-                        <span class="w-3 h-3 rounded-full bg-rose-500 animate-ping"></span>
-                        <h3 class="font-bold text-sm sm:text-base text-rose-700 dark:text-rose-400 flex items-center gap-2">
+            <div id="module2DailyReportAlert" class="hidden bg-gradient-to-r from-rose-500/15 via-red-500/10 to-amber-500/10 border-2 border-rose-500/40 rounded-xl p-2.5 sm:p-3.5 shadow-sm text-slate-800 dark:text-slate-100 space-y-2">
+                <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span>
+                        <h3 class="font-bold text-xs sm:text-sm text-rose-700 dark:text-rose-400 flex items-center gap-1.5">
                             <i class="fas fa-bullhorn text-rose-600"></i>
                             <span>CHẾ ĐỘ BÁO CÁO TIẾN ĐỘ HÀNG NGÀY TRÌNH LÃNH ĐẠO TRUNG TÂM & UBND THÀNH PHỐ</span>
                         </h3>
                     </div>
-                    <span class="text-[11px] font-mono font-bold bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 px-2 py-0.5 rounded border border-rose-300 dark:border-rose-800">Quy định mốc T ≤ 10</span>
+                    <span class="text-[10px] font-mono font-bold bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 px-1.5 py-0.5 rounded border border-rose-300 dark:border-rose-800 shrink-0">Mốc T ≤ 10</span>
                 </div>
-                <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                <p class="text-[11px] text-slate-600 dark:text-slate-300 leading-normal">
                     Theo quy trình chuẩn SCE, các sự kiện sắp diễn ra trong vòng <strong>10 ngày làm việc</strong> phải cập nhật và gửi báo cáo tiến độ hàng ngày. Danh sách sự kiện đang trong giai đoạn khẩn cấp:
                 </p>
-                <div id="dailyReportEventsList" class="flex flex-wrap gap-2 pt-1">
+                <div id="dailyReportEventsList" class="flex flex-wrap gap-1.5 pt-0.5">
                     <!-- Nạp qua JS -->
                 </div>
             </div>
 
             <!-- Thanh Tìm Kiếm & Bộ Lọc Nâng Cao -->
-            <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+            <div class="bg-white dark:bg-slate-800 rounded-xl p-2.5 sm:p-3 shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2">
                 <!-- Search input -->
                 <div class="relative flex-1">
-                    <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                    <input type="text" id="module2SearchInput" oninput="onModule2SearchChange()" placeholder="Tìm kiếm tên sự kiện, nhóm việc, bước chi tiết, cán bộ, ghi chú..." class="w-full pl-9 pr-8 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100">
-                    <button onclick="clearModule2Search()" id="btnClearSearch" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input type="text" id="module2SearchInput" oninput="onModule2SearchChange()" placeholder="Tìm kiếm tên sự kiện, nhóm việc, bước chi tiết, cán bộ, ghi chú..." class="w-full pl-8 pr-7 py-1.5 text-xs rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100">
+                    <button onclick="clearModule2Search()" id="btnClearSearch" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer">
                         <i class="fas fa-times-circle"></i>
                     </button>
                 </div>
 
-                <!-- Dropdown lọc -->
-                <div class="flex flex-wrap items-center gap-2">
+                <!-- Dropdown lọc: CÙNG HÀNG VỚI NHAU -->
+                <div class="flex items-center gap-1.5 shrink-0 flex-wrap sm:flex-nowrap">
                     <!-- Lọc Loại hình -->
-                    <select id="filterEventType" onchange="onModule2FilterChange()" class="text-xs py-2 px-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <select id="filterEventType" onchange="onModule2FilterChange()" class="text-xs py-1.5 px-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500">
                         <option value="all">Tất cả loại hình</option>
                         <option value="hoi_nghi">🏛️ Hội nghị / Tọa đàm</option>
                         <option value="hoi_cho">🎪 Hội chợ / Triển lãm</option>
                     </select>
 
                     <!-- Lọc Phòng ban -->
-                    <select id="filterEventDept" onchange="onModule2FilterChange()" class="text-xs py-2 px-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-[150px] sm:max-w-none truncate">
+                    <select id="filterEventDept" onchange="onModule2FilterChange()" class="text-xs py-1.5 px-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 max-w-[150px] sm:max-w-none truncate">
                         <option value="all">Tất cả 4 phòng</option>
                         <option value="Phòng Hành chính - Tổ chức">Phòng HC - TC</option>
                         <option value="Phòng Phát triển doanh nghiệp">Phòng PTDN</option>
@@ -892,7 +896,7 @@
                     </select>
 
                     <!-- Lọc Trạng thái -->
-                    <select id="filterEventStatus" onchange="onModule2FilterChange()" class="text-xs py-2 px-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <select id="filterEventStatus" onchange="onModule2FilterChange()" class="text-xs py-1.5 px-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500">
                         <option value="all">Tất cả trạng thái</option>
                         <option value="daily_report">🚨 Báo cáo hàng ngày (T≤10)</option>
                         <option value="dday_today">⭐ Hôm nay Ngày T0</option>
@@ -902,8 +906,6 @@
                     </select>
                 </div>
             </div>
-
-            <!-- Danh Sách Sự Kiện (Progressive Disclosure 4 Tầng) -->
             <div id="eventsListContainer" class="space-y-4">
                 <!-- Nạp tự động qua JavaScript -->
             </div>
@@ -927,26 +929,26 @@
         <!-- ========================================================================= -->
         <!-- TAB 3: PHÂN HỆ 3 - KHO BIỂU MẪU CHUẨN & TRÌNH SOẠN THẢO TRỰC TIẾP (STUDIO) -->
         <!-- ========================================================================= -->
-        <section id="mainTab-templates" class="hidden space-y-6">
+        <section id="mainTab-templates" class="hidden space-y-3.5">
 
             <!-- Card Bảng Điều Khiển Phân Hệ 3 -->
-            <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-                <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-700">
-                    <div class="flex items-center gap-3 sm:gap-4">
-                        <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center text-xl sm:text-2xl font-bold shadow-md shadow-purple-500/20">
+            <div class="bg-white dark:bg-slate-800 rounded-xl p-3 sm:p-4 shadow-sm border border-slate-200 dark:border-slate-700">
+                <div class="flex items-center justify-between gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-700">
+                    <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center text-base sm:text-lg font-bold shadow-sm shrink-0">
                             <i class="fas fa-file-signature"></i>
                         </div>
-                        <div>
-                            <div class="flex flex-wrap items-center gap-2">
-                                <h2 class="text-base sm:text-xl font-bold text-slate-800 dark:text-white">Smart Template Studio & Kho Biểu Mẫu Chuẩn</h2>
-                                <span class="bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-purple-300 dark:border-purple-700">>30 Biểu Mẫu Chuẩn SCE</span>
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <h2 class="text-sm sm:text-base font-bold text-slate-800 dark:text-white truncate">Kho Biểu Mẫu Chuẩn (Studio)</h2>
+                                <span class="bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300 text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-semibold border border-purple-300 dark:border-purple-700 hidden sm:inline">>30 Mẫu Chuẩn SCE</span>
                             </div>
-                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Soạn thảo trực tiếp khổ A4 (Nghị định 30/2020/NĐ-CP), trộn dữ liệu tự động (Mail Merge) từ Sự kiện và xuất file `.docx`, `.xlsx`, `.pdf`.</p>
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400 truncate hidden md:block">Soạn thảo khổ A4, trộn dữ liệu tự động (Mail Merge) từ Sự kiện và xuất docx, xlsx, pdf.</p>
                         </div>
                     </div>
 
-                    <!-- Thanh Chọn Sự Kiện Để Trộn Dữ Liệu Tự Động -->
-                    <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end">
+                    <!-- Thanh Chọn Sự Kiện Để Trộn Dữ Liệu Tự Động: CÙNG HÀNG (FLEX-NOWRAP SHRINK-0) -->
+                    <div class="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap">
                         <div class="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
                             <i class="fas fa-bullseye text-purple-600 ml-1"></i>
                             <span class="text-slate-500 text-[11px] font-semibold hidden sm:inline">Trộn dữ liệu từ:</span>
@@ -1185,13 +1187,13 @@
 <!-- ========================================================================= -->
         <!-- TAB 4: PHÂN HỆ 4 - QUẢN LÝ KHÁCH MỜI (130%), THẺ/BIỂN TÊN (120%), SƠ ĐỒ CHỖ NGỒI & GIAN HÀNG -->
         <!-- ========================================================================= -->
-        <section id="mainTab-guests" class="hidden space-y-6">
+        <section id="mainTab-guests" class="hidden space-y-3.5">
 
             <!-- Card Bảng Điều Khiển & KPI CRM Khách Mời -->
-            <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-                <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pb-5 border-b border-slate-100 dark:border-slate-700">
+            <div class="bg-white dark:bg-slate-800 rounded-xl p-3 sm:p-4 shadow-sm border border-slate-200 dark:border-slate-700">
+                <div class="flex items-center justify-between gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-700">
                     <div class="flex items-center gap-3 sm:gap-4">
-                        <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-600 text-white flex items-center justify-center text-xl sm:text-2xl font-bold shadow-md shadow-amber-500/20">
+                        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-tr from-amber-500 to-orange-600 text-white flex items-center justify-center text-base sm:text-lg font-bold shadow-sm shrink-0 shadow-amber-500/20">
                             <i class="fas fa-users-rectangle"></i>
                         </div>
                         <div>
@@ -1204,7 +1206,7 @@
                     </div>
 
                     <!-- Thanh Chọn Sự Kiện & Nút Thao Tác Cấp Cao -->
-                    <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end">
+                    <div class="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap">
                         <div class="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
                             <i class="fas fa-calendar-check text-amber-600 ml-1"></i>
                             <span class="text-slate-500 text-[11px] font-semibold hidden sm:inline">Sự kiện:</span>
@@ -1446,7 +1448,7 @@
             <!-- SUB-TAB 3: SƠ ĐỒ CHỖ NGỒI HỘI TRƯỜNG TƯƠNG TÁC (SEATING MAP) -->
             <!-- ========================================================================= -->
             <div id="crmSubTabContent-seating" class="hidden space-y-4">
-                <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700 space-y-4">
+                <div class="bg-white dark:bg-slate-800 rounded-xl p-3 sm:p-4 shadow-sm border border-slate-200 dark:border-slate-700 space-y-4">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-700">
                         <div>
                             <h3 class="font-bold text-sm sm:text-base text-slate-800 dark:text-white flex items-center gap-2">
@@ -1519,7 +1521,7 @@
             <!-- SUB-TAB 4: QUẢN LÝ GIAN HÀNG HỘI CHỢ (BOOTH MANAGEMENT) -->
             <!-- ========================================================================= -->
             <div id="crmSubTabContent-booths" class="hidden space-y-4">
-                <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700 space-y-4">
+                <div class="bg-white dark:bg-slate-800 rounded-xl p-3 sm:p-4 shadow-sm border border-slate-200 dark:border-slate-700 space-y-4">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-700">
                         <div>
                             <h3 class="font-bold text-sm sm:text-base text-slate-800 dark:text-white flex items-center gap-2">
@@ -1584,13 +1586,13 @@
 <!-- ========================================================================= -->
         <!-- TAB 5: PHÂN HỆ 5 - ĐIỀU HÀNH HIỆN TRƯỜNG NGÀY DIỄN RA (T0 CHECK-IN, LỄ TÂN & SỰ CỐ) -->
         <!-- ========================================================================= -->
-        <section id="mainTab-live" class="hidden space-y-6">
+        <section id="mainTab-live" class="hidden space-y-3.5">
 
             <!-- Card Bảng Điều Khiển Hiện Trường Giờ G -->
-            <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-                <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pb-5 border-b border-slate-100 dark:border-slate-700">
+            <div class="bg-white dark:bg-slate-800 rounded-xl p-3 sm:p-4 shadow-sm border border-slate-200 dark:border-slate-700">
+                <div class="flex items-center justify-between gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-700">
                     <div class="flex items-center gap-3 sm:gap-4">
-                        <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-600 text-white flex items-center justify-center text-xl sm:text-2xl font-bold shadow-md shadow-emerald-500/20">
+                        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-tr from-emerald-500 to-teal-600 text-white flex items-center justify-center text-base sm:text-lg font-bold shadow-sm shrink-0 shadow-emerald-500/20">
                             <i class="fas fa-mobile-screen-button"></i>
                         </div>
                         <div>
@@ -1605,7 +1607,7 @@
                     </div>
 
                     <!-- Thanh Chọn Sự Kiện & Nút Thao Tác Hiện Trường -->
-                    <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end">
+                    <div class="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap">
                         <div class="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
                             <i class="fas fa-calendar-check text-emerald-600 ml-1"></i>
                             <span class="text-slate-500 text-[11px] font-semibold hidden sm:inline">Sự kiện:</span>
@@ -1925,13 +1927,13 @@
 <!-- ========================================================================= -->
         <!-- TAB 6: PHÂN HỆ 6 - BÁO CÁO TỰ ĐỘNG (T-10, UBND TP), TRUYỀN THÔNG & LIÊN THÔNG ĐẤU THẦU -->
         <!-- ========================================================================= -->
-        <section id="mainTab-reports" class="hidden space-y-6">
+        <section id="mainTab-reports" class="hidden space-y-3.5">
 
             <!-- Card Bảng Điều Khiển Báo Cáo & Liên Thông -->
-            <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-                <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pb-5 border-b border-slate-100 dark:border-slate-700">
+            <div class="bg-white dark:bg-slate-800 rounded-xl p-3 sm:p-4 shadow-sm border border-slate-200 dark:border-slate-700">
+                <div class="flex items-center justify-between gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-700">
                     <div class="flex items-center gap-3 sm:gap-4">
-                        <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-rose-500 to-red-600 text-white flex items-center justify-center text-xl sm:text-2xl font-bold shadow-md shadow-rose-500/20">
+                        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-tr from-rose-500 to-red-600 text-white flex items-center justify-center text-base sm:text-lg font-bold shadow-sm shrink-0 shadow-rose-500/20">
                             <i class="fas fa-chart-line"></i>
                         </div>
                         <div>
@@ -1946,7 +1948,7 @@
                     </div>
 
                     <!-- Thanh Chọn Sự Kiện & Nút Xuất Báo Cáo Nhanh -->
-                    <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end">
+                    <div class="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap">
                         <div class="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
                             <i class="fas fa-calendar-check text-rose-600 ml-1"></i>
                             <span class="text-slate-500 text-[11px] font-semibold hidden sm:inline">Sự kiện:</span>
@@ -5395,7 +5397,7 @@
                 const sec = document.getElementById(`mainTab-${k}`) || (legacyMap[k] ? document.getElementById(`mainTab-${legacyMap[k]}`) : null);
                 const btn = document.getElementById(`tabBtn-${k}`) || (legacyMap[k] ? document.getElementById(`tabBtn-${legacyMap[k]}`) : null);
                 if (sec) sec.classList.add('hidden');
-                if (btn) btn.className = "px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-1.5";
+                if (btn) btn.className = "px-2.5 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-1.5 text-xs";
             });
 
             const activeSec = document.getElementById(`mainTab-${activeTarget}`) || (legacyMap[activeTarget] ? document.getElementById(`mainTab-${legacyMap[activeTarget]}`) : null);
@@ -5410,7 +5412,7 @@
                 else if (activeTarget === 'reports') activeColor = "bg-rose-600";
                 else if (activeTarget === 'users') activeColor = "bg-cyan-600";
                 else if (activeTarget === 'admin') activeColor = "bg-slate-700";
-                activeBtn.className = `px-3 py-1.5 rounded-lg font-semibold flex items-center gap-2 ${activeColor} text-white shadow-sm transition`;
+                activeBtn.className = `px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1.5 ${activeColor} text-white shadow-sm transition text-xs`;
             }
 
             // Kích hoạt render dữ liệu tương ứng
