@@ -1,0 +1,103 @@
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+    <meta charset='utf-8'>
+    <title>Phiếu khảo sát Địa điểm & Yêu cầu 03 Báo giá lập dự toán</title>
+    <!-- Template Metadata:
+         ID: form_khaosat_diadiem
+         CODE: KSDD-TTXT
+         GROUP: cap_trungtam
+         GROUP_NAME: 3. Cấp Trung tâm (SCE)
+         TITLE: Phiếu khảo sát Địa điểm & Yêu cầu 03 Báo giá lập dự toán
+    -->
+    <style>
+        @page WordSection1 {
+            size: 21.0cm 29.7cm;
+            margin: 2.0cm 2.0cm 2.0cm 3.0cm;
+            mso-page-orientation: portrait;
+        }
+        div.WordSection1 {
+            page: WordSection1;
+            font-family: 'Times New Roman', serif;
+            font-size: 14pt;
+            line-height: 1.5;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 12px 0;
+        }
+        td, th {
+            border: 1px solid #000;
+            padding: 6px 8px;
+            font-size: 13pt;
+            vertical-align: top;
+        }
+        p {
+            margin: 6px 0;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="WordSection1">
+        <div style="font-family: 'Times New Roman', serif; line-height: 1.6; font-size: 13pt;">
+    <div style="text-align: center; margin-bottom: 20px;">
+        <h3 style="font-size: 15pt; font-weight: bold; text-transform: uppercase; margin: 0;">PHIẾU KHẢO SÁT THỰC TẾ ĐỊA ĐIỂM VÀ SO SÁNH BÁO GIÁ</h3>
+        <p style="margin: 4px 0; font-weight: bold; color: #1e3a8a;">Sự kiện: {{TEN_SU_KIEN}}</p>
+    </div>
+
+    <p><strong>1. Tiêu chí kiểm tra thực tế địa điểm:</strong></p>
+    <table style="width: 100%; border-collapse: collapse; font-size: 12pt; margin: 10px 0;" border="1">
+        <thead>
+            <tr style="background-color: #f1f5f9; text-align: center;">
+                <th style="padding: 6px;">Hạng mục khảo sát</th>
+                <th style="padding: 6px;">Yêu cầu tối thiểu</th>
+                <th style="padding: 6px;">Hiện trạng tại {{DIA_DIEM}}</th>
+                <th style="padding: 6px;">Đánh giá</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="padding: 6px; font-weight: bold;">Hội trường chính</td>
+                <td style="padding: 6px;">Sức chứa ≥ 250 chỗ ngồi xếp kiểu rạp hát</td>
+                <td style="padding: 6px;">Hội trường Grand Ballroom 350 chỗ</td>
+                <td style="padding: 6px; text-align: center; color: green; font-weight: bold;">Đạt</td>
+            </tr>
+            <tr>
+                <td style="padding: 6px; font-weight: bold;">Phòng chờ VIP</td>
+                <td style="padding: 6px;">Cách âm, tiện nghi khánh tiết riêng</td>
+                <td style="padding: 6px;">Phòng VIP Lounge sang trọng</td>
+                <td style="padding: 6px; text-align: center; color: green; font-weight: bold;">Đạt</td>
+            </tr>
+            <tr>
+                <td style="padding: 6px; font-weight: bold;">Cabin dịch song ngữ</td>
+                <td style="padding: 6px;">Bố trí 02 cabin dịch cách âm chuẩn</td>
+                <td style="padding: 6px;">Có sẵn 02 cabin dịch cố định</td>
+                <td style="padding: 6px; text-align: center; color: green; font-weight: bold;">Đạt</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <p style="margin-top: 15px;"><strong>2. Bảng so sánh 03 Báo giá làm cơ sở lập Dự toán:</strong></p>
+    <table style="width: 100%; border-collapse: collapse; font-size: 12pt; margin: 10px 0;" border="1">
+        <thead>
+            <tr style="background-color: #f1f5f9; text-align: center;">
+                <th style="padding: 6px;">Đơn vị cung cấp</th>
+                <th style="padding: 6px;">Giá chào (đã gồm VAT)</th>
+                <th style="padding: 6px;">Dịch vụ bao gồm</th>
+                <th style="padding: 6px;">Đề xuất lựa chọn</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="padding: 6px; font-weight: bold;">Đơn vị A (Địa điểm chính)</td>
+                <td style="padding: 6px; text-align: center; font-weight: bold;">{{KINH_PHI_DU_TOAN}} VNĐ</td>
+                <td style="padding: 6px;">Hội trường, âm thanh, ánh sáng, màn led, tea-break</td>
+                <td style="padding: 6px; text-align: center; color: green; font-weight: bold;">Khuyến nghị chọn</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+    </div>
+</body>
+</html>

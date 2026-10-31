@@ -1,0 +1,64 @@
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+    <meta charset='utf-8'>
+    <title>Hợp đồng & Phiếu giao việc MC chuyên nghiệp & Dịch cabin</title>
+    <!-- Template Metadata:
+         ID: form_hopdong_mc
+         CODE: HDMC-TTXT
+         GROUP: cap_trungtam
+         GROUP_NAME: 3. Cấp Trung tâm (SCE)
+         TITLE: Hợp đồng & Phiếu giao việc MC chuyên nghiệp & Dịch cabin
+    -->
+    <style>
+        @page WordSection1 {
+            size: 21.0cm 29.7cm;
+            margin: 2.0cm 2.0cm 2.0cm 3.0cm;
+            mso-page-orientation: portrait;
+        }
+        div.WordSection1 {
+            page: WordSection1;
+            font-family: 'Times New Roman', serif;
+            font-size: 14pt;
+            line-height: 1.5;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 12px 0;
+        }
+        td, th {
+            border: 1px solid #000;
+            padding: 6px 8px;
+            font-size: 13pt;
+            vertical-align: top;
+        }
+        p {
+            margin: 6px 0;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="WordSection1">
+        <div style="font-family: 'Times New Roman', serif; line-height: 1.6; font-size: 13pt;">
+    <div style="text-align: center; margin-bottom: 20px;">
+        <h3 style="font-size: 15pt; font-weight: bold; text-transform: uppercase; margin: 0;">HỢP ĐỒNG DỊCH VỤ DẪN CHƯƠNG TRÌNH & DỊCH CABIN</h3>
+        <p style="margin: 4px 0; font-weight: bold; color: #1e3a8a;">Chương trình: {{TEN_SU_KIEN}}</p>
+    </div>
+    <p><strong>Bên A (Bên thuê dịch vụ):</strong> Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp Hà Nội (SCE)</p>
+    <p><strong>Bên B (Bên cung cấp dịch vụ):</strong> Đơn vị / Chuyên gia MC song ngữ</p>
+    <p><strong>Điều 1: Nội dung công việc:</strong></p>
+    <ul>
+        <li>Cung cấp 01 MC chuyên nghiệp dẫn chương trình song ngữ Việt - Anh theo Kịch bản run-sheet của Ban Tổ chức.</li>
+        <li>Cung cấp 02 phiên dịch viên cabin có tối thiểu 05 năm kinh nghiệm dịch hội nghị cấp cao.</li>
+        <li>Thời gian làm việc: Từ {{GIO_KHAI_MAC}} ngày {{NGAY_TO_CHUC}} tại {{DIA_DIEM}}.</li>
+    </ul>
+    <p><strong>Điều 2: Yêu cầu chất lượng & Trang phục:</strong></p>
+    <ul>
+        <li>Có mặt trước giờ khai mạc 60 phút để khớp kịch bản và thử mic với bộ phận kỹ thuật.</li>
+        <li>Trang phục: Nam complet lịch sự, Nữ áo dài truyền thống trang trọng.</li>
+    </ul>
+</div>
+    </div>
+</body>
+</html>

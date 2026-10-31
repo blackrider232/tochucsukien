@@ -1,0 +1,95 @@
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+    <meta charset='utf-8'>
+    <title>Checklist kiểm tra Hiện trường trước giờ khai mạc (T0 - 2h)</title>
+    <!-- Template Metadata:
+         ID: form_checklist_hientruong
+         CODE: CLHT-TTXT
+         GROUP: cap_trungtam
+         GROUP_NAME: 3. Cấp Trung tâm (SCE)
+         TITLE: Checklist kiểm tra Hiện trường trước giờ khai mạc (T0 - 2h)
+    -->
+    <style>
+        @page WordSection1 {
+            size: 21.0cm 29.7cm;
+            margin: 2.0cm 2.0cm 2.0cm 3.0cm;
+            mso-page-orientation: portrait;
+        }
+        div.WordSection1 {
+            page: WordSection1;
+            font-family: 'Times New Roman', serif;
+            font-size: 14pt;
+            line-height: 1.5;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 12px 0;
+        }
+        td, th {
+            border: 1px solid #000;
+            padding: 6px 8px;
+            font-size: 13pt;
+            vertical-align: top;
+        }
+        p {
+            margin: 6px 0;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="WordSection1">
+        <div style="font-family: 'Times New Roman', serif; font-size: 12pt;">
+    <div style="text-align: center; margin-bottom: 15px;">
+        <h3 style="font-size: 15pt; font-weight: bold; text-transform: uppercase; margin: 0;">CHECKLIST KIỂM TRA HIỆN TRƯỜNG TRƯỚC GIỜ KHAI MẠC (T0 - 2H)</h3>
+        <p style="margin: 4px 0; font-weight: bold; color: #1e3a8a;">Sự kiện: {{TEN_SU_KIEN}}</p>
+        <p style="margin: 0; font-style: italic; font-size: 11pt;">Yêu cầu: Toàn bộ cán bộ có mặt đúng 2 tiếng trước giờ khai mạc</p>
+    </div>
+
+    <table style="width: 100%; border-collapse: collapse; font-size: 11pt;" border="1">
+        <thead>
+            <tr style="background-color: #f1f5f9; text-align: center;">
+                <th style="padding: 6px; width: 6%;">STT</th>
+                <th style="padding: 6px; width: 45%;">Hạng mục kiểm tra cấp bách</th>
+                <th style="padding: 6px; width: 25%;">Bộ phận phụ trách</th>
+                <th style="padding: 6px; width: 24%;">Tình trạng kiểm tra</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="padding: 6px; text-align: center;">1</td>
+                <td style="padding: 6px;">Biển chỉ dẫn lối vào từ cổng chính đến sảnh hội trường</td>
+                <td style="padding: 6px;">Tổ Hậu cần</td>
+                <td style="padding: 6px; text-align: center; color: green; font-weight: bold;">✓ Đã đặt đúng vị trí</td>
+            </tr>
+            <tr>
+                <td style="padding: 6px; text-align: center;">2</td>
+                <td style="padding: 6px;">Kiểm tra đặt Biển tên chữ A đại biểu VIP hàng ghế 1</td>
+                <td style="padding: 6px;">Tổ Biển tên & Thẻ</td>
+                <td style="padding: 6px; text-align: center; color: green; font-weight: bold;">✓ Đầy đủ, đúng sơ đồ</td>
+            </tr>
+            <tr>
+                <td style="padding: 6px; text-align: center;">3</td>
+                <td style="padding: 6px;">Thử mic không dây, slide máy tính, cabin dịch</td>
+                <td style="padding: 6px;">Tổ Kỹ thuật</td>
+                <td style="padding: 6px; text-align: center; color: green; font-weight: bold;">✓ Hoạt động hoàn hảo</td>
+            </tr>
+            <tr>
+                <td style="padding: 6px; text-align: center;">4</td>
+                <td style="padding: 6px;">Phòng tiếp đón VIP: Trà, nước khoáng, hoa tươi</td>
+                <td style="padding: 6px;">Tổ Lễ tân VIP</td>
+                <td style="padding: 6px; text-align: center; color: green; font-weight: bold;">✓ Sẵn sàng đón khách</td>
+            </tr>
+            <tr>
+                <td style="padding: 6px; text-align: center;">5</td>
+                <td style="padding: 6px;">Bàn lễ tân: Thẻ đại biểu, tài liệu kỷ yếu, bút ký</td>
+                <td style="padding: 6px;">Tổ Lễ tân</td>
+                <td style="padding: 6px; text-align: center; color: green; font-weight: bold;">✓ Sẵn sàng check-in</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+    </div>
+</body>
+</html>

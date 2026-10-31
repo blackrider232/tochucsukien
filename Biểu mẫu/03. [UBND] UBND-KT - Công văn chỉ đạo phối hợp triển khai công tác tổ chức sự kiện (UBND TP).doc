@@ -1,0 +1,86 @@
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+    <meta charset='utf-8'>
+    <title>Công văn chỉ đạo phối hợp triển khai công tác tổ chức sự kiện (UBND TP)</title>
+    <!-- Template Metadata:
+         ID: form_congvan_ubnd_phoihop
+         CODE: UBND-KT
+         GROUP: cap_ubnd
+         GROUP_NAME: 1. Cấp UBND Thành phố Hà Nội
+         TITLE: Công văn chỉ đạo phối hợp triển khai công tác tổ chức sự kiện (UBND TP)
+    -->
+    <style>
+        @page WordSection1 {
+            size: 21.0cm 29.7cm;
+            margin: 2.0cm 2.0cm 2.0cm 3.0cm;
+            mso-page-orientation: portrait;
+        }
+        div.WordSection1 {
+            page: WordSection1;
+            font-family: 'Times New Roman', serif;
+            font-size: 14pt;
+            line-height: 1.5;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 12px 0;
+        }
+        td, th {
+            border: 1px solid #000;
+            padding: 6px 8px;
+            font-size: 13pt;
+            vertical-align: top;
+        }
+        p {
+            margin: 6px 0;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="WordSection1">
+        <div style="font-family: 'Times New Roman', serif; line-height: 1.6; font-size: 14pt;">
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+        <tr>
+            <td style="width: 50%; text-align: center; vertical-align: top;">
+                <strong>ỦY BAN NHÂN DÂN</strong><br>
+                <strong>THÀNH PHỐ HÀ NỘI</strong><br>
+                <span style="font-size: 11pt;">Số: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /UBND-KT</span>
+            </td>
+            <td style="width: 50%; text-align: center; vertical-align: top;">
+                <strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><br>
+                <strong>Độc lập - Tự do - Hạnh phúc</strong><br>
+                <span style="font-size: 11pt; font-style: italic;">Hà Nội, {{NGAY_HOM_NAY}}</span>
+            </td>
+        </tr>
+    </table>
+
+    <div style="margin: 20px 0;">
+        <p><strong>V/v:</strong> Phối hợp bảo đảm an ninh, trật tự, giao thông và y tế phục vụ chương trình {{TEN_SU_KIEN}}</p>
+        <p style="text-align: center; margin-top: 15px;"><strong>Kính gửi:</strong> Công an Thành phố; Sở Giao thông vận tải; Sở Y tế; UBND các quận/huyện liên quan</p>
+    </div>
+
+    <p style="text-indent: 30px; text-align: justify;">
+        Để chương trình <strong>{{TEN_SU_KIEN}}</strong> diễn ra vào ngày <strong>{{NGAY_TO_CHUC}}</strong> tại <strong>{{DIA_DIEM}}</strong> được an toàn, chu đáo và thành công tốt đẹp, UBND Thành phố chỉ đạo:
+    </p>
+    <p style="text-indent: 30px; text-align: justify;">
+        1. <strong>Công an Thành phố:</strong> Xây dựng phương án đảm bảo an ninh trật tự, an toàn phòng chống cháy nổ tại địa điểm tổ chức; phân luồng giao thông chống ùn tắc.<br>
+        2. <strong>Sở Y tế:</strong> Bố trí 01 tổ y tế thường trực cùng xe cứu thương và trang thiết bị y tế tại hiện trường phục vụ đại biểu suốt thời gian diễn ra sự kiện.<br>
+        3. <strong>Sở Tài chính:</strong> Chỉ đạo Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp chủ động liên hệ, phối hợp chặt chẽ với các đơn vị để triển khai thực hiện./.
+    </p>
+
+    <table style="width: 100%; border-collapse: collapse; margin-top: 40px;">
+        <tr>
+            <td style="width: 50%;"></td>
+            <td style="width: 50%; text-align: center;">
+                <strong>TM. ỦY BAN NHÂN DÂN THÀNH PHỐ</strong><br>
+                <strong>KT. CHỦ TỊCH</strong><br>
+                <strong>PHÓ CHỦ TỊCH</strong>
+            </td>
+        </tr>
+    </table>
+</div>
+    </div>
+</body>
+</html>
