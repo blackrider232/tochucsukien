@@ -5,15 +5,19 @@ Thumbs.db
 *.tmp
 *.log
 
-# Internal documents & specifications
-*.docx
-*.doc
-!Biểu mẫu/*.doc
-*.xlsx
-*.xls
-*.pdf
-database/
+# Local Documentation & Office Templates (Chỉ lưu trên máy tính)
+/doc/
+
+# Local AI Context & MCP Configuration (Chỉ lưu trên máy tính)
+/mcp/
+
+# Database Schemas & DDL (Đã triển khai trực tiếp trên Supabase)
+/code/database/
 *.sql
-KE_HOACH_*.md
-QUY_TRINH_*.md
-Logo (tách nền sát cạnh).png
+
+# Local Development Scripts & Testing Tools (Chỉ chạy trên máy tính)
+/code/test_suite.py
+/code/import_templates_from_folder.py
+
+# Unused/Raw Source Graphics
+/icon/Logo (tách nền sát cạnh).png
