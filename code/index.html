@@ -554,6 +554,10 @@
                             <i class="fas fa-history text-indigo-500"></i>
                             <span>Nhật ký</span>
                         </button>
+                        <button onclick="scrollToMasterGuestDbSection()" class="flex-1 md:flex-initial px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-sm transition flex items-center justify-center gap-2 cursor-pointer" title="Quản trị CSDL Danh bạ Khách mời & Doanh nghiệp dùng chung">
+                            <i class="fas fa-address-book"></i>
+                            <span>CSDL Khách & DN</span>
+                        </button>
                         <button onclick="scrollToAdminTemplates()" class="flex-1 md:flex-initial px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-semibold shadow-sm transition flex items-center justify-center gap-2" title="Quản trị và sửa đổi các loại biểu mẫu chuẩn hệ thống">
                             <i class="fas fa-file-signature"></i>
                             <span>Quản trị Biểu Mẫu</span>
@@ -1256,6 +1260,11 @@
                                 <!-- Nạp qua JS -->
                             </select>
                         </div>
+
+                        <button onclick="openBatchImportFromMasterDbModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-xl text-xs font-semibold shadow transition flex items-center gap-1.5 cursor-pointer" title="Chọn hàng loạt đại biểu và doanh nghiệp từ CSDL Master vào sự kiện">
+                            <i class="fas fa-address-book"></i>
+                            <span class="hidden sm:inline">Nhập từ CSDL Master</span>
+                        </button>
 
                         <button onclick="openCreateGuestModal()" class="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-md shadow-amber-600/20 transition flex items-center gap-1.5">
                             <i class="fas fa-user-plus text-sm"></i>
@@ -3409,9 +3418,17 @@
                 <input type="hidden" id="crmGuestId">
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                        <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Họ và Tên Đại Biểu <span class="text-rose-500">*</span></label>
-                        <input type="text" id="crmGuestName" required placeholder="Ví dụ: Nguyễn Văn A" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-800 dark:text-slate-100 font-semibold">
+                    <div class="relative">
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="block font-semibold text-slate-700 dark:text-slate-300">Họ và Tên Đại Biểu <span class="text-rose-500">*</span></label>
+                            <button type="button" onclick="openMasterGuestPickerModal()" class="text-[11px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 font-semibold cursor-pointer" title="Tra cứu nhanh toàn bộ CSDL Khách mời & Doanh nghiệp">
+                                <i class="fas fa-search"></i> Tra cứu CSDL
+                            </button>
+                        </div>
+                        <input type="text" id="crmGuestName" required autocomplete="off" oninput="handleCrmGuestNameSuggest(this.value)" onfocus="handleCrmGuestNameFocus(this.value)" placeholder="Gõ tên để tự động đối chiếu & gợi ý từ CSDL..." class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-800 dark:text-slate-100 font-semibold">
+                        
+                        <!-- Dropdown Gợi Ý Đối Chiếu CSDL Nổi Lên -->
+                        <div id="crmGuestSuggestDropdown" class="hidden absolute left-0 right-0 top-full mt-1.5 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 z-50 max-h-64 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700 text-xs"></div>
                     </div>
 
                     <div>
@@ -4757,6 +4774,237 @@
                     <button type="button" onclick="saveAdminTemplateChanges()" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-5 py-2 rounded-xl font-bold shadow-md shadow-purple-600/30 transition flex items-center gap-2 cursor-pointer">
                         <i class="fas fa-save"></i>
                         <span>Lưu Cập Nhật Biểu Mẫu Chuẩn</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
+    <!-- ========================================================================= -->
+    <!-- MODAL THÊM / SỬA ĐỐI TƯỢNG CSDL MASTER -->
+    <!-- ========================================================================= -->
+    <div id="masterGuestModal" class="hidden fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-lg w-full p-5 sm:p-6 border border-slate-200 dark:border-slate-700 space-y-4 max-h-[92vh] overflow-y-auto">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 flex items-center justify-center font-bold">
+                        <i class="fas fa-address-card"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base text-slate-800 dark:text-white" id="masterGuestModalTitle">Thêm Đối Tượng CSDL Master</h3>
+                        <p class="text-[11px] text-slate-500">Hồ sơ dùng chung tự động gợi ý cho toàn hệ thống</p>
+                    </div>
+                </div>
+                <button onclick="closeMasterGuestModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"><i class="fas fa-times"></i></button>
+            </div>
+
+            <form id="masterGuestForm" onsubmit="saveMasterGuest(event)" class="space-y-3.5 text-xs">
+                <input type="hidden" id="masterGuestId">
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Họ và Tên Đại Biểu / Đầu Mối <span class="text-rose-500">*</span></label>
+                        <input type="text" id="masterGuestName" required placeholder="Ví dụ: Trần Sỹ Thanh" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 dark:text-slate-100 font-semibold">
+                    </div>
+
+                    <div>
+                        <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Nhóm Đối Tượng <span class="text-rose-500">*</span></label>
+                        <select id="masterGuestGroup" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 dark:text-slate-100 font-medium">
+                            <option value="VIP">⭐ Đại biểu VIP (Lãnh đạo TP, Bộ ngành)</option>
+                            <option value="SoNganh">🏛️ Khối Sở ban ngành & Quận huyện</option>
+                            <option value="DoanhNghiep">💼 Doanh nghiệp & HTX</option>
+                            <option value="QuocTe">🌐 Khách Quốc tế / Ngoại giao</option>
+                            <option value="BaoChi">📰 Báo chí, Truyền hình</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Chức Vụ / Chức Danh</label>
+                        <input type="text" id="masterGuestTitle" placeholder="Ví dụ: Chủ tịch / Tổng Giám đốc" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 dark:text-slate-100">
+                    </div>
+
+                    <div>
+                        <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Cơ Quan / Doanh Nghiệp <span class="text-rose-500">*</span></label>
+                        <input type="text" id="masterGuestOrganization" required placeholder="Ví dụ: UBND TP Hà Nội / Tập đoàn ABC" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 dark:text-slate-100">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Số Điện Thoại Liên Hệ</label>
+                        <input type="text" id="masterGuestPhone" placeholder="09xx.xxx.xxx hoặc 024.xxxx.xxxx" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 dark:text-slate-100 font-mono">
+                    </div>
+
+                    <div>
+                        <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Hộp Thư Điện Tử (Email)</label>
+                        <input type="email" id="masterGuestEmail" placeholder="email@agency.gov.vn hoặc contact@company.vn" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 dark:text-slate-100">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Địa Chỉ Trụ Sở / Cơ Quan</label>
+                        <input type="text" id="masterGuestAddress" placeholder="Địa chỉ chuyển phát giấy mời" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 dark:text-slate-100">
+                    </div>
+
+                    <div>
+                        <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Mã Số Thuế / Ngành Nghề</label>
+                        <input type="text" id="masterGuestTaxCode" placeholder="Mã số thuế hoặc Lĩnh vực" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 dark:text-slate-100">
+                    </div>
+                </div>
+
+                <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                    <div>
+                        <p class="font-semibold text-slate-800 dark:text-slate-200">Mặc định tham dự Tiệc Chiêu Đãi & Xếp chỗ VIP</p>
+                        <p class="text-[11px] text-slate-500">Tự động tích chọn có tiệc chiêu đãi khi đưa vào sự kiện</p>
+                    </div>
+                    <input type="checkbox" id="masterGuestHasBanquet" class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer">
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Ghi Chú Nghi Thức & Lễ Tân Đón Tiếp</label>
+                    <textarea id="masterGuestNotes" rows="2" placeholder="Ví dụ: Đón tại Phòng Khánh tiết VIP, có xe dẫn đường, bố trí phiên dịch..." class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 dark:text-slate-100"></textarea>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-700">
+                    <button type="button" onclick="closeMasterGuestModal()" class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition font-semibold cursor-pointer">Hủy</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md shadow-emerald-600/30 transition flex items-center gap-1.5 cursor-pointer">
+                        <i class="fas fa-save"></i>
+                        <span>Lưu Đối Tượng</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL TRA CỨU & CHỌN KHÁCH MỜI TỪ CSDL MASTER -->
+    <!-- ========================================================================= -->
+    <div id="masterGuestPickerModal" class="hidden fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-3xl w-full p-5 sm:p-6 border border-slate-200 dark:border-slate-700 space-y-4 max-h-[90vh] flex flex-col">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700 shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 flex items-center justify-center font-bold">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base text-slate-800 dark:text-white">Tra Cứu & Chọn Từ CSDL Master</h3>
+                        <p class="text-[11px] text-slate-500">Chọn 1 đối tượng để tự động điền nhanh toàn bộ thông tin</p>
+                    </div>
+                </div>
+                <button onclick="closeMasterGuestPickerModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"><i class="fas fa-times"></i></button>
+            </div>
+
+            <!-- Filter bar -->
+            <div class="space-y-2.5 shrink-0">
+                <div class="relative">
+                    <i class="fas fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                    <input type="text" id="pickerSearchInput" oninput="renderMasterGuestPickerTable()" placeholder="Gõ tên đại biểu, chức danh, cơ quan, số điện thoại..." class="w-full pl-8 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+
+                <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+                    <button id="pickerFilterBtn-all" onclick="filterMasterGuestPickerGroup('all')" class="px-2.5 py-1 rounded-lg font-bold bg-emerald-600 text-white shrink-0 cursor-pointer">Tất cả</button>
+                    <button id="pickerFilterBtn-VIP" onclick="filterMasterGuestPickerGroup('VIP')" class="px-2.5 py-1 rounded-lg font-semibold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 shrink-0 cursor-pointer">⭐ VIP</button>
+                    <button id="pickerFilterBtn-SoNganh" onclick="filterMasterGuestPickerGroup('SoNganh')" class="px-2.5 py-1 rounded-lg font-semibold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 shrink-0 cursor-pointer">🏛️ Sở ngành</button>
+                    <button id="pickerFilterBtn-DoanhNghiep" onclick="filterMasterGuestPickerGroup('DoanhNghiep')" class="px-2.5 py-1 rounded-lg font-semibold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 shrink-0 cursor-pointer">💼 Doanh nghiệp</button>
+                    <button id="pickerFilterBtn-QuocTe" onclick="filterMasterGuestPickerGroup('QuocTe')" class="px-2.5 py-1 rounded-lg font-semibold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 shrink-0 cursor-pointer">🌐 Quốc tế</button>
+                    <button id="pickerFilterBtn-BaoChi" onclick="filterMasterGuestPickerGroup('BaoChi')" class="px-2.5 py-1 rounded-lg font-semibold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 shrink-0 cursor-pointer">📰 Báo chí</button>
+                </div>
+            </div>
+
+            <!-- Table container -->
+            <div class="overflow-y-auto flex-1 rounded-xl border border-slate-200 dark:border-slate-700">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10">
+                        <tr>
+                            <th class="py-2.5 px-3 w-24">Nhóm</th>
+                            <th class="py-2.5 px-3">Họ và Tên & Chức Danh</th>
+                            <th class="py-2.5 px-3">Cơ Quan / Doanh Nghiệp</th>
+                            <th class="py-2.5 px-3">Liên Hệ</th>
+                            <th class="py-2.5 px-3 w-20 text-center">Chọn</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pickerTableBody" class="divide-y divide-slate-100 dark:divide-slate-700/60 bg-white dark:bg-slate-800">
+                        <!-- Nạp qua JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-700 shrink-0 text-xs">
+                <span class="text-slate-500" id="pickerCountLabel">Hiển thị 0 đối tượng</span>
+                <button onclick="closeMasterGuestPickerModal()" class="px-4 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-semibold cursor-pointer">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL NHẬP HÀNG LOẠT TỪ CSDL MASTER VÀO SỰ KIỆN -->
+    <!-- ========================================================================= -->
+    <div id="batchImportMasterModal" class="hidden fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-4xl w-full p-5 sm:p-6 border border-slate-200 dark:border-slate-700 space-y-4 max-h-[92vh] flex flex-col">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700 shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 flex items-center justify-center font-bold">
+                        <i class="fas fa-file-import"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base text-slate-800 dark:text-white">Nhập Hàng Loạt Từ CSDL Master Vào Sự Kiện</h3>
+                        <p class="text-[11px] text-slate-500">Tích chọn các đại biểu hoặc doanh nghiệp để nạp đồng loạt vào sự kiện hiện tại</p>
+                    </div>
+                </div>
+                <button onclick="closeBatchImportMasterModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"><i class="fas fa-times"></i></button>
+            </div>
+
+            <!-- Filter & Search Bar -->
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 shrink-0">
+                <div class="relative flex-1">
+                    <i class="fas fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                    <input type="text" id="batchImportSearchInput" oninput="renderBatchImportMasterTable()" placeholder="Lọc theo họ tên, cơ quan, chức vụ..." class="w-full pl-8 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+
+                <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs shrink-0">
+                    <button id="batchFilterBtn-all" onclick="filterBatchImportMasterGroup('all')" class="px-2.5 py-1 rounded-lg font-bold bg-emerald-600 text-white shrink-0 cursor-pointer">Tất cả</button>
+                    <button id="batchFilterBtn-VIP" onclick="filterBatchImportMasterGroup('VIP')" class="px-2.5 py-1 rounded-lg font-semibold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 shrink-0 cursor-pointer">⭐ VIP</button>
+                    <button id="batchFilterBtn-SoNganh" onclick="filterBatchImportMasterGroup('SoNganh')" class="px-2.5 py-1 rounded-lg font-semibold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 shrink-0 cursor-pointer">🏛️ Sở ngành</button>
+                    <button id="batchFilterBtn-DoanhNghiep" onclick="filterBatchImportMasterGroup('DoanhNghiep')" class="px-2.5 py-1 rounded-lg font-semibold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 shrink-0 cursor-pointer">💼 Doanh nghiệp</button>
+                    <button id="batchFilterBtn-QuocTe" onclick="filterBatchImportMasterGroup('QuocTe')" class="px-2.5 py-1 rounded-lg font-semibold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 shrink-0 cursor-pointer">🌐 Quốc tế</button>
+                    <button id="batchFilterBtn-BaoChi" onclick="filterBatchImportMasterGroup('BaoChi')" class="px-2.5 py-1 rounded-lg font-semibold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 shrink-0 cursor-pointer">📰 Báo chí</button>
+                </div>
+            </div>
+
+            <!-- Table container with checkboxes -->
+            <div class="overflow-y-auto flex-1 rounded-xl border border-slate-200 dark:border-slate-700">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10">
+                        <tr>
+                            <th class="py-2.5 px-3 w-10 text-center">
+                                <input type="checkbox" id="batchSelectAllCheckbox" onchange="toggleBatchImportSelectAll(this.checked)" class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer">
+                            </th>
+                            <th class="py-2.5 px-3 w-28">Nhóm</th>
+                            <th class="py-2.5 px-3">Họ và Tên & Chức Danh</th>
+                            <th class="py-2.5 px-3">Cơ Quan / Doanh Nghiệp</th>
+                            <th class="py-2.5 px-3">Liên Hệ</th>
+                            <th class="py-2.5 px-3 w-28 text-center">Trạng Thái</th>
+                        </tr>
+                    </thead>
+                    <tbody id="batchImportTableBody" class="divide-y divide-slate-100 dark:divide-slate-700/60 bg-white dark:bg-slate-800">
+                        <!-- Nạp qua JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-700 shrink-0 text-xs">
+                <div class="flex items-center gap-2">
+                    <span class="text-slate-500">Đã chọn: <strong id="batchSelectedCount" class="text-emerald-600 dark:text-emerald-400 font-bold">0</strong> đại biểu</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="closeBatchImportMasterModal()" class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-semibold cursor-pointer">Hủy</button>
+                    <button onclick="executeBatchImportMasterGuests()" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md shadow-emerald-600/30 transition flex items-center gap-1.5 cursor-pointer">
+                        <i class="fas fa-check-double"></i>
+                        <span>Nhập Đại Biểu Đã Chọn</span>
                     </button>
                 </div>
             </div>
@@ -6469,7 +6717,10 @@
                 else if (activeTarget === 'live') activeColor = "bg-teal-600 shadow-md shadow-teal-600/30 text-white font-bold";
                 else if (activeTarget === 'reports') activeColor = "bg-rose-600 shadow-md shadow-rose-600/30 text-white font-bold";
                 else if (activeTarget === 'users') activeColor = "bg-cyan-600 shadow-md shadow-cyan-600/30 text-white font-bold";
-                else if (activeTarget === 'admin') activeColor = "bg-slate-700 shadow-md text-white font-bold";
+                else if (activeTarget === 'admin') {
+                    activeColor = "bg-slate-700 shadow-md text-white font-bold";
+                    if (typeof renderMasterGuestDbUI === 'function') setTimeout(renderMasterGuestDbUI, 50);
+                }
                 activeBtn.className = `sidebar-nav-btn w-full px-3 py-2.5 rounded-xl flex items-center gap-3 ${activeColor} transition text-xs cursor-pointer text-left`;
             }
 
@@ -10725,7 +10976,1388 @@ const DEFAULT_HALL_TEMPLATES = [
     }
 ];
 
+
+// =============================================================================
+// CSDL KHÁCH MỜI VÀ DOANH NGHIỆP DÙNG CHUNG (MASTER GUEST & ENTERPRISE DATABASE)
+// =============================================================================
+
+const DEFAULT_MASTER_GUEST_DB = [
+    // 1. VIP (⭐ Đại biểu VIP - Lãnh đạo TP Hà Nội & Bộ ngành TW)
+    {
+        id: "mdb_vip_01",
+        name: "Trần Sỹ Thanh",
+        group: "VIP",
+        title: "Ủy viên BCH Trung ương Đảng, Phó Bí thư Thành ủy, Chủ tịch",
+        organization: "Ủy ban nhân dân thành phố Hà Nội",
+        phone: "0913.210.001",
+        email: "ubnd@hanoi.gov.vn",
+        address: "Số 12 Lê Lai, Hoàn Kiếm, Hà Nội",
+        notes: "Đón tại Phòng Khánh tiết VIP Lầu 1, xe dẫn đường",
+        hasBanquet: true,
+        isDefaultVip: true
+    },
+    {
+        id: "mdb_vip_02",
+        name: "Nguyễn Trọng Đông",
+        group: "VIP",
+        title: "Ủy viên Ban Thường vụ Thành ủy, Phó Chủ tịch Thường trực",
+        organization: "Ủy ban nhân dân thành phố Hà Nội",
+        phone: "0913.220.002",
+        email: "dongnt@hanoi.gov.vn",
+        address: "Số 12 Lê Lai, Hoàn Kiếm, Hà Nội",
+        notes: "Đoàn Chủ tịch UBND Thành phố",
+        hasBanquet: true,
+        isDefaultVip: true
+    },
+    {
+        id: "mdb_vip_03",
+        name: "Hà Minh Hải",
+        group: "VIP",
+        title: "Thành ủy viên, Phó Chủ tịch",
+        organization: "Ủy ban nhân dân thành phố Hà Nội",
+        phone: "0913.230.003",
+        email: "haihm@hanoi.gov.vn",
+        address: "Số 12 Lê Lai, Hoàn Kiếm, Hà Nội",
+        notes: "Lãnh đạo phụ trách khối kinh tế, tài chính",
+        hasBanquet: true,
+        isDefaultVip: true
+    },
+    {
+        id: "mdb_vip_04",
+        name: "Nguyễn Mạnh Quyền",
+        group: "VIP",
+        title: "Thành ủy viên, Phó Chủ tịch",
+        organization: "Ủy ban nhân dân thành phố Hà Nội",
+        phone: "0913.240.004",
+        email: "quyennt@hanoi.gov.vn",
+        address: "Số 12 Lê Lai, Hoàn Kiếm, Hà Nội",
+        notes: "Lãnh đạo phụ trách khối xúc tiến thương mại, du lịch",
+        hasBanquet: true,
+        isDefaultVip: true
+    },
+    {
+        id: "mdb_vip_05",
+        name: "Vũ Thu Hà",
+        group: "VIP",
+        title: "Thành ủy viên, Phó Chủ tịch",
+        organization: "Ủy ban nhân dân thành phố Hà Nội",
+        phone: "0913.250.005",
+        email: "havt@hanoi.gov.vn",
+        address: "Số 12 Lê Lai, Hoàn Kiếm, Hà Nội",
+        notes: "Lãnh đạo phụ trách khối văn hóa - xã hội",
+        hasBanquet: true,
+        isDefaultVip: true
+    },
+    {
+        id: "mdb_vip_06",
+        name: "Nguyễn Chí Dũng",
+        group: "VIP",
+        title: "Ủy viên BCH Trung ương Đảng, Bộ trưởng",
+        organization: "Bộ Kế hoạch và Đầu tư",
+        phone: "0903.456.789",
+        email: "bkhdt@mpi.gov.vn",
+        address: "6B Hoàng Diệu, Ba Đình, Hà Nội",
+        notes: "Khách mời danh dự cấp Bộ trưởng",
+        hasBanquet: true,
+        isDefaultVip: true
+    },
+    {
+        id: "mdb_vip_07",
+        name: "Hồ Đức Phớc",
+        group: "VIP",
+        title: "Ủy viên BCH Trung ương Đảng, Phó Thủ tướng Chính phủ, Bộ trưởng",
+        organization: "Bộ Tài chính",
+        phone: "0903.112.233",
+        email: "btc@mof.gov.vn",
+        address: "28 Trần Hưng Đạo, Hoàn Kiếm, Hà Nội",
+        notes: "Lãnh đạo cấp trên trực tiếp khối Tài chính",
+        hasBanquet: true,
+        isDefaultVip: true
+    },
+    {
+        id: "mdb_vip_08",
+        name: "Nguyễn Hồng Diên",
+        group: "VIP",
+        title: "Ủy viên BCH Trung ương Đảng, Bộ trưởng",
+        organization: "Bộ Công Thương",
+        phone: "0903.889.900",
+        email: "bct@moit.gov.vn",
+        address: "54 Hai Bà Trưng, Hoàn Kiếm, Hà Nội",
+        notes: "Bộ trưởng phụ trách phát triển công thương & xuất nhập khẩu",
+        hasBanquet: true,
+        isDefaultVip: true
+    },
+
+    // 2. SoNganh (🏛️ Khối Sở ban ngành & Quận huyện)
+    {
+        id: "mdb_sn_01",
+        name: "Nguyễn Xuân Sáng",
+        group: "SoNganh",
+        title: "Thành ủy viên, Giám đốc",
+        organization: "Sở Tài chính Hà Nội",
+        phone: "0913.567.890",
+        email: "sangnx@hanoi.gov.vn",
+        address: "38B Hai Bà Trưng, Hoàn Kiếm, Hà Nội",
+        notes: "Cơ quan chủ quản cấp trên của SCE",
+        hasBanquet: true,
+        isDefaultVip: false
+    },
+    {
+        id: "mdb_sn_02",
+        name: "Mai Công Chính",
+        group: "SoNganh",
+        title: "Phó Giám đốc",
+        organization: "Sở Tài chính Hà Nội",
+        phone: "0913.678.901",
+        email: "chinhmc@hanoi.gov.vn",
+        address: "38B Hai Bà Trưng, Hoàn Kiếm, Hà Nội",
+        notes: "Lãnh đạo phụ trách trực tiếp Trung tâm SCE",
+        hasBanquet: true,
+        isDefaultVip: false
+    },
+    {
+        id: "mdb_sn_03",
+        name: "Lê Anh Quân",
+        group: "SoNganh",
+        title: "Giám đốc",
+        organization: "Sở Kế hoạch và Đầu tư Hà Nội",
+        phone: "0903.223.344",
+        email: "skhdt@hanoi.gov.vn",
+        address: "258 Võ Chí Công, Tây Hồ, Hà Nội",
+        notes: "Đơn vị phối hợp thẩm định dự án đầu tư",
+        hasBanquet: false,
+        isDefaultVip: false
+    },
+    {
+        id: "mdb_sn_04",
+        name: "Võ Nguyên Phong",
+        group: "SoNganh",
+        title: "Giám đốc",
+        organization: "Sở Công Thương Hà Nội",
+        phone: "0903.556.677",
+        email: "sct@hanoi.gov.vn",
+        address: "331 Cầu Giấy, Cầu Giấy, Hà Nội",
+        notes: "Đơn vị đồng chủ trì các hội chợ triển lãm",
+        hasBanquet: false,
+        isDefaultVip: false
+    },
+    {
+        id: "mdb_sn_05",
+        name: "Ngô Minh Hoàng",
+        group: "SoNganh",
+        title: "Giám đốc",
+        organization: "Sở Ngoại vụ Hà Nội",
+        phone: "0903.778.899",
+        email: "sngv@hanoi.gov.vn",
+        address: "10 Lê Lai, Hoàn Kiếm, Hà Nội",
+        notes: "Rà soát MOU song ngữ và lễ tân ngoại giao",
+        hasBanquet: true,
+        isDefaultVip: false
+    },
+    {
+        id: "mdb_sn_06",
+        name: "Nguyễn Xuân Đại",
+        group: "SoNganh",
+        title: "Giám đốc",
+        organization: "Sở Nông nghiệp và Phát triển nông thôn Hà Nội",
+        phone: "0912.334.455",
+        email: "snnptnt@hanoi.gov.vn",
+        address: "73 Quang Trung, Hà Đông, Hà Nội",
+        notes: "Kết nối sản phẩm OCOP và làng nghề thủ công",
+        hasBanquet: false,
+        isDefaultVip: false
+    },
+    {
+        id: "mdb_sn_07",
+        name: "Vũ Xuân Hùng",
+        group: "SoNganh",
+        title: "Trưởng ban",
+        organization: "Ban Quản lý các Khu công nghệ cao và Khu công nghiệp Hà Nội",
+        phone: "0912.667.788",
+        email: "bqlkcn@hanoi.gov.vn",
+        address: "Khu đô thị Mỹ Đình 2, Nam Từ Liêm, Hà Nội",
+        notes: "Đầu mối tiếp xúc các nhà đầu tư hạ tầng KCN",
+        hasBanquet: false,
+        isDefaultVip: false
+    },
+    {
+        id: "mdb_sn_08",
+        name: "Phạm Tuấn Long",
+        group: "SoNganh",
+        title: "Phó Bí thư Quận ủy, Chủ tịch",
+        organization: "Ủy ban nhân dân Quận Hoàn Kiếm",
+        phone: "0903.111.222",
+        email: "ubndhoankiem@hanoi.gov.vn",
+        address: "126 Hàng Trống, Hoàn Kiếm, Hà Nội",
+        notes: "Địa bàn tổ chức không gian đi bộ và hội chợ trung tâm",
+        hasBanquet: false,
+        isDefaultVip: false
+    },
+    {
+        id: "mdb_sn_09",
+        name: "Tạ Nam Chiến",
+        group: "SoNganh",
+        title: "Phó Bí thư Quận ủy, Chủ tịch",
+        organization: "Ủy ban nhân dân Quận Ba Đình",
+        phone: "0903.333.444",
+        email: "ubndbadinh@hanoi.gov.vn",
+        address: "25 Liễu Giai, Ba Đình, Hà Nội",
+        notes: "Địa bàn Cung Thể thao Quần Ngựa & triển lãm",
+        hasBanquet: false,
+        isDefaultVip: false
+    },
+    {
+        id: "mdb_sn_10",
+        name: "Lê Trung Kiên",
+        group: "SoNganh",
+        title: "Thành ủy viên, Bí thư Huyện ủy",
+        organization: "Huyện ủy - HĐND - UBND Huyện Đông Anh",
+        phone: "0913.999.888",
+        email: "donganh@hanoi.gov.vn",
+        address: "Thị trấn Đông Anh, Hà Nội",
+        notes: "Địa bàn dự án Trung tâm Hội chợ Triển lãm Quốc gia mới",
+        hasBanquet: true,
+        isDefaultVip: false
+    },
+
+    // 3. DoanhNghiep (💼 Doanh nghiệp & HTX)
+    {
+        id: "mdb_dn_01",
+        name: "Phạm Nhật Vượng",
+        group: "DoanhNghiep",
+        title: "Chủ tịch HĐQT",
+        organization: "Tập đoàn Vingroup",
+        phone: "024.3974.9999",
+        email: "contact@vingroup.net",
+        address: "Số 7 đường Bằng Lăng 1, Vinhomes Riverside, Long Biên, Hà Nội",
+        notes: "Tập đoàn kinh tế tư nhân hàng đầu, nhà tài trợ VIP",
+        hasBanquet: true,
+        isDefaultVip: false
+    },
+    {
+        id: "mdb_dn_02",
+        name: "Đặng Minh Trường",
+        group: "DoanhNghiep",
+        title: "Chủ tịch HĐQT",
+        organization: "Tập đoàn Sun Group",
+        phone: "024.3938.8888",
+        email: "info@sungroup.com.vn",
+        address: "Tầng 9, Tòa nhà Sun City, 13 Hai Bà Trưng, Hoàn Kiếm, Hà Nội",
+        notes: "Tập đoàn du lịch nghỉ dưỡng & hạ tầng",
+        hasBanquet: true,
+        isDefaultVip: false
+    },
+    {
+        id: "mdb_dn_03",
+        name: "Nguyễn Thị Nga",
+        group: "DoanhNghiep",
+        title: "Chủ tịch HĐQT",
+        organization: "Tập đoàn BRG",
+        phone: "024.3939.3690",
+        email: "corporate@brggroup.vn",
+        address: "198 Trần Quang Khải, Hoàn Kiếm, Hà Nội",
+        notes: "Tập đoàn đa ngành, đối tác dự án Thành phố Thông minh Bắc Hà Nội",
+        hasBanquet: true,
+        isDefaultVip: false
+    },
+    {
+        id: "mdb_dn_04",
+        name: "Vũ Văn Tiền",
+        group: "DoanhNghiep",
+        title: "Chủ tịch HĐQT",
+        organization: "Tập đoàn Geleximco",
+        phone: "024.3514.1122",
+        email: "geleximco@geleximco.vn",
+        address: "36 Hoàng Cầu, Đống Đa, Hà Nội",
+        notes: "Tập đoàn công nghiệp & năng lượng tái tạo",
+        hasBanquet: false,
+        isDefaultVip: false
+    },
+    {
+        id: "mdb_dn_05",
+        name: "Bùi Trình",
+        group: "DoanhNghiep",
+        title: "Tổng Giám đốc",
+        organization: "Công ty Cổ phần Sữa Quốc tế LOF",
+        phone: "024.3787.2288",
+        email: "cskh@lof.com.vn",
+        address: "KCN Ba Vì, Hà Nội",
+        notes: "Doanh nghiệp tiêu biểu ngành chế biến sữa",
+        hasBanquet: false,
+        isDefaultVip: false
+    },
+    {
+        id: "mdb_dn_06",
+        name: "Mạc Quốc Anh",
+        group: "DoanhNghiep",
+        title: "Phó Chủ tịch kiêm Tổng Thư ký",
+        organization: "Hiệp hội Doanh nghiệp nhỏ và vừa TP Hà Nội (HANOISME)",
+        phone: "0903.408.888",
+        email: "hanoisme@gmail.com",
+        address: "Tầng 3 Cung Triển lãm Kiến trúc Quy hoạch, Đỗ Đức Dục, Nam Từ Liêm, Hà Nội",
+        notes: "Đầu mối kết nối hơn 3.000 hội viên DNNVV trên địa bàn",
+        hasBanquet: true,
+        isDefaultVip: false
+    },
+    {
+        id: "mdb_dn_07",
+        name: "Trần Đăng Nam",
+        group: "DoanhNghiep",
+        title: "Chủ tịch",
+        organization: "Hội Doanh nhân trẻ Hà Nội (HanoiBA)",
+        phone: "0913.518.899",
+        email: "vanphong@hanoiba.org.vn",
+        address: "Số 6 Phan Chu Trinh, Hoàn Kiếm, Hà Nội",
+        notes: "Khối doanh nhân trẻ tiên phong chuyển đổi số",
+        hasBanquet: false,
+        isDefaultVip: false
+    },
+    {
+        id: "mdb_dn_08",
+        name: "Nguyễn Thị Mai",
+        group: "DoanhNghiep",
+        title: "Giám đốc",
+        organization: "Hợp tác xã Nông nghiệp Công nghệ cao Ba Vì",
+        phone: "0982.345.678",
+        email: "htxbavi@gmail.com",
+        address: "Xã Vân Hòa, Huyện Ba Vì, Hà Nội",
+        notes: "Chủ thể 12 sản phẩm OCOP 4 sao tham gia gian hàng hội chợ",
+        hasBanquet: false,
+        isDefaultVip: false
+    },
+    {
+        id: "mdb_dn_09",
+        name: "Đỗ Văn Hùng",
+        group: "DoanhNghiep",
+        title: "Giám đốc",
+        organization: "Hợp tác xã Gốm sứ Bát Tràng Hà Nội",
+        phone: "0977.889.900",
+        email: "gombattrang@gmail.com",
+        address: "Làng cổ Bát Tràng, Huyện Gia Lâm, Hà Nội",
+        notes: "Gian hàng nghệ nhân gốm sứ truyền thống",
+        hasBanquet: false,
+        isDefaultVip: false
+    },
+    {
+        id: "mdb_dn_10",
+        name: "Lê Bá Ngọc",
+        group: "DoanhNghiep",
+        title: "Phó Chủ tịch kiêm Tổng thư ký",
+        organization: "Hiệp hội Xuất khẩu Hàng thủ công mỹ nghệ Việt Nam (VIETCRAFT)",
+        phone: "0913.238.169",
+        email: "info@vietcraft.org.vn",
+        address: "Tầng 5, 20 Lý Thường Kiệt, Hoàn Kiếm, Hà Nội",
+        notes: "Đầu mối kết nối các làng nghề xuất khẩu quốc tế",
+        hasBanquet: false,
+        isDefaultVip: false
+    },
+
+    // 4. QuocTe (🌐 Khách Quốc tế / Ngoại giao)
+    {
+        id: "mdb_qt_01",
+        name: "Takeo Nakajima",
+        group: "QuocTe",
+        title: "Trưởng Đại diện",
+        organization: "Tổ chức Thúc đẩy Ngoại thương Nhật Bản (JETRO) Hà Nội",
+        phone: "024.3825.0632",
+        email: "vha@jetro.go.jp",
+        address: "Phòng 901, Tòa nhà CornerStone, 16 Phan Chu Trinh, Hoàn Kiếm, Hà Nội",
+        notes: "Cần phiên dịch tiếng Nhật hoặc tiếng Anh cabin",
+        hasBanquet: true,
+        isDefaultVip: false
+    },
+    {
+        id: "mdb_qt_02",
+        name: "Hong Sun",
+        group: "QuocTe",
+        title: "Chủ tịch",
+        organization: "Hiệp hội Doanh nghiệp Hàn Quốc tại Việt Nam (KOCHAM)",
+        phone: "024.3555.3341",
+        email: "kocham@kocham.vn",
+        address: "Tầng 13, Tòa nhà Charmvit, 117 Trần Duy Hưng, Cầu Giấy, Hà Nội",
+        notes: "Đại diện hơn 9.000 doanh nghiệp Hàn Quốc tại Việt Nam",
+        hasBanquet: true,
+        isDefaultVip: false
+    },
+    {
+        id: "mdb_qt_03",
+        name: "Bruno Jaspaert",
+        group: "QuocTe",
+        title: "Chủ tịch",
+        organization: "Hiệp hội Doanh nghiệp Châu Âu tại Việt Nam (EuroCham)",
+        phone: "024.3715.2228",
+        email: "info@eurochamvn.org",
+        address: "Tầng 5, Tòa nhà Sofitel Legend Metropole, 15 Ngô Quyền, Hoàn Kiếm, Hà Nội",
+        notes: "Đại diện cộng đồng doanh nghiệp EU",
+        hasBanquet: true,
+        isDefaultVip: false
+    },
+    {
+        id: "mdb_qt_04",
+        name: "Joseph Uddo",
+        group: "QuocTe",
+        title: "Chủ tịch",
+        organization: "Hiệp hội Thương mại Hoa Kỳ tại Việt Nam (AmCham Hanoi)",
+        phone: "024.3934.2790",
+        email: "execdirector@amchamhanoi.com",
+        address: "Tầng 4, Tòa nhà Tung Shing Square, 2 Ngô Quyền, Hoàn Kiếm, Hà Nội",
+        notes: "Đại diện các tập đoàn FDI Hoa Kỳ",
+        hasBanquet: true,
+        isDefaultVip: false
+    },
+    {
+        id: "mdb_qt_05",
+        name: "Jaya Ratnam",
+        group: "QuocTe",
+        title: "Đại sứ Đặc mệnh Toàn quyền",
+        organization: "Đại sứ quán Cộng hòa Singapore tại Việt Nam",
+        phone: "024.3848.9168",
+        email: "singemb_han@mfa.sg",
+        address: "41-43 Trần Phú, Ba Đình, Hà Nội",
+        notes: "Ngoại giao đoàn VIP, bố trí đón tiếp phòng VIP",
+        hasBanquet: true,
+        isDefaultVip: true
+    },
+    {
+        id: "mdb_qt_06",
+        name: "Sugano Yuichi",
+        group: "QuocTe",
+        title: "Trưởng Đại diện",
+        organization: "Cơ quan Hợp tác Quốc tế Nhật Bản (JICA) Việt Nam",
+        phone: "024.3831.5005",
+        email: "jicavietnam@jica.go.jp",
+        address: "Tầng 11, Tòa nhà CornerStone, 16 Phan Chu Trinh, Hoàn Kiếm, Hà Nội",
+        notes: "Đối tác hỗ trợ kỹ thuật ODA xúc tiến đầu tư",
+        hasBanquet: false,
+        isDefaultVip: false
+    },
+
+    // 5. BaoChi (📰 Báo chí, Truyền hình)
+    {
+        id: "mdb_bc_01",
+        name: "Lê Ngọc Quang",
+        group: "BaoChi",
+        title: "Tổng Giám đốc",
+        organization: "Đài Truyền hình Việt Nam (VTV)",
+        phone: "024.3835.5931",
+        email: "vtv@vtv.vn",
+        address: "43 Nguyễn Chí Thanh, Ba Đình, Hà Nội",
+        notes: "Bố trí khu vực quay phim trực tiếp và thẻ phóng viên loại 1",
+        hasBanquet: true,
+        isDefaultVip: false
+    },
+    {
+        id: "mdb_bc_02",
+        name: "Nguyễn Kim Khiêm",
+        group: "BaoChi",
+        title: "Tổng Giám đốc kiêm Tổng Biên tập",
+        organization: "Đài Phát thanh và Truyền hình Hà Nội",
+        phone: "024.3835.1234",
+        email: "bbt@hanoitv.vn",
+        address: "3-5 Huỳnh Thúc Kháng, Đống Đa, Hà Nội",
+        notes: "Cơ quan truyền thông chủ lực của Thành phố",
+        hasBanquet: true,
+        isDefaultVip: false
+    },
+    {
+        id: "mdb_bc_03",
+        name: "Nguyễn Minh Đức",
+        group: "BaoChi",
+        title: "Tổng Biên tập",
+        organization: "Báo Hà Nội mới",
+        phone: "024.3825.3045",
+        email: "toasoan@hanoimoi.com.vn",
+        address: "44 Lê Thái Tổ, Hoàn Kiếm, Hà Nội",
+        notes: "Cơ quan của Thành ủy Hà Nội, tiếng nói của Đảng bộ, chính quyền",
+        hasBanquet: false,
+        isDefaultVip: false
+    },
+    {
+        id: "mdb_bc_04",
+        name: "Vũ Việt Trang",
+        group: "BaoChi",
+        title: "Bí thư Đảng ủy, Tổng Giám đốc",
+        organization: "Thông tấn xã Việt Nam (TTXVN)",
+        phone: "024.3825.2931",
+        email: "vnanet@vnanet.vn",
+        address: "5 Lý Thường Kiệt, Hoàn Kiếm, Hà Nội",
+        notes: "Cơ quan thông tấn quốc gia, đưa tin đối ngoại đa ngữ",
+        hasBanquet: true,
+        isDefaultVip: false
+    },
+    {
+        id: "mdb_bc_05",
+        name: "Nguyễn Thành Lợi",
+        group: "BaoChi",
+        title: "Tổng Biên tập",
+        organization: "Báo Kinh tế & Đô thị",
+        phone: "024.3773.0888",
+        email: "ktdt@hanoi.gov.vn",
+        address: "21 Huỳnh Thúc Kháng, Đống Đa, Hà Nội",
+        notes: "Chuyên trang phân tích kinh tế và xúc tiến đầu tư Hà Nội",
+        hasBanquet: false,
+        isDefaultVip: false
+    },
+    {
+        id: "mdb_bc_06",
+        name: "Lê Trọng Minh",
+        group: "BaoChi",
+        title: "Tổng Biên tập",
+        organization: "Báo Đầu tư",
+        phone: "024.3845.0537",
+        email: "baodautu@vir.com.vn",
+        address: "47 Quán Thánh, Ba Đình, Hà Nội",
+        notes: "Cơ quan của Bộ KH&ĐT, kênh thông tin số 1 về M&A và FDI",
+        hasBanquet: false,
+        isDefaultVip: false
+    },
+    {
+        id: "mdb_bc_07",
+        name: "Phạm Ngọc Tuấn",
+        group: "BaoChi",
+        title: "Tổng Biên tập",
+        organization: "Tạp chí Diễn đàn Doanh nghiệp",
+        phone: "024.3577.2400",
+        email: "toasoan@dddn.com.vn",
+        address: "Tầng 6, Tòa nhà VCCI, 9 Đào Duy Anh, Đống Đa, Hà Nội",
+        notes: "Cơ quan ngôn luận của VCCI, kết nối cộng đồng doanh nghiệp cả nước",
+        hasBanquet: false,
+        isDefaultVip: false
+    }
+];
+
+let masterGuestFilterGroup = 'all';
+let masterGuestPickerGroup = 'all';
+let batchImportMasterGroup = 'all';
+let batchSelectedMasterIds = new Set();
+
+function ensureMasterGuestDb() {
+    if (!appData.masterGuestDb || !Array.isArray(appData.masterGuestDb) || appData.masterGuestDb.length === 0) {
+        appData.masterGuestDb = JSON.parse(JSON.stringify(DEFAULT_MASTER_GUEST_DB));
+        try {
+            localStorage.setItem('sce_tcsk_app_data', JSON.stringify(appData));
+        } catch (e) {
+            console.warn('Lỗi lưu CSDL Master vào localStorage:', e);
+        }
+    }
+}
+
+function removeVietnameseTones(str) {
+    if (!str) return '';
+    str = String(str);
+    str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
+    str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
+    str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
+    str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
+    str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
+    str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
+    str = str.replace(/đ/g, "d");
+    str = str.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, "A");
+    str = str.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ễ/g, "E");
+    str = str.replace(/Ì|Í|Ị|Ỉ|Ĩ/g, "I");
+    str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, "O");
+    str = str.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, "U");
+    str = str.replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, "Y");
+    str = str.replace(/Đ/g, "D");
+    return str.toLowerCase().trim();
+}
+
+function getMasterGuestGroupBadge(group) {
+    switch (group) {
+        case 'VIP':
+            return '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-700 shrink-0"><i class="fas fa-star text-amber-500"></i> VIP</span>';
+        case 'SoNganh':
+            return '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-300 dark:border-blue-700 shrink-0"><i class="fas fa-landmark text-blue-500"></i> Sở ngành</span>';
+        case 'DoanhNghiep':
+            return '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 shrink-0"><i class="fas fa-briefcase text-emerald-500"></i> Doanh nghiệp</span>';
+        case 'QuocTe':
+            return '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-300 dark:border-purple-700 shrink-0"><i class="fas fa-globe text-purple-500"></i> Quốc tế</span>';
+        case 'BaoChi':
+            return '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-300 dark:border-rose-700 shrink-0"><i class="fas fa-newspaper text-rose-500"></i> Báo chí</span>';
+        default:
+            return '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300 shrink-0">Khác</span>';
+    }
+}
+
+function getMasterGuestGroupName(group) {
+    switch (group) {
+        case 'VIP': return 'Đại biểu VIP';
+        case 'SoNganh': return 'Khối Sở ban ngành & Quận huyện';
+        case 'DoanhNghiep': return 'Doanh nghiệp & HTX';
+        case 'QuocTe': return 'Khách Quốc tế / Ngoại giao';
+        case 'BaoChi': return 'Báo chí, Truyền hình';
+        default: return 'Khác';
+    }
+}
+
+// -------------------------------------------------------------
+// QUẢN TRỊ CSDL MASTER (TRONG mainTab-admin)
+// -------------------------------------------------------------
+function scrollToMasterGuestDbSection() {
+    if (typeof switchMainTab === 'function') {
+        switchMainTab('admin');
+    }
+    const sec = document.getElementById('adminMasterGuestDbSection');
+    if (sec) {
+        sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    renderMasterGuestDbUI();
+}
+
+function renderMasterGuestDbUI() {
+    ensureMasterGuestDb();
+    const list = appData.masterGuestDb || [];
+
+    // Cập nhật số lượng đếm trên các Tab
+    const countAll = list.length;
+    const countVip = list.filter(g => g.group === 'VIP').length;
+    const countSn = list.filter(g => g.group === 'SoNganh').length;
+    const countDn = list.filter(g => g.group === 'DoanhNghiep').length;
+    const countQt = list.filter(g => g.group === 'QuocTe').length;
+    const countBc = list.filter(g => g.group === 'BaoChi').length;
+
+    const elAll = document.getElementById('masterBadgeCount-all');
+    if (elAll) elAll.textContent = countAll;
+    const elVip = document.getElementById('masterBadgeCount-VIP');
+    if (elVip) elVip.textContent = countVip;
+    const elSn = document.getElementById('masterBadgeCount-SoNganh');
+    if (elSn) elSn.textContent = countSn;
+    const elDn = document.getElementById('masterBadgeCount-DoanhNghiep');
+    if (elDn) elDn.textContent = countDn;
+    const elQt = document.getElementById('masterBadgeCount-QuocTe');
+    if (elQt) elQt.textContent = countQt;
+    const elBc = document.getElementById('masterBadgeCount-BaoChi');
+    if (elBc) elBc.textContent = countBc;
+
+    renderMasterGuestDbTable();
+}
+
+function filterMasterGuestDbGroup(group) {
+    masterGuestFilterGroup = group;
+    const groups = ['all', 'VIP', 'SoNganh', 'DoanhNghiep', 'QuocTe', 'BaoChi'];
+    groups.forEach(g => {
+        const btn = document.getElementById(`masterFilterBtn-${g}`);
+        if (!btn) return;
+        if (g === group) {
+            btn.className = "px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 bg-emerald-600 text-white shadow-sm shrink-0 cursor-pointer";
+            const badge = btn.querySelector('span:last-child');
+            if (badge) badge.className = "px-1.5 py-0.2 bg-white/20 rounded-full text-[10px]";
+        } else {
+            btn.className = "px-3 py-1.5 rounded-xl font-semibold transition flex items-center gap-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 shrink-0 cursor-pointer";
+            const badge = btn.querySelector('span:last-child');
+            if (badge) badge.className = "px-1.5 py-0.2 bg-slate-200 dark:bg-slate-600 rounded-full text-[10px]";
+        }
+    });
+    renderMasterGuestDbTable();
+}
+
+function renderMasterGuestDbTable() {
+    ensureMasterGuestDb();
+    const tbody = document.getElementById('masterGuestTableBody');
+    if (!tbody) return;
+
+    const list = appData.masterGuestDb || [];
+    const searchInput = document.getElementById('masterGuestSearchInput');
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    const normQuery = removeVietnameseTones(query);
+
+    const filtered = list.filter(item => {
+        if (masterGuestFilterGroup !== 'all' && item.group !== masterGuestFilterGroup) return false;
+        if (!query) return true;
+        const normName = removeVietnameseTones(item.name || '');
+        const normOrg = removeVietnameseTones(item.organization || '');
+        const normTitle = removeVietnameseTones(item.title || '');
+        const phone = (item.phone || '').toLowerCase();
+        const email = (item.email || '').toLowerCase();
+        return normName.includes(normQuery) || normOrg.includes(normQuery) || normTitle.includes(normQuery) || phone.includes(query) || email.includes(query);
+    });
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="py-8 text-center text-slate-400">
+                    <i class="fas fa-folder-open text-2xl mb-2 block"></i>
+                    <span>Không tìm thấy đối tượng nào phù hợp trong CSDL Master.</span>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = filtered.map((item, idx) => {
+        const badge = getMasterGuestGroupBadge(item.group);
+        const banquetBadge = item.hasBanquet
+            ? '<span class="inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800"><i class="fas fa-wine-glass"></i> Tiệc VIP</span>'
+            : '<span class="text-slate-400 text-[11px]">-</span>';
+
+        return `
+            <tr class="hover:bg-slate-50 dark:hover:bg-slate-750/50 transition">
+                <td class="py-2.5 px-3 text-center text-slate-400 font-mono">${idx + 1}</td>
+                <td class="py-2.5 px-3">${badge}</td>
+                <td class="py-2.5 px-3">
+                    <div class="font-bold text-slate-800 dark:text-slate-100">${escapeHtml(item.name || '')}</div>
+                    <div class="text-[11px] text-slate-500 dark:text-slate-400">${escapeHtml(item.title || '')}</div>
+                </td>
+                <td class="py-2.5 px-3">
+                    <div class="font-medium text-slate-700 dark:text-slate-200">${escapeHtml(item.organization || '')}</div>
+                    ${item.address ? `<div class="text-[10px] text-slate-400 mt-0.5"><i class="fas fa-location-dot text-rose-400 mr-1"></i>${escapeHtml(item.address)}</div>` : ''}
+                </td>
+                <td class="py-2.5 px-3">
+                    ${item.phone ? `<div class="font-mono text-slate-700 dark:text-slate-300 font-semibold"><i class="fas fa-phone text-blue-500 mr-1 text-[10px]"></i>${escapeHtml(item.phone)}</div>` : ''}
+                    ${item.email ? `<div class="text-[10px] text-slate-500 truncate max-w-[150px]"><i class="fas fa-envelope text-slate-400 mr-1"></i>${escapeHtml(item.email)}</div>` : ''}
+                </td>
+                <td class="py-2.5 px-3">
+                    <div>${banquetBadge}</div>
+                    ${item.notes ? `<div class="text-[10px] text-slate-500 italic mt-0.5 max-w-[160px] truncate" title="${escapeHtml(item.notes)}">${escapeHtml(item.notes)}</div>` : ''}
+                </td>
+                <td class="py-2.5 px-3 text-right">
+                    <div class="flex items-center justify-end gap-1">
+                        <button onclick="openEditMasterGuestModal('${item.id}')" class="w-7 h-7 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 transition flex items-center justify-center cursor-pointer" title="Chỉnh sửa đối tượng CSDL">
+                            <i class="fas fa-edit text-xs"></i>
+                        </button>
+                        <button onclick="deleteMasterGuest('${item.id}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition flex items-center justify-center cursor-pointer" title="Xóa khỏi CSDL Master">
+                            <i class="fas fa-trash-alt text-xs"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function openCreateMasterGuestModal() {
+    document.getElementById('masterGuestModalTitle').textContent = 'Thêm Đối Tượng CSDL Master';
+    document.getElementById('masterGuestId').value = '';
+    document.getElementById('masterGuestName').value = '';
+    document.getElementById('masterGuestGroup').value = 'VIP';
+    document.getElementById('masterGuestTitle').value = '';
+    document.getElementById('masterGuestOrganization').value = '';
+    document.getElementById('masterGuestPhone').value = '';
+    document.getElementById('masterGuestEmail').value = '';
+    document.getElementById('masterGuestAddress').value = '';
+    document.getElementById('masterGuestTaxCode').value = '';
+    document.getElementById('masterGuestHasBanquet').checked = true;
+    document.getElementById('masterGuestNotes').value = '';
+
+    document.getElementById('masterGuestModal').classList.remove('hidden');
+}
+
+function openEditMasterGuestModal(id) {
+    ensureMasterGuestDb();
+    const item = (appData.masterGuestDb || []).find(g => g.id === id);
+    if (!item) return;
+
+    document.getElementById('masterGuestModalTitle').textContent = 'Cập Nhật Hồ Sơ CSDL Master';
+    document.getElementById('masterGuestId').value = item.id;
+    document.getElementById('masterGuestName').value = item.name || '';
+    document.getElementById('masterGuestGroup').value = item.group || 'VIP';
+    document.getElementById('masterGuestTitle').value = item.title || '';
+    document.getElementById('masterGuestOrganization').value = item.organization || '';
+    document.getElementById('masterGuestPhone').value = item.phone || '';
+    document.getElementById('masterGuestEmail').value = item.email || '';
+    document.getElementById('masterGuestAddress').value = item.address || '';
+    document.getElementById('masterGuestTaxCode').value = item.taxCode || '';
+    document.getElementById('masterGuestHasBanquet').checked = !!item.hasBanquet;
+    document.getElementById('masterGuestNotes').value = item.notes || '';
+
+    document.getElementById('masterGuestModal').classList.remove('hidden');
+}
+
+function closeMasterGuestModal() {
+    document.getElementById('masterGuestModal').classList.add('hidden');
+}
+
+function saveMasterGuest(event) {
+    event.preventDefault();
+    ensureMasterGuestDb();
+
+    const id = document.getElementById('masterGuestId').value;
+    const name = document.getElementById('masterGuestName').value.trim();
+    const group = document.getElementById('masterGuestGroup').value;
+    const title = document.getElementById('masterGuestTitle').value.trim();
+    const organization = document.getElementById('masterGuestOrganization').value.trim();
+    const phone = document.getElementById('masterGuestPhone').value.trim();
+    const email = document.getElementById('masterGuestEmail').value.trim();
+    const address = document.getElementById('masterGuestAddress').value.trim();
+    const taxCode = document.getElementById('masterGuestTaxCode').value.trim();
+    const hasBanquet = document.getElementById('masterGuestHasBanquet').checked;
+    const notes = document.getElementById('masterGuestNotes').value.trim();
+
+    if (!name || !organization) {
+        Swal.fire('Thiếu thông tin', 'Vui lòng nhập họ tên đại biểu/đầu mối và tên cơ quan, doanh nghiệp.', 'warning');
+        return;
+    }
+
+    if (id) {
+        // Cập nhật
+        const existing = appData.masterGuestDb.find(g => g.id === id);
+        if (existing) {
+            existing.name = name;
+            existing.group = group;
+            existing.title = title;
+            existing.organization = organization;
+            existing.phone = phone;
+            existing.email = email;
+            existing.address = address;
+            existing.taxCode = taxCode;
+            existing.hasBanquet = hasBanquet;
+            existing.notes = notes;
+            existing.updatedAt = new Date().toISOString();
+        }
+    } else {
+        // Thêm mới
+        const prefix = group === 'VIP' ? 'mdb_vip' : group === 'SoNganh' ? 'mdb_sn' : group === 'DoanhNghiep' ? 'mdb_dn' : group === 'QuocTe' ? 'mdb_qt' : 'mdb_bc';
+        const newRecord = {
+            id: `${prefix}_${Date.now()}`,
+            name,
+            group,
+            title,
+            organization,
+            phone,
+            email,
+            address,
+            taxCode,
+            hasBanquet,
+            isDefaultVip: group === 'VIP',
+            notes,
+            updatedAt: new Date().toISOString()
+        };
+        appData.masterGuestDb.push(newRecord);
+    }
+
+    syncModule4Storage(true);
+    closeMasterGuestModal();
+    renderMasterGuestDbUI();
+
+    Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: 'Đã lưu đối tượng vào CSDL Master thành công!',
+        showConfirmButton: false,
+        timer: 1800
+    });
+}
+
+function deleteMasterGuest(id) {
+    ensureMasterGuestDb();
+    const item = appData.masterGuestDb.find(g => g.id === id);
+    if (!item) return;
+
+    Swal.fire({
+        title: `Xóa đối tượng khỏi CSDL?`,
+        text: `Bạn có chắc muốn xóa "${item.name}" (${item.organization}) khỏi CSDL Master không? Thao tác này không ảnh hưởng đến các sự kiện đã tạo trước đó.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#e11d48',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Đồng ý xóa',
+        cancelButtonText: 'Hủy'
+    }).then((res) => {
+        if (res.isConfirmed) {
+            appData.masterGuestDb = appData.masterGuestDb.filter(g => g.id !== id);
+            syncModule4Storage(true);
+            renderMasterGuestDbUI();
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: 'Đã xóa đối tượng khỏi CSDL Master',
+                showConfirmButton: false,
+                timer: 1500
+            });
+        }
+    });
+}
+
+function resetDefaultMasterGuestDb() {
+    Swal.fire({
+        title: 'Khôi phục danh bạ mẫu chuẩn?',
+        text: 'Toàn bộ danh bạ CSDL Master sẽ được nạp lại bộ 38 đối tượng mẫu chuẩn của SCE (Thành ủy, UBND TP, Sở ngành, Hiệp hội, Tập đoàn & Báo chí).',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#059669',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Khôi phục ngay',
+        cancelButtonText: 'Hủy'
+    }).then((res) => {
+        if (res.isConfirmed) {
+            appData.masterGuestDb = JSON.parse(JSON.stringify(DEFAULT_MASTER_GUEST_DB));
+            syncModule4Storage(true);
+            renderMasterGuestDbUI();
+            Swal.fire('Thành công', 'Đã khôi phục 38 đối tượng mẫu chuẩn SCE vào CSDL Master.', 'success');
+        }
+    });
+}
+
+function exportMasterGuestDbExcel() {
+    ensureMasterGuestDb();
+    const list = appData.masterGuestDb || [];
+    if (list.length === 0) {
+        Swal.fire('Không có dữ liệu', 'CSDL Master hiện đang trống.', 'info');
+        return;
+    }
+
+    const headers = ['STT', 'Mã Định Danh', 'Nhóm Đối Tượng', 'Họ Và Tên', 'Chức Danh', 'Cơ Quan / Doanh Nghiệp', 'Số Điện Thoại', 'Email', 'Địa Chỉ', 'Mã Số Thuế / Ngành', 'Tiệc VIP', 'Ghi Chú Lễ Tân'];
+    const rows = list.map((item, idx) => [
+        idx + 1,
+        item.id,
+        getMasterGuestGroupName(item.group),
+        item.name || '',
+        item.title || '',
+        item.organization || '',
+        item.phone || '',
+        item.email || '',
+        item.address || '',
+        item.taxCode || '',
+        item.hasBanquet ? 'Có' : 'Không',
+        item.notes || ''
+    ]);
+
+    let csvContent = '\uFEFF' + headers.map(h => `\"${h}\"`).join(',') + '\r\n';
+    rows.forEach(r => {
+        csvContent += r.map(c => `\"${String(c).replace(/\"/g, '\"\"')}\"`).join(',') + '\r\n';
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `CSDL_KhachMoi_DoanhNghiep_SCE_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+// -------------------------------------------------------------
+// LIVE AUTO-SUGGEST & QUICK PICKER TRONG FORM KHÁCH MỜI
+// -------------------------------------------------------------
+function handleCrmGuestNameSuggest(value) {
+    const dropdown = document.getElementById('crmGuestSuggestDropdown');
+    if (!dropdown) return;
+
+    ensureMasterGuestDb();
+    const list = appData.masterGuestDb || [];
+    const query = (value || '').trim();
+    if (!query) {
+        dropdown.classList.add('hidden');
+        dropdown.innerHTML = '';
+        return;
+    }
+
+    const normQuery = removeVietnameseTones(query);
+    const matches = list.filter(item => {
+        const normName = removeVietnameseTones(item.name || '');
+        const normOrg = removeVietnameseTones(item.organization || '');
+        const normTitle = removeVietnameseTones(item.title || '');
+        return normName.includes(normQuery) || normOrg.includes(normQuery) || normTitle.includes(normQuery);
+    }).slice(0, 8); // Tối đa 8 gợi ý phù hợp nhất
+
+    if (matches.length === 0) {
+        dropdown.innerHTML = `
+            <div class="p-3 text-slate-400 text-center flex flex-col items-center gap-1">
+                <span>Chưa có trong CSDL Master</span>
+                <span class="text-[10px] text-slate-500">Bạn có thể tiếp tục nhập mới hoặc bấm <strong>Tra cứu CSDL</strong></span>
+            </div>
+        `;
+        dropdown.classList.remove('hidden');
+        return;
+    }
+
+    dropdown.innerHTML = `
+        <div class="px-3 py-1.5 bg-slate-50 dark:bg-slate-900/60 text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between border-b border-slate-100 dark:border-slate-700">
+            <span>Gợi ý đối chiếu từ CSDL Master (${matches.length})</span>
+            <button type="button" onclick="openMasterGuestPickerModal()" class="text-emerald-600 dark:text-emerald-400 hover:underline">Xem tất cả</button>
+        </div>
+        ${matches.map(m => {
+            const badge = getMasterGuestGroupBadge(m.group);
+            return `
+                <div onclick="selectMasterGuestForCrm('${m.id}')" class="p-2.5 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 cursor-pointer transition flex items-start gap-2.5">
+                    <div class="mt-0.5">${badge}</div>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-bold text-slate-800 dark:text-slate-100 truncate">${escapeHtml(m.name)}</div>
+                        <div class="text-[11px] text-slate-600 dark:text-slate-300 truncate">${escapeHtml(m.title ? m.title + ' - ' : '')}${escapeHtml(m.organization)}</div>
+                        ${m.phone ? `<div class="text-[10px] text-slate-400 font-mono mt-0.5"><i class="fas fa-phone mr-1 text-[9px] text-emerald-500"></i>${escapeHtml(m.phone)}</div>` : ''}
+                    </div>
+                    <div class="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold self-center bg-white dark:bg-slate-800 px-2 py-1 rounded border border-emerald-200 dark:border-emerald-800 shrink-0">
+                        Chọn
+                    </div>
+                </div>
+            `;
+        }).join('')}
+    `;
+
+    dropdown.classList.remove('hidden');
+}
+
+function handleCrmGuestNameFocus(value) {
+    if (value && value.trim().length > 0) {
+        handleCrmGuestNameSuggest(value);
+    }
+}
+
+// Bắt sự kiện click ra ngoài để ẩn dropdown gợi ý
+document.addEventListener('click', function(e) {
+    const dropdown = document.getElementById('crmGuestSuggestDropdown');
+    const input = document.getElementById('crmGuestName');
+    if (dropdown && !dropdown.classList.contains('hidden')) {
+        if (!dropdown.contains(e.target) && e.target !== input) {
+            dropdown.classList.add('hidden');
+        }
+    }
+});
+
+function selectMasterGuestForCrm(masterId) {
+    ensureMasterGuestDb();
+    const item = (appData.masterGuestDb || []).find(g => g.id === masterId);
+    if (!item) return;
+
+    document.getElementById('crmGuestName').value = item.name || '';
+    document.getElementById('crmGuestGroup').value = item.group || 'VIP';
+    document.getElementById('crmGuestTitle').value = item.title || '';
+    document.getElementById('crmGuestOrganization').value = item.organization || '';
+    document.getElementById('crmGuestPhone').value = item.phone || '';
+    document.getElementById('crmGuestEmail').value = item.email || '';
+    if (item.notes) {
+        document.getElementById('crmGuestNotes').value = item.notes;
+    }
+    if (item.hasBanquet !== undefined) {
+        document.getElementById('crmGuestHasBanquet').checked = !!item.hasBanquet;
+    }
+
+    const dropdown = document.getElementById('crmGuestSuggestDropdown');
+    if (dropdown) dropdown.classList.add('hidden');
+
+    Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: `✓ Đã nạp thông tin từ CSDL: ${item.name} (${item.organization})`,
+        showConfirmButton: false,
+        timer: 2000
+    });
+}
+
+// -------------------------------------------------------------
+// MODAL TRA CỨU & CHỌN KHÁCH MỜI TỪ CSDL (PICKER)
+// -------------------------------------------------------------
+function openMasterGuestPickerModal() {
+    masterGuestPickerGroup = 'all';
+    const input = document.getElementById('pickerSearchInput');
+    if (input) input.value = '';
+    renderMasterGuestPickerTable();
+    document.getElementById('masterGuestPickerModal').classList.remove('hidden');
+}
+
+function closeMasterGuestPickerModal() {
+    document.getElementById('masterGuestPickerModal').classList.add('hidden');
+}
+
+function filterMasterGuestPickerGroup(group) {
+    masterGuestPickerGroup = group;
+    const groups = ['all', 'VIP', 'SoNganh', 'DoanhNghiep', 'QuocTe', 'BaoChi'];
+    groups.forEach(g => {
+        const btn = document.getElementById(`pickerFilterBtn-${g}`);
+        if (!btn) return;
+        if (g === group) {
+            btn.className = "px-2.5 py-1 rounded-lg font-bold bg-emerald-600 text-white shrink-0 cursor-pointer";
+        } else {
+            btn.className = "px-2.5 py-1 rounded-lg font-semibold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 shrink-0 cursor-pointer";
+        }
+    });
+    renderMasterGuestPickerTable();
+}
+
+function renderMasterGuestPickerTable() {
+    ensureMasterGuestDb();
+    const tbody = document.getElementById('pickerTableBody');
+    if (!tbody) return;
+
+    const list = appData.masterGuestDb || [];
+    const searchInput = document.getElementById('pickerSearchInput');
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    const normQuery = removeVietnameseTones(query);
+
+    const filtered = list.filter(item => {
+        if (masterGuestPickerGroup !== 'all' && item.group !== masterGuestPickerGroup) return false;
+        if (!query) return true;
+        const normName = removeVietnameseTones(item.name || '');
+        const normOrg = removeVietnameseTones(item.organization || '');
+        const normTitle = removeVietnameseTones(item.title || '');
+        const phone = (item.phone || '').toLowerCase();
+        return normName.includes(normQuery) || normOrg.includes(normQuery) || normTitle.includes(normQuery) || phone.includes(query);
+    });
+
+    const countLabel = document.getElementById('pickerCountLabel');
+    if (countLabel) countLabel.textContent = `Hiển thị ${filtered.length} / ${list.length} đối tượng`;
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" class="py-8 text-center text-slate-400">Không tìm thấy đối tượng nào.</td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(item => {
+        const badge = getMasterGuestGroupBadge(item.group);
+        return `
+            <tr class="hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30 transition">
+                <td class="py-2 px-3">${badge}</td>
+                <td class="py-2 px-3">
+                    <div class="font-bold text-slate-800 dark:text-slate-100">${escapeHtml(item.name)}</div>
+                    <div class="text-[11px] text-slate-500">${escapeHtml(item.title || '')}</div>
+                </td>
+                <td class="py-2 px-3">
+                    <div class="font-medium text-slate-700 dark:text-slate-300">${escapeHtml(item.organization)}</div>
+                    ${item.address ? `<div class="text-[10px] text-slate-400">${escapeHtml(item.address)}</div>` : ''}
+                </td>
+                <td class="py-2 px-3">
+                    ${item.phone ? `<div class="font-mono text-slate-700 dark:text-slate-300">${escapeHtml(item.phone)}</div>` : ''}
+                    ${item.email ? `<div class="text-[10px] text-slate-400">${escapeHtml(item.email)}</div>` : ''}
+                </td>
+                <td class="py-2 px-3 text-center">
+                    <button type="button" onclick="selectMasterGuestFromPicker('${item.id}')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow transition cursor-pointer">
+                        Chọn
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function selectMasterGuestFromPicker(id) {
+    selectMasterGuestForCrm(id);
+    closeMasterGuestPickerModal();
+}
+
+// -------------------------------------------------------------
+// BATCH IMPORT HÀNG LOẠT TỪ CSDL MASTER VÀO SỰ KIỆN
+// -------------------------------------------------------------
+function openBatchImportFromMasterDbModal() {
+    const evId = module4State.selectedEventId;
+    if (!evId) {
+        Swal.fire('Chưa chọn sự kiện', 'Vui lòng chọn sự kiện trước khi nhập khách mời.', 'warning');
+        return;
+    }
+
+    batchImportMasterGroup = 'all';
+    batchSelectedMasterIds.clear();
+    const input = document.getElementById('batchImportSearchInput');
+    if (input) input.value = '';
+    const selectAllBox = document.getElementById('batchSelectAllCheckbox');
+    if (selectAllBox) selectAllBox.checked = false;
+
+    renderBatchImportMasterTable();
+    document.getElementById('batchImportMasterModal').classList.remove('hidden');
+}
+
+function closeBatchImportMasterModal() {
+    document.getElementById('batchImportMasterModal').classList.add('hidden');
+}
+
+function filterBatchImportMasterGroup(group) {
+    batchImportMasterGroup = group;
+    const groups = ['all', 'VIP', 'SoNganh', 'DoanhNghiep', 'QuocTe', 'BaoChi'];
+    groups.forEach(g => {
+        const btn = document.getElementById(`batchFilterBtn-${g}`);
+        if (!btn) return;
+        if (g === group) {
+            btn.className = "px-2.5 py-1 rounded-lg font-bold bg-emerald-600 text-white shrink-0 cursor-pointer";
+        } else {
+            btn.className = "px-2.5 py-1 rounded-lg font-semibold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 shrink-0 cursor-pointer";
+        }
+    });
+    renderBatchImportMasterTable();
+}
+
+function renderBatchImportMasterTable() {
+    ensureMasterGuestDb();
+    const tbody = document.getElementById('batchImportTableBody');
+    if (!tbody) return;
+
+    const evId = module4State.selectedEventId;
+    const existingGuests = (appData.eventGuests && appData.eventGuests[evId]) || [];
+    const list = appData.masterGuestDb || [];
+
+    const searchInput = document.getElementById('batchImportSearchInput');
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    const normQuery = removeVietnameseTones(query);
+
+    const filtered = list.filter(item => {
+        if (batchImportMasterGroup !== 'all' && item.group !== batchImportMasterGroup) return false;
+        if (!query) return true;
+        const normName = removeVietnameseTones(item.name || '');
+        const normOrg = removeVietnameseTones(item.organization || '');
+        const normTitle = removeVietnameseTones(item.title || '');
+        return normName.includes(normQuery) || normOrg.includes(normQuery) || normTitle.includes(normQuery);
+    });
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="py-8 text-center text-slate-400">Không tìm thấy đối tượng nào.</td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(item => {
+        const badge = getMasterGuestGroupBadge(item.group);
+        // Kiểm tra xem đã có trong sự kiện này chưa
+        const isAlreadyAdded = existingGuests.some(g => {
+            const sameName = removeVietnameseTones(g.name || '') === removeVietnameseTones(item.name || '');
+            const sameOrg = removeVietnameseTones(g.organization || '') === removeVietnameseTones(item.organization || '');
+            return sameName && sameOrg;
+        });
+
+        const isChecked = batchSelectedMasterIds.has(item.id);
+
+        return `
+            <tr class="hover:bg-slate-50 dark:hover:bg-slate-750 transition ${isAlreadyAdded ? 'bg-slate-50/50 dark:bg-slate-900/30' : ''}">
+                <td class="py-2.5 px-3 text-center">
+                    <input type="checkbox" onchange="toggleBatchImportItem('${item.id}', this.checked)" ${isChecked ? 'checked' : ''} class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer">
+                </td>
+                <td class="py-2.5 px-3">${badge}</td>
+                <td class="py-2.5 px-3">
+                    <div class="font-bold text-slate-800 dark:text-slate-100">${escapeHtml(item.name)}</div>
+                    <div class="text-[11px] text-slate-500">${escapeHtml(item.title || '')}</div>
+                </td>
+                <td class="py-2.5 px-3">
+                    <div class="font-medium text-slate-700 dark:text-slate-300">${escapeHtml(item.organization)}</div>
+                    ${item.address ? `<div class="text-[10px] text-slate-400">${escapeHtml(item.address)}</div>` : ''}
+                </td>
+                <td class="py-2.5 px-3">
+                    ${item.phone ? `<div class="font-mono text-slate-700 dark:text-slate-300">${escapeHtml(item.phone)}</div>` : ''}
+                    ${item.email ? `<div class="text-[10px] text-slate-400">${escapeHtml(item.email)}</div>` : ''}
+                </td>
+                <td class="py-2.5 px-3 text-center">
+                    ${isAlreadyAdded 
+                        ? '<span class="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">Đã có trong SK</span>' 
+                        : '<span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">Chưa thêm</span>'}
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    updateBatchSelectedCount();
+}
+
+function toggleBatchImportItem(id, isChecked) {
+    if (isChecked) {
+        batchSelectedMasterIds.add(id);
+    } else {
+        batchSelectedMasterIds.delete(id);
+    }
+    updateBatchSelectedCount();
+}
+
+function toggleBatchImportSelectAll(isChecked) {
+    ensureMasterGuestDb();
+    const list = appData.masterGuestDb || [];
+    const searchInput = document.getElementById('batchImportSearchInput');
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    const normQuery = removeVietnameseTones(query);
+
+    const filtered = list.filter(item => {
+        if (batchImportMasterGroup !== 'all' && item.group !== batchImportMasterGroup) return false;
+        if (!query) return true;
+        const normName = removeVietnameseTones(item.name || '');
+        const normOrg = removeVietnameseTones(item.organization || '');
+        const normTitle = removeVietnameseTones(item.title || '');
+        return normName.includes(normQuery) || normOrg.includes(normQuery) || normTitle.includes(normQuery);
+    });
+
+    filtered.forEach(item => {
+        if (isChecked) {
+            batchSelectedMasterIds.add(item.id);
+        } else {
+            batchSelectedMasterIds.delete(item.id);
+        }
+    });
+
+    renderBatchImportMasterTable();
+}
+
+function updateBatchSelectedCount() {
+    const el = document.getElementById('batchSelectedCount');
+    if (el) el.textContent = batchSelectedMasterIds.size;
+}
+
+function executeBatchImportMasterGuests() {
+    const evId = module4State.selectedEventId;
+    if (!evId) return;
+
+    if (batchSelectedMasterIds.size === 0) {
+        Swal.fire('Chưa chọn đối tượng', 'Vui lòng tích chọn ít nhất 1 đại biểu hoặc doanh nghiệp để nhập.', 'warning');
+        return;
+    }
+
+    if (!appData.eventGuests[evId]) appData.eventGuests[evId] = [];
+    const existingGuests = appData.eventGuests[evId];
+    const masterList = appData.masterGuestDb || [];
+
+    let addedCount = 0;
+    let updatedCount = 0;
+
+    batchSelectedMasterIds.forEach(id => {
+        const item = masterList.find(m => m.id === id);
+        if (!item) return;
+
+        // Kiểm tra xem đã có chưa
+        const existing = existingGuests.find(g => {
+            const sameName = removeVietnameseTones(g.name || '') === removeVietnameseTones(item.name || '');
+            const sameOrg = removeVietnameseTones(g.organization || '') === removeVietnameseTones(item.organization || '');
+            return sameName && sameOrg;
+        });
+
+        if (existing) {
+            existing.group = item.group || existing.group;
+            existing.title = item.title || existing.title;
+            existing.phone = item.phone || existing.phone;
+            existing.email = item.email || existing.email;
+            existing.hasBanquet = item.hasBanquet !== undefined ? item.hasBanquet : existing.hasBanquet;
+            if (item.notes && !existing.notes) existing.notes = item.notes;
+            updatedCount++;
+        } else {
+            const newGuest = {
+                id: 'gst_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+                name: item.name,
+                group: item.group || 'VIP',
+                title: item.title || '',
+                organization: item.organization,
+                phone: item.phone || '',
+                email: item.email || '',
+                sendMethod: 'direct',
+                inviteStatus: 'sent',
+                rsvpStatus: 'confirmed',
+                substituteName: '',
+                hasBanquet: !!item.hasBanquet,
+                seatCode: '',
+                notes: item.notes || ''
+            };
+            existingGuests.push(newGuest);
+            addedCount++;
+        }
+    });
+
+    syncModule4Storage(true);
+    closeBatchImportMasterModal();
+
+    if (typeof renderCrmGuestsTable === 'function') renderCrmGuestsTable();
+    if (typeof updateCrmKpiCards === 'function') updateCrmKpiCards();
+    if (typeof renderPopupGuestsTable === 'function') renderPopupGuestsTable();
+
+    Swal.fire({
+        title: 'Nhập thành công!',
+        html: `Đã nạp <strong>${addedCount}</strong> đại biểu mới và cập nhật <strong>${updatedCount}</strong> đại biểu vào sự kiện.`,
+        icon: 'success'
+    });
+}
+
+
 function initModule4() {
+    ensureMasterGuestDb();
     if (!appData.eventGuests) appData.eventGuests = {};
     if (!appData.eventBooths) appData.eventBooths = {};
     if (!appData.eventSeating) appData.eventSeating = {};
@@ -16068,6 +17700,97 @@ function openGenerateDailyReportModal(customCountdown = null) {
                         1. Kính trình Lãnh đạo UBND Thành phố phê duyệt Kịch bản chi tiết điều hành phiên Tọa đàm B2B chiều ngày diễn ra sự kiện.<br>
                         2. Giao Phòng Hành chính - Tổ chức và Phòng Xúc tiến Đầu tư tổ chức buổi Tổng duyệt âm thanh, ánh sáng và kiểm tra bục phát biểu Lãnh đạo vào lúc 14h00 ngày mai tại sảnh chính khách sạn.
                     </p>
+                </div>
+            </div>
+
+            <!-- ========================================================================= -->
+            <!-- PHÂN KHU QUẢN TRỊ CƠ SỞ DỮ LIỆU KHÁCH MỜI & DOANH NGHIỆP DÙNG CHUNG -->
+            <!-- ========================================================================= -->
+            <div id="adminMasterGuestDbSection" class="bg-white dark:bg-slate-800 rounded-xl p-3.5 sm:p-5 shadow-sm border border-slate-200 dark:border-slate-700 space-y-4">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-700">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-lg font-bold shadow-md shadow-emerald-600/30 shrink-0">
+                            <i class="fas fa-address-book"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="font-bold text-base text-slate-800 dark:text-white">Cơ Sở Dữ Liệu Khách Mời & Doanh Nghiệp (Master Directory)</h3>
+                                <span class="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">Toàn Hệ Thống</span>
+                            </div>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">CSDL dùng chung chuẩn hóa các đối tượng đầu mối: VIP Lãnh đạo TP, Khối Sở ngành, Doanh nghiệp & HTX, Tổ chức Quốc tế và Cơ quan Báo chí. Khi lập danh sách tại mỗi sự kiện sẽ tự động đối chiếu và gợi ý.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 shrink-0 flex-wrap">
+                        <button onclick="openCreateMasterGuestModal()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-sm transition flex items-center gap-2 cursor-pointer">
+                            <i class="fas fa-plus-circle"></i>
+                            <span>Thêm Đối Tượng Mới</span>
+                        </button>
+                        <button onclick="exportMasterGuestDbExcel()" class="px-3 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer" title="Xuất toàn bộ CSDL ra file Excel">
+                            <i class="fas fa-file-excel text-emerald-600"></i>
+                            <span class="hidden sm:inline">Xuất Excel</span>
+                        </button>
+                        <button onclick="resetDefaultMasterGuestDb()" class="px-3 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer" title="Khôi phục danh bạ mẫu chuẩn SCE (38 đối tượng thực tế)">
+                            <i class="fas fa-rotate-left text-amber-500"></i>
+                            <span class="hidden sm:inline">Khôi Phục Mẫu</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 6 Tabs Phân Nhóm Thống Kê Nhanh -->
+                <div class="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+                    <button id="masterFilterBtn-all" onclick="filterMasterGuestDbGroup('all')" class="px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 bg-emerald-600 text-white shadow-sm shrink-0 cursor-pointer">
+                        <span>Tất cả</span>
+                        <span id="masterBadgeCount-all" class="px-1.5 py-0.2 bg-white/20 rounded-full text-[10px]">0</span>
+                    </button>
+                    <button id="masterFilterBtn-VIP" onclick="filterMasterGuestDbGroup('VIP')" class="px-3 py-1.5 rounded-xl font-semibold transition flex items-center gap-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 shrink-0 cursor-pointer">
+                        <span>⭐ Đại biểu VIP</span>
+                        <span id="masterBadgeCount-VIP" class="px-1.5 py-0.2 bg-slate-200 dark:bg-slate-600 rounded-full text-[10px]">0</span>
+                    </button>
+                    <button id="masterFilterBtn-SoNganh" onclick="filterMasterGuestDbGroup('SoNganh')" class="px-3 py-1.5 rounded-xl font-semibold transition flex items-center gap-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 shrink-0 cursor-pointer">
+                        <span>🏛️ Khối Sở ngành</span>
+                        <span id="masterBadgeCount-SoNganh" class="px-1.5 py-0.2 bg-slate-200 dark:bg-slate-600 rounded-full text-[10px]">0</span>
+                    </button>
+                    <button id="masterFilterBtn-DoanhNghiep" onclick="filterMasterGuestDbGroup('DoanhNghiep')" class="px-3 py-1.5 rounded-xl font-semibold transition flex items-center gap-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 shrink-0 cursor-pointer">
+                        <span>💼 Doanh nghiệp & HTX</span>
+                        <span id="masterBadgeCount-DoanhNghiep" class="px-1.5 py-0.2 bg-slate-200 dark:bg-slate-600 rounded-full text-[10px]">0</span>
+                    </button>
+                    <button id="masterFilterBtn-QuocTe" onclick="filterMasterGuestDbGroup('QuocTe')" class="px-3 py-1.5 rounded-xl font-semibold transition flex items-center gap-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 shrink-0 cursor-pointer">
+                        <span>🌐 Khách Quốc tế</span>
+                        <span id="masterBadgeCount-QuocTe" class="px-1.5 py-0.2 bg-slate-200 dark:bg-slate-600 rounded-full text-[10px]">0</span>
+                    </button>
+                    <button id="masterFilterBtn-BaoChi" onclick="filterMasterGuestDbGroup('BaoChi')" class="px-3 py-1.5 rounded-xl font-semibold transition flex items-center gap-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 shrink-0 cursor-pointer">
+                        <span>📰 Báo chí, Truyền hình</span>
+                        <span id="masterBadgeCount-BaoChi" class="px-1.5 py-0.2 bg-slate-200 dark:bg-slate-600 rounded-full text-[10px]">0</span>
+                    </button>
+                </div>
+
+                <!-- Thanh tìm kiếm & Lọc -->
+                <div class="flex items-center gap-2">
+                    <div class="relative flex-1">
+                        <i class="fas fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                        <input type="text" id="masterGuestSearchInput" oninput="renderMasterGuestDbTable()" placeholder="Tìm kiếm nhanh theo họ tên, chức danh, cơ quan, điện thoại, email..." class="w-full pl-8 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                </div>
+
+                <!-- Bảng Dữ Liệu CSDL Master -->
+                <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 max-h-[500px] overflow-y-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10">
+                            <tr>
+                                <th class="py-2.5 px-3 w-12 text-center">STT</th>
+                                <th class="py-2.5 px-3 w-28">Nhóm</th>
+                                <th class="py-2.5 px-3 min-w-[200px]">Họ và Tên & Chức Danh</th>
+                                <th class="py-2.5 px-3 min-w-[240px]">Cơ Quan / Doanh Nghiệp & Địa Chỉ</th>
+                                <th class="py-2.5 px-3 min-w-[150px]">Liên Hệ</th>
+                                <th class="py-2.5 px-3 min-w-[140px]">Nghi Thức / Tiệc VIP</th>
+                                <th class="py-2.5 px-3 w-24 text-right">Thao Tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="masterGuestTableBody" class="divide-y divide-slate-100 dark:divide-slate-700/60 bg-white dark:bg-slate-800">
+                            <!-- Nạp qua JS -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
