@@ -729,8 +729,14 @@
                             <i class="fas fa-calendar-check"></i>
                         </div>
                         <div class="min-w-0">
-                            <div class="flex items-center gap-1.5 flex-wrap">
+                            <div class="flex items-center gap-2 flex-wrap">
                                 <h2 class="text-sm sm:text-base font-bold text-slate-800 dark:text-white truncate">Tiến Độ Tổ Chức Sự Kiện</h2>
+                                <!-- Nút Chuông Thông Báo Báo Cáo Hàng Ngày Trình Lãnh Đạo -->
+                                <button onclick="openDailyReportPopup()" id="btnHeaderDailyReportBell" class="relative inline-flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 rounded-full text-xs font-semibold border border-rose-300 dark:border-rose-800 transition shadow-xs cursor-pointer group" title="Báo cáo tiến độ hàng ngày trình Lãnh đạo Trung tâm & UBND Thành phố">
+                                    <i class="fas fa-bell text-rose-600 dark:text-rose-400 text-xs animate-bounce"></i>
+                                    <span class="text-[11px] font-bold hidden sm:inline">Báo Cáo Hàng Ngày</span>
+                                    <span id="bellDailyReportBadge" class="px-1.5 py-0.2 bg-rose-600 text-white rounded-full text-[10px] font-bold">0</span>
+                                </button>
                             </div>
                             <p class="text-[11px] text-slate-500 dark:text-slate-400 truncate hidden md:block">Theo dõi tiến độ, phân công nhiệm vụ và cập nhật trạng thái thực hiện các sự kiện.</p>
                         </div>
@@ -789,44 +795,63 @@
                     </div>
                 </div>
 
-                <!-- 4 Thẻ KPI Tóm Tắt Nhanh -->
+                <!-- 4 Thẻ KPI Tóm Tắt Nhanh (Nhấp vào để mở Pop-up chi tiết tương ứng) -->
                 <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 pt-3">
-                    <div class="bg-slate-50 dark:bg-slate-900/50 p-2.5 sm:p-3 rounded-lg border border-slate-100 dark:border-slate-700 flex items-center gap-2.5">
-                        <div class="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300 flex items-center justify-center text-sm shrink-0">
+                    <!-- 1. Tổng Sự Kiện -> Mở Pop-up Tất cả sự kiện -->
+                    <div onclick="openAllEventsPopup()" id="kpiTotalEventsCard" class="bg-slate-50 dark:bg-slate-900/50 p-2.5 sm:p-3 rounded-lg border border-slate-100 dark:border-slate-700 flex items-center gap-2.5 cursor-pointer hover:shadow-md hover:border-blue-400 dark:hover:border-blue-600 hover:bg-blue-50/40 dark:hover:bg-blue-950/20 transition group select-none" title="Nhấp để xem danh sách chi tiết tất cả các sự kiện">
+                        <div class="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300 flex items-center justify-center text-sm shrink-0 group-hover:scale-105 transition">
                             <i class="fas fa-calendar-days"></i>
                         </div>
-                        <div class="min-w-0">
-                            <div class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate">Tổng Sự Kiện</div>
+                        <div class="min-w-0 flex-1">
+                            <div class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate flex items-center justify-between">
+                                <span>Tổng Sự Kiện</span>
+                                <i class="fas fa-chevron-right text-[9px] text-slate-400 opacity-0 group-hover:opacity-100 transition"></i>
+                            </div>
                             <div class="text-base sm:text-lg font-bold text-slate-800 dark:text-white" id="kpiTotalEvents">0</div>
                         </div>
                     </div>
 
-                    <div class="bg-slate-50 dark:bg-slate-900/50 p-2.5 sm:p-3 rounded-lg border border-slate-100 dark:border-slate-700 flex items-center gap-2.5" id="kpiDailyReportCard">
-                        <div class="w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-900/50 text-rose-600 dark:text-rose-300 flex items-center justify-center text-sm shrink-0">
+                    <!-- 2. Báo Cáo Hàng Ngày -> Mở Pop-up Việc cần báo cáo hàng ngày -->
+                    <div onclick="openDailyReportPopup()" id="kpiDailyReportCard" class="bg-slate-50 dark:bg-slate-900/50 p-2.5 sm:p-3 rounded-lg border border-slate-100 dark:border-slate-700 flex items-center gap-2.5 cursor-pointer hover:shadow-md hover:border-rose-400 dark:hover:border-rose-600 hover:bg-rose-50/40 dark:hover:bg-rose-950/20 transition group select-none" title="Nhấp để xem việc cần báo cáo hàng ngày trình Lãnh đạo">
+                        <div class="w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-900/50 text-rose-600 dark:text-rose-300 flex items-center justify-center text-sm shrink-0 group-hover:scale-105 transition">
                             <i class="fas fa-bell"></i>
                         </div>
-                        <div class="min-w-0">
-                            <div class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate">Báo Cáo Hàng Ngày</div>
+                        <div class="min-w-0 flex-1">
+                            <div class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate flex items-center justify-between">
+                                <span>Báo Cáo Hàng Ngày</span>
+                                <i class="fas fa-chevron-right text-[9px] text-slate-400 opacity-0 group-hover:opacity-100 transition"></i>
+                            </div>
                             <div class="text-base sm:text-lg font-bold text-rose-600 dark:text-rose-400" id="kpiDailyReportCount">0</div>
                         </div>
                     </div>
 
-                    <div class="bg-slate-50 dark:bg-slate-900/50 p-2.5 sm:p-3 rounded-lg border border-slate-100 dark:border-slate-700 flex items-center gap-2.5">
-                        <div class="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-300 flex items-center justify-center text-sm shrink-0">
-                            <i class="fas fa-flag-checkered"></i>
+                    <!-- 3. Việc Hoàn Thành -> Mở Pop-up Các việc đã hoàn thành -->
+                    <div onclick="openCompletedTasksPopup()" id="kpiCompletedTasksCard" class="bg-slate-50 dark:bg-slate-900/50 p-2.5 sm:p-3 rounded-lg border border-slate-100 dark:border-slate-700 flex items-center gap-2.5 cursor-pointer hover:shadow-md hover:border-emerald-400 dark:hover:border-emerald-600 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/20 transition group select-none" title="Nhấp để xem danh sách các công việc đã hoàn thành">
+                        <div class="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-300 flex items-center justify-center text-sm shrink-0 group-hover:scale-105 transition">
+                            <i class="fas fa-circle-check"></i>
                         </div>
-                        <div class="min-w-0">
-                            <div class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate">Hôm Nay / Trong Tuần</div>
-                            <div class="text-base sm:text-lg font-bold text-emerald-600 dark:text-emerald-400" id="kpiThisWeekCount">0</div>
+                        <div class="min-w-0 flex-1">
+                            <div class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate flex items-center justify-between">
+                                <span>Việc Hoàn Thành</span>
+                                <i class="fas fa-chevron-right text-[9px] text-slate-400 opacity-0 group-hover:opacity-100 transition"></i>
+                            </div>
+                            <div class="text-base sm:text-lg font-bold text-emerald-600 dark:text-emerald-400 flex items-baseline gap-1">
+                                <span id="kpiCompletedStepsCount">0</span>
+                                <span class="text-xs text-slate-400 font-normal">/ <span id="kpiTotalStepsCount">0</span></span>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="bg-slate-50 dark:bg-slate-900/50 p-2.5 sm:p-3 rounded-lg border border-slate-100 dark:border-slate-700 flex items-center gap-2.5" id="kpiOverdueCard">
-                        <div class="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-300 flex items-center justify-center text-sm shrink-0">
+                    <!-- 4. Việc Chậm Tiến Độ -> Mở Pop-up Các việc chậm tiến độ -->
+                    <div onclick="openOverdueTasksPopup()" id="kpiOverdueCard" class="bg-slate-50 dark:bg-slate-900/50 p-2.5 sm:p-3 rounded-lg border border-slate-100 dark:border-slate-700 flex items-center gap-2.5 cursor-pointer hover:shadow-md hover:border-amber-400 dark:hover:border-amber-600 hover:bg-amber-50/40 dark:hover:bg-amber-950/20 transition group select-none" title="Nhấp để xem danh sách các công việc chậm tiến độ cần xử lý gấp">
+                        <div class="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-300 flex items-center justify-center text-sm shrink-0 group-hover:scale-105 transition">
                             <i class="fas fa-triangle-exclamation"></i>
                         </div>
-                        <div class="min-w-0">
-                            <div class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate">Việc Chậm Tiến Độ</div>
+                        <div class="min-w-0 flex-1">
+                            <div class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate flex items-center justify-between">
+                                <span>Việc Chậm Tiến Độ</span>
+                                <i class="fas fa-chevron-right text-[9px] text-slate-400 opacity-0 group-hover:opacity-100 transition"></i>
+                            </div>
                             <div class="text-base sm:text-lg font-bold text-amber-600 dark:text-amber-400" id="kpiOverdueStepsCount">0</div>
                         </div>
                     </div>
@@ -834,7 +859,7 @@
             </div>
 
             <!-- Banner Báo Cáo Hàng Ngày -->
-            <div id="module2DailyReportAlert" class="hidden bg-gradient-to-r from-rose-500/15 via-red-500/10 to-amber-500/10 border-2 border-rose-500/40 rounded-xl p-2.5 sm:p-3.5 shadow-sm text-slate-800 dark:text-slate-100 space-y-2">
+            <div id="module2DailyReportAlert" style="display:none !important;" class="hidden bg-gradient-to-r from-rose-500/15 via-red-500/10 to-amber-500/10 border-2 border-rose-500/40 rounded-xl p-2.5 sm:p-3.5 shadow-sm text-slate-800 dark:text-slate-100 space-y-2">
                 <div class="flex items-center justify-between gap-2">
                     <div class="flex items-center gap-2">
                         <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span>
@@ -2644,6 +2669,153 @@
     <!-- ========================================================================= -->
     <!-- 4.B CÁC MODAL PHỤC VỤ PHÂN HỆ 2: SỰ KIỆN, BƯỚC VIỆC, SUBTASKS, LINKS, NOTE -->
     <!-- ========================================================================= -->
+
+        <!-- ========================================================================= -->
+    <!-- 4.B.0 CÁC MODAL POP-UP THỐNG KÊ KPI & BÁO CÁO HÀNG NGÀY TRÌNH LÃNH ĐẠO -->
+    <!-- ========================================================================= -->
+
+    <!-- POP-UP 1: BÁO CÁO TIẾN ĐỘ HÀNG NGÀY TRÌNH LÃNH ĐẠO -->
+    <div id="modalDailyReportPopup" class="hidden fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4" onclick="if(event.target === this) closeDailyReportPopup()">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-2xl w-full p-4 sm:p-6 border border-slate-200 dark:border-slate-700 space-y-4 max-h-[90vh] flex flex-col">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-rose-100 dark:bg-rose-900/50 text-rose-600 dark:text-rose-400 flex items-center justify-center text-base font-bold shadow-xs">
+                        <i class="fas fa-bell animate-swing"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm sm:text-base text-slate-800 dark:text-white flex items-center gap-2">
+                            <span>Việc Cần Báo Cáo Hàng Ngày Trình Lãnh Đạo</span>
+                            <span id="dailyReportPopupBadge" class="bg-rose-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full font-mono">0 sự kiện</span>
+                        </h3>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">Các sự kiện sắp diễn ra trong vòng 10 ngày làm việc cần cập nhật tiến độ liên tục</p>
+                    </div>
+                </div>
+                <button onclick="closeDailyReportPopup()" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 transition cursor-pointer">
+                    <i class="fas fa-times text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Nội dung danh sách sự kiện và việc cần báo cáo -->
+            <div id="dailyReportPopupContent" class="flex-1 overflow-y-auto space-y-3.5 pr-1 hide-scrollbar">
+                <!-- Nạp qua JS -->
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center text-xs">
+                <span class="text-[11px] text-slate-500 italic">Áp dụng chế độ báo cáo khẩn cấp mốc 10 ngày làm việc</span>
+                <button onclick="closeDailyReportPopup()" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl font-semibold transition cursor-pointer">
+                    Đóng
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- POP-UP 2: TỔNG SỰ KIỆN -->
+    <div id="modalAllEventsPopup" class="hidden fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4" onclick="if(event.target === this) closeAllEventsPopup()">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-2xl w-full p-4 sm:p-6 border border-slate-200 dark:border-slate-700 space-y-4 max-h-[90vh] flex flex-col">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center text-base font-bold shadow-xs">
+                        <i class="fas fa-calendar-days"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm sm:text-base text-slate-800 dark:text-white flex items-center gap-2">
+                            <span>Danh Sách Tất Cả Sự Kiện</span>
+                            <span id="allEventsPopupBadge" class="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full font-mono">0</span>
+                        </h3>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">Tổng hợp toàn bộ các sự kiện đang triển khai và quản lý trên hệ thống</p>
+                    </div>
+                </div>
+                <button onclick="closeAllEventsPopup()" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 transition cursor-pointer">
+                    <i class="fas fa-times text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Nội dung danh sách sự kiện -->
+            <div id="allEventsPopupContent" class="flex-1 overflow-y-auto space-y-3 pr-1 hide-scrollbar">
+                <!-- Nạp qua JS -->
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center text-xs">
+                <button onclick="closeAllEventsPopup(); openCreateEventModal();" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition flex items-center gap-1.5 cursor-pointer">
+                    <i class="fas fa-plus text-xs"></i>
+                    <span>Tạo Sự Kiện Mới</span>
+                </button>
+                <button onclick="closeAllEventsPopup()" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl font-semibold transition cursor-pointer">
+                    Đóng
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- POP-UP 3: DANH SÁCH VIỆC ĐÃ HOÀN THÀNH -->
+    <div id="modalCompletedTasksPopup" class="hidden fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4" onclick="if(event.target === this) closeCompletedTasksPopup()">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-2xl w-full p-4 sm:p-6 border border-slate-200 dark:border-slate-700 space-y-4 max-h-[90vh] flex flex-col">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-base font-bold shadow-xs">
+                        <i class="fas fa-circle-check"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm sm:text-base text-slate-800 dark:text-white flex items-center gap-2">
+                            <span>Danh Sách Việc Đã Hoàn Thành</span>
+                            <span id="completedTasksPopupBadge" class="bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full font-mono">0</span>
+                        </h3>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">Các công việc và bước chi tiết đã được nghiệm thu hoàn thành</p>
+                    </div>
+                </div>
+                <button onclick="closeCompletedTasksPopup()" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 transition cursor-pointer">
+                    <i class="fas fa-times text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Nội dung danh sách việc đã hoàn thành -->
+            <div id="completedTasksPopupContent" class="flex-1 overflow-y-auto space-y-2.5 pr-1 hide-scrollbar">
+                <!-- Nạp qua JS -->
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center text-xs">
+                <span class="text-[11px] text-slate-500 italic">Cập nhật theo thời gian thực</span>
+                <button onclick="closeCompletedTasksPopup()" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl font-semibold transition cursor-pointer">
+                    Đóng
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- POP-UP 4: DANH SÁCH VIỆC CHẬM TIẾN ĐỘ -->
+    <div id="modalOverdueTasksPopup" class="hidden fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4" onclick="if(event.target === this) closeOverdueTasksPopup()">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-2xl w-full p-4 sm:p-6 border border-slate-200 dark:border-slate-700 space-y-4 max-h-[90vh] flex flex-col">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 flex items-center justify-center text-base font-bold shadow-xs">
+                        <i class="fas fa-triangle-exclamation"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm sm:text-base text-slate-800 dark:text-white flex items-center gap-2">
+                            <span>Danh Sách Việc Chậm Tiến Độ</span>
+                            <span id="overdueTasksPopupBadge" class="bg-rose-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full font-mono">0</span>
+                        </h3>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">Các công việc đã quá hạn chót cần xử lý gấp và đôn đốc thực hiện</p>
+                    </div>
+                </div>
+                <button onclick="closeOverdueTasksPopup()" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 transition cursor-pointer">
+                    <i class="fas fa-times text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Nội dung danh sách việc chậm tiến độ -->
+            <div id="overdueTasksPopupContent" class="flex-1 overflow-y-auto space-y-2.5 pr-1 hide-scrollbar">
+                <!-- Nạp qua JS -->
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center text-xs">
+                <span class="text-[11px] text-rose-500 font-medium italic">Ưu tiên xử lý các việc trễ hạn nhiều ngày nhất</span>
+                <button onclick="closeOverdueTasksPopup()" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl font-semibold transition cursor-pointer">
+                    Đóng
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Modal 1: Tạo / Sửa Sự Kiện (Event Wizard Modal) -->
     <div id="eventWizardModal" class="hidden fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -5648,7 +5820,7 @@
 
             // Đăng ký Service Worker cho PWA
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('./sw.js?v=3').catch(err => console.log('SW registration failed:', err));
+                navigator.serviceWorker.register('./sw.js?v=4').catch(err => console.log('SW registration failed:', err));
             }
         });
 
@@ -6602,28 +6774,388 @@
             const events = appData.events || [];
             let total = events.length;
             let dailyReportCount = 0;
-            let thisWeekCount = 0;
+            let completedStepsCount = 0;
+            let totalStepsCount = 0;
             let overdueStepsCount = 0;
 
             events.forEach(evt => {
                 const workdaysDiff = getWorkdaysDiff(evt.eventDate);
-                const daysDiff = getDaysDiff(evt.eventDate);
 
                 if (workdaysDiff >= 0 && workdaysDiff <= 10) {
                     dailyReportCount++;
-                }
-
-                if (daysDiff >= 0 && daysDiff <= 7) {
-                    thisWeekCount++;
                 }
 
                 if (evt.groups && Array.isArray(evt.groups)) {
                     evt.groups.forEach(grp => {
                         if (grp.steps && Array.isArray(grp.steps)) {
                             grp.steps.forEach(st => {
+                                totalStepsCount++;
+                                if (st.completed) {
+                                    completedStepsCount++;
+                                } else if (st.calculatedDeadline && getDaysDiff(st.calculatedDeadline) < 0) {
+                                    overdueStepsCount++;
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+
+            // 1. Thẻ Tổng sự kiện
+            const elTotal = document.getElementById('kpiTotalEvents');
+            if (elTotal) elTotal.textContent = total;
+
+            // 2. Thẻ & Chuông Báo cáo hàng ngày
+            const elDaily = document.getElementById('kpiDailyReportCount');
+            if (elDaily) elDaily.textContent = dailyReportCount;
+
+            const bellBadge = document.getElementById('bellDailyReportBadge');
+            if (bellBadge) {
+                bellBadge.textContent = dailyReportCount;
+                if (dailyReportCount > 0) {
+                    bellBadge.className = "px-1.5 py-0.2 bg-rose-600 text-white rounded-full text-[10px] font-bold";
+                } else {
+                    bellBadge.className = "px-1.5 py-0.2 bg-slate-300 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-full text-[10px] font-semibold";
+                }
+            }
+
+            const bellBtn = document.getElementById('btnHeaderDailyReportBell');
+            if (bellBtn) {
+                if (dailyReportCount > 0) {
+                    bellBtn.classList.remove('opacity-60');
+                    const bellIcon = bellBtn.querySelector('.fa-bell');
+                    if (bellIcon) bellIcon.classList.add('animate-bounce');
+                } else {
+                    bellBtn.classList.add('opacity-60');
+                    const bellIcon = bellBtn.querySelector('.fa-bell');
+                    if (bellIcon) bellIcon.classList.remove('animate-bounce');
+                }
+            }
+
+            const reportCard = document.getElementById('kpiDailyReportCard');
+            if (reportCard) {
+                if (dailyReportCount > 0) {
+                    reportCard.classList.add('ring-2', 'ring-rose-500/50', 'bg-rose-50/50', 'dark:bg-rose-950/20');
+                } else {
+                    reportCard.classList.remove('ring-2', 'ring-rose-500/50', 'bg-rose-50/50', 'dark:bg-rose-950/20');
+                }
+            }
+
+            // 3. Thẻ Việc Hoàn Thành
+            const elComp = document.getElementById('kpiCompletedStepsCount');
+            if (elComp) elComp.textContent = completedStepsCount;
+            const elTotalSteps = document.getElementById('kpiTotalStepsCount');
+            if (elTotalSteps) elTotalSteps.textContent = totalStepsCount;
+
+            // 4. Thẻ Việc Chậm Tiến Độ
+            const elOverdue = document.getElementById('kpiOverdueStepsCount');
+            if (elOverdue) elOverdue.textContent = overdueStepsCount;
+
+            const overdueCard = document.getElementById('kpiOverdueCard');
+            if (overdueCard) {
+                if (overdueStepsCount > 0) {
+                    overdueCard.classList.add('ring-2', 'ring-amber-500/50', 'bg-amber-50/50', 'dark:bg-amber-950/20');
+                } else {
+                    overdueCard.classList.remove('ring-2', 'ring-amber-500/50', 'bg-amber-50/50', 'dark:bg-amber-950/20');
+                }
+            }
+        }
+
+        // =============================================================
+        // POP-UP 1: VIỆC CẦN BÁO CÁO HÀNG NGÀY TRÌNH LÃNH ĐẠO
+        // =============================================================
+        function openDailyReportPopup() {
+            renderDailyReportPopupContent();
+            const modal = document.getElementById('modalDailyReportPopup');
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closeDailyReportPopup() {
+            const modal = document.getElementById('modalDailyReportPopup');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function renderDailyReportPopupContent() {
+            const container = document.getElementById('dailyReportPopupContent');
+            const badge = document.getElementById('dailyReportPopupBadge');
+            const events = appData.events || [];
+
+            const urgentEvents = events.filter(evt => {
+                const diff = getWorkdaysDiff(evt.eventDate);
+                return diff >= 0 && diff <= 10;
+            });
+
+            if (badge) badge.textContent = `${urgentEvents.length} sự kiện`;
+            if (!container) return;
+
+            if (urgentEvents.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-10 text-slate-400">
+                        <i class="fas fa-circle-check text-4xl text-emerald-500 mb-2"></i>
+                        <p class="text-sm font-bold text-slate-700 dark:text-slate-200">Không có sự kiện nào trong mốc báo cáo hàng ngày (≤ 10 ngày làm việc)</p>
+                        <p class="text-xs text-slate-400 mt-1">Hệ thống sẽ tự động kích hoạt thông báo khi các sự kiện sắp diễn ra.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = urgentEvents.map(evt => {
+                const diff = getWorkdaysDiff(evt.eventDate);
+                const tagColor = diff === 0 ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white';
+                const tagLabel = diff === 0 ? '⭐ Hôm nay diễn ra' : `🚨 Còn ${diff} ngày làm việc`;
+
+                // Tìm các bước việc trọng tâm trong sự kiện này
+                let urgentSteps = [];
+                if (evt.groups) {
+                    evt.groups.forEach(g => {
+                        if (g.steps) {
+                            g.steps.forEach(st => {
+                                const stDiff = st.calculatedDeadline ? getDaysDiff(st.calculatedDeadline) : null;
+                                if (!st.completed && stDiff !== null && stDiff <= 3) {
+                                    urgentSteps.push({ ...st, groupName: g.name, daysDiff: stDiff });
+                                }
+                            });
+                        }
+                    });
+                }
+                // Sắp xếp các việc trễ nhất lên trước
+                urgentSteps.sort((a, b) => a.daysDiff - b.daysDiff);
+
+                return `
+                    <div class="bg-rose-50/40 dark:bg-slate-900/60 border border-rose-200 dark:border-rose-900/50 rounded-xl p-3.5 space-y-3">
+                        <div class="flex items-start justify-between gap-2">
+                            <div>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="${tagColor} text-[10px] font-bold px-2.5 py-0.5 rounded-full font-mono">${tagLabel}</span>
+                                    <h4 class="font-bold text-sm text-slate-800 dark:text-white">${escapeHtml(evt.name)}</h4>
+                                </div>
+                                <div class="text-xs text-slate-500 mt-1 flex items-center gap-3 flex-wrap">
+                                    <span><i class="fas fa-calendar mr-1 text-slate-400"></i>${formatVNDate(evt.eventDate)}</span>
+                                    <span><i class="fas fa-location-dot mr-1 text-slate-400"></i>${escapeHtml(evt.location || 'Hà Nội')}</span>
+                                    <span><i class="fas fa-building mr-1 text-slate-400"></i>${escapeHtml(evt.leadDept || 'P. XTĐT')}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Danh sách các bước trọng tâm cần báo cáo -->
+                        <div class="space-y-1.5 bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                            <div class="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                                <span><i class="fas fa-list-check text-rose-500 mr-1.5"></i>Nhiệm vụ trọng tâm cần cập nhật:</span>
+                                <span class="text-[10px] text-slate-400 font-normal">${urgentSteps.length} việc cần chú ý</span>
+                            </div>
+                            ${urgentSteps.length > 0 ? urgentSteps.slice(0, 4).map(st => `
+                                <div class="flex items-center justify-between gap-2 text-xs py-1 border-b border-slate-100 dark:border-slate-700 last:border-0">
+                                    <div class="min-w-0 flex-1 truncate">
+                                        <span class="font-medium text-slate-800 dark:text-slate-200">${escapeHtml(st.name)}</span>
+                                        <span class="text-[10px] text-slate-400">(${escapeHtml(st.groupName)})</span>
+                                    </div>
+                                    <span class="${st.daysDiff < 0 ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300 font-bold' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'} px-1.5 py-0.2 rounded text-[10px] font-mono shrink-0">
+                                        ${st.daysDiff < 0 ? `Trễ ${Math.abs(st.daysDiff)} ngày` : (st.daysDiff === 0 ? 'Hạn hôm nay' : `Còn ${st.daysDiff} ngày`)}
+                                    </span>
+                                </div>
+                            `).join('') : '<p class="text-[11px] text-slate-400 italic">Các bước hiện tại đều đang được tiến hành đúng kế hoạch.</p>'}
+                        </div>
+
+                        <!-- Nút thao tác -->
+                        <div class="flex items-center justify-end gap-2 pt-1">
+                            <button onclick="closeDailyReportPopup(); focusAndExpandEvent('${evt.id}');" class="px-3 py-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold transition cursor-pointer">
+                                <i class="fas fa-eye mr-1 text-blue-500"></i>Xem Chi Tiết Sự Kiện
+                            </button>
+                            <button onclick="closeDailyReportPopup(); switchMainTab('tab-reports'); setTimeout(() => { const sel = document.getElementById('reportEventSelector'); if(sel){ sel.value='${evt.id}'; onReportEventChange(); } openGenerateDailyReportModal(); }, 150);" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold shadow-xs transition cursor-pointer">
+                                <i class="fas fa-file-contract mr-1"></i>Xuất Báo Cáo Hàng Ngày
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // =============================================================
+        // POP-UP 2: DANH SÁCH TẤT CẢ SỰ KIỆN
+        // =============================================================
+        function openAllEventsPopup() {
+            renderAllEventsPopupContent();
+            const modal = document.getElementById('modalAllEventsPopup');
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closeAllEventsPopup() {
+            const modal = document.getElementById('modalAllEventsPopup');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function renderAllEventsPopupContent() {
+            const container = document.getElementById('allEventsPopupContent');
+            const badge = document.getElementById('allEventsPopupBadge');
+            const events = appData.events || [];
+
+            if (badge) badge.textContent = `${events.length} sự kiện`;
+            if (!container) return;
+
+            if (events.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-10 text-slate-400">
+                        <i class="fas fa-calendar-xmark text-4xl mb-2 text-slate-300"></i>
+                        <p class="text-sm font-bold text-slate-700 dark:text-slate-200">Chưa có sự kiện nào trong hệ thống</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = events.map(evt => {
+                let totalSteps = 0;
+                let completedSteps = 0;
+                let overdueSteps = 0;
+
+                if (evt.groups) {
+                    evt.groups.forEach(g => {
+                        if (g.steps) {
+                            g.steps.forEach(st => {
+                                totalSteps++;
+                                if (st.completed) completedSteps++;
+                                else if (st.calculatedDeadline && getDaysDiff(st.calculatedDeadline) < 0) overdueSteps++;
+                            });
+                        }
+                    });
+                }
+
+                const pct = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+                const workdays = getWorkdaysDiff(evt.eventDate);
+
+                return `
+                    <div onclick="closeAllEventsPopup(); focusAndExpandEvent('${evt.id}');" class="bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 hover:border-blue-500 rounded-xl p-3 sm:p-3.5 space-y-2.5 transition cursor-pointer group shadow-xs">
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <h4 class="font-bold text-sm text-slate-800 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition">${escapeHtml(evt.name)}</h4>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300">${escapeHtml(evt.scale || 'Hội nghị')}</span>
+                                    ${overdueSteps > 0 ? `<span class="px-1.5 py-0.2 rounded text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300 font-mono">${overdueSteps} việc trễ</span>` : ''}
+                                </div>
+                                <div class="text-xs text-slate-500 mt-1 flex items-center gap-3 flex-wrap">
+                                    <span><i class="fas fa-calendar mr-1 text-slate-400"></i>${formatVNDate(evt.eventDate)}</span>
+                                    <span><i class="fas fa-location-dot mr-1 text-slate-400"></i>${escapeHtml(evt.location || 'Hà Nội')}</span>
+                                    <span class="font-medium text-slate-600 dark:text-slate-300"><i class="fas fa-clock mr-1 text-slate-400"></i>Còn ${workdays} ngày làm việc</span>
+                                </div>
+                            </div>
+                            <div class="text-right shrink-0">
+                                <span class="text-sm font-black text-blue-600 dark:text-blue-400">${pct}%</span>
+                                <div class="text-[10px] text-slate-400">${completedSteps}/${totalSteps} việc</div>
+                            </div>
+                        </div>
+
+                        <!-- Progress Bar -->
+                        <div class="w-full bg-slate-100 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
+                            <div class="bg-blue-600 h-1.5 rounded-full transition-all" style="width: ${pct}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // =============================================================
+        // POP-UP 3: DANH SÁCH VIỆC ĐÃ HOÀN THÀNH
+        // =============================================================
+        function openCompletedTasksPopup() {
+            renderCompletedTasksPopupContent();
+            const modal = document.getElementById('modalCompletedTasksPopup');
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closeCompletedTasksPopup() {
+            const modal = document.getElementById('modalCompletedTasksPopup');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function renderCompletedTasksPopupContent() {
+            const container = document.getElementById('completedTasksPopupContent');
+            const badge = document.getElementById('completedTasksPopupBadge');
+            const events = appData.events || [];
+
+            let completedTasks = [];
+            events.forEach(evt => {
+                if (evt.groups) {
+                    evt.groups.forEach(grp => {
+                        if (grp.steps) {
+                            grp.steps.forEach(st => {
+                                if (st.completed) {
+                                    completedTasks.push({
+                                        step: st,
+                                        group: grp,
+                                        event: evt
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+
+            if (badge) badge.textContent = `${completedTasks.length} việc`;
+            if (!container) return;
+
+            if (completedTasks.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-10 text-slate-400">
+                        <i class="fas fa-list-check text-4xl mb-2 text-slate-300"></i>
+                        <p class="text-sm font-bold text-slate-700 dark:text-slate-200">Chưa có công việc nào được đánh dấu hoàn thành</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = completedTasks.map(item => `
+                <div class="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl p-3 flex items-center justify-between gap-3 hover:border-emerald-300 dark:hover:border-emerald-700 transition">
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-circle-check text-emerald-500 text-sm shrink-0"></i>
+                            <div class="font-bold text-xs text-slate-800 dark:text-white truncate">${escapeHtml(item.step.name)}</div>
+                        </div>
+                        <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 truncate">
+                            <span class="font-semibold text-slate-700 dark:text-slate-300">${escapeHtml(item.event.name)}</span> • <span class="italic">${escapeHtml(item.group.name)}</span>
+                            ${item.step.dept ? `<span class="ml-2 px-1.5 py-0.2 rounded text-[10px] bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">${escapeHtml(item.step.dept)}</span>` : ''}
+                        </div>
+                    </div>
+                    <button onclick="closeCompletedTasksPopup(); focusAndExpandStep('${item.event.id}', '${item.group.id}', '${item.step.id}');" class="px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-xs font-semibold text-blue-600 dark:text-blue-400 shrink-0 transition cursor-pointer" title="Xem trên bảng tiến độ">
+                        <i class="fas fa-eye mr-1 text-[10px]"></i>Xem vị trí
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // =============================================================
+        // POP-UP 4: DANH SÁCH VIỆC CHẬM TIẾN ĐỘ
+        // =============================================================
+        function openOverdueTasksPopup() {
+            renderOverdueTasksPopupContent();
+            const modal = document.getElementById('modalOverdueTasksPopup');
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closeOverdueTasksPopup() {
+            const modal = document.getElementById('modalOverdueTasksPopup');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function renderOverdueTasksPopupContent() {
+            const container = document.getElementById('overdueTasksPopupContent');
+            const badge = document.getElementById('overdueTasksPopupBadge');
+            const events = appData.events || [];
+
+            let overdueTasks = [];
+            events.forEach(evt => {
+                if (evt.groups) {
+                    evt.groups.forEach(grp => {
+                        if (grp.steps) {
+                            grp.steps.forEach(st => {
                                 if (!st.completed && st.calculatedDeadline) {
-                                    if (getDaysDiff(st.calculatedDeadline) < 0) {
-                                        overdueStepsCount++;
+                                    const diff = getDaysDiff(st.calculatedDeadline);
+                                    if (diff < 0) {
+                                        overdueTasks.push({
+                                            step: st,
+                                            group: grp,
+                                            event: evt,
+                                            daysOverdue: Math.abs(diff)
+                                        });
                                     }
                                 }
                             });
@@ -6632,24 +7164,79 @@
                 }
             });
 
-            document.getElementById('kpiTotalEvents').textContent = total;
-            document.getElementById('kpiDailyReportCount').textContent = dailyReportCount;
-            document.getElementById('kpiThisWeekCount').textContent = thisWeekCount;
-            document.getElementById('kpiOverdueStepsCount').textContent = overdueStepsCount;
+            // Sắp xếp trễ nhiều ngày nhất lên đầu
+            overdueTasks.sort((a, b) => b.daysOverdue - a.daysOverdue);
 
-            const reportCard = document.getElementById('kpiDailyReportCard');
-            if (dailyReportCount > 0) {
-                reportCard.classList.add('ring-2', 'ring-rose-500/40', 'bg-rose-50/50', 'dark:bg-rose-950/20');
-            } else {
-                reportCard.classList.remove('ring-2', 'ring-rose-500/40', 'bg-rose-50/50', 'dark:bg-rose-950/20');
+            if (badge) badge.textContent = `${overdueTasks.length} việc`;
+            if (!container) return;
+
+            if (overdueTasks.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-10 text-slate-400">
+                        <i class="fas fa-circle-check text-4xl text-emerald-500 mb-2"></i>
+                        <p class="text-sm font-bold text-slate-700 dark:text-slate-200">Tuyệt vời! Không có công việc nào bị chậm tiến độ</p>
+                        <p class="text-xs text-slate-400 mt-1">Tất cả các nhiệm vụ đều đang đúng hạn hoặc đã hoàn thành.</p>
+                    </div>
+                `;
+                return;
             }
 
-            const overdueCard = document.getElementById('kpiOverdueCard');
-            if (overdueStepsCount > 0) {
-                overdueCard.classList.add('ring-2', 'ring-amber-500/40', 'bg-amber-50/50', 'dark:bg-amber-950/20');
-            } else {
-                overdueCard.classList.remove('ring-2', 'ring-amber-500/40', 'bg-amber-50/50', 'dark:bg-amber-950/20');
+            container.innerHTML = overdueTasks.map(item => `
+                <div class="bg-rose-50/50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/60 rounded-xl p-3 space-y-2 hover:border-rose-400 transition">
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="bg-rose-600 text-white text-[10px] font-bold px-2 py-0.5 rounded font-mono">Quá hạn ${item.daysOverdue} ngày</span>
+                                <h4 class="font-bold text-xs text-slate-800 dark:text-white">${escapeHtml(item.step.name)}</h4>
+                            </div>
+                            <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                                <span class="font-semibold text-slate-700 dark:text-slate-300">${escapeHtml(item.event.name)}</span> • ${escapeHtml(item.group.name)}
+                            </div>
+                            <div class="text-[10px] text-slate-400 mt-0.5 flex items-center gap-2">
+                                <span>Hạn chót: <strong class="text-rose-600 font-mono">${formatVNDate(item.step.calculatedDeadline)}</strong></span>
+                                ${item.step.assignee ? `<span>• Cán bộ: <strong>${escapeHtml(item.step.assignee)}</strong></span>` : ''}
+                                ${item.step.dept ? `<span>• Phòng: <strong>${escapeHtml(item.step.dept)}</strong></span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-end gap-2 pt-1 border-t border-rose-100 dark:border-rose-900/40">
+                        <button onclick="handleToggleStepFromPopup('${item.event.id}', '${item.group.id}', '${item.step.id}', 'overdue')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-xs transition flex items-center gap-1 cursor-pointer">
+                            <i class="fas fa-check text-[10px]"></i>Đánh Dấu Hoàn Thành
+                        </button>
+                        <button onclick="closeOverdueTasksPopup(); focusAndExpandStep('${item.event.id}', '${item.group.id}', '${item.step.id}');" class="px-2.5 py-1 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold transition cursor-pointer">
+                            <i class="fas fa-eye mr-1 text-blue-500"></i>Xem Chi Tiết
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Xử lý hoàn thành bước việc trực tiếp từ Pop-up
+        async function handleToggleStepFromPopup(evtId, grpId, stepId, popupType) {
+            await toggleStepCompleted(evtId, grpId, stepId);
+            if (popupType === 'overdue') {
+                renderOverdueTasksPopupContent();
+            } else if (popupType === 'daily') {
+                renderDailyReportPopupContent();
             }
+        }
+
+        // Định vị và mở rộng trực tiếp bước việc trên sơ đồ
+        function focusAndExpandStep(evtId, grpId, stepId) {
+            module2State.expandedEvents.add(evtId);
+            module2State.expandedGroups.add(grpId);
+            renderEventsList();
+            setTimeout(() => {
+                const el = document.getElementById(`stepItem_${stepId}`) || document.getElementById(`stepRow_${stepId}`);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    el.classList.add('ring-2', 'ring-rose-500', 'bg-rose-50', 'dark:bg-rose-950/40');
+                    setTimeout(() => el.classList.remove('ring-2', 'ring-rose-500', 'bg-rose-50', 'dark:bg-rose-950/40'), 2500);
+                } else {
+                    const cardEl = document.getElementById(`eventCard_${evtId}`);
+                    if (cardEl) cardEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }, 150);
         }
 
         function renderDailyReportAlertBanner() {
