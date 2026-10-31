@@ -1019,56 +1019,57 @@
         <section id="mainTab-templates" class="hidden space-y-3.5">
 
             <!-- Card Bảng Điều Khiển Kho Biểu Mẫu -->
-            <div class="bg-white dark:bg-slate-800 rounded-xl p-3 sm:p-4 shadow-sm border border-slate-200 dark:border-slate-700">
-                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-700">
-                    <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
-                        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center text-base sm:text-lg font-bold shadow-sm shrink-0">
+            <div class="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-5 shadow-sm border border-slate-200 dark:border-slate-700 space-y-4">
+                <!-- Hàng 1: Tiêu đề Kho Biểu Mẫu & Huy hiệu -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-700">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center text-lg sm:text-xl font-bold shadow-md shadow-purple-600/30 shrink-0">
                             <i class="fas fa-file-signature"></i>
                         </div>
-                        <div class="min-w-0">
-                            <div class="flex items-center gap-1.5 flex-wrap">
-                                <h2 class="text-sm sm:text-base font-bold text-slate-800 dark:text-white truncate">Kho Biểu Mẫu Chuẩn SCE</h2>
-                                <span class="bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300 text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-semibold border border-purple-300 dark:border-purple-700 hidden sm:inline">32 Biểu Mẫu Ban Hành</span>
+                        <div>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <h2 class="text-base sm:text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Kho Biểu Mẫu Chuẩn SCE</h2>
+                                <span class="bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300 text-xs px-2.5 py-0.5 rounded-full font-bold border border-purple-300 dark:border-purple-700 whitespace-nowrap">32 Biểu Mẫu Ban Hành</span>
                             </div>
-                            <p class="text-[11px] text-slate-500 dark:text-slate-400 truncate">Chuyên viên tra cứu, xem trước và tải về file (.docx, .xlsx, .pdf) để tự do chỉnh sửa và hoàn thiện hồ sơ.</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Chuyên viên tra cứu, xem trước và tải về file (.docx, .xlsx, .pdf) để tự do chỉnh sửa và hoàn thiện hồ sơ sự kiện.</p>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Thanh Thao Tác & Trộn Dữ Liệu Tự Động Cho Chuyên Viên -->
-                    <div class="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-wrap">
-                        <div class="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
-                            <i class="fas fa-bullseye text-purple-600 ml-1"></i>
-                            <span class="text-slate-500 text-[11px] font-semibold hidden sm:inline">Điền dữ liệu từ:</span>
-                            <select id="studioEventSelector" onchange="onStudioEventChange()" class="bg-white dark:bg-slate-800 py-1.5 px-2 rounded-lg border border-slate-200 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500 max-w-[180px] sm:max-w-xs truncate text-xs">
-                                <!-- Nạp qua JS -->
-                            </select>
-                        </div>
+                <!-- Hàng 2: Thanh Thao Tác & Trộn Dữ Liệu Tự Động Cho Chuyên Viên -->
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 flex-wrap">
+                    <div class="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 p-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
+                        <i class="fas fa-bullseye text-purple-600 ml-1"></i>
+                        <span class="text-slate-600 dark:text-slate-400 font-semibold whitespace-nowrap">Điền dữ liệu từ:</span>
+                        <select id="studioEventSelector" onchange="onStudioEventChange()" class="bg-white dark:bg-slate-800 py-1.5 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500 max-w-xs truncate text-xs">
+                            <!-- Nạp qua JS -->
+                        </select>
+                    </div>
 
-                        <!-- Cụm nút tải về chính -->
-                        <button onclick="exportCurrentTemplateDocx()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-xl text-xs font-semibold shadow-md shadow-blue-600/20 transition flex items-center gap-1.5 cursor-pointer" title="Tải văn bản Word (.docx) của biểu mẫu đang chọn">
-                            <i class="fas fa-file-word text-white"></i>
-                            <span class="hidden sm:inline">Tải Word (.docx)</span>
-                            <span class="sm:hidden">Word</span>
+                    <!-- Cụm nút tải về chính -->
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <button onclick="exportCurrentTemplateDocx()" class="bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-md shadow-blue-600/20 transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap" title="Tải văn bản Word (.docx) của biểu mẫu đang chọn">
+                            <i class="fas fa-file-word"></i>
+                            <span>Tải Word (.docx)</span>
                         </button>
 
-                        <button id="btnExportCsvTop" onclick="exportCurrentTemplateCsv()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-xl text-xs font-semibold shadow transition flex items-center gap-1.5 cursor-pointer" title="Tải file Excel / CSV cho bảng biểu">
-                            <i class="fas fa-file-excel text-white"></i>
-                            <span class="hidden sm:inline">Tải Excel</span>
-                            <span class="sm:hidden">Excel</span>
+                        <button id="btnExportCsvTop" onclick="exportCurrentTemplateCsv()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap" title="Tải file Excel / CSV cho bảng biểu">
+                            <i class="fas fa-file-excel"></i>
+                            <span>Tải Excel</span>
                         </button>
 
-                        <button onclick="printCurrentTemplatePdf()" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-xl text-xs font-semibold shadow transition flex items-center gap-1.5 cursor-pointer" title="In hoặc lưu dạng PDF khổ A4">
+                        <button onclick="printCurrentTemplatePdf()" class="bg-slate-700 hover:bg-slate-600 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap" title="In hoặc lưu dạng PDF khổ A4">
                             <i class="fas fa-print"></i>
-                            <span class="hidden sm:inline">In / PDF</span>
+                            <span>In / PDF</span>
                         </button>
 
-                        <button onclick="exportTemplatesSummaryExcel()" class="bg-indigo-50 dark:bg-indigo-900/40 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 px-3 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer" title="Tải file Excel danh mục 32 biểu mẫu kèm hướng dẫn">
+                        <button onclick="exportTemplatesSummaryExcel()" class="bg-indigo-50 dark:bg-indigo-900/40 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 px-3.5 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap" title="Tải file Excel danh mục 32 biểu mẫu kèm hướng dẫn">
                             <i class="fas fa-list-check"></i>
-                            <span class="hidden md:inline">Danh Mục (Excel)</span>
+                            <span>Danh Mục (Excel)</span>
                         </button>
 
                         <!-- Nút Quản trị dành cho Admin (Ẩn nếu là chuyên viên) -->
-                        <button id="btnGoToAdminTemplates" onclick="goToAdminTemplates()" class="hidden bg-purple-700 hover:bg-purple-600 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-md transition items-center gap-1.5 cursor-pointer" title="Chuyển đến màn hình Quản trị & Sửa đổi biểu mẫu hệ thống">
+                        <button id="btnGoToAdminTemplates" onclick="goToAdminTemplates()" class="hidden bg-purple-700 hover:bg-purple-600 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-md transition items-center gap-1.5 cursor-pointer whitespace-nowrap" title="Chuyển đến màn hình Quản trị & Sửa đổi biểu mẫu hệ thống">
                             <i class="fas fa-sliders"></i>
                             <span>⚙️ Quản trị Biểu Mẫu (Admin)</span>
                         </button>
@@ -1076,7 +1077,7 @@
                 </div>
 
                 <!-- Thống kê nhanh kho biểu mẫu -->
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3.5 text-xs">
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 text-xs">
                     <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-700 flex items-center gap-2.5">
                         <i class="fas fa-folder-tree text-purple-500 text-base"></i>
                         <div>
@@ -1118,7 +1119,7 @@
                             <i class="fas fa-boxes-stacked text-purple-600"></i>
                             <span>Danh Mục Biểu Mẫu</span>
                         </h3>
-                        <span class="text-[11px] font-mono font-bold bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300 px-2 py-0.5 rounded-full" id="templatesCountBadge">32 mẫu</span>
+                        <span class="text-[11px] font-mono font-bold bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300 px-2 py-0.5 rounded-full whitespace-nowrap" id="templatesCountBadge">32 mẫu</span>
                     </div>
 
                     <!-- Ô tìm kiếm biểu mẫu -->
@@ -1129,13 +1130,13 @@
 
                     <!-- Pills bộ lọc theo 6 nhóm công việc -->
                     <div class="flex flex-wrap gap-1 text-[11px]" id="templateGroupFilterPills">
-                        <button onclick="setTemplateGroupFilter('all')" id="pill-all" class="px-2 py-1 rounded-lg font-semibold bg-purple-600 text-white transition">Tất cả</button>
-                        <button onclick="setTemplateGroupFilter('grp1')" id="pill-grp1" class="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition">Nhóm 1 (Khách)</button>
-                        <button onclick="setTemplateGroupFilter('grp2')" id="pill-grp2" class="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition">Nhóm 2 (Thẻ/Biển)</button>
-                        <button onclick="setTemplateGroupFilter('grp3')" id="pill-grp3" class="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition">Nhóm 3 (Nội dung/MC)</button>
-                        <button onclick="setTemplateGroupFilter('grp4')" id="pill-grp4" class="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition">Nhóm 4 (Kỹ thuật)</button>
-                        <button onclick="setTemplateGroupFilter('grp5')" id="pill-grp5" class="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition">Nhóm 5 (Truyền thông)</button>
-                        <button onclick="setTemplateGroupFilter('grp6')" id="pill-grp6" class="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition">Nhóm 6 & Tổng kết</button>
+                        <button onclick="setTemplateGroupFilter('all')" id="pill-all" class="px-2 py-1 rounded-lg font-semibold bg-purple-600 text-white transition whitespace-nowrap">Tất cả</button>
+                        <button onclick="setTemplateGroupFilter('grp1')" id="pill-grp1" class="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition whitespace-nowrap">Nhóm 1 (Khách)</button>
+                        <button onclick="setTemplateGroupFilter('grp2')" id="pill-grp2" class="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition whitespace-nowrap">Nhóm 2 (Thẻ/Biển)</button>
+                        <button onclick="setTemplateGroupFilter('grp3')" id="pill-grp3" class="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition whitespace-nowrap">Nhóm 3 (Nội dung/MC)</button>
+                        <button onclick="setTemplateGroupFilter('grp4')" id="pill-grp4" class="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition whitespace-nowrap">Nhóm 4 (Kỹ thuật)</button>
+                        <button onclick="setTemplateGroupFilter('grp5')" id="pill-grp5" class="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition whitespace-nowrap">Nhóm 5 (Truyền thông)</button>
+                        <button onclick="setTemplateGroupFilter('grp6')" id="pill-grp6" class="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition whitespace-nowrap">Nhóm 6 & Tổng kết</button>
                     </div>
 
                     <!-- Danh sách các thẻ biểu mẫu (Scrollable List với nút Download trực tiếp) -->
@@ -1147,42 +1148,47 @@
                 <!-- CỘT PHẢI: TRÌNH XEM TRƯỚC VĂN BẢN & TẢI TÀI LIỆU (8 CỘT TRÊN 12) -->
                 <div class="lg:col-span-8 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col">
 
-                    <!-- Header Vùng Xem Trước & Tên Biểu Mẫu -->
-                    <div class="p-4 border-b border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/70 dark:bg-slate-900/40">
-                        <div class="space-y-0.5 min-w-0">
-                            <div class="flex items-center gap-2">
-                                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-300 dark:border-purple-800" id="currentTemplateKeyBadge">form_totrinh_dskhach</span>
-                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300" id="currentTemplateCategoryBadge">Nhóm 1</span>
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">Mẫu Chuẩn SCE</span>
+                    <!-- Header Vùng Xem Trước & Tên Biểu Mẫu (Layout 2 Hàng Rộng Rãi Không Bao Giờ Tràn) -->
+                    <div class="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/40 space-y-3">
+                        <!-- Hàng 1: Badges & Tiêu đề biểu mẫu -->
+                        <div>
+                            <div class="flex items-center gap-2 flex-wrap mb-1.5">
+                                <span class="px-2.5 py-0.5 rounded text-[11px] font-mono font-bold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-300 dark:border-purple-800 whitespace-nowrap" id="currentTemplateKeyBadge">TT-SCE/DSKM</span>
+                                <span class="px-2.5 py-0.5 rounded text-[11px] font-semibold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 whitespace-nowrap" id="currentTemplateCategoryBadge">Nhóm 1: Khách mời & Lễ tân</span>
+                                <span class="px-2.5 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 whitespace-nowrap">Mẫu Chuẩn SCE</span>
                             </div>
-                            <h3 class="font-bold text-sm sm:text-base text-slate-900 dark:text-white truncate" id="currentTemplateTitle">Tờ trình phê duyệt Danh sách khách mời</h3>
+                            <h3 class="font-bold text-base sm:text-lg text-slate-900 dark:text-white leading-snug break-words" id="currentTemplateTitle">Tờ trình phê duyệt Danh sách khách mời</h3>
                         </div>
 
-                        <!-- Các nút Xuất file & Hành động -->
-                        <div class="flex flex-wrap items-center gap-1.5 flex-shrink-0">
-                            <button onclick="exportCurrentTemplateDocx()" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition flex items-center gap-1.5 cursor-pointer" title="Tải văn bản ra file Microsoft Word (.docx)">
-                                <i class="fas fa-file-word"></i>
-                                <span>Tải Word (.docx)</span>
-                            </button>
-                            <button id="btnExportCsvEditor" onclick="exportCurrentTemplateCsv()" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-sm transition flex items-center gap-1.5 cursor-pointer" title="Tải bảng tính ra file Excel / CSV">
-                                <i class="fas fa-file-excel"></i>
-                                <span>Tải Excel</span>
-                            </button>
-                            <button onclick="printCurrentTemplatePdf()" class="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 text-xs font-semibold transition flex items-center gap-1.5 border border-slate-200 dark:border-slate-600 cursor-pointer" title="In hoặc lưu dạng PDF khổ A4">
-                                <i class="fas fa-print"></i>
-                                <span>In / PDF</span>
-                            </button>
-                            <button onclick="copyCurrentTemplateContent()" class="p-2 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-600 dark:text-slate-300 text-xs transition border border-slate-200 dark:border-slate-600 cursor-pointer" title="Sao chép nội dung văn bản">
-                                <i class="fas fa-copy"></i>
-                            </button>
-                            <!-- Nút Sửa Biểu Mẫu dành riêng cho Admin -->
-                            <button id="btnEditCurrentTemplateAdmin" onclick="openEditTemplateModal(module3State.selectedTemplateKey)" class="hidden px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-sm transition items-center gap-1.5 cursor-pointer" title="Quản trị viên chỉnh sửa nội dung mẫu chuẩn này">
-                                <i class="fas fa-edit"></i>
-                                <span>Sửa Mẫu (Admin)</span>
-                            </button>
+                        <!-- Hàng 2: Toolbar các nút Tải về & Thao tác của biểu mẫu -->
+                        <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/60 flex-wrap">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <button onclick="exportCurrentTemplateDocx()" class="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap" title="Tải văn bản ra file Microsoft Word (.docx)">
+                                    <i class="fas fa-file-word"></i>
+                                    <span>Tải Word (.docx)</span>
+                                </button>
+                                <button id="btnExportCsvEditor" onclick="exportCurrentTemplateCsv()" class="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap" title="Tải bảng tính ra file Excel / CSV">
+                                    <i class="fas fa-file-excel"></i>
+                                    <span>Tải Excel</span>
+                                </button>
+                                <button onclick="printCurrentTemplatePdf()" class="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 text-xs font-semibold transition flex items-center gap-1.5 border border-slate-200 dark:border-slate-600 cursor-pointer whitespace-nowrap" title="In hoặc lưu dạng PDF khổ A4">
+                                    <i class="fas fa-print"></i>
+                                    <span>In / PDF</span>
+                                </button>
+                                <button onclick="copyCurrentTemplateContent()" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-600 dark:text-slate-300 text-xs transition border border-slate-200 dark:border-slate-600 cursor-pointer" title="Sao chép nội dung văn bản">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                            
+                            <div>
+                                <!-- Nút Sửa Biểu Mẫu dành riêng cho Admin -->
+                                <button id="btnEditCurrentTemplateAdmin" onclick="openEditTemplateModal(module3State.selectedTemplateKey)" class="hidden px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-sm transition items-center gap-1.5 cursor-pointer whitespace-nowrap" title="Quản trị viên chỉnh sửa nội dung mẫu chuẩn này">
+                                    <i class="fas fa-edit"></i>
+                                    <span>Sửa Mẫu (Admin)</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
-
                     <!-- Thanh Hướng Dẫn & Thông Báo Phân Quyền Dành Cho Chuyên Viên -->
                     <div class="px-4 py-2.5 bg-blue-50/80 dark:bg-blue-950/40 border-b border-blue-100 dark:border-blue-900/60 flex items-center justify-between text-xs text-blue-900 dark:text-blue-200">
                         <div class="flex items-center gap-2">
@@ -9030,10 +9036,10 @@
                             : 'bg-slate-50/70 dark:bg-slate-900/40 border-slate-200 dark:border-slate-700 hover:border-purple-300'
                     }">
                         <div class="flex items-start justify-between gap-1.5 mb-1.5">
-                            <span class="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300">
+                            <span class="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300 whitespace-nowrap">
                                 ${escapeHtml(tmpl.code || 'BM-SCE')}
                             </span>
-                            <span class="text-[9px] px-1.5 py-0.5 rounded font-medium ${
+                            <span class="text-[9px] px-1.5 py-0.5 rounded font-medium whitespace-nowrap ${
                                 tmpl.type === 'grid' 
                                     ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' 
                                     : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
