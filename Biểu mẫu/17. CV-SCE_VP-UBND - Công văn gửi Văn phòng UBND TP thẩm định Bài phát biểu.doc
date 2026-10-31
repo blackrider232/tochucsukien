@@ -1,0 +1,85 @@
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+    <meta charset='utf-8'>
+    <title>Công văn gửi Văn phòng UBND TP thẩm định Bài phát biểu</title>
+    <!-- Template Metadata (Không xóa dòng comment này để phục vụ đồng bộ tự động lại):
+         ID: form_congvan_ubnd_phatbieu
+         CODE: CV-SCE/VP-UBND
+         GROUP: grp3
+         TITLE: Công văn gửi Văn phòng UBND TP thẩm định Bài phát biểu
+    -->
+    <style>
+        @page WordSection1 {
+            size: 21.0cm 29.7cm;
+            margin: 2.0cm 2.0cm 2.0cm 3.0cm;
+            mso-page-orientation: portrait;
+        }
+        div.WordSection1 {
+            page: WordSection1;
+            font-family: 'Times New Roman', serif;
+            font-size: 14pt;
+            line-height: 1.5;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 12px 0;
+        }
+        td, th {
+            border: 1px solid #000;
+            padding: 6px 8px;
+            font-size: 13pt;
+            vertical-align: top;
+        }
+        p {
+            margin: 6px 0;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="WordSection1">
+        <div style="font-family: 'Times New Roman', serif; line-height: 1.6; font-size: 14pt;">
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+        <tr>
+            <td style="width: 50%; text-align: center; vertical-align: top;">
+                <strong>SỞ TÀI CHÍNH THÀNH PHỐ HÀ NỘI</strong><br>
+                <strong>TRUNG TÂM XÚC TIẾN ĐẦU TƯ VÀ HỖ TRỢ DOANH NGHIỆP</strong><br>
+                <span style="font-size: 11pt;">Số: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /CV-SCE-NV</span>
+            </td>
+            <td style="width: 50%; text-align: center; vertical-align: top;">
+                <strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><br>
+                <strong>Độc lập - Tự do - Hạnh phúc</strong><br>
+                <span style="font-size: 11pt; font-style: italic;">Hà Nội, {{NGAY_HOM_NAY}}</span>
+            </td>
+        </tr>
+    </table>
+
+    <p style="text-align: center; margin: 20px 0;">
+        <strong>Kính gửi:</strong> Văn phòng Ủy ban nhân dân Thành phố Hà Nội
+    </p>
+
+    <p style="text-indent: 30px; text-align: justify;">
+        Thực hiện chỉ đạo của UBND Thành phố về việc chuẩn bị tổ chức chương trình <strong>{{TEN_SU_KIEN}}</strong> diễn ra vào ngày <strong>{{NGAY_TO_CHUC}}</strong> tại <strong>{{DIA_DIEM}}</strong>;
+    </p>
+    <p style="text-indent: 30px; text-align: justify;">
+        Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp Hà Nội đã phối hợp với các đơn vị liên quan xây dựng Dự thảo <strong>"Bài phát biểu khai mạc của Lãnh đạo Ủy ban nhân dân Thành phố"</strong>.
+    </p>
+    <p style="text-indent: 30px; text-align: justify;">
+        Trung tâm kính gửi Văn phòng UBND Thành phố xem xét, báo cáo Lãnh đạo UBND Thành phố phê duyệt nội dung bài phát biểu (có dự thảo đính kèm) để công tác chuẩn bị được chu đáo, kịp thời.
+    </p>
+
+    <table style="width: 100%; border-collapse: collapse; margin-top: 40px;">
+        <tr>
+            <td style="width: 50%;"></td>
+            <td style="width: 50%; text-align: center;">
+                <strong>GIÁM ĐỐC TRUNG TÂM</strong><br>
+                <div style="height: 70px;"></div>
+                <strong>BAN GIÁM ĐỐC SCE</strong>
+            </td>
+        </tr>
+    </table>
+</div>
+    </div>
+</body>
+</html>

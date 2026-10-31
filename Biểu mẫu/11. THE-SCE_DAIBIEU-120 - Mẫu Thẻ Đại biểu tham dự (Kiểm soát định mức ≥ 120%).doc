@@ -1,0 +1,73 @@
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+    <meta charset='utf-8'>
+    <title>Mẫu Thẻ Đại biểu tham dự (Kiểm soát định mức ≥ 120%)</title>
+    <!-- Template Metadata (Không xóa dòng comment này để phục vụ đồng bộ tự động lại):
+         ID: form_the_daibieu
+         CODE: THE-SCE/DAIBIEU-120
+         GROUP: grp2
+         TITLE: Mẫu Thẻ Đại biểu tham dự (Kiểm soát định mức ≥ 120%)
+    -->
+    <style>
+        @page WordSection1 {
+            size: 21.0cm 29.7cm;
+            margin: 2.0cm 2.0cm 2.0cm 3.0cm;
+            mso-page-orientation: portrait;
+        }
+        div.WordSection1 {
+            page: WordSection1;
+            font-family: 'Times New Roman', serif;
+            font-size: 14pt;
+            line-height: 1.5;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 12px 0;
+        }
+        td, th {
+            border: 1px solid #000;
+            padding: 6px 8px;
+            font-size: 13pt;
+            vertical-align: top;
+        }
+        p {
+            margin: 6px 0;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="WordSection1">
+        <div style="font-family: 'Times New Roman', serif; padding: 20px;">
+    <div style="text-align: center; margin-bottom: 20px;">
+        <h3 style="font-size: 15pt; font-weight: bold; text-transform: uppercase; margin: 0;">QUY CÁCH VÀ MẪU IN THẺ ĐẠI BIỂU THAM DỰ</h3>
+        <p style="margin: 4px 0; font-weight: bold; color: #1e3a8a;">Sự kiện: {{TEN_SU_KIEN}}</p>
+        <p style="margin: 0; font-size: 11pt; color: #475569;">Số lượng khách dự kiến: <strong>{{SO_KHACH_DU_KIEN}}</strong> • Số lượng in tối thiểu (≥ 120%): <strong>{{DINH_MUC_THE_120}} thẻ</strong></p>
+    </div>
+
+    <div style="display: flex; justify-content: center; margin: 25px 0;">
+        <div style="width: 280px; border: 2px solid #2563eb; border-radius: 8px; background: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); overflow: hidden; text-align: center;">
+            <div style="background-color: #1e3a8a; color: white; padding: 10px;">
+                <p style="font-size: 9pt; text-transform: uppercase; margin: 0; font-weight: bold;">UBND THÀNH PHỐ HÀ NỘI</p>
+                <p style="font-size: 10pt; font-weight: bold; margin: 2px 0;">TRUNG TÂM XÚC TIẾN ĐẦU TƯ SCE</p>
+            </div>
+            <div style="padding: 20px 15px;">
+                <p style="font-size: 11pt; font-weight: bold; color: #1e3a8a; margin: 0;">{{TEN_SU_KIEN}}</p>
+                <hr style="width: 80%; border-top: 1px solid #cbd5e1; margin: 12px auto;">
+                <div style="background-color: #dbeafe; color: #1e40af; padding: 6px; border-radius: 4px; font-weight: bold; font-size: 13pt; margin: 10px 0; text-transform: uppercase;">
+                    ĐẠI BIỂU / DELEGATE
+                </div>
+                <div style="width: 70px; height: 70px; border: 1px dashed #94a3b8; margin: 12px auto; display: flex; align-items: center; justify-content: center; font-size: 9pt; color: #64748b;">
+                    Mã QR Check-in
+                </div>
+                <p style="font-size: 9pt; color: #64748b; margin: 0;">Ngày {{NGAY_TO_CHUC}}</p>
+            </div>
+        </div>
+    </div>
+
+    <p style="font-size: 11pt; font-style: italic;">* Lưu ý: Không phát thẻ cho đại biểu VIP (Đại biểu VIP được bố trí đón tại phòng khánh tiết và cài hoa ngực).</p>
+</div>
+    </div>
+</body>
+</html>

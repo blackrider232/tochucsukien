@@ -1,0 +1,89 @@
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+    <meta charset='utf-8'>
+    <title>Sổ theo dõi gửi Giấy mời bảo đảm qua Bưu điện (EMS)</title>
+    <!-- Template Metadata (Không xóa dòng comment này để phục vụ đồng bộ tự động lại):
+         ID: form_so_buudien
+         CODE: SO-SCE/EMS
+         GROUP: grp1
+         TITLE: Sổ theo dõi gửi Giấy mời bảo đảm qua Bưu điện (EMS)
+    -->
+    <style>
+        @page WordSection1 {
+            size: 21.0cm 29.7cm;
+            margin: 2.0cm 2.0cm 2.0cm 3.0cm;
+            mso-page-orientation: portrait;
+        }
+        div.WordSection1 {
+            page: WordSection1;
+            font-family: 'Times New Roman', serif;
+            font-size: 14pt;
+            line-height: 1.5;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 12px 0;
+        }
+        td, th {
+            border: 1px solid #000;
+            padding: 6px 8px;
+            font-size: 13pt;
+            vertical-align: top;
+        }
+        p {
+            margin: 6px 0;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="WordSection1">
+        <div style="font-family: 'Times New Roman', serif; font-size: 12pt;">
+    <div style="text-align: center; margin-bottom: 15px;">
+        <h3 style="font-size: 15pt; font-weight: bold; text-transform: uppercase; margin: 0;">SỔ THEO DÕI PHÁT HÀNH GIẤY MỜI BẢO ĐẢM QUA BƯU ĐIỆN</h3>
+        <p style="margin: 5px 0; font-weight: bold;">Chương trình: {{TEN_SU_KIEN}}</p>
+    </div>
+
+    <table style="width: 100%; border-collapse: collapse; font-size: 11pt;" border="1">
+        <thead>
+            <tr style="background-color: #f1f5f9; text-align: center;">
+                <th style="padding: 6px; width: 5%;">STT</th>
+                <th style="padding: 6px; width: 25%;">Tên Đơn vị / Doanh nghiệp nhận</th>
+                <th style="padding: 6px; width: 30%;">Địa chỉ nhận thư</th>
+                <th style="padding: 6px; width: 15%;">Mã vận đơn EMS</th>
+                <th style="padding: 6px; width: 12%;">Ngày gửi</th>
+                <th style="padding: 6px; width: 13%;">Trạng thái phát</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="padding: 6px; text-align: center;">1</td>
+                <td style="padding: 6px; font-weight: bold;">Tập đoàn Điện tử Quốc tế</td>
+                <td style="padding: 6px;">Khu Công nghiệp Thăng Long, Đông Anh, Hà Nội</td>
+                <td style="padding: 6px; text-align: center; font-family: monospace;">EMS-HN-98231</td>
+                <td style="padding: 6px; text-align: center;">{{NGAY_HOM_NAY}}</td>
+                <td style="padding: 6px; text-align: center; color: green;">Đã giao thành công</td>
+            </tr>
+            <tr>
+                <td style="padding: 6px; text-align: center;">2</td>
+                <td style="padding: 6px; font-weight: bold;">Công ty Cổ phần Thực phẩm Sạch</td>
+                <td style="padding: 6px;">Số 45 Hoàng Diệu, Ba Đình, Hà Nội</td>
+                <td style="padding: 6px; text-align: center; font-family: monospace;">EMS-HN-98232</td>
+                <td style="padding: 6px; text-align: center;">{{NGAY_HOM_NAY}}</td>
+                <td style="padding: 6px; text-align: center; color: green;">Đã giao thành công</td>
+            </tr>
+            <tr>
+                <td style="padding: 6px; text-align: center;">3</td>
+                <td style="padding: 6px; font-weight: bold;">Hiệp hội Doanh nghiệp vừa và nhỏ</td>
+                <td style="padding: 6px;">Tòa nhà Cung Trí thức, Cầu Giấy, Hà Nội</td>
+                <td style="padding: 6px; text-align: center; font-family: monospace;">EMS-HN-98233</td>
+                <td style="padding: 6px; text-align: center;">{{NGAY_HOM_NAY}}</td>
+                <td style="padding: 6px; text-align: center; color: blue;">Đang phát thư</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+    </div>
+</body>
+</html>

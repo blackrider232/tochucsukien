@@ -1,0 +1,104 @@
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+    <meta charset='utf-8'>
+    <title>Biên bản bàn giao Thẻ Đại biểu và Tài liệu cho Bàn Lễ tân</title>
+    <!-- Template Metadata (Không xóa dòng comment này để phục vụ đồng bộ tự động lại):
+         ID: form_bienban_giaothe
+         CODE: BB-SCE/GIAOTHE
+         GROUP: grp2
+         TITLE: Biên bản bàn giao Thẻ Đại biểu và Tài liệu cho Bàn Lễ tân
+    -->
+    <style>
+        @page WordSection1 {
+            size: 21.0cm 29.7cm;
+            margin: 2.0cm 2.0cm 2.0cm 3.0cm;
+            mso-page-orientation: portrait;
+        }
+        div.WordSection1 {
+            page: WordSection1;
+            font-family: 'Times New Roman', serif;
+            font-size: 14pt;
+            line-height: 1.5;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 12px 0;
+        }
+        td, th {
+            border: 1px solid #000;
+            padding: 6px 8px;
+            font-size: 13pt;
+            vertical-align: top;
+        }
+        p {
+            margin: 6px 0;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="WordSection1">
+        <div style="font-family: 'Times New Roman', serif; line-height: 1.6; font-size: 13pt;">
+    <div style="text-align: center; margin-bottom: 20px;">
+        <h3 style="font-size: 15pt; font-weight: bold; text-transform: uppercase; margin: 0;">BIÊN BẢN BÀN GIAO THẺ ĐẠI BIỂU VÀ ẤN PHẨM SỰ KIỆN</h3>
+        <p style="margin: 4px 0; font-weight: bold; color: #1e3a8a;">Sự kiện: {{TEN_SU_KIEN}}</p>
+        <p style="margin: 0; font-style: italic; font-size: 11pt;">Thời điểm bàn giao: Lúc 06h30 ngày {{NGAY_TO_CHUC}} tại Bàn Lễ tân</p>
+    </div>
+
+    <p><strong>I. Đại diện các bên bàn giao:</strong></p>
+    <ul>
+        <li><strong>Bên giao:</strong> Đại diện Tổ Biển tên & Thẻ (Đ/c ........................................................)</li>
+        <li><strong>Bên nhận:</strong> Đại diện Tổ Lễ tân & Đón tiếp (Đ/c ......................................................)</li>
+    </ul>
+
+    <p><strong>II. Danh mục hàng hóa và số lượng bàn giao:</strong></p>
+    <table style="width: 100%; border-collapse: collapse; font-size: 12pt; margin: 10px 0;" border="1">
+        <thead>
+            <tr style="background-color: #f1f5f9; text-align: center;">
+                <th style="padding: 6px; width: 10%;">STT</th>
+                <th style="padding: 6px;">Tên ấn phẩm / Loại thẻ</th>
+                <th style="padding: 6px; width: 20%;">Số lượng giao</th>
+                <th style="padding: 6px; width: 30%;">Tình trạng kiểm tra</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="padding: 6px; text-align: center;">1</td>
+                <td style="padding: 6px; font-weight: bold;">Thẻ Đại biểu tham dự (Kèm dây đeo)</td>
+                <td style="padding: 6px; text-align: center;">{{DINH_MUC_THE_120}} thẻ</td>
+                <td style="padding: 6px; text-align: center; color: green;">Đầy đủ, đúng mẫu in</td>
+            </tr>
+            <tr>
+                <td style="padding: 6px; text-align: center;">2</td>
+                <td style="padding: 6px; font-weight: bold;">Thẻ Báo chí (Trực tiếp & Gián tiếp)</td>
+                <td style="padding: 6px; text-align: center;">40 thẻ</td>
+                <td style="padding: 6px; text-align: center; color: green;">Đầy đủ</td>
+            </tr>
+            <tr>
+                <td style="padding: 6px; text-align: center;">3</td>
+                <td style="padding: 6px; font-weight: bold;">Tài liệu hội nghị & Túi quà lưu niệm</td>
+                <td style="padding: 6px; text-align: center;">{{SO_KHACH_DU_KIEN}} bộ</td>
+                <td style="padding: 6px; text-align: center; color: green;">Đạt tiêu chuẩn</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <table style="width: 100%; border-collapse: collapse; margin-top: 30px;">
+        <tr>
+            <td style="width: 50%; text-align: center;">
+                <strong>ĐẠI DIỆN BÊN GIAO</strong><br>
+                <div style="height: 50px;"></div>
+                <em>(Ký và ghi rõ họ tên)</em>
+            </td>
+            <td style="width: 50%; text-align: center;">
+                <strong>ĐẠI DIỆN BÊN NHẬN</strong><br>
+                <div style="height: 50px;"></div>
+                <em>(Ký và ghi rõ họ tên)</em>
+            </td>
+        </tr>
+    </table>
+</div>
+    </div>
+</body>
+</html>
