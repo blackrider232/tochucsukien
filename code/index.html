@@ -1525,7 +1525,12 @@
                             <span class="hidden sm:inline">Nhập từ CSDL Master</span>
                         </button>
 
-                                                <button onclick="openBulkEmailModal()" class="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-2 transition" title="Gửi email hàng loạt cho khách mời bằng Google Mail">
+                                                                        <button onclick="openGoogleFormRsvpModal()" class="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white px-3 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition" title="Kết nối Google Form để mời và tự động đồng bộ phản hồi">
+                            <i class="fab fa-google text-sm"></i>
+                            <span>Google Form RSVP</span>
+                        </button>
+
+<button onclick="openBulkEmailModal()" class="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-2 transition" title="Gửi email hàng loạt cho khách mời bằng Google Mail">
                             <i class="fab fa-google text-sm"></i>
                             <span>Gửi Email Khách Mời</span>
                         </button>
@@ -1577,10 +1582,15 @@
                     <!-- Thẻ 2: Phản Hồi Xác Nhận (RSVP) -->
                     <div onclick="openConfirmedGuestsPopup()" class="cursor-pointer group hover:shadow-lg hover:border-emerald-400 dark:hover:border-emerald-500 bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-xl border border-slate-100 dark:border-slate-700 space-y-1.5 transition transform hover:-translate-y-0.5" title="Bấm để xem danh sách khách mời đã xác nhận tham dự">
                         <div class="flex items-center justify-between">
-                            <span class="text-[11px] text-slate-700 dark:text-slate-300 font-bold group-hover:text-emerald-600 dark:group-hover:text-emerald-400 flex items-center gap-1.5">
+                            <span class="text-[11px] text-slate-700 dark:text-slate-300 font-bold group-hover:text-emerald-500 flex items-center gap-1">
                                 <i class="fas fa-check-double text-emerald-500"></i> Xác Nhận Tham Dự (RSVP)
                             </span>
-                            <i class="fas fa-circle-check text-emerald-500 text-xs"></i>
+                            <div class="flex items-center gap-1.5">
+                                <button type="button" onclick="event.stopPropagation(); triggerGoogleFormSyncNow();" class="px-1.5 py-0.5 rounded text-[10px] text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 flex items-center gap-1 font-semibold" title="Bấm để đồng bộ phản hồi mới nhất từ Google Form">
+                                    <i class="fas fa-arrows-rotate text-[9px]"></i> Đồng bộ Form
+                                </button>
+                                <i class="fas fa-circle-check text-emerald-500 text-xs"></i>
+                            </div>
                         </div>
                         <div class="flex items-baseline gap-1.5">
                             <span class="text-xl font-extrabold text-emerald-600 dark:text-emerald-400" id="crmRsvpConfirmed">0</span>
@@ -4533,6 +4543,7 @@
                         <button type="button" onclick="insertMergeTagIntoEmail('{so_ghe}')" class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-700 dark:text-slate-300 hover:text-red-600 border border-slate-200 dark:border-slate-700" title="Vị trí phân khu & số ghế">{so_ghe}</button>
                         <button type="button" onclick="insertMergeTagIntoEmail('{can_bo_lien_he}')" class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-700 dark:text-slate-300 hover:text-red-600 border border-slate-200 dark:border-slate-700" title="Cán bộ phụ trách">{can_bo_lien_he}</button>
                         <button type="button" onclick="insertMergeTagIntoEmail('{sdt_lien_he}')" class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-700 dark:text-slate-300 hover:text-red-600 border border-slate-200 dark:border-slate-700" title="Số điện thoại hotline">{sdt_lien_he}</button>
+                        <button type="button" onclick="insertMergeTagIntoEmail('{link_google_form}')" class="px-2 py-0.5 rounded bg-violet-100 dark:bg-violet-900/40 hover:bg-violet-200 text-violet-700 dark:text-violet-300 font-semibold border border-violet-300 dark:border-violet-700" title="Link xác nhận Google Form">{link_google_form}</button>
                     </div>
                 </div>
 
@@ -4662,6 +4673,241 @@
                 Đóng xem trước
             </button>
         </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: KẾT NỐI GOOGLE FORM & TỰ ĐỘNG ĐỒNG BỘ PHẢN HỒI RSVP -->
+<!-- ========================================================================= -->
+<div id="googleFormRsvpModal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col border border-slate-200 dark:border-slate-800 overflow-hidden my-auto">
+        
+        <!-- Header -->
+        <div class="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-500 text-white flex items-center justify-center shadow-md shadow-violet-500/20 text-lg">
+                    <i class="fab fa-google"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h3 class="font-bold text-base text-slate-800 dark:text-white">Google Form RSVP & Đồng Bộ Phản Hồi</h3>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">Tự Động 100%</span>
+                    </div>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Mời và thu thập xác nhận tham dự qua Google Form, tự động cập nhật danh sách đại biểu thời gian thực</p>
+                </div>
+            </div>
+            <button onclick="closeGoogleFormRsvpModal()" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <!-- Connection Status & Quick Action Bar -->
+        <div class="px-5 py-2.5 bg-gradient-to-r from-violet-50 via-indigo-50/50 to-slate-50 dark:from-slate-800/80 dark:via-indigo-950/20 dark:to-slate-800/80 border-b border-slate-200 dark:border-slate-800 text-xs">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span class="font-medium text-slate-700 dark:text-slate-300">Trạng thái:</span>
+                        <span id="gfConnectionStatusBadge" class="font-bold text-indigo-600 dark:text-indigo-400">Sẵn sàng đồng bộ</span>
+                    </div>
+                    <span class="text-slate-300 dark:text-slate-700">|</span>
+                    <span class="text-slate-500" id="gfLastSyncTimeText">Lần kiểm tra cuối: Chưa đồng bộ</span>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="triggerGoogleFormSyncNow()" class="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition">
+                        <i class="fas fa-arrows-rotate"></i>
+                        <span>ĐỒNG BỘ NGAY</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs Navigation -->
+        <div class="flex items-center px-5 border-b border-slate-200 dark:border-slate-800 text-xs bg-white dark:bg-slate-900">
+            <button type="button" id="gfTabBtn-config" onclick="switchGoogleFormTab('config')" class="py-2.5 px-4 font-bold border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
+                <i class="fas fa-link"></i> 1. Cấu Hình Liên Kết Form & Tự Động
+            </button>
+            <button type="button" id="gfTabBtn-responses" onclick="switchGoogleFormTab('responses')" class="py-2.5 px-4 font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-white border-b-2 border-transparent flex items-center gap-1.5">
+                <i class="fas fa-list-check"></i> 2. Danh Sách Phản Hồi Từ Form (<span id="gfResponsesBadgeCount">0</span>)
+            </button>
+        </div>
+
+        <!-- Main Body Content -->
+        <div class="flex-1 overflow-y-auto p-5 text-xs">
+            
+            <!-- TAB 1: CẤU HÌNH LIÊN KẾT & TỰ ĐỘNG -->
+            <div id="gfTabContent-config" class="space-y-4">
+                
+                <!-- Khối 1: Đường link Google Form -->
+                <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
+                            <i class="fas fa-square-poll-vertical text-violet-600"></i>
+                            <span>1. Đường Liên Kết Google Form (Dành cho khách mời điền xác nhận)</span>
+                        </label>
+                        <span class="text-[11px] text-slate-400">Public Form URL</span>
+                    </div>
+                    <p class="text-[11px] text-slate-500">
+                        Đường link này sẽ được tự động gắn vào các email phát hành, tin nhắn hoặc quét mã QR để khách mời mở trên điện thoại/máy tính xác nhận tham dự.
+                    </p>
+                    <div class="flex flex-col sm:flex-row gap-2 pt-1">
+                        <div class="relative flex-1">
+                            <i class="fas fa-globe absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                            <input type="url" id="gfFormUrlInput" placeholder="Ví dụ: https://forms.gle/abcXYZ123 hoặc https://docs.google.com/forms/d/e/.../viewform" class="w-full pl-8 pr-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white font-mono text-xs">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="copyGoogleFormLinkToClipboard()" class="px-3 py-2 rounded-lg bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-100 font-semibold flex items-center gap-1.5 transition">
+                                <i class="fas fa-copy text-indigo-500"></i> Sao chép link
+                            </button>
+                            <button type="button" onclick="openGoogleFormInNewTab()" class="px-3 py-2 rounded-lg bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-100 font-semibold flex items-center gap-1.5 transition" title="Mở biểu mẫu trên tab mới để xem trước">
+                                <i class="fas fa-arrow-up-right-from-square text-sky-500"></i> Mở thử
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Khối 2: Đường link Google Sheet lưu phản hồi -->
+                <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
+                            <i class="fas fa-table text-emerald-600"></i>
+                            <span>2. Đường Liên Kết Google Sheet Lưu Phản Hồi (Responses Sheet)</span>
+                        </label>
+                        <span class="text-[11px] text-slate-400">Sheet Responses CSV</span>
+                    </div>
+                    <p class="text-[11px] text-slate-500 leading-relaxed">
+                        Hệ thống sẽ định kỳ đọc bảng dữ liệu này để tự động cập nhật trạng thái của đại biểu (Tham dự, Không tham dự, Người đi thay, Ăn tiệc).
+                    </p>
+                    <div class="pt-1">
+                        <input type="text" id="gfSheetUrlInput" placeholder="Ví dụ: https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit?usp=sharing" class="w-full p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white font-mono text-xs">
+                    </div>
+
+                    <!-- Hướng dẫn 2 bước bật chia sẻ -->
+                    <div class="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800/50 space-y-1.5 text-[11px] text-amber-900 dark:text-amber-300">
+                        <div class="font-bold flex items-center gap-1.5">
+                            <i class="fas fa-circle-info text-amber-500"></i> Hướng dẫn kết nối Google Sheet trong 30 giây:
+                        </div>
+                        <ol class="list-decimal list-inside space-y-1 pl-1">
+                            <li>Trên Google Form của bạn, bấm vào tab <strong>Câu trả lời (Responses)</strong> > bấm biểu tượng <strong>Liên kết với Trang tính (Sheets)</strong>.</li>
+                            <li>Trên Google Sheet vừa tạo, bấm nút <strong>Chia sẻ (Share)</strong> góc trên bên phải > chuyển quyền thành <strong>"Bất kỳ ai có đường liên kết đều có thể xem (Viewer)"</strong> > Sao chép và dán link vào ô trên.</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <!-- Khối 3: Tùy chọn Tự Động Hóa -->
+                <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-3">
+                    <div class="font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
+                        <i class="fas fa-robot text-indigo-500"></i>
+                        <span>3. Tùy Chọn Tự Động Hóa Quá Trình Đồng Bộ</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                        <label class="flex items-start gap-2.5 p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 cursor-pointer select-none">
+                            <input type="checkbox" id="gfAutoSyncIntervalCheckbox" class="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                            <div>
+                                <span class="font-bold text-slate-800 dark:text-white block">Tự động kiểm tra mỗi 5 phút</span>
+                                <span class="text-[11px] text-slate-500">Hệ thống tự động chạy ngầm kiểm tra phản hồi mới khi bạn đang mở phần mềm.</span>
+                            </div>
+                        </label>
+
+                        <label class="flex items-start gap-2.5 p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 cursor-pointer select-none">
+                            <input type="checkbox" id="gfAutoAddNewGuestsCheckbox" checked class="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                            <div>
+                                <span class="font-bold text-slate-800 dark:text-white block">Tự nạp khách mới từ Form</span>
+                                <span class="text-[11px] text-slate-500">Tự động thêm vào danh sách khách mời nếu người đăng ký chưa có trong danh sách gốc.</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Action Footer Tab 1 -->
+                <div class="flex items-center justify-between pt-2">
+                    <button type="button" onclick="simulateSampleGoogleFormResponses()" class="text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 font-semibold">
+                        <i class="fas fa-flask"></i> Nạp phản hồi giả lập mẫu (Sandbox Demo)
+                    </button>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="saveGoogleFormRsvpConfig(true)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-sm transition">
+                            <i class="fas fa-floppy-disk"></i>
+                            <span>Lưu Cấu Hình & Đồng Bộ Ngay</span>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- TAB 2: DANH SÁCH PHẢN HỒI THỜI GIAN THỰC -->
+            <div id="gfTabContent-responses" class="hidden space-y-4">
+                
+                <!-- KPI tóm tắt phản hồi -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700">
+                        <span class="text-[11px] text-slate-500 font-medium">Tổng số phản hồi</span>
+                        <div class="text-xl font-extrabold text-slate-800 dark:text-white" id="gfKpiTotalResponses">0</div>
+                    </div>
+                    <div class="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50">
+                        <span class="text-[11px] text-emerald-700 dark:text-emerald-300 font-medium">Xác nhận tham dự</span>
+                        <div class="text-xl font-extrabold text-emerald-600 dark:text-emerald-400" id="gfKpiConfirmed">0</div>
+                    </div>
+                    <div class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/50">
+                        <span class="text-[11px] text-rose-700 dark:text-rose-300 font-medium">Báo vắng / Từ chối</span>
+                        <div class="text-xl font-extrabold text-rose-600 dark:text-rose-400" id="gfKpiDeclined">0</div>
+                    </div>
+                    <div class="p-3 rounded-xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/50">
+                        <span class="text-[11px] text-purple-700 dark:text-purple-300 font-medium">Đăng ký ăn tiệc</span>
+                        <div class="text-xl font-extrabold text-purple-600 dark:text-purple-400" id="gfKpiBanquet">0</div>
+                    </div>
+                </div>
+
+                <!-- Thanh tìm kiếm & thao tác danh sách -->
+                <div class="flex items-center justify-between gap-2">
+                    <div class="relative flex-1 max-w-sm">
+                        <i class="fas fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                        <input type="text" id="gfResponsesSearchInput" oninput="renderGoogleFormResponsesTable()" placeholder="Tìm theo tên, email, cơ quan..." class="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white text-xs">
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="exportGoogleFormResponsesExcel()" class="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-semibold flex items-center gap-1.5 transition">
+                            <i class="fas fa-file-excel text-emerald-600"></i> Xuất Excel
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Bảng danh sách phản hồi cuộn được -->
+                <div class="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-900">
+                    <div class="max-h-72 overflow-y-auto">
+                        <table class="w-full text-left divide-y divide-slate-100 dark:divide-slate-800">
+                            <thead class="bg-slate-50 dark:bg-slate-800/80 sticky top-0 text-[11px] font-bold text-slate-600 dark:text-slate-300 z-10">
+                                <tr>
+                                    <th class="py-2.5 px-3">Thời gian</th>
+                                    <th class="py-2.5 px-3">Họ và tên</th>
+                                    <th class="py-2.5 px-3">Cơ quan / Đơn vị</th>
+                                    <th class="py-2.5 px-3">Email & SĐT</th>
+                                    <th class="py-2.5 px-3 text-center">Xác nhận RSVP</th>
+                                    <th class="py-2.5 px-3 text-center">Ăn tiệc</th>
+                                    <th class="py-2.5 px-3">Khớp khách mời</th>
+                                </tr>
+                            </thead>
+                            <tbody id="gfResponsesTableBody" class="divide-y divide-slate-100 dark:divide-slate-800 text-[11px]">
+                                <!-- Nạp qua renderGoogleFormResponsesTable() -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div class="px-5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
+            <span class="text-slate-500 text-[11px]">
+                <i class="fas fa-shield-check text-emerald-500 mr-1"></i> Tự động đối soát thông minh theo Email, SĐT và Họ tên • Cập nhật tức thì vào sơ đồ hội trường.
+            </span>
+            <button onclick="closeGoogleFormRsvpModal()" class="px-4 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition">
+                Đóng
+            </button>
+        </div>
+
     </div>
 </div>
 
@@ -17766,6 +18012,733 @@ function togglePauseBulkEmailDispatch() {
 function cancelBulkEmailDispatch() {
     bulkEmailState.isCancelled = true;
     bulkEmailState.isPaused = false;
+}
+
+
+
+/* ========================================================================= */
+/* 8.F TÍCH HỢP GOOGLE FORM RSVP & TỰ ĐỘNG ĐỒNG BỘ PHẢN HỒI KHÁCH MỜI       */
+/* ========================================================================= */
+
+let googleFormAutoSyncInterval = null;
+let googleFormCachedResponses = [];
+
+function openGoogleFormRsvpModal() {
+    const evId = module4State.selectedEventId;
+    if (!evId) {
+        Swal.fire('Chưa chọn sự kiện', 'Vui lòng chọn một sự kiện để cấu hình liên kết Google Form.', 'warning');
+        return;
+    }
+
+    const eventData = (appData.events || []).find(e => e.id === evId);
+    if (!eventData) return;
+
+    // Load saved settings
+    const formUrlInput = document.getElementById('gfFormUrlInput');
+    const sheetUrlInput = document.getElementById('gfSheetUrlInput');
+    const autoSyncCheckbox = document.getElementById('gfAutoSyncIntervalCheckbox');
+    const autoAddNewCheckbox = document.getElementById('gfAutoAddNewGuestsCheckbox');
+
+    if (formUrlInput) formUrlInput.value = eventData.googleFormUrl || '';
+    if (sheetUrlInput) sheetUrlInput.value = eventData.googleSheetUrl || '';
+    if (autoSyncCheckbox) autoSyncCheckbox.checked = eventData.autoSyncGoogleForm === true;
+    if (autoAddNewCheckbox) autoAddNewCheckbox.checked = eventData.autoAddNewGuestsFromForm !== false;
+
+    updateGoogleFormStatusBadge(eventData);
+    switchGoogleFormTab('config');
+
+    document.getElementById('googleFormRsvpModal')?.classList.remove('hidden');
+}
+
+function closeGoogleFormRsvpModal() {
+    document.getElementById('googleFormRsvpModal')?.classList.add('hidden');
+}
+
+function switchGoogleFormTab(tabKey) {
+    const tabConfig = document.getElementById('gfTabContent-config');
+    const tabResponses = document.getElementById('gfTabContent-responses');
+    const btnConfig = document.getElementById('gfTabBtn-config');
+    const btnResponses = document.getElementById('gfTabBtn-responses');
+
+    if (tabKey === 'config') {
+        tabConfig?.classList.remove('hidden');
+        tabResponses?.classList.add('hidden');
+        if (btnConfig) btnConfig.className = 'py-2.5 px-4 font-bold border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5';
+        if (btnResponses) btnResponses.className = 'py-2.5 px-4 font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-white border-b-2 border-transparent flex items-center gap-1.5';
+    } else {
+        tabConfig?.classList.add('hidden');
+        tabResponses?.classList.remove('hidden');
+        if (btnConfig) btnConfig.className = 'py-2.5 px-4 font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-white border-b-2 border-transparent flex items-center gap-1.5';
+        if (btnResponses) btnResponses.className = 'py-2.5 px-4 font-bold border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5';
+        renderGoogleFormResponsesTable();
+    }
+}
+
+function updateGoogleFormStatusBadge(eventData) {
+    const badge = document.getElementById('gfConnectionStatusBadge');
+    const lastSyncEl = document.getElementById('gfLastSyncTimeText');
+    const responsesCountEl = document.getElementById('gfResponsesBadgeCount');
+
+    if (badge) {
+        if (eventData.googleSheetUrl) {
+            badge.textContent = 'Đã kết nối Sheet phản hồi';
+            badge.className = 'font-bold text-emerald-600 dark:text-emerald-400';
+        } else if (eventData.googleFormUrl) {
+            badge.textContent = 'Chỉ có link Form (Chưa gắn Sheet)';
+            badge.className = 'font-bold text-amber-600 dark:text-amber-400';
+        } else {
+            badge.textContent = 'Chưa thiết lập liên kết';
+            badge.className = 'font-bold text-slate-500';
+        }
+    }
+
+    if (lastSyncEl) {
+        if (eventData.lastFormSyncTime) {
+            const date = new Date(eventData.lastFormSyncTime);
+            lastSyncEl.textContent = `Lần kiểm tra cuối: ${date.toLocaleTimeString('vi-VN')} (${date.toLocaleDateString('vi-VN')})`;
+        } else {
+            lastSyncEl.textContent = 'Lần kiểm tra cuối: Chưa đồng bộ';
+        }
+    }
+
+    if (responsesCountEl) {
+        responsesCountEl.textContent = googleFormCachedResponses.length || (eventData.formResponsesCount || 0);
+    }
+}
+
+function copyGoogleFormLinkToClipboard() {
+    const url = document.getElementById('gfFormUrlInput')?.value || '';
+    if (!url) {
+        Swal.fire('Chưa có link', 'Vui lòng dán link Google Form trước khi sao chép.', 'info');
+        return;
+    }
+    navigator.clipboard.writeText(url).then(() => {
+        Swal.fire({
+            icon: 'success',
+            title: 'Đã sao chép liên kết!',
+            text: 'Đường link Google Form đã được lưu vào khay nhớ tạm để gửi cho đại biểu.',
+            timer: 1500,
+            showConfirmButton: false
+        });
+    });
+}
+
+function openGoogleFormInNewTab() {
+    const url = document.getElementById('gfFormUrlInput')?.value || '';
+    if (!url) {
+        Swal.fire('Chưa có link', 'Vui lòng dán link Google Form trước khi mở.', 'info');
+        return;
+    }
+    window.open(url, '_blank');
+}
+
+function saveGoogleFormRsvpConfig(andSyncNow = false) {
+    const evId = module4State.selectedEventId;
+    if (!evId) return;
+
+    const eventData = (appData.events || []).find(e => e.id === evId);
+    if (!eventData) return;
+
+    const formUrl = (document.getElementById('gfFormUrlInput')?.value || '').trim();
+    const sheetUrl = (document.getElementById('gfSheetUrlInput')?.value || '').trim();
+    const autoSync = document.getElementById('gfAutoSyncIntervalCheckbox')?.checked || false;
+    const autoAddNew = document.getElementById('gfAutoAddNewGuestsCheckbox')?.checked || false;
+
+    eventData.googleFormUrl = formUrl;
+    eventData.googleSheetUrl = sheetUrl;
+    eventData.autoSyncGoogleForm = autoSync;
+    eventData.autoAddNewGuestsFromForm = autoAddNew;
+
+    syncModule4Storage(true);
+    setupGoogleFormAutoSyncTimer();
+    updateGoogleFormStatusBadge(eventData);
+
+    if (andSyncNow) {
+        triggerGoogleFormSyncNow();
+    } else {
+        Swal.fire('Đã lưu cấu hình', 'Thông tin liên kết Google Form & Sheet đã được cập nhật thành công.', 'success');
+    }
+}
+
+// Trích xuất link CSV từ Google Sheet URL
+function extractGoogleSheetCsvUrl(rawUrl) {
+    if (!rawUrl) return null;
+    const trimmed = rawUrl.trim();
+    if (trimmed.includes('tqx=out:csv') || trimmed.includes('format=csv')) {
+        return trimmed;
+    }
+    const match = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    if (match && match[1]) {
+        return `https://docs.google.com/spreadsheets/d/${match[1]}/gviz/tq?tqx=out:csv`;
+    }
+    if (/^[a-zA-Z0-9-_]{20,}$/.test(trimmed)) {
+        return `https://docs.google.com/spreadsheets/d/${trimmed}/gviz/tq?tqx=out:csv`;
+    }
+    return trimmed;
+}
+
+// Phân tách CSV chuẩn hỗ trợ dấu phẩy trong ngoặc kép
+function parseCsvToRows(csvText) {
+    if (!csvText) return [];
+    const lines = [];
+    let row = [];
+    let inQuotes = false;
+    let currentVal = '';
+
+    for (let i = 0; i < csvText.length; i++) {
+        const char = csvText[i];
+        const nextChar = csvText[i + 1];
+
+        if (char === '"') {
+            if (inQuotes && nextChar === '"') {
+                currentVal += '"';
+                i++;
+            } else {
+                inQuotes = !inQuotes;
+            }
+        } else if (char === ',' && !inQuotes) {
+            row.push(currentVal.trim());
+            currentVal = '';
+        } else if ((char === '\r' || char === '\n') && !inQuotes) {
+            if (char === '\r' && nextChar === '\n') i++;
+            row.push(currentVal.trim());
+            if (row.some(val => val !== '')) lines.push(row);
+            row = [];
+            currentVal = '';
+        } else {
+            currentVal += char;
+        }
+    }
+    if (currentVal || row.length > 0) {
+        row.push(currentVal.trim());
+        if (row.some(val => val !== '')) lines.push(row);
+    }
+    return lines;
+}
+
+// Nhận diện cột linh hoạt từ headers của Google Form
+function detectGoogleFormColumns(headers) {
+    const map = {
+        timestamp: -1,
+        name: -1,
+        org: -1,
+        title: -1,
+        phone: -1,
+        email: -1,
+        rsvp: -1,
+        banquet: -1,
+        substitute: -1,
+        notes: -1
+    };
+
+    headers.forEach((h, idx) => {
+        const col = (h || '').toLowerCase().trim();
+        if (col.includes('thời gian') || col.includes('timestamp')) map.timestamp = idx;
+        else if (col.includes('họ') || col.includes('tên') || col.includes('name')) {
+            if (col.includes('thay') || col.includes('substitute') || col.includes('đại diện')) {
+                map.substitute = idx;
+            } else if (map.name === -1) {
+                map.name = idx;
+            }
+        }
+        else if (col.includes('email') || col.includes('thư')) map.email = idx;
+        else if (col.includes('thoại') || col.includes('sđt') || col.includes('phone') || col.includes('mobile')) map.phone = idx;
+        else if (col.includes('cơ quan') || col.includes('đơn vị') || col.includes('doanh nghiệp') || col.includes('tổ chức') || col.includes('công ty')) map.org = idx;
+        else if (col.includes('chức vụ') || col.includes('vị trí') || col.includes('title')) map.title = idx;
+        else if (col.includes('xác nhận') || col.includes('tham dự') || col.includes('rsvp') || col.includes('tham gia')) map.rsvp = idx;
+        else if (col.includes('tiệc') || col.includes('banquet') || col.includes('chiêu đãi')) map.banquet = idx;
+        else if (col.includes('thay thế') || col.includes('đi thay')) map.substitute = idx;
+        else if (col.includes('ghi chú') || col.includes('ý kiến') || col.includes('note')) map.notes = idx;
+    });
+
+    return map;
+}
+
+// Đối soát phản hồi với danh sách khách mời hiện tại
+function matchResponseToGuest(respData, guests) {
+    const normEmail = (respData.email || '').toLowerCase().trim();
+    const normPhone = (respData.phone || '').replace(/[^0-9]/g, '');
+    const normName = (respData.name || '').trim();
+
+    // 1. Khớp theo Email
+    if (normEmail && normEmail.includes('@')) {
+        const g = guests.find(guest => guest.email && guest.email.toLowerCase().trim() === normEmail);
+        if (g) return { guest: g, matchMethod: 'Email' };
+    }
+
+    // 2. Khớp theo Số điện thoại
+    if (normPhone && normPhone.length >= 8) {
+        const g = guests.find(guest => {
+            const gPhone = (guest.phone || '').replace(/[^0-9]/g, '');
+            return gPhone && (gPhone === normPhone || gPhone.endsWith(normPhone.slice(-8)));
+        });
+        if (g) return { guest: g, matchMethod: 'SĐT' };
+    }
+
+    // 3. Khớp theo Họ tên
+    if (normName) {
+        const cleanName = typeof removeVietnameseTones === 'function' ? removeVietnameseTones(normName).toLowerCase() : normName.toLowerCase();
+        const g = guests.find(guest => {
+            const cleanGName = typeof removeVietnameseTones === 'function' ? removeVietnameseTones(guest.name || '').toLowerCase() : (guest.name || '').toLowerCase();
+            return cleanGName === cleanName;
+        });
+        if (g) return { guest: g, matchMethod: 'Họ tên' };
+    }
+
+    return null;
+}
+
+// Phân tích trạng thái RSVP
+function parseRsvpStatusText(val) {
+    if (!val) return 'pending';
+    const s = val.toLowerCase().trim();
+    if (s.includes('không') || s.includes('bận') || s.includes('từ chối') || s.includes('vắng') || s.includes('no') || s.includes('declined')) {
+        return 'declined';
+    }
+    if (s.includes('có') || s.includes('tham dự') || s.includes('đồng ý') || s.includes('xác nhận') || s.includes('chắc chắn') || s.includes('yes') || s.includes('attend')) {
+        return 'confirmed';
+    }
+    return 'pending';
+}
+
+function parseBanquetStatusText(val) {
+    if (!val) return false;
+    const s = val.toLowerCase().trim();
+    return s.includes('có') || s.includes('yes') || s.includes('tham gia') || s.includes('đồng ý') || s.includes('dự tiệc');
+}
+
+// KÍCH HOẠT ĐỒNG BỘ NGAY TỪ GOOGLE SHEET PHẢN HỒI
+async function triggerGoogleFormSyncNow() {
+    const evId = module4State.selectedEventId;
+    if (!evId) return;
+
+    const eventData = (appData.events || []).find(e => e.id === evId);
+    if (!eventData || !eventData.googleSheetUrl) {
+        openGoogleFormRsvpModal();
+        Swal.fire({
+            icon: 'info',
+            title: 'Chưa gắn link Google Sheet',
+            text: 'Vui lòng dán link Google Sheet lưu phản hồi của Form và bật quyền "Bất kỳ ai có đường liên kết đều có thể xem" để hệ thống tự động đọc câu trả lời.',
+            confirmButtonText: 'Đã hiểu'
+        });
+        return;
+    }
+
+    Swal.fire({
+        title: 'Đang đồng bộ Google Form...',
+        text: 'Hệ thống đang tải và phân tích phản hồi từ Google Sheet.',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    const result = await syncGoogleFormResponses(false);
+    if (result && result.success) {
+        updateGoogleFormStatusBadge(eventData);
+        Swal.fire({
+            icon: 'success',
+            title: 'Đồng bộ Google Form hoàn tất!',
+            html: `Đã đọc và xử lý <b>${result.totalResponses} phản hồi</b>:<br>
+                   - <b class="text-emerald-600">${result.confirmedCount} đại biểu</b> xác nhận tham dự.<br>
+                   - <b class="text-rose-600">${result.declinedCount} đại biểu</b> báo vắng / từ chối.<br>
+                   - <b class="text-purple-600">${result.banquetCount} đại biểu</b> đăng ký tiệc chiêu đãi.<br>
+                   ${result.newGuestsCount > 0 ? `- <b class="text-indigo-600">${result.newGuestsCount} khách đăng ký mới</b> đã được tự động nạp vào danh sách!` : ''}`,
+            confirmButtonText: 'Xem danh sách'
+        }).then(() => {
+            switchGoogleFormTab('responses');
+        });
+    }
+}
+
+// HÀM LÕI ĐỒNG BỘ DỮ LIỆU
+async function syncGoogleFormResponses(silent = false) {
+    const evId = module4State.selectedEventId;
+    if (!evId) return null;
+
+    const eventData = (appData.events || []).find(e => e.id === evId);
+    if (!eventData || !eventData.googleSheetUrl) return null;
+
+    const csvUrl = extractGoogleSheetCsvUrl(eventData.googleSheetUrl);
+    if (!csvUrl) return null;
+
+    try {
+        const response = await fetch(csvUrl);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status} - Không thể tải Google Sheet`);
+        }
+
+        const csvText = await response.text();
+        const rows = parseCsvToRows(csvText);
+
+        if (rows.length < 2) {
+            if (!silent) Swal.fire('Google Sheet trống', 'Chưa có câu trả lời nào được ghi nhận trên Google Sheet.', 'info');
+            return null;
+        }
+
+        const headers = rows[0];
+        const colMap = detectGoogleFormColumns(headers);
+
+        if (colMap.name === -1 && colMap.email === -1) {
+            throw new Error('Không nhận diện được cột Họ tên hoặc Email trong Google Sheet.');
+        }
+
+        const guests = appData.eventGuests[evId] || [];
+        let confirmedCount = 0;
+        let declinedCount = 0;
+        let banquetCount = 0;
+        let newGuestsCount = 0;
+        const parsedResponses = [];
+
+        for (let r = 1; r < rows.length; r++) {
+            const row = rows[r];
+            const respItem = {
+                timestamp: colMap.timestamp !== -1 ? row[colMap.timestamp] : '',
+                name: colMap.name !== -1 ? row[colMap.name] : '',
+                org: colMap.org !== -1 ? row[colMap.org] : '',
+                title: colMap.title !== -1 ? row[colMap.title] : '',
+                email: colMap.email !== -1 ? row[colMap.email] : '',
+                phone: colMap.phone !== -1 ? row[colMap.phone] : '',
+                rsvpRaw: colMap.rsvp !== -1 ? row[colMap.rsvp] : '',
+                banquetRaw: colMap.banquet !== -1 ? row[colMap.banquet] : '',
+                substitute: colMap.substitute !== -1 ? row[colMap.substitute] : '',
+                notes: colMap.notes !== -1 ? row[colMap.notes] : ''
+            };
+
+            if (!respItem.name && !respItem.email) continue;
+
+            const rsvpStatus = parseRsvpStatusText(respItem.rsvpRaw);
+            const hasBanquet = parseBanquetStatusText(respItem.banquetRaw);
+            if (rsvpStatus === 'confirmed') confirmedCount++;
+            if (rsvpStatus === 'declined') declinedCount++;
+            if (hasBanquet) banquetCount++;
+
+            // Đối soát với khách mời
+            const matchResult = matchResponseToGuest(respItem, guests);
+            let matchedGuestName = '';
+
+            if (matchResult && matchResult.guest) {
+                const g = matchResult.guest;
+                g.rsvpStatus = rsvpStatus;
+                g.hasBanquet = hasBanquet;
+                g.rsvpSource = 'google_form';
+                g.rsvpRespondedAt = respItem.timestamp || new Date().toISOString();
+                if (respItem.substitute) g.substituteName = respItem.substitute;
+                if (respItem.phone && !g.phone) g.phone = respItem.phone;
+                if (respItem.email && !g.email) g.email = respItem.email;
+                matchedGuestName = `${g.name} (${matchResult.matchMethod})`;
+            } else if (eventData.autoAddNewGuestsFromForm !== false && respItem.name) {
+                // Tự động thêm khách mới
+                const newGuest = {
+                    id: 'GF-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 4),
+                    name: respItem.name,
+                    title: respItem.title || 'Đại biểu',
+                    organization: respItem.org || 'Đăng ký trực tuyến',
+                    email: respItem.email || '',
+                    phone: respItem.phone || '',
+                    group: (respItem.org && (respItem.org.toLowerCase().includes('sở') || respItem.org.toLowerCase().includes('ubnd'))) ? 'SoNganh' : 'DoanhNghiep',
+                    sendMethod: 'email',
+                    inviteStatus: 'sent',
+                    rsvpStatus: rsvpStatus,
+                    hasBanquet: hasBanquet,
+                    substituteName: respItem.substitute || '',
+                    notes: (respItem.notes ? respItem.notes + ' | ' : '') + 'Nạp tự động qua Google Form',
+                    rsvpSource: 'google_form',
+                    rsvpRespondedAt: respItem.timestamp || new Date().toISOString()
+                };
+                guests.push(newGuest);
+                newGuestsCount++;
+                matchedGuestName = 'Khách đăng ký mới (Đã nạp)';
+            }
+
+            parsedResponses.push({
+                ...respItem,
+                rsvpStatus,
+                hasBanquet,
+                matchedGuestName
+            });
+        }
+
+        // Lưu kết quả
+        googleFormCachedResponses = parsedResponses;
+        eventData.lastFormSyncTime = new Date().toISOString();
+        eventData.formResponsesCount = parsedResponses.length;
+
+        syncModule4Storage(true);
+        renderCrmGuestsTable();
+        renderGoogleFormResponsesTable();
+
+        return {
+            success: true,
+            totalResponses: parsedResponses.length,
+            confirmedCount,
+            declinedCount,
+            banquetCount,
+            newGuestsCount
+        };
+    } catch (err) {
+        console.error('Lỗi sync Google Form:', err);
+        if (!silent) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Không thể kết nối Google Sheet',
+                html: `Vui lòng kiểm tra lại:<br>
+                       1. Google Sheet đã được mở quyền: <b>"Bất kỳ ai có đường liên kết đều có quyền xem (Viewer)"</b>.<br>
+                       2. Đường link Google Sheet đã đúng định dạng.<br>
+                       <span class="text-xs text-slate-500 font-mono">${err.message}</span>`
+            });
+        }
+        return null;
+    }
+}
+
+// BẢNG DANH SÁCH PHẢN HỒI
+function renderGoogleFormResponsesTable() {
+    const tbody = document.getElementById('gfResponsesTableBody');
+    if (!tbody) return;
+
+    const query = (document.getElementById('gfResponsesSearchInput')?.value || '').trim().toLowerCase();
+    let list = googleFormCachedResponses;
+
+    if (query) {
+        list = list.filter(r => 
+            (r.name && r.name.toLowerCase().includes(query)) ||
+            (r.email && r.email.toLowerCase().includes(query)) ||
+            (r.org && r.org.toLowerCase().includes(query))
+        );
+    }
+
+    // Cập nhật KPI
+    const totalEl = document.getElementById('gfKpiTotalResponses');
+    const confEl = document.getElementById('gfKpiConfirmed');
+    const declEl = document.getElementById('gfKpiDeclined');
+    const banqEl = document.getElementById('gfKpiBanquet');
+
+    if (totalEl) totalEl.textContent = googleFormCachedResponses.length;
+    if (confEl) confEl.textContent = googleFormCachedResponses.filter(r => r.rsvpStatus === 'confirmed').length;
+    if (declEl) declEl.textContent = googleFormCachedResponses.filter(r => r.rsvpStatus === 'declined').length;
+    if (banqEl) banqEl.textContent = googleFormCachedResponses.filter(r => r.hasBanquet).length;
+
+    if (list.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="py-8 text-center text-slate-400">
+                    <i class="fas fa-inbox text-2xl mb-1"></i>
+                    <p>Chưa có dữ liệu phản hồi nào. Hãy bấm "Đồng Bộ Ngay" hoặc "Nạp phản hồi giả lập".</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    let html = '';
+    list.forEach(r => {
+        let rsvpBadge = '';
+        if (r.rsvpStatus === 'confirmed') {
+            rsvpBadge = '<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 font-bold"><i class="fas fa-check mr-1"></i>Tham dự</span>';
+        } else if (r.rsvpStatus === 'declined') {
+            rsvpBadge = '<span class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 font-bold"><i class="fas fa-times mr-1"></i>Từ chối</span>';
+        } else {
+            rsvpBadge = '<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 font-bold">Chưa rõ</span>';
+        }
+
+        const banquetBadge = r.hasBanquet ? 
+            '<span class="text-purple-600 dark:text-purple-400 font-bold"><i class="fas fa-wine-glass"></i> Có</span>' : 
+            '<span class="text-slate-400">Không</span>';
+
+        const matchBadge = r.matchedGuestName ? 
+            `<span class="px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-medium">${r.matchedGuestName}</span>` :
+            '<span class="text-slate-400 italic">Chưa khớp</span>';
+
+        html += `
+            <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
+                <td class="py-2.5 px-3 text-slate-500 whitespace-nowrap">${r.timestamp || '--'}</td>
+                <td class="py-2.5 px-3 font-bold text-slate-800 dark:text-white">${r.name}</td>
+                <td class="py-2.5 px-3 text-slate-600 dark:text-slate-300">${r.org || '--'}</td>
+                <td class="py-2.5 px-3 font-mono text-slate-600 dark:text-slate-300">
+                    <div>${r.email || ''}</div>
+                    <div class="text-[10px] text-slate-400">${r.phone || ''}</div>
+                </td>
+                <td class="py-2.5 px-3 text-center whitespace-nowrap">${rsvpBadge}</td>
+                <td class="py-2.5 px-3 text-center whitespace-nowrap">${banquetBadge}</td>
+                <td class="py-2.5 px-3 whitespace-nowrap">${matchBadge}</td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = html;
+}
+
+// NẠP PHẢN HỒI MẪU CHO MỤC ĐÍCH THỬ NGHIỆM
+function simulateSampleGoogleFormResponses() {
+    const evId = module4State.selectedEventId;
+    if (!evId) return;
+
+    const guests = appData.eventGuests[evId] || [];
+    const sample1 = guests[0] || { name: 'Nguyễn Văn A', email: 'nva@hanoi.gov.vn', organization: 'UBND TP Hà Nội' };
+    const sample2 = guests[1] || { name: 'Trần Thị B', email: 'ttb@soct.hanoi.gov.vn', organization: 'Sở Công Thương Hà Nội' };
+    const sample3 = guests[2] || { name: 'Lê Văn C', email: 'lvc@dn.vn', organization: 'Tập đoàn Công nghệ Hà Nội' };
+
+    googleFormCachedResponses = [
+        {
+            timestamp: new Date().toLocaleTimeString('vi-VN') + ' ' + new Date().toLocaleDateString('vi-VN'),
+            name: sample1.name,
+            org: sample1.organization,
+            title: sample1.title || 'Lãnh đạo',
+            email: sample1.email || 'nva@hanoi.gov.vn',
+            phone: '0912345678',
+            rsvpRaw: 'Chắc chắn tham dự',
+            banquetRaw: 'Có tham gia tiệc chiêu đãi',
+            substitute: '',
+            rsvpStatus: 'confirmed',
+            hasBanquet: true,
+            matchedGuestName: `${sample1.name} (Email)`
+        },
+        {
+            timestamp: new Date().toLocaleTimeString('vi-VN') + ' ' + new Date().toLocaleDateString('vi-VN'),
+            name: sample2.name,
+            org: sample2.organization,
+            title: sample2.title || 'Trưởng phòng',
+            email: sample2.email || 'ttb@soct.hanoi.gov.vn',
+            phone: '0988776655',
+            rsvpRaw: 'Bận công tác đột xuất, cử đại diện',
+            banquetRaw: 'Không',
+            substitute: 'Đ/c Phạm Văn Phó phòng',
+            rsvpStatus: 'declined',
+            hasBanquet: false,
+            matchedGuestName: `${sample2.name} (Họ tên)`
+        },
+        {
+            timestamp: new Date().toLocaleTimeString('vi-VN') + ' ' + new Date().toLocaleDateString('vi-VN'),
+            name: sample3.name,
+            org: sample3.organization,
+            title: sample3.title || 'Tổng Giám đốc',
+            email: sample3.email || 'lvc@dn.vn',
+            phone: '0903222111',
+            rsvpRaw: 'Đồng ý tham dự đầy đủ chương trình',
+            banquetRaw: 'Có',
+            substitute: '',
+            rsvpStatus: 'confirmed',
+            hasBanquet: true,
+            matchedGuestName: `${sample3.name} (SĐT)`
+        },
+        {
+            timestamp: new Date().toLocaleTimeString('vi-VN') + ' ' + new Date().toLocaleDateString('vi-VN'),
+            name: 'Hoàng Quốc Việt',
+            org: 'Công ty Cổ phần Đầu tư Công nghệ Xanh',
+            title: 'Phó Tổng Giám đốc',
+            email: 'viet.hq@greentech.vn',
+            phone: '0936111222',
+            rsvpRaw: 'Xác nhận tham dự',
+            banquetRaw: 'Có',
+            substitute: '',
+            rsvpStatus: 'confirmed',
+            hasBanquet: true,
+            matchedGuestName: 'Khách đăng ký mới (Đã nạp)'
+        }
+    ];
+
+    // Cập nhật trạng thái khách mời
+    if (guests[0]) {
+        guests[0].rsvpStatus = 'confirmed';
+        guests[0].hasBanquet = true;
+        guests[0].rsvpSource = 'google_form';
+    }
+    if (guests[1]) {
+        guests[1].rsvpStatus = 'declined';
+        guests[1].substituteName = 'Đ/c Phạm Văn Phó phòng';
+        guests[1].rsvpSource = 'google_form';
+    }
+    if (guests[2]) {
+        guests[2].rsvpStatus = 'confirmed';
+        guests[2].hasBanquet = true;
+        guests[2].rsvpSource = 'google_form';
+    }
+
+    // Nạp khách mới nếu chưa có
+    if (!guests.some(g => g.name === 'Hoàng Quốc Việt')) {
+        guests.push({
+            id: 'GF-SIM-01',
+            name: 'Hoàng Quốc Việt',
+            title: 'Phó Tổng Giám đốc',
+            organization: 'Công ty Cổ phần Đầu tư Công nghệ Xanh',
+            email: 'viet.hq@greentech.vn',
+            phone: '0936111222',
+            group: 'DoanhNghiep',
+            sendMethod: 'email',
+            inviteStatus: 'sent',
+            rsvpStatus: 'confirmed',
+            hasBanquet: true,
+            substituteName: '',
+            notes: 'Nạp giả lập mẫu từ Google Form',
+            rsvpSource: 'google_form',
+            rsvpRespondedAt: new Date().toISOString()
+        });
+    }
+
+    syncModule4Storage(true);
+    renderCrmGuestsTable();
+    switchGoogleFormTab('responses');
+
+    Swal.fire({
+        icon: 'success',
+        title: 'Đã nạp 4 phản hồi giả lập mẫu!',
+        text: 'Hệ thống đã tự động đối soát và cập nhật trực tiếp vào danh sách khách mời của sự kiện.',
+        confirmButtonText: 'Tuyệt vời'
+    });
+}
+
+function exportGoogleFormResponsesExcel() {
+    if (googleFormCachedResponses.length === 0) {
+        Swal.fire('Chưa có dữ liệu', 'Chưa có phản hồi nào để xuất ra file.', 'info');
+        return;
+    }
+
+    let csvContent = "\uFEFFDấu thời gian,Họ và tên,Cơ quan / Đơn vị,Chức vụ,Email,Số điện thoại,Xác nhận tham dự,Ăn tiệc,Người đi thay,Trạng thái đối soát\r\n";
+    googleFormCachedResponses.forEach(r => {
+        const row = [
+            `"${r.timestamp || ''}"`,
+            `"${r.name || ''}"`,
+            `"${r.org || ''}"`,
+            `"${r.title || ''}"`,
+            `"${r.email || ''}"`,
+            `"${r.phone || ''}"`,
+            `"${r.rsvpStatus === 'confirmed' ? 'Tham dự' : (r.rsvpStatus === 'declined' ? 'Từ chối' : 'Chưa rõ')}"`,
+            `"${r.hasBanquet ? 'Có' : 'Không'}"`,
+            `"${r.substitute || ''}"`,
+            `"${r.matchedGuestName || ''}"`
+        ];
+        csvContent += row.join(',') + "\r\n";
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `Phan_Hoi_Google_Form_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+}
+
+function setupGoogleFormAutoSyncTimer() {
+    if (typeof process !== 'undefined' && process.versions && process.versions.node) return;
+    if (googleFormAutoSyncInterval) {
+        clearInterval(googleFormAutoSyncInterval);
+        googleFormAutoSyncInterval = null;
+    }
+    // Chạy ngầm định kỳ mỗi 5 phút (300.000ms)
+    googleFormAutoSyncInterval = setInterval(() => {
+        const evId = module4State.selectedEventId;
+        if (!evId) return;
+        const ev = (appData.events || []).find(e => e.id === evId);
+        if (ev && ev.autoSyncGoogleForm && ev.googleSheetUrl) {
+            console.log('[Auto-Sync] Kiểm tra định kỳ phản hồi Google Form...');
+            syncGoogleFormResponses(true);
+        }
+    }, 300000);
+}
+
+// Khởi tạo timer khi nạp ứng dụng trong trình duyệt
+if (typeof process === 'undefined' || !process.versions || !process.versions.node) {
+    setTimeout(() => {
+        setupGoogleFormAutoSyncTimer();
+    }, 2000);
 }
 
 
