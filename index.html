@@ -3997,7 +3997,6 @@
 
             if (isAdminEmail) {
                 roleCode = 'admin';
-                if (!dept || dept === 'Phòng Xúc tiến đầu tư') dept = 'Ban Giám đốc';
             }
 
             const roleLabels = {
@@ -4008,7 +4007,10 @@
                 'user': 'Chuyên viên'
             };
             const roleLabel = roleLabels[roleCode] || 'Chuyên viên';
-            const deptStr = dept ? String(dept).replace('Phòng ', 'P. ') : '';
+
+            // Tài khoản Admin hoặc Ban Giám đốc không hiển thị huy hiệu phòng ban riêng lẻ bên cạnh
+            const isDepartmentHidden = roleCode === 'admin' || roleCode === 'leader' || !dept || dept === 'Ban Giám đốc';
+            const deptStr = isDepartmentHidden ? '' : String(dept).replace('Phòng ', 'P. ');
             const deptBadge = deptStr ? `<span class="hidden md:inline text-[10px] bg-indigo-900/70 text-indigo-100 border border-indigo-400/30 px-1.5 py-0.5 rounded ml-1">${escapeHtml(deptStr)}</span>` : '';
 
             const roleBadgeClass = roleCode === 'admin'
@@ -4343,7 +4345,7 @@
                     }
                 } else {
                     const displayName = (currentUser && currentUser.user_metadata && (currentUser.user_metadata.fullname || currentUser.user_metadata.full_name)) || email.split('@')[0];
-                    const defaultDept = (currentUser && currentUser.user_metadata && currentUser.user_metadata.department) || (isAdminEmail ? 'Ban Giám đốc' : 'Phòng Xúc tiến đầu tư');
+                    const defaultDept = (currentUser && currentUser.user_metadata && currentUser.user_metadata.department) || (isAdminEmail ? '' : 'Phòng Xúc tiến đầu tư');
                     const defaultRole = isAdminEmail ? 'admin' : ((currentUser && currentUser.user_metadata && currentUser.user_metadata.role) || 'user');
 
                     const { data: inserted, error: insErr } = await supabaseClient
@@ -4374,7 +4376,7 @@
                         email: email,
                         fullname: (currentUser && currentUser.user_metadata && (currentUser.user_metadata.fullname || currentUser.user_metadata.full_name)) || 'Quản trị viên (Admin)',
                         role: 'admin',
-                        department: 'Ban Giám đốc',
+                        department: '',
                         is_active: true
                     };
                 } else {
