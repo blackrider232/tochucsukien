@@ -1102,55 +1102,62 @@
         <section id="mainTab-events" class="space-y-3.5">
 
             <!-- Card Bảng Điều Khiển & Thống Kê Nhanh (KPI Dashboard) -->
-                        <!-- Card Bảng Điều Khiển & KPI CRM Khách Mời -->
             <div class="bg-white dark:bg-slate-800 rounded-xl p-3 sm:p-4 shadow-sm border border-slate-200 dark:border-slate-700">
-                <div class="flex flex-wrap items-center justify-between gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-700">
-                    
-                    <!-- Khối Chọn Sự Kiện Bên Trái -->
-                    <div class="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
-                        <i class="fas fa-calendar-check text-amber-600 ml-1"></i>
-                        <span class="text-slate-500 text-[11px] font-semibold hidden sm:inline">Sự kiện:</span>
-                        <select id="crmEventSelector" onchange="onCrmEventChange()" class="bg-white dark:bg-slate-800 border-0 text-slate-800 dark:text-white text-xs font-bold rounded-lg focus:ring-1 focus:ring-amber-500 py-1 px-2 max-w-[220px] sm:max-w-[320px]">
-                            <!-- Nạp qua JS -->
-                        </select>
+                <div class="flex items-center justify-between gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-700">
+                    <div class="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200">
+                        <i class="fas fa-layer-group text-blue-600"></i>
+                        <span>Bảng Điều Khiển Sự Kiện</span>
                     </div>
 
-                    <!-- Các Nút Thao Tác Cấp Cao (Tự động co giãn, xuống dòng khi hẹp, không bị che mất) -->
-                    <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                        <button onclick="openBatchImportFromMasterDbModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 transition">
-                            <i class="fas fa-address-book"></i>
-                            <span class="hidden md:inline">Nhập từ CSDL Master</span>
-                            <span class="md:hidden">CSDL Master</span>
+                    <!-- Thanh nút chức năng cấp cao: TẤT CẢ CÙNG HÀNG (FLEX-NOWRAP SHRINK-0) -->
+                    <div class="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap">
+                        <!-- 1. Tạo Sự Kiện Mới -->
+                        <button onclick="openCreateEventModal()" class="px-2.5 sm:px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm transition flex items-center gap-1.5 shrink-0 cursor-pointer" title="Tạo Sự Kiện Mới">
+                            <i class="fas fa-plus text-xs"></i>
+                            <span class="hidden sm:inline">Tạo Sự Kiện</span>
+                            <span class="sm:hidden">Tạo SK</span>
                         </button>
 
-                        <button onclick="openGoogleFormRsvpModal()" class="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 transition" title="Kết nối Google Form để mời và tự động đồng bộ phản hồi">
-                            <i class="fab fa-google text-sm"></i>
-                            <span>Google Form RSVP</span>
+                        <!-- 2. Dropdown Chế độ xem -->
+                        <div class="relative shrink-0">
+                            <button onclick="toggleViewModeDropdown()" id="btnViewModeDropdown" class="px-2.5 sm:px-3 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-medium transition flex items-center gap-1.5 border border-slate-200 dark:border-slate-600 shrink-0 cursor-pointer" title="Chế độ hiển thị thu gọn / mở rộng">
+                                <i class="fas fa-layer-group text-blue-500 text-xs"></i>
+                                <span id="currentViewModeLabel" class="hidden md:inline">Thu gọn tất cả</span>
+                                <i class="fas fa-chevron-down text-[10px] ml-0.5"></i>
+                            </button>
+                            <div id="viewModeDropdownMenu" class="hidden absolute right-0 mt-1.5 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-2xl py-1.5 z-50 border border-slate-200 dark:border-slate-700 text-xs">
+                                <button onclick="setViewMode('collapse_all')" class="w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-200 cursor-pointer">
+                                    <i class="fas fa-compress text-slate-400 w-4"></i>
+                                    <div>
+                                        <div class="font-semibold">Thu gọn tất cả (Mặc định)</div>
+                                        <div class="text-[10px] text-slate-400">Chỉ hiển thị thanh Sự kiện chính</div>
+                                    </div>
+                                </button>
+                                <button onclick="setViewMode('expand_groups')" class="w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-200 cursor-pointer">
+                                    <i class="fas fa-list text-blue-500 w-4"></i>
+                                    <div>
+                                        <div class="font-semibold">Mở rộng Nhóm việc</div>
+                                        <div class="text-[10px] text-slate-400">Hiện danh sách các nhóm công việc</div>
+                                    </div>
+                                </button>
+                                <button onclick="setViewMode('expand_all')" class="w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-200 cursor-pointer">
+                                    <i class="fas fa-expand text-emerald-500 w-4"></i>
+                                    <div>
+                                        <div class="font-semibold">Mở rộng tất cả chi tiết</div>
+                                        <div class="text-[10px] text-slate-400">Xem tất cả các bước chi tiết</div>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 3. In danh sách & Báo cáo -->
+                        <button onclick="printAllEventsPlan()" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs transition border border-slate-200 dark:border-slate-600 shrink-0 cursor-pointer" title="In tổng hợp tiến độ sự kiện (A4)">
+                            <i class="fas fa-print"></i>
                         </button>
 
-                        <button onclick="openBulkEmailModal()" class="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 transition" title="Gửi email hàng loạt cho khách mời bằng Google Mail">
-                            <i class="fas fa-paper-plane text-xs"></i>
-                            <span>Gửi Email Khách Mời</span>
-                        </button>
-
-                        <button onclick="openCreateGuestModal()" class="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 transition">
-                            <i class="fas fa-user-plus text-xs"></i>
-                            <span>Thêm Khách Mời</span>
-                        </button>
-
-                        <button onclick="openPrintNameCardsModal()" class="bg-blue-600 hover:bg-blue-500 text-white px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 transition">
-                            <i class="fas fa-id-card"></i>
-                            <span>In Biển Tên VIP</span>
-                        </button>
-
-                        <button onclick="openPrintBadgesModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 transition">
-                            <i class="fas fa-qrcode"></i>
-                            <span>In Thẻ Đại Biểu</span>
-                        </button>
-
-                        <button onclick="exportGuestListExcel()" class="p-1.5 sm:p-2 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-semibold flex items-center gap-1.5 transition" title="Xuất danh sách khách mời ra file Excel">
-                            <i class="fas fa-file-excel text-emerald-600 text-sm"></i>
-                            <span class="hidden lg:inline text-xs">Xuất Excel</span>
+                        <!-- 4. Xuất Excel -->
+                        <button onclick="exportEventsExcel()" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-emerald-600 dark:text-emerald-400 text-xs transition border border-slate-200 dark:border-slate-600 shrink-0 cursor-pointer" title="Xuất báo cáo Excel / CSV">
+                            <i class="fas fa-file-excel"></i>
                         </button>
                     </div>
                 </div>
@@ -1504,7 +1511,7 @@
                     <div class="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs shadow-2xs">
                         <i class="fas fa-calendar-check text-amber-600 ml-1"></i>
                         <span class="text-slate-500 text-[11px] font-semibold hidden sm:inline">Sự kiện:</span>
-                        <select id="crmEventSelector" onchange="onCrmEventChange()" class="bg-white dark:bg-slate-800 py-1.5 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500 max-w-[200px] sm:max-w-xs truncate cursor-pointer">
+                        <select id="crmEventSelector" onchange="onCrmEventChange()" class="bg-white dark:bg-slate-800 py-1.5 px-3 rounded-lg border border-slate-200 dark:border-slate-700 font-bold text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500 min-w-[220px] max-w-[340px] truncate cursor-pointer shadow-2xs">
                             <!-- Nạp qua JS -->
                         </select>
                     </div>
@@ -13262,18 +13269,13 @@ function initModule4() {
     }
     if (!appData.eventHallConfig) appData.eventHallConfig = {};
 
-    populateCrmEventSelector();
-    populateSeatingHallSelector();
-
     const events = appData.events || [];
     if (!module4State.selectedEventId && events.length > 0) {
         module4State.selectedEventId = events[0].id;
     }
 
-    const selectEl = document.getElementById('crmEventSelector');
-    if (selectEl && module4State.selectedEventId) {
-        selectEl.value = module4State.selectedEventId;
-    }
+    populateCrmEventSelector();
+    populateSeatingHallSelector();
 
     if (module4State.selectedEventId) {
         ensureStarterDataForEvent(module4State.selectedEventId);
@@ -13285,15 +13287,22 @@ function populateCrmEventSelector() {
     if (!selectEl) return;
     const events = appData.events || [];
     if (events.length === 0) {
-        selectEl.innerHTML = '<option value="">(Chưa có sự kiện)</option>';
+        selectEl.innerHTML = '<option value="">(Chưa có sự kiện nào)</option>';
         return;
     }
-    selectEl.innerHTML = events.map(e => `
-        <option value="${e.id}">${escapeHtml(e.name)}</option>
-    `).join('');
-    if (module4State.selectedEventId) {
-        selectEl.value = module4State.selectedEventId;
+
+    if (!module4State.selectedEventId || !events.some(e => e.id === module4State.selectedEventId)) {
+        module4State.selectedEventId = events[0].id;
     }
+
+    selectEl.innerHTML = events.map(e => {
+        const title = e.name || e.title || 'Sự kiện chưa đặt tên';
+        const dateStr = (e.eventDate || e.date) ? ` (${formatVNDate(e.eventDate || e.date)})` : '';
+        const isSel = (e.id === module4State.selectedEventId) ? 'selected' : '';
+        return `<option value="${e.id}" ${isSel}>${escapeHtml(title)}${dateStr}</option>`;
+    }).join('');
+
+    selectEl.value = module4State.selectedEventId;
 }
 
 function onCrmEventChange() {
