@@ -292,17 +292,35 @@
                     </div>
                 </div>
 
-                <!-- 6. Tài khoản -->
-                <button onclick="switchMainTab('tab-users'); toggleSidebar(false);" id="tabBtn-users" title="Tài khoản" class="sidebar-nav-btn w-full px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-3 text-xs font-medium cursor-pointer text-left">
+                <!-- 1. Cài đặt -->
+                <button onclick="switchMainTab('tab-admin'); toggleSidebar(false);" id="tabBtn-admin" title="Cài đặt: Quản lý phòng ban, tham số định mức, sao lưu & nhật ký" class="sidebar-nav-btn w-full px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-3 text-xs font-medium cursor-pointer text-left">
+                    <i class="fas fa-sliders text-sm w-5 text-center text-slate-400 shrink-0"></i>
+                    <span class="sidebar-text flex-1 truncate">Cài đặt</span>
+                </button>
+
+                <!-- 2. Tài khoản -->
+                <button onclick="switchMainTab('tab-users'); toggleSidebar(false);" id="tabBtn-users" title="Tài khoản: Tạo lập & phê duyệt tài khoản cán bộ" class="sidebar-nav-btn w-full px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-3 text-xs font-medium cursor-pointer text-left">
                     <i class="fas fa-users-gear text-sm w-5 text-center text-cyan-300 shrink-0"></i>
                     <span class="sidebar-text flex-1 truncate">Tài khoản</span>
                     <span id="tabUsersPendingBadge" class="hidden px-2 py-0.5 bg-amber-500 text-white rounded-full text-[10px] font-bold">0</span>
                 </button>
 
-                <!-- 7. Cài đặt & Quản trị -->
-                <button onclick="switchMainTab('tab-admin'); toggleSidebar(false);" id="tabBtn-admin" title="Cài đặt & Quản trị" class="sidebar-nav-btn w-full px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-3 text-xs font-medium cursor-pointer text-left">
-                    <i class="fas fa-sliders text-sm w-5 text-center text-slate-400 shrink-0"></i>
-                    <span class="sidebar-text flex-1 truncate">Cài đặt & Quản trị</span>
+                <!-- 3. Quản trị biểu mẫu -->
+                <button onclick="switchMainTab('tab-admin-templates'); toggleSidebar(false);" id="tabBtn-admin-templates" title="Quản trị 23 biểu mẫu chuẩn hóa 3 cấp thẩm quyền" class="sidebar-nav-btn w-full px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-3 text-xs font-medium cursor-pointer text-left">
+                    <i class="fas fa-file-signature text-sm w-5 text-center text-purple-300 shrink-0"></i>
+                    <span class="sidebar-text flex-1 truncate">Quản trị biểu mẫu</span>
+                </button>
+
+                <!-- 4. Quản trị Hội trường tổ chức sự kiện -->
+                <button onclick="switchMainTab('tab-admin-halls'); toggleSidebar(false);" id="tabBtn-admin-halls" title="Quản trị Hội trường tổ chức sự kiện & phân khu" class="sidebar-nav-btn w-full px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-3 text-xs font-medium cursor-pointer text-left">
+                    <i class="fas fa-landmark text-sm w-5 text-center text-indigo-300 shrink-0"></i>
+                    <span class="sidebar-text flex-1 truncate">Quản trị Hội trường</span>
+                </button>
+
+                <!-- 5. Quản trị CSDL khách & doanh nghiệp -->
+                <button onclick="switchMainTab('tab-admin-guests'); toggleSidebar(false);" id="tabBtn-admin-guests" title="Quản trị CSDL khách & doanh nghiệp dùng chung (Master Directory)" class="sidebar-nav-btn w-full px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-3 text-xs font-medium cursor-pointer text-left">
+                    <i class="fas fa-address-book text-sm w-5 text-center text-emerald-300 shrink-0"></i>
+                    <span class="sidebar-text flex-1 truncate">CSDL Khách & DN</span>
                 </button>
             </nav>
 
@@ -562,7 +580,7 @@
                             <i class="fas fa-file-signature"></i>
                             <span>Quản trị Biểu Mẫu</span>
                         </button>
-                        <button onclick="openHallTemplatesModal()" class="flex-1 md:flex-initial px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm transition flex items-center justify-center gap-2" title="Quản trị và chỉnh sửa các Hội trường mẫu (NCC, UBND Thành phố...)">
+                        <button onclick="switchMainTab('tab-admin-halls')" class="flex-1 md:flex-initial px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm transition flex items-center justify-center gap-2" title="Quản trị và chỉnh sửa các Hội trường mẫu (NCC, UBND Thành phố...)">
                             <i class="fas fa-landmark"></i>
                             <span>Hội Trường Mẫu</span>
                         </button>
@@ -731,6 +749,120 @@
                 </div>
             </div>
 
+            
+            <!-- Quản Lý Bản Sao Lưu & Nhật Ký Kiểm Toán (Cài Đặt Hệ Thống) -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <!-- Khối Sao lưu dữ liệu -->
+                <div class="bg-white dark:bg-slate-800 rounded-xl p-3.5 sm:p-4 shadow-sm border border-slate-200 dark:border-slate-700 space-y-3">
+                    <div class="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-700">
+                        <div class="flex items-center gap-2">
+                            <div class="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xs font-bold">
+                                <i class="fas fa-database"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-xs text-slate-800 dark:text-white">Sao Lưu & Phục Hồi Dữ Liệu</h4>
+                                <p class="text-[10px] text-slate-400">Tự động sao lưu & lưu trữ an toàn</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="createNewBackup()" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] font-semibold transition flex items-center gap-1 cursor-pointer">
+                                <i class="fas fa-plus-circle text-[10px]"></i> Tạo Bản Sao Lưu
+                            </button>
+                            <button onclick="openBackupsModal()" class="px-2.5 py-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 rounded-lg text-[11px] font-semibold transition cursor-pointer">
+                                Chi Tiết
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-3 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 space-y-1.5">
+                        <div class="flex justify-between items-center text-[11px]">
+                            <span class="text-slate-500">Cơ chế lưu trữ:</span>
+                            <span class="font-semibold text-emerald-600 dark:text-emerald-400"><i class="fas fa-cloud-check mr-1"></i>Supabase & Local JSON</span>
+                        </div>
+                        <div class="flex justify-between items-center text-[11px]">
+                            <span class="text-slate-500">Bảo mật snapshot:</span>
+                            <span class="font-mono text-[10px] text-slate-700 dark:text-slate-300">RLS + Checksum bất biến</span>
+                        </div>
+                        <div class="text-[11px] text-slate-400 italic pt-1 border-t border-slate-200/50 dark:border-slate-800">
+                            Khuyến nghị tạo snapshot dự phòng trước mỗi đợt cập nhật dữ liệu sự kiện lớn.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Khối Nhật ký kiểm toán -->
+                <div class="bg-white dark:bg-slate-800 rounded-xl p-3.5 sm:p-4 shadow-sm border border-slate-200 dark:border-slate-700 space-y-3">
+                    <div class="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-700">
+                        <div class="flex items-center gap-2">
+                            <div class="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xs font-bold">
+                                <i class="fas fa-history"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-xs text-slate-800 dark:text-white">Nhật Ký Kiểm Toán (Audit Trail)</h4>
+                                <p class="text-[10px] text-slate-400">Ghi vết toàn bộ hành vi hệ thống</p>
+                            </div>
+                        </div>
+                        <button onclick="openAuditLogsModal()" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-semibold transition flex items-center gap-1 cursor-pointer">
+                            <i class="fas fa-list-check text-[10px]"></i> Xem Toàn Bộ
+                        </button>
+                    </div>
+                    <div class="p-3 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 space-y-1.5">
+                        <div class="flex justify-between items-center text-[11px]">
+                            <span class="text-slate-500">Tiêu chuẩn kiểm soát:</span>
+                            <span class="font-semibold text-indigo-600 dark:text-indigo-400">Nghị định 30/2020 & RBAC</span>
+                        </div>
+                        <div class="flex justify-between items-center text-[11px]">
+                            <span class="text-slate-500">Nhật ký tác nghiệp:</span>
+                            <span class="font-semibold text-slate-700 dark:text-slate-300">Đăng nhập, Duyệt, Sửa biểu mẫu, Check-in</span>
+                        </div>
+                        <div class="text-[11px] text-slate-400 italic pt-1 border-t border-slate-200/50 dark:border-slate-800">
+                            Mọi thao tác của 4 phòng ban đều được ghi nhận thời gian thực kèm định danh cán bộ.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            </section>
+
+        <!-- ========================================================================= -->
+        <!-- TAB 3 (HỆ THỐNG & QUẢN TRỊ): QUẢN TRỊ BIỂU MẪU -->
+        <!-- ========================================================================= -->
+        <section id="mainTab-admin-templates" class="hidden space-y-3.5">
+            <!-- Thẻ thống kê 4 nhóm phân cấp thẩm quyền -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <div class="bg-white dark:bg-slate-800 p-3.5 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs">
+                        <span>Tổng Biểu Mẫu Chuẩn</span>
+                        <i class="fas fa-file-contract text-purple-500"></i>
+                    </div>
+                    <div class="text-xl sm:text-2xl font-bold text-purple-600 dark:text-purple-400 mt-1">23 Mẫu</div>
+                    <div class="text-[11px] text-slate-400 mt-0.5">Nghị định 30/2020/NĐ-CP</div>
+                </div>
+                <div class="bg-white dark:bg-slate-800 p-3.5 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs">
+                        <span>Cấp UBND TP Hà Nội</span>
+                        <i class="fas fa-landmark text-rose-500"></i>
+                    </div>
+                    <div class="text-xl sm:text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1">04 Mẫu</div>
+                    <div class="text-[11px] text-slate-400 mt-0.5">Kế hoạch, Giấy mời, Báo cáo</div>
+                </div>
+                <div class="bg-white dark:bg-slate-800 p-3.5 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs">
+                        <span>Cấp Sở Tài Chính</span>
+                        <i class="fas fa-building-columns text-blue-500"></i>
+                    </div>
+                    <div class="text-xl sm:text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">02 Mẫu</div>
+                    <div class="text-[11px] text-slate-400 mt-0.5">Tờ trình & Báo cáo TP</div>
+                </div>
+                <div class="bg-white dark:bg-slate-800 p-3.5 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs">
+                        <span>Cấp Trung Tâm SCE</span>
+                        <i class="fas fa-stamp text-emerald-500"></i>
+                    </div>
+                    <div class="text-xl sm:text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">17 Mẫu</div>
+                    <div class="text-[11px] text-slate-400 mt-0.5">Tác nghiệp & Ký hiệu -TTXT</div>
+                </div>
+            </div>
+
+            <!-- Bảng Quản trị & Sửa đổi biểu mẫu -->
             <!-- ========================================================================= -->
             <!-- PHÂN KHU QUẢN TRỊ & SỬA ĐỔI BIỂU MẪU CHUẨN (CHỈ DÀNH CHO ADMIN) -->
             <!-- ========================================================================= -->
@@ -799,8 +931,166 @@
                     </table>
                 </div>
             </div>
+        </section>
 
-            </section>
+
+        <!-- ========================================================================= -->
+        <!-- TAB 4 (HỆ THỐNG & QUẢN TRỊ): QUẢN TRỊ HỘI TRƯỜNG TỔ CHỨC SỰ KIỆN -->
+        <!-- ========================================================================= -->
+        <section id="mainTab-admin-halls" class="hidden space-y-3.5">
+            <!-- Card Thống kê & Nút thao tác Quản trị Hội trường -->
+            <div class="bg-white dark:bg-slate-800 rounded-xl p-3.5 sm:p-4 shadow-sm border border-slate-200 dark:border-slate-700">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-700">
+                    <div class="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+                        <i class="fas fa-landmark text-indigo-500"></i>
+                        <span>Quản Trị Danh Mục Hội Trường Mẫu & Sơ Đồ Phân Khu</span>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0 flex-wrap">
+                        <button onclick="openEditHallTemplateModal(null)" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                            <i class="fas fa-plus-circle"></i>
+                            <span>Thêm Hội Trường Mới</span>
+                        </button>
+                        <button onclick="resetDefaultHallTemplates()" class="px-3 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer" title="Khôi phục danh mục hội trường mẫu chuẩn (NCC, UBND TP, Khách sạn Quốc tế)">
+                            <i class="fas fa-rotate-left text-amber-500"></i>
+                            <span>Khôi Phục Mặc Định</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3 Thẻ KPI Hội trường -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-4">
+                    <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800">
+                        <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs">
+                            <span>Hội trường mẫu chuẩn hóa</span>
+                            <i class="fas fa-building text-indigo-500"></i>
+                        </div>
+                        <div class="text-xl sm:text-2xl font-bold text-slate-800 dark:text-white mt-1" id="statHallsCount">3 Hội Trường</div>
+                        <div class="text-[11px] text-slate-400 mt-0.5">NCC, UBND TP Hà Nội, KS Quốc tế</div>
+                    </div>
+
+                    <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800">
+                        <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs">
+                            <span>Tổng sức chứa thiết kế</span>
+                            <i class="fas fa-couch text-emerald-500"></i>
+                        </div>
+                        <div class="text-xl sm:text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1" id="statHallsSeats">2.300 Ghế</div>
+                        <div class="text-[11px] text-slate-400 mt-0.5">Sức chứa phục vụ đại biểu</div>
+                    </div>
+
+                    <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800">
+                        <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs">
+                            <span>Phân khu chuẩn hóa</span>
+                            <i class="fas fa-cubes text-purple-500"></i>
+                        </div>
+                        <div class="text-xl sm:text-2xl font-bold text-purple-600 dark:text-purple-400 mt-1">5 Phân Khu</div>
+                        <div class="text-[11px] text-slate-400 mt-0.5">VIP 1, VIP 2, Đại biểu, Khách, DN</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Danh sách các Hội trường mẫu -->
+            <div id="adminHallsDedicatedList" class="space-y-3.5">
+                <!-- Nạp tự động qua hàm renderAdminHallsTabUI() -->
+            </div>
+        </section>
+
+
+        <!-- ========================================================================= -->
+        <!-- TAB 5 (HỆ THỐNG & QUẢN TRỊ): QUẢN TRỊ CSDL KHÁCH & DOANH NGHIỆP -->
+        <!-- ========================================================================= -->
+        <section id="mainTab-admin-guests" class="hidden space-y-3.5">
+            <!-- ========================================================================= -->
+            <!-- PHÂN KHU QUẢN TRỊ CƠ SỞ DỮ LIỆU KHÁCH MỜI & DOANH NGHIỆP DÙNG CHUNG -->
+            <!-- ========================================================================= -->
+            <div id="adminMasterGuestDbSection" class="bg-white dark:bg-slate-800 rounded-xl p-3.5 sm:p-5 shadow-sm border border-slate-200 dark:border-slate-700 space-y-4">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-700">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-lg font-bold shadow-md shadow-emerald-600/30 shrink-0">
+                            <i class="fas fa-address-book"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="font-bold text-base text-slate-800 dark:text-white">Cơ Sở Dữ Liệu Khách Mời & Doanh Nghiệp (Master Directory)</h3>
+                                <span class="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">Toàn Hệ Thống</span>
+                            </div>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">CSDL dùng chung chuẩn hóa các đối tượng đầu mối: VIP Lãnh đạo TP, Khối Sở ngành, Doanh nghiệp & HTX, Tổ chức Quốc tế và Cơ quan Báo chí. Khi lập danh sách tại mỗi sự kiện sẽ tự động đối chiếu và gợi ý.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 shrink-0 flex-wrap">
+                        <button onclick="openCreateMasterGuestModal()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-sm transition flex items-center gap-2 cursor-pointer">
+                            <i class="fas fa-plus-circle"></i>
+                            <span>Thêm Đối Tượng Mới</span>
+                        </button>
+                        <button onclick="exportMasterGuestDbExcel()" class="px-3 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer" title="Xuất toàn bộ CSDL ra file Excel">
+                            <i class="fas fa-file-excel text-emerald-600"></i>
+                            <span class="hidden sm:inline">Xuất Excel</span>
+                        </button>
+                        <button onclick="resetDefaultMasterGuestDb()" class="px-3 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer" title="Khôi phục danh bạ mẫu chuẩn SCE (38 đối tượng thực tế)">
+                            <i class="fas fa-rotate-left text-amber-500"></i>
+                            <span class="hidden sm:inline">Khôi Phục Mẫu</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 6 Tabs Phân Nhóm Thống Kê Nhanh -->
+                <div class="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+                    <button id="masterFilterBtn-all" onclick="filterMasterGuestDbGroup('all')" class="px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 bg-emerald-600 text-white shadow-sm shrink-0 cursor-pointer">
+                        <span>Tất cả</span>
+                        <span id="masterBadgeCount-all" class="px-1.5 py-0.2 bg-white/20 rounded-full text-[10px]">0</span>
+                    </button>
+                    <button id="masterFilterBtn-VIP" onclick="filterMasterGuestDbGroup('VIP')" class="px-3 py-1.5 rounded-xl font-semibold transition flex items-center gap-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 shrink-0 cursor-pointer">
+                        <span>⭐ Đại biểu VIP</span>
+                        <span id="masterBadgeCount-VIP" class="px-1.5 py-0.2 bg-slate-200 dark:bg-slate-600 rounded-full text-[10px]">0</span>
+                    </button>
+                    <button id="masterFilterBtn-SoNganh" onclick="filterMasterGuestDbGroup('SoNganh')" class="px-3 py-1.5 rounded-xl font-semibold transition flex items-center gap-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 shrink-0 cursor-pointer">
+                        <span>🏛️ Khối Sở ngành</span>
+                        <span id="masterBadgeCount-SoNganh" class="px-1.5 py-0.2 bg-slate-200 dark:bg-slate-600 rounded-full text-[10px]">0</span>
+                    </button>
+                    <button id="masterFilterBtn-DoanhNghiep" onclick="filterMasterGuestDbGroup('DoanhNghiep')" class="px-3 py-1.5 rounded-xl font-semibold transition flex items-center gap-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 shrink-0 cursor-pointer">
+                        <span>💼 Doanh nghiệp & HTX</span>
+                        <span id="masterBadgeCount-DoanhNghiep" class="px-1.5 py-0.2 bg-slate-200 dark:bg-slate-600 rounded-full text-[10px]">0</span>
+                    </button>
+                    <button id="masterFilterBtn-QuocTe" onclick="filterMasterGuestDbGroup('QuocTe')" class="px-3 py-1.5 rounded-xl font-semibold transition flex items-center gap-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 shrink-0 cursor-pointer">
+                        <span>🌐 Khách Quốc tế</span>
+                        <span id="masterBadgeCount-QuocTe" class="px-1.5 py-0.2 bg-slate-200 dark:bg-slate-600 rounded-full text-[10px]">0</span>
+                    </button>
+                    <button id="masterFilterBtn-BaoChi" onclick="filterMasterGuestDbGroup('BaoChi')" class="px-3 py-1.5 rounded-xl font-semibold transition flex items-center gap-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 shrink-0 cursor-pointer">
+                        <span>📰 Báo chí, Truyền hình</span>
+                        <span id="masterBadgeCount-BaoChi" class="px-1.5 py-0.2 bg-slate-200 dark:bg-slate-600 rounded-full text-[10px]">0</span>
+                    </button>
+                </div>
+
+                <!-- Thanh tìm kiếm & Lọc -->
+                <div class="flex items-center gap-2">
+                    <div class="relative flex-1">
+                        <i class="fas fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                        <input type="text" id="masterGuestSearchInput" oninput="renderMasterGuestDbTable()" placeholder="Tìm kiếm nhanh theo họ tên, chức danh, cơ quan, điện thoại, email..." class="w-full pl-8 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                </div>
+
+                <!-- Bảng Dữ Liệu CSDL Master -->
+                <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 max-h-[500px] overflow-y-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10">
+                            <tr>
+                                <th class="py-2.5 px-3 w-12 text-center">STT</th>
+                                <th class="py-2.5 px-3 w-28">Nhóm</th>
+                                <th class="py-2.5 px-3 min-w-[200px]">Họ và Tên & Chức Danh</th>
+                                <th class="py-2.5 px-3 min-w-[240px]">Cơ Quan / Doanh Nghiệp & Địa Chỉ</th>
+                                <th class="py-2.5 px-3 min-w-[150px]">Liên Hệ</th>
+                                <th class="py-2.5 px-3 min-w-[140px]">Nghi Thức / Tiệc VIP</th>
+                                <th class="py-2.5 px-3 w-24 text-right">Thao Tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="masterGuestTableBody" class="divide-y divide-slate-100 dark:divide-slate-700/60 bg-white dark:bg-slate-800">
+                            <!-- Nạp qua JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
 
 
         <!-- ========================================================================= -->
@@ -6681,26 +6971,59 @@
                     <span class="text-[11px] font-bold">Trình UBND TP</span>
                 </span>`
             },
+            'admin': {
+                title: 'Cài Đặt Hệ Thống & Tham Số Định Mức',
+                shortTitle: 'Cài đặt',
+                icon: 'fas fa-sliders text-slate-300',
+                iconBg: 'bg-slate-600/50 text-white border-slate-400/40',
+                subtitle: 'Quản lý phòng ban, tham số định mức, sao lưu dữ liệu và nhật ký kiểm toán.',
+                badgeHtml: `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 bg-slate-500/40 text-slate-100 rounded-full text-xs font-semibold border border-slate-400/30">
+                    <i class="fas fa-sliders text-[10px] text-slate-300"></i>
+                    <span class="text-[11px] font-bold">Hệ Thống SCE</span>
+                </span>`
+            },
             'users': {
                 title: 'Quản Lý Tài Khoản & Phân Quyền',
                 shortTitle: 'Tài khoản',
                 icon: 'fas fa-users-gear text-cyan-300',
                 iconBg: 'bg-cyan-600/50 text-white border-cyan-400/40',
-                subtitle: 'Quản lý danh sách tài khoản cán bộ 4 phòng ban chuyên môn và ma trận phân quyền RBAC.',
+                subtitle: 'Tạo lập tài khoản, phê duyệt cán bộ và quản trị ma trận phân quyền RBAC 4 phòng ban.',
                 badgeHtml: `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 bg-cyan-500/40 text-cyan-100 rounded-full text-xs font-semibold border border-cyan-400/30">
-                    <i class="fas fa-shield-alt text-[10px] text-cyan-300"></i>
+                    <i class="fas fa-user-shield text-[10px] text-cyan-300"></i>
                     <span class="text-[11px] font-bold">4 Phòng Ban</span>
                 </span>`
             },
-            'admin': {
-                title: 'Cài Đặt & Quản Trị Hệ Thống',
-                shortTitle: 'Cài đặt',
-                icon: 'fas fa-sliders-h text-slate-300',
-                iconBg: 'bg-slate-600/50 text-white border-slate-400/40',
-                subtitle: 'Cấu hình tham số SCE, sao lưu dữ liệu, nhật ký kiểm toán và CSDL Master Khách & Doanh nghiệp.',
-                badgeHtml: `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 bg-blue-500/40 text-blue-100 rounded-full text-xs font-semibold border border-blue-400/30">
-                    <i class="fas fa-user-shield text-[10px] text-blue-300"></i>
-                    <span class="text-[11px] font-bold">Quản Trị Viên</span>
+            'admin-templates': {
+                title: 'Quản Trị Biểu Mẫu Chuẩn Hóa',
+                shortTitle: 'Mẫu chuẩn',
+                icon: 'fas fa-file-signature text-purple-300',
+                iconBg: 'bg-purple-600/50 text-white border-purple-400/40',
+                subtitle: 'Quản trị và hiệu chỉnh 23 biểu mẫu hành chính chuẩn 3 cấp thẩm quyền theo Nghị định 30/2020/NĐ-CP.',
+                badgeHtml: `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 bg-purple-500/40 text-purple-100 rounded-full text-xs font-semibold border border-purple-400/30">
+                    <i class="fas fa-stamp text-[10px] text-purple-300"></i>
+                    <span class="text-[11px] font-bold">23 Biểu Mẫu Gốc</span>
+                </span>`
+            },
+            'admin-halls': {
+                title: 'Quản Trị Hội Trường Tổ Chức Sự Kiện',
+                shortTitle: 'Hội trường',
+                icon: 'fas fa-landmark text-indigo-300',
+                iconBg: 'bg-indigo-600/50 text-white border-indigo-400/40',
+                subtitle: 'Quản lý danh mục hội trường mẫu, thiết lập phân khu và ma trận vị trí chỗ ngồi.',
+                badgeHtml: `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 bg-indigo-500/40 text-indigo-100 rounded-full text-xs font-semibold border border-indigo-400/30">
+                    <i class="fas fa-landmark text-[10px] text-indigo-300"></i>
+                    <span class="text-[11px] font-bold">Mẫu Hội Trường</span>
+                </span>`
+            },
+            'admin-guests': {
+                title: 'Cơ Sở Dữ Liệu Khách Mời & Doanh Nghiệp',
+                shortTitle: 'CSDL Master',
+                icon: 'fas fa-address-book text-emerald-300',
+                iconBg: 'bg-emerald-600/50 text-white border-emerald-400/40',
+                subtitle: 'CSDL danh bạ dùng chung 5 nhóm đối tượng chuẩn hóa phục vụ tra cứu và tự động gợi ý.',
+                badgeHtml: `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-500/40 text-emerald-100 rounded-full text-xs font-semibold border border-emerald-400/30">
+                    <i class="fas fa-address-book text-[10px] text-emerald-300"></i>
+                    <span class="text-[11px] font-bold">Master Directory</span>
                 </span>`
             }
         };
@@ -6745,14 +7068,18 @@
                 'tab-module5': 'live',
                 'tab-reports': 'reports',
                 'tab-module6': 'reports',
-                'tab-users': 'users',
                 'tab-admin': 'admin',
-                'tab-module1': 'admin'
+                'tab-settings': 'admin',
+                'tab-module1': 'admin',
+                'tab-users': 'users',
+                'tab-admin-templates': 'admin-templates',
+                'tab-admin-halls': 'admin-halls',
+                'tab-admin-guests': 'admin-guests'
             };
 
             const activeTarget = tabMapping[tabId] || tabId.replace('tab-', '') || 'events';
 
-            const tabKeys = ['events', 'templates', 'guests', 'booths', 'live', 'reports', 'users', 'admin'];
+            const tabKeys = ['events', 'templates', 'guests', 'booths', 'live', 'reports', 'admin', 'users', 'admin-templates', 'admin-halls', 'admin-guests'];
             const legacyMap = { 'events': 'module2', 'templates': 'module3', 'guests': 'module4', 'booths': 'booths', 'live': 'module5', 'reports': 'module6', 'admin': 'module1', 'users': 'users' };
 
             tabKeys.forEach(k => {
@@ -6773,11 +7100,11 @@
                 else if (activeTarget === 'booths') activeColor = "bg-emerald-600 shadow-md shadow-emerald-600/30 text-white font-bold";
                 else if (activeTarget === 'live') activeColor = "bg-teal-600 shadow-md shadow-teal-600/30 text-white font-bold";
                 else if (activeTarget === 'reports') activeColor = "bg-rose-600 shadow-md shadow-rose-600/30 text-white font-bold";
+                else if (activeTarget === 'admin') activeColor = "bg-slate-700 shadow-md text-white font-bold";
                 else if (activeTarget === 'users') activeColor = "bg-cyan-600 shadow-md shadow-cyan-600/30 text-white font-bold";
-                else if (activeTarget === 'admin') {
-                    activeColor = "bg-slate-700 shadow-md text-white font-bold";
-                    if (typeof renderMasterGuestDbUI === 'function') setTimeout(renderMasterGuestDbUI, 50);
-                }
+                else if (activeTarget === 'admin-templates') activeColor = "bg-purple-700 shadow-md shadow-purple-700/30 text-white font-bold";
+                else if (activeTarget === 'admin-halls') activeColor = "bg-indigo-600 shadow-md shadow-indigo-600/30 text-white font-bold";
+                else if (activeTarget === 'admin-guests') activeColor = "bg-emerald-700 shadow-md shadow-emerald-700/30 text-white font-bold";
                 activeBtn.className = `sidebar-nav-btn w-full px-3 py-2.5 rounded-xl flex items-center gap-3 ${activeColor} transition text-xs cursor-pointer text-left`;
             }
 
@@ -6791,9 +7118,10 @@
             else if (activeTarget === 'booths' && typeof renderModuleBooths === 'function') renderModuleBooths();
             else if (activeTarget === 'live' && typeof renderModule5 === 'function') renderModule5();
             else if (activeTarget === 'reports' && typeof renderModule6 === 'function') renderModule6();
-            else if (activeTarget === 'users') {
-                loadUserProfilesFromDb();
-            }
+            else if (activeTarget === 'users') loadUserProfilesFromDb();
+            else if (activeTarget === 'admin-templates') { if (typeof renderAdminTemplatesTable === 'function') renderAdminTemplatesTable(); }
+            else if (activeTarget === 'admin-halls') { if (typeof renderAdminHallsTabUI === 'function') renderAdminHallsTabUI(); }
+            else if (activeTarget === 'admin-guests') { if (typeof renderMasterGuestDbUI === 'function') renderMasterGuestDbUI(); }
         }
 
         // -------------------------------------------------------------
@@ -11639,13 +11967,8 @@ function getMasterGuestGroupName(group) {
 // -------------------------------------------------------------
 function scrollToMasterGuestDbSection() {
     if (typeof switchMainTab === 'function') {
-        switchMainTab('admin');
+        switchMainTab('tab-admin-guests');
     }
-    const sec = document.getElementById('adminMasterGuestDbSection');
-    if (sec) {
-        sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-    renderMasterGuestDbUI();
 }
 
 function renderMasterGuestDbUI() {
@@ -14550,6 +14873,7 @@ function closeHallTemplatesModal() {
 }
 
 function renderAdminHallTemplatesList() {
+    if (typeof renderAdminHallsTabUI === 'function') renderAdminHallsTabUI();
     const container = document.getElementById('adminHallTemplatesList');
     if (!container) return;
 
@@ -14589,6 +14913,82 @@ function renderAdminHallTemplatesList() {
                 <button onclick="deleteHallTemplate('${h.id}')" class="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-semibold transition flex items-center gap-1">
                     <i class="fas fa-trash-alt"></i> Xóa
                 </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+
+// Render danh sách Hội trường mẫu trong Tab Quản trị Hội trường
+function renderAdminHallsTabUI() {
+    const container = document.getElementById('adminHallsDedicatedList');
+    if (!container) return;
+
+    if (!appData.hallTemplates || appData.hallTemplates.length === 0) {
+        appData.hallTemplates = JSON.parse(JSON.stringify(DEFAULT_HALL_TEMPLATES));
+    }
+
+    const totalHalls = appData.hallTemplates.length;
+    const totalSeats = appData.hallTemplates.reduce((sum, h) => sum + (h.totalSeats || 0), 0);
+    const statHallsCountEl = document.getElementById('statHallsCount');
+    if (statHallsCountEl) statHallsCountEl.textContent = `${totalHalls} Hội Trường`;
+    const statHallsSeatsEl = document.getElementById('statHallsSeats');
+    if (statHallsSeatsEl) statHallsSeatsEl.textContent = `${totalSeats.toLocaleString()} Ghế`;
+
+    container.innerHTML = appData.hallTemplates.map((h, idx) => `
+        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-5 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition space-y-3">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-700">
+                <div class="flex items-center gap-3">
+                    <span class="w-8 h-8 rounded-xl bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-black text-sm flex items-center justify-center shrink-0">
+                        ${idx + 1}
+                    </span>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h4 class="font-bold text-sm sm:text-base text-slate-800 dark:text-white">${escapeHtml(h.name)}</h4>
+                            <span class="bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 font-mono text-[11px] font-bold px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800">
+                                ${h.totalSeats || 0} ghế
+                            </span>
+                        </div>
+                        <div class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mt-0.5">
+                            <i class="fas fa-location-dot text-rose-500"></i>
+                            <span>${escapeHtml(h.location || 'Chưa cập nhật địa điểm')}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <button onclick="openEditHallTemplateModal('${h.id}')" class="px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 border border-indigo-200 dark:border-indigo-800 text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer">
+                        <i class="fas fa-edit"></i>
+                        <span>Chỉnh Sửa</span>
+                    </button>
+                    <button onclick="deleteHallTemplate('${h.id}')" class="px-3 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-100 border border-rose-200 dark:border-rose-800 text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer">
+                        <i class="fas fa-trash-alt"></i>
+                        <span>Xóa</span>
+                    </button>
+                </div>
+            </div>
+
+            <p class="text-xs text-slate-600 dark:text-slate-300 italic">${escapeHtml(h.description || 'Chưa có mô tả chi tiết.')}</p>
+
+            <!-- Các phân khu chỗ ngồi -->
+            <div>
+                <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <i class="fas fa-cubes text-indigo-500"></i>
+                    <span>Cấu trúc các phân khu chỗ ngồi (${(h.zones || []).length} khu):</span>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                    ${(h.zones || []).map(z => `
+                        <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-700/80 text-xs">
+                            <div class="font-bold text-slate-800 dark:text-slate-200 truncate flex items-center gap-1.5">
+                                <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${z.color || '#3b82f6'};"></span>
+                                <span class="truncate">${escapeHtml(z.name)}</span>
+                            </div>
+                            <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex justify-between items-center">
+                                <span>Tiền tố: <strong class="font-mono">${escapeHtml(z.prefix)}</strong></span>
+                                <span class="font-bold text-indigo-600 dark:text-indigo-400">${z.seatCount} ghế</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
             </div>
         </div>
     `).join('');
@@ -17744,97 +18144,6 @@ function openGenerateDailyReportModal(customCountdown = null) {
                         1. Kính trình Lãnh đạo UBND Thành phố phê duyệt Kịch bản chi tiết điều hành phiên Tọa đàm B2B chiều ngày diễn ra sự kiện.<br>
                         2. Giao Phòng Hành chính - Tổ chức và Phòng Xúc tiến Đầu tư tổ chức buổi Tổng duyệt âm thanh, ánh sáng và kiểm tra bục phát biểu Lãnh đạo vào lúc 14h00 ngày mai tại sảnh chính khách sạn.
                     </p>
-                </div>
-            </div>
-
-            <!-- ========================================================================= -->
-            <!-- PHÂN KHU QUẢN TRỊ CƠ SỞ DỮ LIỆU KHÁCH MỜI & DOANH NGHIỆP DÙNG CHUNG -->
-            <!-- ========================================================================= -->
-            <div id="adminMasterGuestDbSection" class="bg-white dark:bg-slate-800 rounded-xl p-3.5 sm:p-5 shadow-sm border border-slate-200 dark:border-slate-700 space-y-4">
-                <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-700">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-lg font-bold shadow-md shadow-emerald-600/30 shrink-0">
-                            <i class="fas fa-address-book"></i>
-                        </div>
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <h3 class="font-bold text-base text-slate-800 dark:text-white">Cơ Sở Dữ Liệu Khách Mời & Doanh Nghiệp (Master Directory)</h3>
-                                <span class="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">Toàn Hệ Thống</span>
-                            </div>
-                            <p class="text-xs text-slate-500 dark:text-slate-400">CSDL dùng chung chuẩn hóa các đối tượng đầu mối: VIP Lãnh đạo TP, Khối Sở ngành, Doanh nghiệp & HTX, Tổ chức Quốc tế và Cơ quan Báo chí. Khi lập danh sách tại mỗi sự kiện sẽ tự động đối chiếu và gợi ý.</p>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center gap-2 shrink-0 flex-wrap">
-                        <button onclick="openCreateMasterGuestModal()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-sm transition flex items-center gap-2 cursor-pointer">
-                            <i class="fas fa-plus-circle"></i>
-                            <span>Thêm Đối Tượng Mới</span>
-                        </button>
-                        <button onclick="exportMasterGuestDbExcel()" class="px-3 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer" title="Xuất toàn bộ CSDL ra file Excel">
-                            <i class="fas fa-file-excel text-emerald-600"></i>
-                            <span class="hidden sm:inline">Xuất Excel</span>
-                        </button>
-                        <button onclick="resetDefaultMasterGuestDb()" class="px-3 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer" title="Khôi phục danh bạ mẫu chuẩn SCE (38 đối tượng thực tế)">
-                            <i class="fas fa-rotate-left text-amber-500"></i>
-                            <span class="hidden sm:inline">Khôi Phục Mẫu</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- 6 Tabs Phân Nhóm Thống Kê Nhanh -->
-                <div class="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
-                    <button id="masterFilterBtn-all" onclick="filterMasterGuestDbGroup('all')" class="px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 bg-emerald-600 text-white shadow-sm shrink-0 cursor-pointer">
-                        <span>Tất cả</span>
-                        <span id="masterBadgeCount-all" class="px-1.5 py-0.2 bg-white/20 rounded-full text-[10px]">0</span>
-                    </button>
-                    <button id="masterFilterBtn-VIP" onclick="filterMasterGuestDbGroup('VIP')" class="px-3 py-1.5 rounded-xl font-semibold transition flex items-center gap-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 shrink-0 cursor-pointer">
-                        <span>⭐ Đại biểu VIP</span>
-                        <span id="masterBadgeCount-VIP" class="px-1.5 py-0.2 bg-slate-200 dark:bg-slate-600 rounded-full text-[10px]">0</span>
-                    </button>
-                    <button id="masterFilterBtn-SoNganh" onclick="filterMasterGuestDbGroup('SoNganh')" class="px-3 py-1.5 rounded-xl font-semibold transition flex items-center gap-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 shrink-0 cursor-pointer">
-                        <span>🏛️ Khối Sở ngành</span>
-                        <span id="masterBadgeCount-SoNganh" class="px-1.5 py-0.2 bg-slate-200 dark:bg-slate-600 rounded-full text-[10px]">0</span>
-                    </button>
-                    <button id="masterFilterBtn-DoanhNghiep" onclick="filterMasterGuestDbGroup('DoanhNghiep')" class="px-3 py-1.5 rounded-xl font-semibold transition flex items-center gap-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 shrink-0 cursor-pointer">
-                        <span>💼 Doanh nghiệp & HTX</span>
-                        <span id="masterBadgeCount-DoanhNghiep" class="px-1.5 py-0.2 bg-slate-200 dark:bg-slate-600 rounded-full text-[10px]">0</span>
-                    </button>
-                    <button id="masterFilterBtn-QuocTe" onclick="filterMasterGuestDbGroup('QuocTe')" class="px-3 py-1.5 rounded-xl font-semibold transition flex items-center gap-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 shrink-0 cursor-pointer">
-                        <span>🌐 Khách Quốc tế</span>
-                        <span id="masterBadgeCount-QuocTe" class="px-1.5 py-0.2 bg-slate-200 dark:bg-slate-600 rounded-full text-[10px]">0</span>
-                    </button>
-                    <button id="masterFilterBtn-BaoChi" onclick="filterMasterGuestDbGroup('BaoChi')" class="px-3 py-1.5 rounded-xl font-semibold transition flex items-center gap-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 shrink-0 cursor-pointer">
-                        <span>📰 Báo chí, Truyền hình</span>
-                        <span id="masterBadgeCount-BaoChi" class="px-1.5 py-0.2 bg-slate-200 dark:bg-slate-600 rounded-full text-[10px]">0</span>
-                    </button>
-                </div>
-
-                <!-- Thanh tìm kiếm & Lọc -->
-                <div class="flex items-center gap-2">
-                    <div class="relative flex-1">
-                        <i class="fas fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
-                        <input type="text" id="masterGuestSearchInput" oninput="renderMasterGuestDbTable()" placeholder="Tìm kiếm nhanh theo họ tên, chức danh, cơ quan, điện thoại, email..." class="w-full pl-8 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500">
-                    </div>
-                </div>
-
-                <!-- Bảng Dữ Liệu CSDL Master -->
-                <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 max-h-[500px] overflow-y-auto">
-                    <table class="w-full text-left text-xs">
-                        <thead class="bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10">
-                            <tr>
-                                <th class="py-2.5 px-3 w-12 text-center">STT</th>
-                                <th class="py-2.5 px-3 w-28">Nhóm</th>
-                                <th class="py-2.5 px-3 min-w-[200px]">Họ và Tên & Chức Danh</th>
-                                <th class="py-2.5 px-3 min-w-[240px]">Cơ Quan / Doanh Nghiệp & Địa Chỉ</th>
-                                <th class="py-2.5 px-3 min-w-[150px]">Liên Hệ</th>
-                                <th class="py-2.5 px-3 min-w-[140px]">Nghi Thức / Tiệc VIP</th>
-                                <th class="py-2.5 px-3 w-24 text-right">Thao Tác</th>
-                            </tr>
-                        </thead>
-                        <tbody id="masterGuestTableBody" class="divide-y divide-slate-100 dark:divide-slate-700/60 bg-white dark:bg-slate-800">
-                            <!-- Nạp qua JS -->
-                        </tbody>
-                    </table>
                 </div>
             </div>
 
