@@ -46,6 +46,9 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <!-- QRCode.js for 2FA -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- Google Identity Services (GIS) for Google Mail OAuth -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
 
     <style>
         body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
@@ -1522,7 +1525,12 @@
                             <span class="hidden sm:inline">Nhập từ CSDL Master</span>
                         </button>
 
-                        <button onclick="openCreateGuestModal()" class="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-md shadow-amber-600/20 transition flex items-center gap-1.5">
+                                                <button onclick="openBulkEmailModal()" class="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-2 transition" title="Gửi email hàng loạt cho khách mời bằng Google Mail">
+                            <i class="fab fa-google text-sm"></i>
+                            <span>Gửi Email Khách Mời</span>
+                        </button>
+
+<button onclick="openCreateGuestModal()" class="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-md shadow-amber-600/20 transition flex items-center gap-1.5">
                             <i class="fas fa-user-plus text-sm"></i>
                             <span>Thêm Khách Mời</span>
                         </button>
@@ -4375,7 +4383,289 @@
     <!-- 5. JAVASCRIPT XỬ LÝ TOÀN BỘ PHÂN HỆ 1 (CORE, AUTH, DATABASE & RBAC) -->
     <!-- ========================================================================= -->
     <!-- ========================================================================= -->
-    <!-- 5.C CÁC MODAL HIỆN TRƯỜNG PHÂN HỆ 5: QUÉT QR, KHÁCH PHÁT SINH, SỰ CỐ, THẺ XE VIP -->
+    <!-- ========================================================================= -->
+<!-- MODAL: TRUNG TÂM PHÁT HÀNH THƯ ĐIỆN TỬ QUA GOOGLE MAIL (BULK EMAIL DISPATCHER) -->
+<!-- ========================================================================= -->
+<div id="bulkEmailModal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-6xl w-full max-h-[94vh] flex flex-col border border-slate-200 dark:border-slate-800 overflow-hidden my-auto">
+        
+        <!-- Header -->
+        <div class="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-red-600 to-rose-500 text-white flex items-center justify-center shadow-md shadow-red-500/20 text-lg">
+                    <i class="fab fa-google"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h3 class="font-bold text-base text-slate-800 dark:text-white">Trung Tâm Phát Hành Thư Điện Tử</h3>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">Google Mail Dispatcher</span>
+                    </div>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Gửi giấy mời, thông báo và tài liệu hội nghị hàng loạt tới đại biểu qua tài khoản Google của cán bộ</p>
+                </div>
+            </div>
+            <button onclick="closeBulkEmailModal()" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <!-- Google Auth & Connection Bar -->
+        <div class="px-5 py-2.5 bg-gradient-to-r from-slate-100 via-rose-50/40 to-slate-100 dark:from-slate-800/80 dark:via-rose-950/20 dark:to-slate-800/80 border-b border-slate-200 dark:border-slate-800 text-xs">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <!-- User Profile / Auth Status -->
+                <div id="bulkEmailGoogleStatusContainer" class="flex items-center gap-2.5">
+                    <!-- Sẽ render động qua renderBulkEmailAuthBar() -->
+                </div>
+
+                <!-- Action & Settings -->
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="toggleGoogleClientIdConfig()" class="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center gap-1.5 transition">
+                        <i class="fas fa-cog"></i>
+                        <span>Cấu hình Client ID</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Panel Cấu hình Google Client ID (mặc định ẩn) -->
+            <div id="googleClientIdConfigBox" class="hidden mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 space-y-2">
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <div class="flex-1">
+                        <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                            Google OAuth 2.0 Client ID (từ Google Cloud Console)
+                        </label>
+                        <input type="text" id="googleClientIdInput" placeholder="Ví dụ: 123456789-abcdef.apps.googleusercontent.com" class="w-full text-xs p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white">
+                    </div>
+                    <div class="flex items-end gap-2">
+                        <button type="button" onclick="saveGoogleClientIdSetting()" class="bg-red-600 hover:bg-red-500 text-white px-3.5 py-2 rounded-lg font-medium text-xs">
+                            <i class="fas fa-save mr-1"></i> Lưu Client ID
+                        </button>
+                    </div>
+                </div>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                    💡 <em>Nếu chưa cấu hình Client ID, hệ thống sẽ tự động kích hoạt <strong>Chế độ Thử nghiệm (Simulation Sandbox)</strong> giúp cán bộ mô phỏng toàn bộ tiến trình gửi thư, kiểm tra nội dung và xem trước log thực tế.</em>
+                </p>
+            </div>
+        </div>
+
+        <!-- Main Body: 2 Columns Grid -->
+        <div class="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-slate-200 dark:divide-slate-800">
+            
+            <!-- CỘT TRÁI (5 Cols): Danh sách người nhận & Bộ lọc -->
+            <div class="lg:col-span-5 flex flex-col h-[400px] lg:h-auto overflow-hidden bg-slate-50/40 dark:bg-slate-900/40">
+                <!-- Bộ lọc nhóm -->
+                <div class="p-3 border-b border-slate-200 dark:border-slate-800 space-y-2">
+                    <div class="flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        <span class="flex items-center gap-1.5"><i class="fas fa-filter text-red-500"></i> Đối Tượng Nhận Thư</span>
+                        <span id="bulkEmailSelectedCount" class="text-xs font-mono text-red-600 dark:text-red-400 font-bold">Đã chọn: 0/0</span>
+                    </div>
+
+                    <!-- Filter pills -->
+                    <div class="flex flex-wrap gap-1 text-[11px]">
+                        <button type="button" onclick="filterBulkEmailRecipients('all')" class="bulk-filter-btn px-2 py-1 rounded-md bg-red-600 text-white font-medium shadow-xs" data-filter="all">Tất cả</button>
+                        <button type="button" onclick="filterBulkEmailRecipients('VIP')" class="bulk-filter-btn px-2 py-1 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300" data-filter="VIP">⭐ VIP</button>
+                        <button type="button" onclick="filterBulkEmailRecipients('SoNganh')" class="bulk-filter-btn px-2 py-1 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300" data-filter="SoNganh">🏛️ Sở ngành</button>
+                        <button type="button" onclick="filterBulkEmailRecipients('DoanhNghiep')" class="bulk-filter-btn px-2 py-1 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300" data-filter="DoanhNghiep">💼 Doanh nghiệp</button>
+                        <button type="button" onclick="filterBulkEmailRecipients('rsvp_pending')" class="bulk-filter-btn px-2 py-1 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300" data-filter="rsvp_pending">⏳ Chưa phản hồi</button>
+                        <button type="button" onclick="filterBulkEmailRecipients('rsvp_confirmed')" class="bulk-filter-btn px-2 py-1 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300" data-filter="rsvp_confirmed">✅ Đã xác nhận</button>
+                    </div>
+
+                    <!-- Search & Select all -->
+                    <div class="flex items-center gap-2 pt-1">
+                        <div class="relative flex-1">
+                            <i class="fas fa-search absolute left-2.5 top-2.5 text-slate-400 text-xs"></i>
+                            <input type="text" id="bulkEmailSearchInput" oninput="onBulkEmailSearchChange()" placeholder="Tìm theo tên, cơ quan, email..." class="w-full text-xs pl-7 pr-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white">
+                        </div>
+                        <label class="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300 cursor-pointer whitespace-nowrap select-none font-medium">
+                            <input type="checkbox" id="bulkEmailSelectAllCheckbox" onchange="toggleBulkEmailSelectAll(this.checked)" class="rounded text-red-600 focus:ring-red-500 w-4 h-4">
+                            <span>Chọn hết</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Danh sách khách mời cuộn được -->
+                <div class="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 text-xs" id="bulkEmailRecipientList">
+                    <!-- Render động qua renderBulkEmailRecipientList() -->
+                </div>
+            </div>
+
+            <!-- CỘT PHẢI (7 Cols): Mẫu thư, Soạn nội dung, Biến động, Đính kèm & Gửi -->
+            <div class="lg:col-span-7 flex flex-col h-[520px] lg:h-auto overflow-y-auto p-4 space-y-3">
+                
+                <!-- Hàng 1: Chọn mẫu thư có sẵn -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <label class="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                        <i class="fas fa-envelope-open-text text-red-500"></i>
+                        <span>Mẫu Thư Định Sẵn:</span>
+                    </label>
+                    <select id="bulkEmailTemplateSelector" onchange="applySelectedEmailTemplate(this.value)" class="text-xs p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white font-medium focus:ring-1 focus:ring-red-500">
+                        <option value="invitation">1. Giấy mời tham dự Hội nghị / Tọa đàm (Trang trọng)</option>
+                        <option value="banquet">2. Thư mời dự Tiệc chiêu đãi VIP</option>
+                        <option value="seating_qr">3. Thông báo Sơ đồ chỗ ngồi & Thẻ QR Check-in</option>
+                        <option value="rsvp_reminder">4. Thư đôn đốc & Nhắc lịch xác nhận tham dự</option>
+                        <option value="thank_you">5. Thư cảm ơn & Gửi tài liệu kỷ yếu (T + 3)</option>
+                        <option value="custom">-- Soạn thảo mẫu tùy chỉnh --</option>
+                    </select>
+                </div>
+
+                <!-- Hàng 2: Tiêu đề Thư (Subject) -->
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        Tiêu Đề Thư (Subject):
+                    </label>
+                    <input type="text" id="bulkEmailSubject" placeholder="[Giấy Mời] Tham dự sự kiện..." class="w-full text-xs p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white font-medium">
+                </div>
+
+                <!-- Hàng 3: Chèn Biến Trộn Dữ Liệu Nhanh (Merge Tags) -->
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                            Chèn biến cá nhân hóa (Bấm để chèn vào vị trí con trỏ):
+                        </span>
+                        <span class="text-[10px] text-slate-400">Mail Merge Dynamic Tags</span>
+                    </div>
+                    <div class="flex flex-wrap gap-1 text-[10px]">
+                        <button type="button" onclick="insertMergeTagIntoEmail('{danh_xung}')" class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-700 dark:text-slate-300 hover:text-red-600 border border-slate-200 dark:border-slate-700" title="Kính gửi Ông/Bà/Đồng chí">{danh_xung}</button>
+                        <button type="button" onclick="insertMergeTagIntoEmail('{ho_ten}')" class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-700 dark:text-slate-300 hover:text-red-600 border border-slate-200 dark:border-slate-700" title="Họ và tên khách">{ho_ten}</button>
+                        <button type="button" onclick="insertMergeTagIntoEmail('{chuc_vu}')" class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-700 dark:text-slate-300 hover:text-red-600 border border-slate-200 dark:border-slate-700" title="Chức vụ">{chuc_vu}</button>
+                        <button type="button" onclick="insertMergeTagIntoEmail('{co_quan}')" class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-700 dark:text-slate-300 hover:text-red-600 border border-slate-200 dark:border-slate-700" title="Cơ quan / Đơn vị">{co_quan}</button>
+                        <button type="button" onclick="insertMergeTagIntoEmail('{ten_su_kien}')" class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-700 dark:text-slate-300 hover:text-red-600 border border-slate-200 dark:border-slate-700" title="Tên sự kiện">{ten_su_kien}</button>
+                        <button type="button" onclick="insertMergeTagIntoEmail('{thoi_gian}')" class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-700 dark:text-slate-300 hover:text-red-600 border border-slate-200 dark:border-slate-700" title="Thời gian khai mạc">{thoi_gian}</button>
+                        <button type="button" onclick="insertMergeTagIntoEmail('{dia_diem}')" class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-700 dark:text-slate-300 hover:text-red-600 border border-slate-200 dark:border-slate-700" title="Địa điểm tổ chức">{dia_diem}</button>
+                        <button type="button" onclick="insertMergeTagIntoEmail('{so_ghe}')" class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-700 dark:text-slate-300 hover:text-red-600 border border-slate-200 dark:border-slate-700" title="Vị trí phân khu & số ghế">{so_ghe}</button>
+                        <button type="button" onclick="insertMergeTagIntoEmail('{can_bo_lien_he}')" class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-700 dark:text-slate-300 hover:text-red-600 border border-slate-200 dark:border-slate-700" title="Cán bộ phụ trách">{can_bo_lien_he}</button>
+                        <button type="button" onclick="insertMergeTagIntoEmail('{sdt_lien_he}')" class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-700 dark:text-slate-300 hover:text-red-600 border border-slate-200 dark:border-slate-700" title="Số điện thoại hotline">{sdt_lien_he}</button>
+                    </div>
+                </div>
+
+                <!-- Hàng 4: Khung soạn thảo nội dung (HTML Body) -->
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        Nội Dung Thư (Hỗ trợ định dạng HTML / Thư điện tử công vụ):
+                    </label>
+                    <textarea id="bulkEmailBody" rows="7" class="w-full text-xs font-mono p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white leading-relaxed focus:ring-1 focus:ring-red-500"></textarea>
+                </div>
+
+                <!-- Hàng 5: File Đính Kèm (Attachments) & QR Check-in Option -->
+                <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2 text-xs">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <span class="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                            <i class="fas fa-paperclip text-slate-500"></i> File Đính Kèm (Tối đa 25MB)
+                        </span>
+                        <label class="cursor-pointer bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 px-3 py-1 rounded-lg font-medium text-slate-700 dark:text-slate-200 flex items-center gap-1.5 transition">
+                            <i class="fas fa-file-arrow-up text-red-500"></i>
+                            <span>Chọn file từ máy tính</span>
+                            <input type="file" id="bulkEmailFileInput" multiple onchange="handleBulkEmailFilesSelected(event)" class="hidden">
+                        </label>
+                    </div>
+
+                    <!-- Danh sách file đã chọn -->
+                    <div id="bulkEmailSelectedFilesList" class="flex flex-wrap gap-1.5">
+                        <span class="text-slate-400 italic text-[11px]" id="bulkEmailNoFilesNotice">Chưa có file nào được đính kèm.</span>
+                    </div>
+
+                    <!-- Tùy chọn tự tạo Thẻ QR Check-in -->
+                    <div class="pt-1 border-t border-slate-200 dark:border-slate-700">
+                        <label class="flex items-center gap-2 cursor-pointer select-none">
+                            <input type="checkbox" id="bulkEmailAttachQrCard" checked class="rounded text-red-600 focus:ring-red-500 w-4 h-4">
+                            <span class="text-slate-700 dark:text-slate-300 text-[11px] font-medium">
+                                🎟️ <strong>Tự động tạo & đính kèm Thẻ Check-in</strong> có mã QR cá nhân hóa riêng của từng đại biểu.
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Hàng 6: Điều Phối Phát Hành & Giám Sát Thời Gian Thực (Dispatch Monitor) -->
+                <div class="p-3 rounded-xl bg-gradient-to-r from-slate-900 to-slate-800 text-white space-y-2.5 shadow-md">
+                    <!-- Nút thao tác phát hành -->
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="previewBulkEmailForFirstGuest()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition">
+                                <i class="fas fa-eye text-sky-400"></i> Xem trước thư
+                            </button>
+                            <button type="button" onclick="sendTestBulkEmailToSelf()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition" title="Gửi 1 email thử nghiệm đến địa chỉ hòm thư của cán bộ">
+                                <i class="fas fa-paper-plane text-emerald-400"></i> Gửi thử đến tôi
+                            </button>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <button type="button" id="btnPauseResumeBulkEmail" onclick="togglePauseBulkEmailDispatch()" class="hidden bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+                                <i class="fas fa-pause"></i> <span>Tạm dừng</span>
+                            </button>
+                            <button type="button" id="btnCancelBulkEmail" onclick="cancelBulkEmailDispatch()" class="hidden bg-slate-700 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+                                <i class="fas fa-stop"></i> <span>Hủy</span>
+                            </button>
+                            <button type="button" id="btnStartBulkEmail" onclick="startBulkEmailDispatchProcess()" class="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold shadow-md shadow-red-500/30 flex items-center gap-2 transition">
+                                <i class="fas fa-paper-plane"></i> <span>BẮT ĐẦU GỬI HÀNG LOẠT</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Thanh Tiến Độ Phát Hành Live -->
+                    <div id="bulkEmailProgressBox" class="hidden space-y-1 pt-1">
+                        <div class="flex items-center justify-between text-[11px] text-slate-300">
+                            <span id="bulkEmailProgressStatusText">Đang chuẩn bị gửi...</span>
+                            <span id="bulkEmailProgressPercent" class="font-mono font-bold text-emerald-400">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-700 h-2 rounded-full overflow-hidden">
+                            <div id="bulkEmailProgressBar" class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full w-0 transition-all duration-300"></div>
+                        </div>
+                    </div>
+
+                    <!-- Cửa Sổ Nhật Ký Trực Tiếp (Live Console Logs) -->
+                    <div id="bulkEmailLogConsole" class="hidden bg-black/60 rounded-lg p-2.5 max-h-28 overflow-y-auto font-mono text-[11px] space-y-1 text-slate-300 border border-slate-700">
+                        <!-- Render dòng log thời gian thực -->
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
+            <span class="text-slate-500 text-[11px]">
+                <i class="fas fa-shield-halved text-emerald-500 mr-1"></i> Tỷ lệ gửi thành công cao nhất với Gmail API chính chủ • Điều tốc 1.2s/thư chống spam.
+            </span>
+            <button onclick="closeBulkEmailModal()" class="px-4 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition">
+                Đóng
+            </button>
+        </div>
+
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: XEM TRƯỚC NỘI DUNG THƯ (LIVE EMAIL PREVIEW MODAL) -->
+<!-- ========================================================================= -->
+<div id="bulkEmailPreviewModal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-5">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[85vh] flex flex-col border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div class="flex items-center justify-between px-5 py-3 border-b border-slate-100 dark:border-slate-800">
+            <div class="flex items-center gap-2">
+                <i class="fas fa-envelope-open text-red-500 text-base"></i>
+                <h4 class="font-bold text-sm text-slate-800 dark:text-white">Xem Trước Thư Gửi Đi Thực Tế</h4>
+            </div>
+            <button onclick="closeBulkEmailPreviewModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="p-4 space-y-3 flex-1 overflow-y-auto text-xs">
+            <div class="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl space-y-1 border border-slate-200 dark:border-slate-700">
+                <div class="flex"><span class="font-bold w-16 text-slate-500">Người gửi:</span> <span id="previewEmailFrom" class="font-medium text-slate-800 dark:text-white"></span></div>
+                <div class="flex"><span class="font-bold w-16 text-slate-500">Người nhận:</span> <span id="previewEmailTo" class="font-medium text-slate-800 dark:text-white"></span></div>
+                <div class="flex"><span class="font-bold w-16 text-slate-500">Tiêu đề:</span> <span id="previewEmailSubject" class="font-bold text-red-600 dark:text-red-400"></span></div>
+                <div class="flex"><span class="font-bold w-16 text-slate-500">Đính kèm:</span> <span id="previewEmailAttachments" class="text-slate-600 dark:text-slate-300"></span></div>
+            </div>
+            <div class="p-4 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 leading-relaxed text-slate-800 dark:text-slate-200" id="previewEmailBodyContent">
+                <!-- Nội dung thư sau khi đã thay biến -->
+            </div>
+        </div>
+        <div class="px-5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+            <button onclick="closeBulkEmailPreviewModal()" class="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-800 dark:text-white px-4 py-1.5 rounded-xl text-xs font-semibold">
+                Đóng xem trước
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 5.C CÁC MODAL HIỆN TRƯỜNG PHÂN HỆ 5: QUÉT QR, KHÁCH PHÁT SINH, SỰ CỐ, THẺ XE VIP -->
     <!-- ========================================================================= -->
 
     <!-- Modal 1: Quét Mã QR Bằng Camera / Thiết Bị Máy Quét (QR Scanner Modal) -->
@@ -16447,6 +16737,1039 @@ function openModule4Booths(eventId = null) {
 
 
 /* ========================================================================= */
+/* ========================================================================= */
+/* 8.E CHỨC NĂNG PHÁT HÀNH THƯ ĐIỆN TỬ QUA GOOGLE MAIL (BULK EMAIL DISPATCHER)*/
+/* ========================================================================= */
+
+const BULK_EMAIL_TEMPLATES = {
+    invitation: {
+        name: "Giấy mời tham dự Hội nghị / Tọa đàm (Trang trọng)",
+        subject: "[Giấy Mời] Tham dự {ten_su_kien} - Kính gửi {danh_xung} {ho_ten}",
+        body: `<p>Kính gửi: <strong>{danh_xung} {ho_ten}</strong></p>
+<p>Chức vụ: <strong>{chuc_vu}</strong> - Đơn vị: <strong>{co_quan}</strong></p>
+<br>
+<p>Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp Hà Nội (SCE) trực thuộc Sở Tài chính Hà Nội trân trọng kính mời {danh_xung} tới tham dự chương trình:</p>
+<h3 style="color: #1e3a8a; margin: 12px 0; font-size: 15px;">{ten_su_kien}</h3>
+<p>⏰ <strong>Thời gian khai mạc:</strong> {thoi_gian}</p>
+<p>📍 <strong>Địa điểm tổ chức:</strong> {dia_diem}</p>
+<p>🪑 <strong>Vị trí danh dự:</strong> <span style="color: #2563eb; font-weight: bold;">{so_ghe}</span></p>
+<br>
+<p>Sự hiện diện của {danh_xung} là niềm vinh hạnh lớn đối với Ban Tổ chức và đóng góp quan trọng vào thành công của sự kiện.</p>
+<p>Kính đề nghị {danh_xung} phản hồi xác nhận tham dự hoặc liên hệ cán bộ đón tiếp: <strong>{can_bo_lien_he}</strong> (Điện thoại/Zalo: <strong>{sdt_lien_he}</strong>).</p>
+<br>
+<p><em>(Giấy mời chính thức và Thẻ đại biểu có mã QR Check-in được đính kèm thư này)</em></p>
+<br>
+<p>Trân trọng cảm ơn!</p>
+<p><strong>BAN TỔ CHỨC SỰ KIỆN - TRUNG TÂM SCE HÀ NỘI</strong></p>`
+    },
+    banquet: {
+        name: "Thư mời dự Tiệc chiêu đãi VIP",
+        subject: "[Thư Mời Tiệc Chiêu Đãi] {ten_su_kien} - Kính gửi {danh_xung} {ho_ten}",
+        body: `<p>Kính gửi: <strong>{danh_xung} {ho_ten}</strong> ({chuc_vu} - {co_quan})</p>
+<br>
+<p>Nhân dịp tổ chức chương trình <strong>{ten_su_kien}</strong>, Ban Tổ chức Trung tâm SCE trân trọng kính mời {danh_xung} tới tham dự buổi <strong>Tiệc Chiêu Đãi Giao Lưu Thân Mật</strong> cùng Lãnh đạo Thành phố và các đại biểu khách quý.</p>
+<p>⏰ <strong>Thời gian:</strong> Sau phiên bế mạc chương trình ({thoi_gian})</p>
+<p>📍 <strong>Địa điểm:</strong> Sảnh Tiệc VIP - {dia_diem}</p>
+<p>🍷 <strong>Bàn tiệc danh dự:</strong> Khu vực Bàn Tiệc VIP Trung tâm</p>
+<br>
+<p>Rất hân hạnh được đón tiếp {danh_xung}!</p>
+<p>Cán bộ phụ trách lễ tân tiệc: <strong>{can_bo_lien_he}</strong> ({sdt_lien_he})</p>`
+    },
+    seating_qr: {
+        name: "Thông báo Sơ đồ phân khu chỗ ngồi & Thẻ QR Check-in",
+        subject: "[Thẻ Check-in & Chỗ Ngồi] {ten_su_kien} - Đại biểu: {ho_ten}",
+        body: `<p>Kính gửi: <strong>{danh_xung} {ho_ten}</strong></p>
+<p>Cơ quan công tác: <strong>{co_quan}</strong></p>
+<br>
+<p>Ban Tổ chức xin gửi tới {danh_xung} thông tin chỗ ngồi và Thẻ Check-in điện tử phục vụ công tác đón tiếp tại sự kiện <strong>{ten_su_kien}</strong>:</p>
+<div style="background: #f8fafc; border-left: 4px solid #2563eb; padding: 12px; margin: 12px 0;">
+  <p>📍 <strong>Địa điểm:</strong> {dia_diem}</p>
+  <p>⏰ <strong>Thời gian đón tiếp:</strong> {thoi_gian}</p>
+  <p>🪑 <strong>Vị trí phân khu & Chỗ ngồi:</strong> <span style="color: #2563eb; font-weight: bold;">{so_ghe}</span></p>
+</div>
+<p>Đại biểu vui lòng xuất trình Thẻ có mã QR đính kèm thư này tại Bàn Lễ tân để được quét mã check-in tự động nhận tài liệu và huy hiệu đại biểu.</p>
+<p>Hotline hỗ trợ dẫn chỗ: <strong>{can_bo_lien_he}</strong> ({sdt_lien_he})</p>`
+    },
+    rsvp_reminder: {
+        name: "Thư đôn đốc & Nhắc lịch xác nhận tham dự",
+        subject: "[Nhắc Lịch & Đôn Đốc RSVP] Tham dự {ten_su_kien} - Kính gửi {danh_xung} {ho_ten}",
+        body: `<p>Kính gửi: <strong>{danh_xung} {ho_ten}</strong> ({chuc_vu} - {co_quan})</p>
+<br>
+<p>Ban Tổ chức chương trình <strong>{ten_su_kien}</strong> xin phép được nhắc lịch và kính đề nghị {danh_xung} phản hồi xác nhận khả năng tham dự sự kiện (hoặc cử đại diện tham dự thay thế).</p>
+<p>Sự kiện sẽ chính thức khai mạc vào lúc <strong>{thoi_gian}</strong> tại <strong>{dia_diem}</strong>.</p>
+<p>Để Ban Tổ chức kịp thời hoàn tất công tác in biển tên để bàn chữ A, sắp xếp chỗ ngồi trang trọng và chuẩn bị tiệc chiêu đãi, kính mong {danh_xung} hồi đáp qua email này hoặc tin nhắn tới cán bộ phụ trách: <strong>{can_bo_lien_he}</strong> - Hotline: <strong>{sdt_lien_he}</strong>.</p>
+<br>
+<p>Trân trọng cảm ơn sự phối hợp của {danh_xung}!</p>`
+    },
+    thank_you: {
+        name: "Thư cảm ơn & Gửi link tài liệu kỷ yếu (T + 3)",
+        subject: "[Thư Cảm Ơn] Tham dự {ten_su_kien} - Trung tâm SCE Hà Nội",
+        body: `<p>Kính gửi: <strong>{danh_xung} {ho_ten}</strong></p>
+<p>Đơn vị: <strong>{co_quan}</strong></p>
+<br>
+<p>Chương trình <strong>{ten_su_kien}</strong> diễn ra tại {dia_diem} đã thành công tốt đẹp. Ban Tổ chức Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp Hà Nội (SCE) xin trân trọng gửi lời cảm ơn sâu sắc nhất tới {danh_xung} đã dành thời gian quý báu tham dự và đóng góp tích cực cho sự kiện.</p>
+<p>Ban Tổ chức xin gửi tới {danh_xung} kỷ yếu tóm tắt, hình ảnh hội nghị và tài liệu tham luận đã được số hóa đính kèm theo thư này.</p>
+<p>Kính chúc {danh_xung} sức khỏe, hạnh phúc và thành công. Rất mong tiếp tục nhận được sự đồng hành của {danh_xung} trong các chương trình tiếp theo của Thành phố!</p>
+<br>
+<p>Trân trọng kính thư!</p>
+<p><strong>GIÁM ĐỐC TRUNG TÂM SCE HÀ NỘI</strong></p>`
+    },
+    custom: {
+        name: "Mẫu tùy chỉnh",
+        subject: "[Thông Báo] {ten_su_kien} - Kính gửi {danh_xung} {ho_ten}",
+        body: `<p>Kính gửi: <strong>{danh_xung} {ho_ten}</strong></p>
+<p>Đơn vị: <strong>{co_quan}</strong></p>
+<br>
+<p>Nội dung thông báo gửi đại biểu...</p>`
+    }
+};
+
+let bulkEmailState = {
+    selectedRecipientIds: new Set(),
+    currentFilter: 'all',
+    searchQuery: '',
+    attachedFiles: [],
+    isDispatching: false,
+    isPaused: false,
+    isCancelled: false,
+    googleUser: null,
+    tokenClient: null
+};
+
+// Khởi tạo và mở Modal Phát Hành Thư Điện Tử
+function openBulkEmailModal() {
+    const evId = module4State.selectedEventId;
+    if (!evId) {
+        Swal.fire('Chưa chọn sự kiện', 'Vui lòng chọn một sự kiện để phát hành thư điện tử cho khách mời.', 'warning');
+        return;
+    }
+
+    const modal = document.getElementById('bulkEmailModal');
+    if (!modal) return;
+
+    // Phục hồi phiên đăng nhập Google từ sessionStorage nếu có
+    const savedToken = sessionStorage.getItem('sce_google_access_token');
+    const savedUser = sessionStorage.getItem('sce_google_user');
+    if (savedToken && savedUser) {
+        try {
+            bulkEmailState.googleUser = JSON.parse(savedUser);
+            bulkEmailState.googleUser.accessToken = savedToken;
+        } catch (e) {
+            bulkEmailState.googleUser = null;
+        }
+    }
+
+    // Load Google Client ID setting
+    const savedClientId = (appData.systemSettings && appData.systemSettings.googleClientId) || 
+                          localStorage.getItem('sce_google_client_id') || '';
+    const inputClientId = document.getElementById('googleClientIdInput');
+    if (inputClientId) inputClientId.value = savedClientId;
+
+    initGoogleTokenClient();
+    renderBulkEmailAuthBar();
+
+    // Khởi tạo danh sách khách mời
+    const guests = (appData.eventGuests && appData.eventGuests[evId]) || [];
+    bulkEmailState.selectedRecipientIds.clear();
+    bulkEmailState.currentFilter = 'all';
+    bulkEmailState.searchQuery = '';
+    
+    // Mặc định chọn tất cả các khách đã có email
+    guests.forEach(g => {
+        if (g.email && g.email.includes('@')) {
+            bulkEmailState.selectedRecipientIds.add(g.id);
+        }
+    });
+
+    renderBulkEmailRecipientList();
+    updateBulkEmailSelectionCount();
+
+    // Mặc định chọn mẫu Giấy mời
+    const tplSelect = document.getElementById('bulkEmailTemplateSelector');
+    if (tplSelect) tplSelect.value = 'invitation';
+    applySelectedEmailTemplate('invitation');
+
+    modal.classList.remove('hidden');
+}
+
+function closeBulkEmailModal() {
+    if (bulkEmailState.isDispatching) {
+        Swal.fire({
+            title: 'Tiến trình gửi thư đang chạy!',
+            text: 'Bạn có chắc chắn muốn hủy tiến trình gửi thư và đóng cửa sổ?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Dừng & Đóng',
+            cancelButtonText: 'Tiếp tục gửi'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                cancelBulkEmailDispatch();
+                document.getElementById('bulkEmailModal')?.classList.add('hidden');
+            }
+        });
+        return;
+    }
+    document.getElementById('bulkEmailModal')?.classList.add('hidden');
+}
+
+// Khởi tạo Google Token Client
+function initGoogleTokenClient() {
+    const clientId = (appData.systemSettings && appData.systemSettings.googleClientId) || 
+                     localStorage.getItem('sce_google_client_id') || '';
+    if (!clientId) return false;
+
+    if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
+        try {
+            bulkEmailState.tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: clientId,
+                scope: 'https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
+                callback: async (tokenResponse) => {
+                    if (tokenResponse && tokenResponse.access_token) {
+                        sessionStorage.setItem('sce_google_access_token', tokenResponse.access_token);
+                        await fetchGoogleUserProfile(tokenResponse.access_token);
+                        renderBulkEmailAuthBar();
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Kết nối Google Mail thành công!',
+                            text: `Đã xác thực tài khoản: ${bulkEmailState.googleUser?.email || ''}`,
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                    }
+                }
+            });
+            return true;
+        } catch (err) {
+            console.error('Lỗi init GIS token client:', err);
+            return false;
+        }
+    }
+    return false;
+}
+
+async function fetchGoogleUserProfile(accessToken) {
+    try {
+        const resp = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        if (resp.ok) {
+            const data = await resp.json();
+            bulkEmailState.googleUser = {
+                name: data.name || 'Cán bộ SCE',
+                email: data.email || '',
+                picture: data.picture || '',
+                accessToken: accessToken
+            };
+            sessionStorage.setItem('sce_google_user', JSON.stringify(bulkEmailState.googleUser));
+        }
+    } catch (e) {
+        console.warn('Lỗi fetch Google userinfo:', e);
+    }
+}
+
+// Hiển thị thanh trạng thái kết nối Google
+function renderBulkEmailAuthBar() {
+    const container = document.getElementById('bulkEmailGoogleStatusContainer');
+    if (!container) return;
+
+    if (bulkEmailState.googleUser && bulkEmailState.googleUser.email) {
+        container.innerHTML = `
+            <div class="flex items-center gap-2">
+                <div class="w-7 h-7 rounded-full bg-red-600 text-white flex items-center justify-center font-bold text-xs overflow-hidden border border-red-300">
+                    ${bulkEmailState.googleUser.picture ? `<img src="${bulkEmailState.googleUser.picture}" class="w-full h-full object-cover">` : `<i class="fab fa-google"></i>`}
+                </div>
+                <div>
+                    <div class="font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
+                        <span>${bulkEmailState.googleUser.name || 'Cán bộ'}</span>
+                        <span class="text-[10px] px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 font-medium">Đã kết nối</span>
+                    </div>
+                    <div class="text-[11px] text-slate-500 font-mono">From: ${bulkEmailState.googleUser.email}</div>
+                </div>
+            </div>
+            <button type="button" onclick="signOutGoogleEmail()" class="ml-2 text-[11px] text-red-600 hover:text-red-700 dark:text-red-400 hover:underline">
+                Đăng xuất / Đổi tài khoản
+            </button>
+        `;
+    } else {
+        container.innerHTML = `
+            <div class="flex items-center gap-2">
+                <div class="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-500 flex items-center justify-center text-xs">
+                    <i class="fab fa-google"></i>
+                </div>
+                <div>
+                    <span class="text-slate-600 dark:text-slate-300 font-medium">Chưa kết nối hòm thư Google</span>
+                    <span class="text-[10px] ml-1.5 px-1.5 py-0.2 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 font-medium">Chế độ Thử nghiệm</span>
+                </div>
+            </div>
+            <button type="button" onclick="signInWithGoogleForEmail()" class="ml-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:border-red-400 text-slate-700 dark:text-slate-200 px-3 py-1 rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 transition">
+                <i class="fab fa-google text-red-500"></i>
+                <span>Đăng nhập với Google</span>
+            </button>
+        `;
+    }
+}
+
+function signInWithGoogleForEmail() {
+    const clientId = (appData.systemSettings && appData.systemSettings.googleClientId) || 
+                     localStorage.getItem('sce_google_client_id') || '';
+    if (!clientId) {
+        document.getElementById('googleClientIdConfigBox')?.classList.remove('hidden');
+        Swal.fire({
+            icon: 'info',
+            title: 'Chưa cấu hình Google Client ID',
+            html: `Hệ thống cần <b>Google OAuth Client ID</b> để kết nối hòm thư thực tế.<br><br>
+                   Bạn có thể nhập Client ID ở khung cấu hình phía trên, hoặc tiếp tục sử dụng <b>Chế độ Thử nghiệm (Simulation Sandbox)</b> để kiểm tra toàn bộ quy trình gửi.`,
+            confirmButtonText: 'Đã hiểu'
+        });
+        return;
+    }
+
+    if (!bulkEmailState.tokenClient) {
+        initGoogleTokenClient();
+    }
+
+    if (bulkEmailState.tokenClient) {
+        bulkEmailState.tokenClient.requestAccessToken({ prompt: 'consent' });
+    } else {
+        Swal.fire('Lỗi Google Identity Services', 'Thư viện Google chưa sẵn sàng hoặc bị chặn. Vui lòng thử lại sau vài giây.', 'error');
+    }
+}
+
+function signOutGoogleEmail() {
+    sessionStorage.removeItem('sce_google_access_token');
+    sessionStorage.removeItem('sce_google_user');
+    bulkEmailState.googleUser = null;
+    renderBulkEmailAuthBar();
+}
+
+function toggleGoogleClientIdConfig() {
+    const box = document.getElementById('googleClientIdConfigBox');
+    if (box) box.classList.toggle('hidden');
+}
+
+function saveGoogleClientIdSetting() {
+    const val = (document.getElementById('googleClientIdInput')?.value || '').trim();
+    if (!appData.systemSettings) appData.systemSettings = {};
+    appData.systemSettings.googleClientId = val;
+    localStorage.setItem('sce_google_client_id', val);
+    syncModule4Storage(true);
+
+    initGoogleTokenClient();
+    Swal.fire('Đã lưu cấu hình', 'Google Client ID đã được lưu an toàn vào hệ thống.', 'success');
+}
+
+// BỘ LỌC VÀ CHỌN KHÁCH MỜI
+function filterBulkEmailRecipients(filterKey) {
+    bulkEmailState.currentFilter = filterKey;
+    document.querySelectorAll('.bulk-filter-btn').forEach(btn => {
+        if (btn.getAttribute('data-filter') === filterKey) {
+            btn.className = 'bulk-filter-btn px-2 py-1 rounded-md bg-red-600 text-white font-medium shadow-xs';
+        } else {
+            btn.className = 'bulk-filter-btn px-2 py-1 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300';
+        }
+    });
+    renderBulkEmailRecipientList();
+}
+
+function onBulkEmailSearchChange() {
+    bulkEmailState.searchQuery = (document.getElementById('bulkEmailSearchInput')?.value || '').trim().toLowerCase();
+    renderBulkEmailRecipientList();
+}
+
+function getFilteredBulkEmailRecipients() {
+    const evId = module4State.selectedEventId;
+    let list = (appData.eventGuests && appData.eventGuests[evId]) || [];
+
+    // Lọc theo nhóm
+    if (bulkEmailState.currentFilter === 'VIP') {
+        list = list.filter(g => g.group === 'VIP');
+    } else if (bulkEmailState.currentFilter === 'SoNganh') {
+        list = list.filter(g => g.group === 'SoNganh');
+    } else if (bulkEmailState.currentFilter === 'DoanhNghiep') {
+        list = list.filter(g => g.group === 'DoanhNghiep');
+    } else if (bulkEmailState.currentFilter === 'rsvp_pending') {
+        list = list.filter(g => !g.rsvpStatus || g.rsvpStatus === 'pending');
+    } else if (bulkEmailState.currentFilter === 'rsvp_confirmed') {
+        list = list.filter(g => g.rsvpStatus === 'confirmed');
+    }
+
+    // Tìm kiếm
+    if (bulkEmailState.searchQuery) {
+        const q = bulkEmailState.searchQuery;
+        list = list.filter(g => 
+            (g.name && g.name.toLowerCase().includes(q)) ||
+            (g.organization && g.organization.toLowerCase().includes(q)) ||
+            (g.email && g.email.toLowerCase().includes(q))
+        );
+    }
+    return list;
+}
+
+function renderBulkEmailRecipientList() {
+    const container = document.getElementById('bulkEmailRecipientList');
+    if (!container) return;
+
+    const list = getFilteredBulkEmailRecipients();
+    if (list.length === 0) {
+        container.innerHTML = `
+            <div class="p-8 text-center text-slate-400">
+                <i class="fas fa-users-slash text-2xl mb-1"></i>
+                <p>Không tìm thấy đại biểu phù hợp bộ lọc.</p>
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+    list.forEach(g => {
+        const isSelected = bulkEmailState.selectedRecipientIds.has(g.id);
+        const hasEmail = g.email && g.email.includes('@');
+        
+        let statusBadge = '';
+        if (g.emailStatus === 'sent') {
+            statusBadge = `<span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1"><i class="fas fa-check-circle"></i> Đã gửi</span>`;
+        } else if (g.emailStatus === 'error') {
+            statusBadge = `<span class="text-[10px] text-red-500 font-semibold flex items-center gap-1"><i class="fas fa-exclamation-circle"></i> Lỗi gửi</span>`;
+        }
+
+        html += `
+            <div class="p-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-start gap-2.5 transition ${isSelected ? 'bg-rose-50/50 dark:bg-rose-950/20' : ''}">
+                <input type="checkbox" ${isSelected ? 'checked' : ''} ${!hasEmail ? 'disabled' : ''} onchange="toggleRecipientSelection('${g.id}')" class="mt-0.5 rounded text-red-600 focus:ring-red-500 w-4 h-4 cursor-pointer">
+                <div class="flex-1 min-w-0" onclick="toggleRecipientSelection('${g.id}')">
+                    <div class="flex items-center justify-between gap-1">
+                        <span class="font-bold text-slate-800 dark:text-white truncate ${g.group === 'VIP' ? 'text-amber-600 dark:text-amber-400' : ''}">${g.name}</span>
+                        ${statusBadge}
+                    </div>
+                    <div class="text-[11px] text-slate-500 truncate">${g.title ? g.title + ' - ' : ''}${g.organization || ''}</div>
+                    <div class="text-[11px] font-mono truncate ${hasEmail ? 'text-sky-600 dark:text-sky-400' : 'text-red-500 font-semibold'}">
+                        ${hasEmail ? `<i class="fas fa-envelope text-[10px] mr-1"></i>${g.email}` : `<i class="fas fa-triangle-exclamation text-[10px] mr-1"></i>Chưa có email`}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+    updateBulkEmailSelectionCount();
+}
+
+function toggleRecipientSelection(guestId) {
+    const evId = module4State.selectedEventId;
+    const guests = (appData.eventGuests && appData.eventGuests[evId]) || [];
+    const guest = guests.find(g => g.id === guestId);
+    if (!guest || !guest.email || !guest.email.includes('@')) return;
+
+    if (bulkEmailState.selectedRecipientIds.has(guestId)) {
+        bulkEmailState.selectedRecipientIds.delete(guestId);
+    } else {
+        bulkEmailState.selectedRecipientIds.add(guestId);
+    }
+    renderBulkEmailRecipientList();
+}
+
+function toggleBulkEmailSelectAll(checked) {
+    const list = getFilteredBulkEmailRecipients();
+    list.forEach(g => {
+        if (g.email && g.email.includes('@')) {
+            if (checked) {
+                bulkEmailState.selectedRecipientIds.add(g.id);
+            } else {
+                bulkEmailState.selectedRecipientIds.delete(g.id);
+            }
+        }
+    });
+    renderBulkEmailRecipientList();
+}
+
+function updateBulkEmailSelectionCount() {
+    const evId = module4State.selectedEventId;
+    const allGuests = (appData.eventGuests && appData.eventGuests[evId]) || [];
+    const countEl = document.getElementById('bulkEmailSelectedCount');
+    if (countEl) {
+        countEl.textContent = `Đã chọn: ${bulkEmailState.selectedRecipientIds.size}/${allGuests.length}`;
+    }
+
+    const selectAllCheckbox = document.getElementById('bulkEmailSelectAllCheckbox');
+    if (selectAllCheckbox) {
+        const filtered = getFilteredBulkEmailRecipients().filter(g => g.email && g.email.includes('@'));
+        const selectedInFiltered = filtered.filter(g => bulkEmailState.selectedRecipientIds.has(g.id));
+        selectAllCheckbox.checked = filtered.length > 0 && selectedInFiltered.length === filtered.length;
+    }
+}
+
+// MẪU THƯ VÀ SOẠN THẢO
+function applySelectedEmailTemplate(templateKey) {
+    const tpl = BULK_EMAIL_TEMPLATES[templateKey];
+    if (!tpl) return;
+
+    const subjectInput = document.getElementById('bulkEmailSubject');
+    const bodyTextarea = document.getElementById('bulkEmailBody');
+
+    if (subjectInput) subjectInput.value = tpl.subject;
+    if (bodyTextarea) bodyTextarea.value = tpl.body;
+}
+
+function insertMergeTagIntoEmail(tag) {
+    const textarea = document.getElementById('bulkEmailBody');
+    if (!textarea) return;
+
+    const start = textarea.selectionStart || 0;
+    const end = textarea.selectionEnd || 0;
+    const val = textarea.value;
+
+    textarea.value = val.substring(0, start) + tag + val.substring(end);
+    textarea.selectionStart = textarea.selectionEnd = start + tag.length;
+    textarea.focus();
+}
+
+function applyMailMergeTags(templateText, guest, eventData) {
+    if (!templateText) return '';
+    let text = templateText;
+
+    const danhXung = (guest.group === 'VIP' || (guest.title && (guest.title.toLowerCase().includes('chủ tịch') || guest.title.toLowerCase().includes('trưởng') || guest.title.toLowerCase().includes('giám đốc')))) ? 'Đồng chí' : 'Quý Ông/Bà';
+    const hoTen = guest.name || 'Quý Đại biểu';
+    const chucVu = guest.title || 'Đại biểu';
+    const coQuan = guest.organization || 'Cơ quan/Đơn vị';
+    const tenSuKien = eventData?.title || eventData?.name || 'Hội nghị & Tọa đàm xúc tiến đầu tư SCE';
+    const thoiGian = eventData?.date ? `${eventData.date} (Khai mạc: 08:30)` : '08:30 ngày 15/11/2026';
+    const diaDiem = eventData?.location || 'Trung tâm Hội nghị Quốc gia NCC (Hà Nội)';
+    const soGhe = guest.assignedSeat ? `${guest.assignedSeat}` : 'Khu vực Đại biểu Danh dự';
+    const canBoLienHe = (currentUser && currentUser.full_name) ? currentUser.full_name : 'Cán bộ Lễ tân SCE';
+    const sdtLienHe = '024.3825.8888 / 0912.345.678';
+    const maQr = guest.qrCode || `SCE-${guest.id || 'GUEST'}`;
+
+    const map = {
+        '{danh_xung}': danhXung,
+        '{ho_ten}': hoTen,
+        '{chuc_vu}': chucVu,
+        '{co_quan}': coQuan,
+        '{ten_su_kien}': tenSuKien,
+        '{thoi_gian}': thoiGian,
+        '{dia_diem}': diaDiem,
+        '{so_ghe}': soGhe,
+        '{can_bo_lien_he}': canBoLienHe,
+        '{sdt_lien_he}': sdtLienHe,
+        '{ma_qr_checkin}': maQr
+    };
+
+    for (const [tag, val] of Object.entries(map)) {
+        text = text.split(tag).join(val);
+    }
+    return text;
+}
+
+// FILE ĐÍNH KÈM
+async function handleBulkEmailFilesSelected(event) {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (file.size > 25 * 1024 * 1024) {
+            Swal.fire('File quá lớn', `File "${file.name}" vượt quá giới hạn 25MB của Gmail.`, 'warning');
+            continue;
+        }
+
+        const base64 = await readFileAsBase64(file);
+        bulkEmailState.attachedFiles.push({
+            name: file.name,
+            size: file.size,
+            type: file.type || 'application/octet-stream',
+            base64: base64
+        });
+    }
+
+    event.target.value = '';
+    renderBulkEmailSelectedFiles();
+}
+
+function readFileAsBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const dataUrl = reader.result;
+            const base64 = dataUrl.split(',')[1];
+            resolve(base64);
+        };
+        reader.onerror = error => reject(error);
+        reader.readAsDataURL(file);
+    });
+}
+
+function renderBulkEmailSelectedFiles() {
+    const container = document.getElementById('bulkEmailSelectedFilesList');
+    if (!container) return;
+
+    if (bulkEmailState.attachedFiles.length === 0) {
+        container.innerHTML = '<span class="text-slate-400 italic text-[11px]" id="bulkEmailNoFilesNotice">Chưa có file nào được đính kèm.</span>';
+        return;
+    }
+
+    let html = '';
+    bulkEmailState.attachedFiles.forEach((file, idx) => {
+        const sizeKb = Math.round(file.size / 1024);
+        html += `
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-[11px] shadow-xs">
+                <i class="fas fa-file-lines text-red-500"></i>
+                <span class="truncate max-w-[150px] font-medium">${file.name}</span>
+                <span class="text-slate-400">(${sizeKb}KB)</span>
+                <button type="button" onclick="removeAttachedBulkFile(${idx})" class="text-slate-400 hover:text-red-500 ml-1"><i class="fas fa-times"></i></button>
+            </span>
+        `;
+    });
+    container.innerHTML = html;
+}
+
+function removeAttachedBulkFile(index) {
+    bulkEmailState.attachedFiles.splice(index, 1);
+    renderBulkEmailSelectedFiles();
+}
+
+// TẠO THẺ ĐẠI BIỂU CHECK-IN PNG
+function generateGuestQrCheckinBase64(guest) {
+    return new Promise((resolve) => {
+        try {
+            const qrText = `SCE-CHECKIN:${guest.id}:${guest.name}:${module4State.selectedEventId}`;
+            const canvas = document.createElement('canvas');
+            canvas.width = 300;
+            canvas.height = 360;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return resolve(null);
+
+            // Card background
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, 300, 360);
+            ctx.fillStyle = '#1e3a8a';
+            ctx.fillRect(0, 0, 300, 60);
+
+            // Header text
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 12px Arial, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('THẺ ĐẠI BIỂU - CHECK-IN GIỜ G', 150, 26);
+            ctx.font = '10px Arial, sans-serif';
+            ctx.fillText('TRUNG TÂM SCE HÀ NỘI', 150, 45);
+
+            const tempDiv = document.createElement('div');
+            tempDiv.style.display = 'none';
+            document.body.appendChild(tempDiv);
+
+            if (typeof QRCode !== 'undefined') {
+                new QRCode(tempDiv, {
+                    text: qrText,
+                    width: 150,
+                    height: 150,
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+
+                setTimeout(() => {
+                    const qrImg = tempDiv.querySelector('img') || tempDiv.querySelector('canvas');
+                    if (qrImg) {
+                        ctx.drawImage(qrImg, 75, 75, 150, 150);
+                    }
+                    tempDiv.remove();
+
+                    // Delegate text
+                    ctx.fillStyle = '#0f172a';
+                    ctx.font = 'bold 13px Arial, sans-serif';
+                    ctx.fillText(guest.name || 'Đại biểu', 150, 255);
+
+                    ctx.fillStyle = '#475569';
+                    ctx.font = '11px Arial, sans-serif';
+                    ctx.fillText(guest.organization || 'Cơ quan/Đơn vị', 150, 275);
+
+                    if (guest.assignedSeat) {
+                        ctx.fillStyle = '#2563eb';
+                        ctx.font = 'bold 12px Arial, sans-serif';
+                        ctx.fillText(`Số ghế: ${guest.assignedSeat}`, 150, 300);
+                    }
+
+                    ctx.fillStyle = '#94a3b8';
+                    ctx.font = '10px Arial, sans-serif';
+                    ctx.fillText(`Mã: ${guest.id}`, 150, 330);
+
+                    const dataUrl = canvas.toDataURL('image/png');
+                    const base64Only = dataUrl.split(',')[1];
+                    resolve({
+                        name: `The_CheckIn_${(guest.name || 'DaiBieu').replace(/[^a-zA-Z0-9]/g, '_')}.png`,
+                        type: 'image/png',
+                        base64: base64Only
+                    });
+                }, 80);
+            } else {
+                tempDiv.remove();
+                resolve(null);
+            }
+        } catch (e) {
+            console.warn('Lỗi sinh thẻ QR Check-in:', e);
+            resolve(null);
+        }
+    });
+}
+
+// XEM TRƯỚC THƯ (PREVIEW)
+function previewBulkEmailForFirstGuest() {
+    const evId = module4State.selectedEventId;
+    const guests = (appData.eventGuests && appData.eventGuests[evId]) || [];
+    const selectedGuests = guests.filter(g => bulkEmailState.selectedRecipientIds.has(g.id));
+
+    if (selectedGuests.length === 0) {
+        Swal.fire('Chưa chọn người nhận', 'Vui lòng tích chọn ít nhất 1 đại biểu để xem trước nội dung thư.', 'info');
+        return;
+    }
+
+    const firstGuest = selectedGuests[0];
+    const eventData = (appData.events || []).find(e => e.id === evId) || {};
+    const rawSubject = document.getElementById('bulkEmailSubject')?.value || '';
+    const rawBody = document.getElementById('bulkEmailBody')?.value || '';
+
+    const previewSubject = applyMailMergeTags(rawSubject, firstGuest, eventData);
+    const previewBody = applyMailMergeTags(rawBody, firstGuest, eventData);
+
+    const fromEmail = bulkEmailState.googleUser?.email || 'canbo_tochucsukien@gmail.com (Mẫu)';
+    document.getElementById('previewEmailFrom').textContent = fromEmail;
+    document.getElementById('previewEmailTo').textContent = `${firstGuest.name} <${firstGuest.email || 'chua_co_email@domain.vn'}>`;
+    document.getElementById('previewEmailSubject').textContent = previewSubject;
+    
+    let attText = bulkEmailState.attachedFiles.map(f => f.name).join(', ');
+    const attachQr = document.getElementById('bulkEmailAttachQrCard')?.checked;
+    if (attachQr) {
+        attText = (attText ? attText + ', ' : '') + `The_CheckIn_${(firstGuest.name || 'DaiBieu').replace(/[^a-zA-Z0-9]/g, '_')}.png`;
+    }
+    document.getElementById('previewEmailAttachments').textContent = attText || 'Không có file đính kèm';
+    document.getElementById('previewEmailBodyContent').innerHTML = previewBody;
+
+    document.getElementById('bulkEmailPreviewModal')?.classList.remove('hidden');
+}
+
+function closeBulkEmailPreviewModal() {
+    document.getElementById('bulkEmailPreviewModal')?.classList.add('hidden');
+}
+
+// ĐÓNG GÓI CHUẨN MIME RFC 2822
+function buildMimeMessage({ from, to, subject, htmlBody, attachments = [] }) {
+    const boundary = "==_SCE_MIME_" + Date.now().toString(16) + "_" + Math.random().toString(16).substr(2, 6);
+    const utf8Subject = "=?UTF-8?B?" + btoa(unescape(encodeURIComponent(subject))) + "?=";
+
+    const mimeParts = [
+        `From: ${from}`,
+        `To: ${to}`,
+        `Subject: ${utf8Subject}`,
+        `MIME-Version: 1.0`,
+        `Content-Type: multipart/mixed; boundary="${boundary}"`,
+        ``,
+        `--${boundary}`,
+        `Content-Type: text/html; charset=UTF-8`,
+        `Content-Transfer-Encoding: base64`,
+        ``,
+        btoa(unescape(encodeURIComponent(htmlBody))),
+        ``
+    ];
+
+    if (attachments && attachments.length > 0) {
+        for (const file of attachments) {
+            const encodedFileName = "=?UTF-8?B?" + btoa(unescape(encodeURIComponent(file.name))) + "?=";
+            mimeParts.push(`--${boundary}`);
+            mimeParts.push(`Content-Type: ${file.type || 'application/octet-stream'}; name="${encodedFileName}"`);
+            mimeParts.push(`Content-Disposition: attachment; filename="${encodedFileName}"`);
+            mimeParts.push(`Content-Transfer-Encoding: base64`);
+            mimeParts.push(``);
+            mimeParts.push(file.base64);
+            mimeParts.push(``);
+        }
+    }
+
+    mimeParts.push(`--${boundary}--`);
+    const mimeString = mimeParts.join(String.fromCharCode(13, 10));
+
+    return btoa(unescape(encodeURIComponent(mimeString)))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+}
+
+// LOG CONSOLE
+function logBulkEmailConsole(type, msg) {
+    const consoleEl = document.getElementById('bulkEmailLogConsole');
+    if (!consoleEl) return;
+    consoleEl.classList.remove('hidden');
+
+    const now = new Date();
+    const timeStr = now.toTimeString().split(' ')[0];
+    const colorClass = type === 'SUCCESS' ? 'text-emerald-400' : (type === 'ERROR' ? 'text-red-400' : 'text-sky-300');
+    
+    const div = document.createElement('div');
+    div.className = `flex items-start gap-1.5 ${colorClass}`;
+    div.innerHTML = `<span class="text-slate-500 select-none">[${timeStr}]</span> <span>${msg}</span>`;
+    consoleEl.appendChild(div);
+    consoleEl.scrollTop = consoleEl.scrollHeight;
+}
+
+// GỬI THỬ NGHIỆM ĐẾN EMAIL CỦA CÁN BỘ
+async function sendTestBulkEmailToSelf() {
+    const targetEmail = bulkEmailState.googleUser?.email || prompt('Nhập địa chỉ email của bạn để nhận thư thử nghiệm:');
+    if (!targetEmail || !targetEmail.includes('@')) {
+        Swal.fire('Email không hợp lệ', 'Vui lòng cung cấp email nhận thư thử nghiệm hợp lệ.', 'warning');
+        return;
+    }
+
+    const evId = module4State.selectedEventId;
+    const eventData = (appData.events || []).find(e => e.id === evId) || {};
+    const guests = (appData.eventGuests && appData.eventGuests[evId]) || [];
+    const sampleGuest = guests.find(g => bulkEmailState.selectedRecipientIds.has(g.id)) || guests[0] || {
+        id: 'DEMO-01',
+        name: 'Nguyễn Văn A',
+        title: 'Giám đốc',
+        organization: 'Doanh nghiệp Mẫu',
+        group: 'DoanhNghiep',
+        assignedSeat: 'A-01'
+    };
+
+    const rawSubject = document.getElementById('bulkEmailSubject')?.value || '';
+    const rawBody = document.getElementById('bulkEmailBody')?.value || '';
+
+    const testSubject = '[THỬ NGHIỆM] ' + applyMailMergeTags(rawSubject, sampleGuest, eventData);
+    const testBody = applyMailMergeTags(rawBody, sampleGuest, eventData);
+
+    const attachments = [...bulkEmailState.attachedFiles];
+    const attachQr = document.getElementById('bulkEmailAttachQrCard')?.checked;
+    if (attachQr) {
+        const qrCard = await generateGuestQrCheckinBase64(sampleGuest);
+        if (qrCard) attachments.push(qrCard);
+    }
+
+    Swal.fire({
+        title: 'Đang gửi thư thử nghiệm...',
+        text: `Gửi tới: ${targetEmail}`,
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    const isLive = bulkEmailState.googleUser && bulkEmailState.googleUser.accessToken;
+
+    if (isLive) {
+        try {
+            const rawMessage = buildMimeMessage({
+                from: bulkEmailState.googleUser.email,
+                to: targetEmail,
+                subject: testSubject,
+                htmlBody: testBody,
+                attachments: attachments
+            });
+
+            const resp = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${bulkEmailState.googleUser.accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ raw: rawMessage })
+            });
+
+            if (!resp.ok) {
+                const err = await resp.json();
+                throw new Error(err.error?.message || `HTTP ${resp.status}`);
+            }
+
+            Swal.fire('Đã gửi thử nghiệm!', `Thư thử nghiệm đã được gửi thành công đến hòm thư: ${targetEmail}`, 'success');
+            logBulkEmailConsole('SUCCESS', `Đã gửi thư thử nghiệm tới cán bộ: ${targetEmail}`);
+        } catch (err) {
+            Swal.fire('Lỗi gửi thư', err.message, 'error');
+            logBulkEmailConsole('ERROR', `Lỗi gửi thử nghiệm tới ${targetEmail}: ${err.message}`);
+        }
+    } else {
+        // Mô phỏng Sandbox
+        await new Promise(r => setTimeout(r, 1200));
+        Swal.fire({
+            icon: 'success',
+            title: 'Mô phỏng gửi thử thành công (Sandbox)',
+            text: `(Chế độ Thử nghiệm) Thư đã được định dạng chuẩn MIME và sẵn sàng gửi tới: ${targetEmail}`,
+            confirmButtonText: 'Tuyệt vời'
+        });
+        logBulkEmailConsole('INFO', `(Sandbox) Mô phỏng gửi thư thử nghiệm tới cán bộ: ${targetEmail} thành công`);
+    }
+}
+
+// BẮT ĐẦU VÒNG LẶP GỬI HÀNG LOẠT
+async function startBulkEmailDispatchProcess() {
+    const evId = module4State.selectedEventId;
+    const guests = (appData.eventGuests && appData.eventGuests[evId]) || [];
+    const recipientList = guests.filter(g => bulkEmailState.selectedRecipientIds.has(g.id) && g.email && g.email.includes('@'));
+
+    if (recipientList.length === 0) {
+        Swal.fire('Chưa chọn người nhận', 'Vui lòng tích chọn ít nhất 1 đại biểu có địa chỉ email hợp lệ.', 'warning');
+        return;
+    }
+
+    const isLive = bulkEmailState.googleUser && bulkEmailState.googleUser.accessToken;
+    const modeTitle = isLive ? `Hòm thư Google của bạn (${bulkEmailState.googleUser.email})` : 'Chế độ Thử nghiệm (Simulation Sandbox)';
+
+    const result = await Swal.fire({
+        title: 'Xác nhận phát hành thư hàng loạt?',
+        html: `Bạn đang chuẩn bị gửi email tới <b>${recipientList.length} đại biểu</b>.<br>
+               Phương thức gửi: <b class="${isLive ? 'text-red-600' : 'text-amber-600'}">${modeTitle}</b>.<br><br>
+               <span class="text-xs text-slate-500">Mỗi thư sẽ được giãn cách 1.2 giây để đảm bảo tỷ lệ vào Inbox cao nhất và chống Spam.</span>`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Xác nhận Bắt đầu',
+        cancelButtonText: 'Kiểm tra lại'
+    });
+
+    if (!result.isConfirmed) return;
+
+    // Thiết lập trạng thái chạy
+    bulkEmailState.isDispatching = true;
+    bulkEmailState.isPaused = false;
+    bulkEmailState.isCancelled = false;
+
+    // Cập nhật UI nút điều khiển
+    document.getElementById('btnStartBulkEmail')?.classList.add('hidden');
+    document.getElementById('btnPauseResumeBulkEmail')?.classList.remove('hidden');
+    document.getElementById('btnCancelBulkEmail')?.classList.remove('hidden');
+    document.getElementById('bulkEmailProgressBox')?.classList.remove('hidden');
+
+    const rawSubject = document.getElementById('bulkEmailSubject')?.value || '';
+    const rawBody = document.getElementById('bulkEmailBody')?.value || '';
+    const eventData = (appData.events || []).find(e => e.id === evId) || {};
+    const attachQr = document.getElementById('bulkEmailAttachQrCard')?.checked;
+
+    let successCount = 0;
+    let failedCount = 0;
+
+    logBulkEmailConsole('INFO', `Bắt đầu phiên phát hành thư hàng loạt: ${recipientList.length} đại biểu...`);
+
+    for (let i = 0; i < recipientList.length; i++) {
+        // Kiểm tra hủy bỏ
+        if (bulkEmailState.isCancelled) {
+            logBulkEmailConsole('INFO', 'Tiến trình gửi thư đã bị người dùng hủy bỏ.');
+            break;
+        }
+
+        // Kiểm tra tạm dừng
+        while (bulkEmailState.isPaused && !bulkEmailState.isCancelled) {
+            await new Promise(r => setTimeout(r, 400));
+        }
+
+        const guest = recipientList[i];
+        const progressPct = Math.round(((i + 1) / recipientList.length) * 100);
+
+        // Cập nhật thanh tiến độ
+        const progressBar = document.getElementById('bulkEmailProgressBar');
+        const progressPercent = document.getElementById('bulkEmailProgressPercent');
+        const progressStatusText = document.getElementById('bulkEmailProgressStatusText');
+
+        if (progressBar) progressBar.style.width = `${progressPct}%`;
+        if (progressPercent) progressPercent.textContent = `${progressPct}%`;
+        if (progressStatusText) progressStatusText.textContent = `Đang gửi (${i + 1}/${recipientList.length}): ${guest.name}...`;
+
+        try {
+            const subject = applyMailMergeTags(rawSubject, guest, eventData);
+            const htmlBody = applyMailMergeTags(rawBody, guest, eventData);
+
+            const attachments = [...bulkEmailState.attachedFiles];
+            if (attachQr) {
+                const qrCard = await generateGuestQrCheckinBase64(guest);
+                if (qrCard) attachments.push(qrCard);
+            }
+
+            if (isLive) {
+                const rawMessage = buildMimeMessage({
+                    from: bulkEmailState.googleUser.email,
+                    to: guest.email,
+                    subject: subject,
+                    htmlBody: htmlBody,
+                    attachments: attachments
+                });
+
+                const resp = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${bulkEmailState.googleUser.accessToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ raw: rawMessage })
+                });
+
+                if (!resp.ok) {
+                    const errData = await resp.json();
+                    throw new Error(errData.error?.message || `HTTP ${resp.status}`);
+                }
+
+                guest.emailStatus = 'sent';
+                guest.emailSentAt = new Date().toISOString();
+                successCount++;
+                logBulkEmailConsole('SUCCESS', `Đã gửi tới: ${guest.name} (${guest.email})`);
+            } else {
+                // Mô phỏng Sandbox
+                guest.emailStatus = 'sent';
+                guest.emailSentAt = new Date().toISOString();
+                successCount++;
+                logBulkEmailConsole('SUCCESS', `(Sandbox) Đã gửi tới: ${guest.name} (${guest.email})`);
+            }
+        } catch (err) {
+            guest.emailStatus = 'error';
+            guest.emailError = err.message;
+            failedCount++;
+            logBulkEmailConsole('ERROR', `Lỗi gửi tới ${guest.name}: ${err.message}`);
+        }
+
+        // Đồng bộ dữ liệu bảng khách mời
+        renderBulkEmailRecipientList();
+        renderCrmGuestsTable();
+
+        // Giãn cách 1.2s chống Spam
+        await new Promise(r => setTimeout(r, 1200));
+    }
+
+    // Hoàn tất
+    bulkEmailState.isDispatching = false;
+    document.getElementById('btnStartBulkEmail')?.classList.remove('hidden');
+    document.getElementById('btnPauseResumeBulkEmail')?.classList.add('hidden');
+    document.getElementById('btnCancelBulkEmail')?.classList.add('hidden');
+
+    const progressStatusText = document.getElementById('bulkEmailProgressStatusText');
+    if (progressStatusText) {
+        progressStatusText.textContent = `Hoàn tất: ${successCount} thành công, ${failedCount} lỗi.`;
+    }
+
+    syncModule4Storage(true);
+
+    // Ghi nhận Audit Log
+    if (typeof recordAuditLog === 'function') {
+        recordAuditLog('GỬI EMAIL HÀNG LOẠT', `Phát hành thư điện tử cho ${successCount}/${recipientList.length} khách mời sự kiện "${eventData.title || ''}"`);
+    }
+
+    Swal.fire({
+        icon: failedCount === 0 ? 'success' : 'warning',
+        title: 'Hoàn tất phát hành thư!',
+        html: `Đã phát hành thành công: <b class="text-emerald-600">${successCount} thư</b><br>
+               ${failedCount > 0 ? `Lỗi: <b class="text-red-500">${failedCount} thư</b> (xem nhật ký phía dưới)` : 'Tất cả các thư đều được xử lý chính xác.'}`
+    });
+}
+
+function togglePauseBulkEmailDispatch() {
+    bulkEmailState.isPaused = !bulkEmailState.isPaused;
+    const btn = document.getElementById('btnPauseResumeBulkEmail');
+    if (!btn) return;
+
+    if (bulkEmailState.isPaused) {
+        btn.innerHTML = '<i class="fas fa-play"></i> <span>Tiếp tục</span>';
+        btn.className = 'bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition';
+        logBulkEmailConsole('INFO', 'Tiến trình tạm dừng.');
+    } else {
+        btn.innerHTML = '<i class="fas fa-pause"></i> <span>Tạm dừng</span>';
+        btn.className = 'bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition';
+        logBulkEmailConsole('INFO', 'Tiến trình tiếp tục chạy.');
+    }
+}
+
+function cancelBulkEmailDispatch() {
+    bulkEmailState.isCancelled = true;
+    bulkEmailState.isPaused = false;
+}
+
+
+
 /* 9. JAVASCRIPT ĐIỀU HÀNH PHÂN HỆ 5: TỔ CHỨC SỰ KIỆN        */
 /* ========================================================================= */
 
