@@ -335,13 +335,26 @@
                         <button onclick="toggleSidebar(true)" class="md:hidden w-8 h-8 rounded-lg flex items-center justify-center bg-white/10 hover:bg-white/20 text-white transition shrink-0 cursor-pointer" title="Mở danh mục chức năng">
                             <i class="fas fa-bars text-sm"></i>
                         </button>
-                        <button onclick="toggleSidebarCollapse()" id="topBarToggleCollapse" class="hidden md:flex w-8 h-8 rounded-lg items-center justify-center bg-white/10 hover:bg-white/20 text-white transition shrink-0 cursor-pointer" title="Thu gọn / Mở rộng thanh bên">
-                            <i id="topBarCollapseIcon" class="fas fa-bars-staggered text-sm"></i>
-                        </button>
+                        <!-- Biểu tượng đại diện của phân hệ -->
+                        <div id="topBarActiveIcon" class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-blue-600/50 text-white flex items-center justify-center text-sm sm:text-base font-bold shrink-0 border border-blue-400/40 shadow-xs">
+                            <i class="fas fa-calendar-check text-sky-300"></i>
+                        </div>
                         <div class="min-w-0">
-                            <h2 id="topBarActiveTitle" class="text-sm sm:text-base font-bold text-white truncate flex items-center gap-2">
-                                <span>Tiến độ</span>
-                            </h2>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <h2 id="topBarActiveTitle" class="text-sm sm:text-base font-bold text-white truncate leading-tight">
+                                    Tiến Độ Tổ Chức Sự Kiện
+                                </h2>
+                                <div id="topBarActiveBadges" class="flex items-center gap-1.5 shrink-0">
+                                    <button onclick="openDailyReportPopup()" id="btnHeaderDailyReportBell" class="relative inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-rose-500/80 hover:bg-rose-600 text-white rounded-full text-xs font-semibold border border-rose-300/40 shadow-xs transition cursor-pointer" title="Báo cáo tiến độ hàng ngày trình Lãnh đạo Trung tâm & UBND Thành phố">
+                                        <i class="fas fa-bell text-rose-200 text-xs animate-bounce"></i>
+                                        <span class="text-[11px] font-bold hidden sm:inline">Báo Cáo Hàng Ngày</span>
+                                        <span id="bellDailyReportBadge" class="px-1.5 py-0.2 bg-white text-rose-700 rounded-full text-[10px] font-bold">0</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <p id="topBarActiveSubtitle" class="text-[11px] text-blue-200/90 dark:text-slate-400 truncate hidden xl:block leading-tight">
+                                Theo dõi tiến độ, phân công nhiệm vụ và cập nhật trạng thái thực hiện các sự kiện.
+                            </p>
                         </div>
                     </div>
 
@@ -407,14 +420,9 @@
             <section id="mainTab-users" class="hidden space-y-3.5">
                 <div class="bg-white dark:bg-slate-800 p-3.5 sm:p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 space-y-3.5">
                     <div class="flex items-center justify-between gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-700">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-cyan-100 dark:bg-cyan-900/60 text-cyan-700 dark:text-cyan-300 flex items-center justify-center text-lg font-bold">
-                                <i class="fas fa-users-gear"></i>
-                            </div>
-                            <div>
-                                <h2 class="text-base sm:text-lg font-bold text-slate-800 dark:text-white">Quản Lý Tài Khoản & Phân Quyền</h2>
-                                <p class="text-xs text-slate-500 dark:text-slate-400">Quản lý danh sách tài khoản cán bộ và vai trò truy cập hệ thống</p>
-                            </div>
+                        <div class="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+                            <i class="fas fa-users-gear text-cyan-600"></i>
+                            <span>Danh Sách Cán Bộ 4 Phòng Ban</span>
                         </div>
                         <div class="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap">
                             <button onclick="window.approveAllPendingUsers()" id="btnApproveAllTop" class="hidden px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1.5">
@@ -529,17 +537,9 @@
             <!-- Card Giới thiệu & Trạng thái phân hệ -->
             <div class="bg-white dark:bg-slate-800 rounded-xl p-3.5 sm:p-4 shadow-sm border border-slate-200 dark:border-slate-700">
                 <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-5 border-b border-slate-100 dark:border-slate-700">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center text-2xl font-bold shadow-inner">
-                            <i class="fas fa-sliders-h"></i>
-                        </div>
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <h2 class="text-lg sm:text-xl font-bold text-slate-800 dark:text-white">Cài đặt & Quản trị Hệ thống</h2>
-                                <span class="bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-blue-300 dark:border-blue-700">Quản trị viên & Ban Giám đốc</span>
-                            </div>
-                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Quản lý tài khoản cán bộ, sao lưu dữ liệu và cấu hình hệ thống.</p>
-                        </div>
+                    <div class="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+                        <i class="fas fa-sliders text-slate-500"></i>
+                        <span>Bảng Điều Khiển Quản Trị</span>
                     </div>
                     <div class="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap">
                         <button onclick="openUserMgmtModal()" class="flex-1 md:flex-initial px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm transition flex items-center justify-center gap-2">
@@ -811,22 +811,9 @@
             <!-- Card Bảng Điều Khiển & Thống Kê Nhanh (KPI Dashboard) -->
             <div class="bg-white dark:bg-slate-800 rounded-xl p-3 sm:p-4 shadow-sm border border-slate-200 dark:border-slate-700">
                 <div class="flex items-center justify-between gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-700">
-                    <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
-                        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-base sm:text-lg font-bold shadow-sm shrink-0">
-                            <i class="fas fa-calendar-check"></i>
-                        </div>
-                        <div class="min-w-0">
-                            <div class="flex items-center gap-2 flex-wrap">
-                                <h2 class="text-sm sm:text-base font-bold text-slate-800 dark:text-white truncate">Tiến Độ Tổ Chức Sự Kiện</h2>
-                                <!-- Nút Chuông Thông Báo Báo Cáo Hàng Ngày Trình Lãnh Đạo -->
-                                <button onclick="openDailyReportPopup()" id="btnHeaderDailyReportBell" class="relative inline-flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 rounded-full text-xs font-semibold border border-rose-300 dark:border-rose-800 transition shadow-xs cursor-pointer group" title="Báo cáo tiến độ hàng ngày trình Lãnh đạo Trung tâm & UBND Thành phố">
-                                    <i class="fas fa-bell text-rose-600 dark:text-rose-400 text-xs animate-bounce"></i>
-                                    <span class="text-[11px] font-bold hidden sm:inline">Báo Cáo Hàng Ngày</span>
-                                    <span id="bellDailyReportBadge" class="px-1.5 py-0.2 bg-rose-600 text-white rounded-full text-[10px] font-bold">0</span>
-                                </button>
-                            </div>
-                            <p class="text-[11px] text-slate-500 dark:text-slate-400 truncate hidden md:block">Theo dõi tiến độ, phân công nhiệm vụ và cập nhật trạng thái thực hiện các sự kiện.</p>
-                        </div>
+                    <div class="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200">
+                        <i class="fas fa-layer-group text-blue-600"></i>
+                        <span>Bảng Điều Khiển Sự Kiện</span>
                     </div>
 
                     <!-- Thanh nút chức năng cấp cao: TẤT CẢ CÙNG HÀNG (FLEX-NOWRAP SHRINK-0) -->
@@ -1033,21 +1020,6 @@
             <!-- Card Bảng Điều Khiển Kho Biểu Mẫu -->
             <div class="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-5 shadow-sm border border-slate-200 dark:border-slate-700 space-y-4">
                 <!-- Hàng 1: Tiêu đề Kho Biểu Mẫu & Huy hiệu -->
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-700">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center text-lg sm:text-xl font-bold shadow-md shadow-purple-600/30 shrink-0">
-                            <i class="fas fa-file-signature"></i>
-                        </div>
-                        <div>
-                            <div class="flex items-center gap-2 flex-wrap">
-                                <h2 class="text-base sm:text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Kho Biểu Mẫu Chuẩn SCE</h2>
-                                <span class="bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300 text-xs px-2.5 py-0.5 rounded-full font-bold border border-purple-300 dark:border-purple-700 whitespace-nowrap">23 Biểu Mẫu Phân Cấp</span>
-                            </div>
-                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Chuyên viên tra cứu, xem trước và tải về file (.docx, .xlsx, .pdf) để tự do chỉnh sửa và hoàn thiện hồ sơ sự kiện.</p>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Hàng 2: Thanh Thao Tác & Trộn Dữ Liệu Tự Động Cho Chuyên Viên -->
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 flex-wrap">
                     <div class="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 p-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
@@ -1240,15 +1212,9 @@
             <!-- Card Bảng Điều Khiển & KPI CRM Khách Mời -->
             <div class="bg-white dark:bg-slate-800 rounded-xl p-3 sm:p-4 shadow-sm border border-slate-200 dark:border-slate-700">
                 <div class="flex items-center justify-between gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-700">
-                    <div class="flex items-center gap-3 sm:gap-4">
-                        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-tr from-amber-500 to-orange-600 text-white flex items-center justify-center text-base sm:text-lg font-bold shadow-sm shrink-0 shadow-amber-500/20">
-                            <i class="fas fa-users-rectangle"></i>
-                        </div>
-                        <div>
-                            <div class="flex flex-wrap items-center gap-2">
-                                <h2 class="text-base sm:text-xl font-bold text-slate-800 dark:text-white">Khách Mời & Chỗ Ngồi</h2>
-                            </div>
-                        </div>
+                    <div class="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+                        <i class="fas fa-users text-amber-500"></i>
+                        <span>Quản Lý Khách Mời</span>
                     </div>
 
                     <!-- Thanh Chọn Sự Kiện & Nút Thao Tác Cấp Cao -->
@@ -1605,17 +1571,9 @@
             <!-- Card Bảng Điều Khiển & KPI Gian Hàng Hội Chợ -->
             <div class="bg-white dark:bg-slate-800 rounded-xl p-3 sm:p-4 shadow-sm border border-slate-200 dark:border-slate-700">
                 <div class="flex items-center justify-between gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-700">
-                    <div class="flex items-center gap-3 sm:gap-4">
-                        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-tr from-emerald-500 to-teal-600 text-white flex items-center justify-center text-base sm:text-lg font-bold shadow-sm shrink-0 shadow-emerald-500/20">
-                            <i class="fas fa-store"></i>
-                        </div>
-                        <div>
-                            <div class="flex flex-wrap items-center gap-2">
-                                <h2 class="text-base sm:text-xl font-bold text-slate-800 dark:text-white">Quản Lý Doanh Nghiệp & Gian Hàng Hội Chợ, Triển Lãm</h2>
-                                <span class="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-emerald-300 dark:border-emerald-700">Phụ Lục III - Chuẩn Hóa Nghiệp Vụ SCE</span>
-                            </div>
-                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Theo dõi vị trí gian hàng tiêu chuẩn (3m x 3m = 9m²), sản phẩm OCOP trưng bày, mức hỗ trợ ngân sách và phân công cán bộ SCE trực hỗ trợ.</p>
-                        </div>
+                    <div class="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+                        <i class="fas fa-store text-emerald-500"></i>
+                        <span>Mặt Bằng & Doanh Nghiệp</span>
                     </div>
 
                     <!-- Thanh Chọn Sự Kiện & Nút Thao Tác Gian Hàng -->
@@ -1850,19 +1808,9 @@
             <!-- Card Bảng Điều Khiển Tổ Chức Sự Kiện -->
             <div class="bg-white dark:bg-slate-800 rounded-xl p-3 sm:p-4 shadow-sm border border-slate-200 dark:border-slate-700">
                 <div class="flex items-center justify-between gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-700">
-                    <div class="flex items-center gap-3 sm:gap-4">
-                        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-tr from-emerald-500 to-teal-600 text-white flex items-center justify-center text-base sm:text-lg font-bold shadow-sm shrink-0 shadow-emerald-500/20">
-                            <i class="fas fa-mobile-screen-button"></i>
-                        </div>
-                        <div>
-                            <div class="flex flex-wrap items-center gap-2">
-                                <h2 class="text-base sm:text-xl font-bold text-slate-800 dark:text-white">Điều Hành Tổ Chức Sự Kiện & Check-in QR</h2>
-                                <span class="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-emerald-300 dark:border-emerald-700 pulse-badge">
-                                    <i class="fas fa-satellite-dish mr-1 text-[10px]"></i>Trực Tuyến Thời Gian Thực
-                                </span>
-                            </div>
-                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Quản lý tiếp đón đại biểu tại bàn Lễ tân, quét mã QR Check-in, kiểm soát ca trực và xử lý sự cố phát sinh.</p>
-                        </div>
+                    <div class="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+                        <i class="fas fa-bolt text-teal-500"></i>
+                        <span>Điều Hành Hiện Trường</span>
                     </div>
 
                     <!-- Thanh Chọn Sự Kiện & Nút Thao Tác Hiện Trường -->
@@ -2191,19 +2139,9 @@
             <!-- Card Bảng Điều Khiển Báo Cáo & Liên Thông -->
             <div class="bg-white dark:bg-slate-800 rounded-xl p-3 sm:p-4 shadow-sm border border-slate-200 dark:border-slate-700">
                 <div class="flex items-center justify-between gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-700">
-                    <div class="flex items-center gap-3 sm:gap-4">
-                        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-tr from-rose-500 to-red-600 text-white flex items-center justify-center text-base sm:text-lg font-bold shadow-sm shrink-0 shadow-rose-500/20">
-                            <i class="fas fa-chart-line"></i>
-                        </div>
-                        <div>
-                            <div class="flex flex-wrap items-center gap-2">
-                                <h2 class="text-base sm:text-xl font-bold text-slate-800 dark:text-white">Báo Cáo Tự Động, Truyền Thông & Liên Thông Đấu Thầu</h2>
-                                <span class="bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-300 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-rose-300 dark:border-rose-700">
-                                    Nghị định 30/2020/NĐ-CP • Liên thông /quanlydauthau
-                                </span>
-                            </div>
-                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Báo cáo tiến độ sự kiện, báo cáo UBND Thành phố, quản lý thông cáo báo chí và liên thông gói thầu.</p>
-                        </div>
+                    <div class="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+                        <i class="fas fa-chart-line text-rose-500"></i>
+                        <span>Tổng Hợp Báo Cáo</span>
                     </div>
 
                     <!-- Thanh Chọn Sự Kiện & Nút Xuất Báo Cáo Nhanh -->
@@ -6674,6 +6612,125 @@
         }
         function closeAuditLogsModal() { document.getElementById('auditLogsModal').classList.add('hidden'); }
 
+        
+        const FUNCTION_METADATA = {
+            'events': {
+                title: 'Tiến Độ Tổ Chức Sự Kiện',
+                shortTitle: 'Tiến độ',
+                icon: 'fas fa-calendar-check text-sky-300',
+                iconBg: 'bg-blue-600/50 text-white border-blue-400/40',
+                subtitle: 'Theo dõi tiến độ, phân công nhiệm vụ và cập nhật trạng thái thực hiện các sự kiện.',
+                badgeHtml: `<button onclick="openDailyReportPopup()" id="btnHeaderDailyReportBell" class="relative inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-rose-500/80 hover:bg-rose-600 text-white rounded-full text-xs font-semibold border border-rose-300/40 shadow-xs transition cursor-pointer" title="Báo cáo tiến độ hàng ngày trình Lãnh đạo Trung tâm & UBND Thành phố">
+                    <i class="fas fa-bell text-rose-200 text-xs animate-bounce"></i>
+                    <span class="text-[11px] font-bold hidden sm:inline">Báo Cáo Hàng Ngày</span>
+                    <span id="bellDailyReportBadge" class="px-1.5 py-0.2 bg-white text-rose-700 rounded-full text-[10px] font-bold">0</span>
+                </button>`
+            },
+            'templates': {
+                title: 'Kho Biểu Mẫu Chuẩn Hóa',
+                shortTitle: 'Biểu mẫu',
+                icon: 'fas fa-file-signature text-purple-300',
+                iconBg: 'bg-purple-600/50 text-white border-purple-400/40',
+                subtitle: 'Hệ thống 23 biểu mẫu hành chính chuẩn 3 cấp thẩm quyền theo Nghị định 30/2020/NĐ-CP.',
+                badgeHtml: `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 bg-purple-500/40 text-purple-100 rounded-full text-xs font-semibold border border-purple-400/30">
+                    <i class="fas fa-stamp text-[10px] text-purple-300"></i>
+                    <span class="text-[11px] font-bold">23 Biểu Mẫu Chuẩn</span>
+                </span>`
+            },
+            'guests': {
+                title: 'Khách Mời & Sơ Đồ Chỗ Ngồi',
+                shortTitle: 'Khách mời',
+                icon: 'fas fa-users-rectangle text-amber-300',
+                iconBg: 'bg-amber-600/50 text-white border-amber-400/40',
+                subtitle: 'Quản lý danh sách khách mời, xác nhận RSVP, in Biển tên chữ A, Thẻ đại biểu QR và phân khu hội trường.',
+                badgeHtml: `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-500/40 text-amber-100 rounded-full text-xs font-semibold border border-amber-400/30">
+                    <i class="fas fa-id-card text-[10px] text-amber-300"></i>
+                    <span class="text-[11px] font-bold">Hội Trường & VIP</span>
+                </span>`
+            },
+            'booths': {
+                title: 'Quản Lý Gian Hàng Hội Chợ',
+                shortTitle: 'Gian hàng',
+                icon: 'fas fa-store text-emerald-300',
+                iconBg: 'bg-emerald-600/50 text-white border-emerald-400/40',
+                subtitle: 'Sơ đồ phân lô mặt bằng 3m x 3m, hồ sơ doanh nghiệp tham gia, kinh phí hỗ trợ và phân công cán bộ trực SCE.',
+                badgeHtml: `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-500/40 text-emerald-100 rounded-full text-xs font-semibold border border-emerald-400/30">
+                    <i class="fas fa-tags text-[10px] text-emerald-300"></i>
+                    <span class="text-[11px] font-bold">Hội Chợ Triển Lãm</span>
+                </span>`
+            },
+            'live': {
+                title: 'Tác Nghiệp Hiện Trường Ngày Sự Kiện (Giờ G)',
+                shortTitle: 'Hiện trường',
+                icon: 'fas fa-bolt text-teal-300',
+                iconBg: 'bg-teal-600/50 text-white border-teal-400/40',
+                subtitle: 'Điều hành tác nghiệp thời gian thực từ T0 - 2h, kiểm tra kỹ thuật, check-in QR và điều phối hội trường.',
+                badgeHtml: `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 bg-teal-500/40 text-teal-100 rounded-full text-xs font-semibold border border-teal-400/30">
+                    <i class="fas fa-clock text-[10px] text-teal-300"></i>
+                    <span class="text-[11px] font-bold">T0 - 2h Hiện Trường</span>
+                </span>`
+            },
+            'reports': {
+                title: 'Báo Cáo & Tổng Kết Sự Kiện',
+                shortTitle: 'Báo cáo',
+                icon: 'fas fa-chart-line text-rose-300',
+                iconBg: 'bg-rose-600/50 text-white border-rose-400/40',
+                subtitle: 'Xuất báo cáo tự động trình UBND Thành phố, Ban Giám đốc và tổng hợp kết quả truyền thông.',
+                badgeHtml: `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 bg-rose-500/40 text-rose-100 rounded-full text-xs font-semibold border border-rose-400/30">
+                    <i class="fas fa-landmark text-[10px] text-rose-300"></i>
+                    <span class="text-[11px] font-bold">Trình UBND TP</span>
+                </span>`
+            },
+            'users': {
+                title: 'Quản Lý Tài Khoản & Phân Quyền',
+                shortTitle: 'Tài khoản',
+                icon: 'fas fa-users-gear text-cyan-300',
+                iconBg: 'bg-cyan-600/50 text-white border-cyan-400/40',
+                subtitle: 'Quản lý danh sách tài khoản cán bộ 4 phòng ban chuyên môn và ma trận phân quyền RBAC.',
+                badgeHtml: `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 bg-cyan-500/40 text-cyan-100 rounded-full text-xs font-semibold border border-cyan-400/30">
+                    <i class="fas fa-shield-alt text-[10px] text-cyan-300"></i>
+                    <span class="text-[11px] font-bold">4 Phòng Ban</span>
+                </span>`
+            },
+            'admin': {
+                title: 'Cài Đặt & Quản Trị Hệ Thống',
+                shortTitle: 'Cài đặt',
+                icon: 'fas fa-sliders-h text-slate-300',
+                iconBg: 'bg-slate-600/50 text-white border-slate-400/40',
+                subtitle: 'Cấu hình tham số SCE, sao lưu dữ liệu, nhật ký kiểm toán và CSDL Master Khách & Doanh nghiệp.',
+                badgeHtml: `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 bg-blue-500/40 text-blue-100 rounded-full text-xs font-semibold border border-blue-400/30">
+                    <i class="fas fa-user-shield text-[10px] text-blue-300"></i>
+                    <span class="text-[11px] font-bold">Quản Trị Viên</span>
+                </span>`
+            }
+        };
+
+        function updateTopBarFunctionHeader(target) {
+            const meta = FUNCTION_METADATA[target] || FUNCTION_METADATA['events'];
+            
+            const iconEl = document.getElementById('topBarActiveIcon');
+            if (iconEl) {
+                iconEl.innerHTML = `<i class="${meta.icon}"></i>`;
+                iconEl.className = `w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center text-sm sm:text-base font-bold shrink-0 border shadow-xs ${meta.iconBg}`;
+            }
+
+            const titleEl = document.getElementById('topBarActiveTitle');
+            if (titleEl) {
+                titleEl.textContent = meta.title;
+            }
+
+            const badgeEl = document.getElementById('topBarActiveBadges');
+            if (badgeEl) {
+                badgeEl.innerHTML = meta.badgeHtml || '';
+            }
+
+            const subEl = document.getElementById('topBarActiveSubtitle');
+            if (subEl) {
+                subEl.textContent = meta.subtitle || '';
+            }
+        }
+
+
         function switchMainTab(tabId) {
             // Hỗ trợ cả Tab ID mới và Legacy ID
             const tabMapping = {
@@ -6724,21 +6781,8 @@
                 activeBtn.className = `sidebar-nav-btn w-full px-3 py-2.5 rounded-xl flex items-center gap-3 ${activeColor} transition text-xs cursor-pointer text-left`;
             }
 
-            // Cập nhật tiêu đề Top Bar
-            const titleMap = {
-                'events': 'Tiến độ',
-                'templates': 'Biểu mẫu',
-                'guests': 'Khách mời & Chỗ ngồi',
-                'booths': 'Quản lý Gian hàng Hội chợ',
-                'live': 'Tổ chức sự kiện',
-                'reports': 'Báo cáo & Tổng kết',
-                'users': 'Quản lý Tài khoản & Phân quyền',
-                'admin': 'Cài đặt & Quản trị Hệ thống'
-            };
-            const topBarTitle = document.getElementById('topBarActiveTitle');
-            if (topBarTitle && titleMap[activeTarget]) {
-                topBarTitle.innerHTML = `<span>${titleMap[activeTarget]}</span>`;
-            }
+            // Cập nhật toàn bộ thông tin chức năng lên thanh xanh trên cùng
+            updateTopBarFunctionHeader(activeTarget);
 
             // Kích hoạt render dữ liệu tương ứng
             if (activeTarget === 'events' && typeof renderModule2 === 'function') renderModule2();
