@@ -1,0 +1,110 @@
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+    <meta charset='utf-8'>
+    <title>Kế hoạch tổ chức chương trình sự kiện (UBND Thành phố Hà Nội)</title>
+    <!-- Template Metadata:
+         ID: form_kh_ubnd
+         CODE: KH-UBND
+         GROUP: cap_ubnd
+         GROUP_NAME: 1. Cấp UBND Thành phố Hà Nội
+         TITLE: Kế hoạch tổ chức chương trình sự kiện (UBND Thành phố Hà Nội)
+    -->
+    <style>
+        @page WordSection1 {
+            size: 21.0cm 29.7cm;
+            margin: 2.0cm 2.0cm 2.0cm 3.0cm;
+            mso-page-orientation: portrait;
+        }
+        div.WordSection1 {
+            page: WordSection1;
+            font-family: 'Times New Roman', serif;
+            font-size: 14pt;
+            line-height: 1.5;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 12px 0;
+        }
+        td, th {
+            border: 1px solid #000;
+            padding: 6px 8px;
+            font-size: 13pt;
+            vertical-align: top;
+        }
+        p {
+            margin: 6px 0;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="WordSection1">
+        <div style="font-family: 'Times New Roman', serif; line-height: 1.6; font-size: 14pt;">
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+        <tr>
+            <td style="width: 50%; text-align: center; vertical-align: top;">
+                <strong>ỦY BAN NHÂN DÂN</strong><br>
+                <strong>THÀNH PHỐ HÀ NỘI</strong><br>
+                <span style="font-size: 11pt;">Số: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /KH-UBND</span>
+            </td>
+            <td style="width: 50%; text-align: center; vertical-align: top;">
+                <strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><br>
+                <strong>Độc lập - Tự do - Hạnh phúc</strong><br>
+                <span style="font-size: 11pt; font-style: italic;">Hà Nội, {{NGAY_HOM_NAY}}</span>
+            </td>
+        </tr>
+    </table>
+
+    <div style="text-align: center; margin: 25px 0;">
+        <h2 style="font-size: 16pt; font-weight: bold; margin: 0; text-transform: uppercase;">KẾ HOẠCH</h2>
+        <p style="font-size: 14pt; font-weight: bold; margin: 5px 0;">Tổ chức chương trình {{TEN_SU_KIEN}}</p>
+    </div>
+
+    <p style="text-indent: 30px; text-align: justify;">
+        Căn cứ Chương trình công tác trọng tâm của UBND Thành phố Hà Nội; nhằm đẩy mạnh hoạt động xúc tiến đầu tư, thương mại, du lịch và hỗ trợ cộng đồng doanh nghiệp Thủ đô phục hồi, phát triển, Ủy ban nhân dân Thành phố ban hành Kế hoạch tổ chức chương trình <strong>{{TEN_SU_KIEN}}</strong> với các nội dung trọng tâm như sau:
+    </p>
+
+    <p style="font-weight: bold; margin-top: 15px;">I. MỤC ĐÍCH, YÊU CẦU</p>
+    <p style="text-indent: 30px; text-align: justify;">
+        1. Tạo diễn đàn kết nối trực tiếp, hiệu quả giữa Lãnh đạo Thành phố, các cơ quan quản lý nhà nước với cộng đồng doanh nghiệp, nhà đầu tư trong và ngoài nước; quảng bá tiềm năng, môi trường đầu tư kinh doanh của Thủ đô.<br>
+        2. Công tác tổ chức đảm bảo trang trọng, thiết thực, an toàn, tiết kiệm và hiệu quả; phát huy tối đa vai trò của các Sở, ngành và đơn vị trực tiếp triển khai.
+    </p>
+
+    <p style="font-weight: bold; margin-top: 15px;">II. QUY MÔ, THỜI GIAN VÀ ĐỊA ĐIỂM</p>
+    <p style="text-indent: 30px; text-align: justify;">
+        - <strong>Thời gian tổ chức:</strong> Ngày {{NGAY_TO_CHUC}} (Khai mạc lúc {{GIO_KHAI_MAC}}).<br>
+        - <strong>Địa điểm:</strong> {{DIA_DIEM}}.<br>
+        - <strong>Quy mô đại biểu:</strong> Dự kiến khoảng {{SO_KHACH_DU_KIEN}} đại biểu chính thức (trong đó có đại diện Chính phủ, các Bộ ngành, Đại sứ quán và cộng đồng doanh nghiệp).
+    </p>
+
+    <p style="font-weight: bold; margin-top: 15px;">III. PHÂN CÔNG TRÁCH NHIỆM</p>
+    <p style="text-indent: 30px; text-align: justify;">
+        1. <strong>Sở Tài chính:</strong> Chủ trì, chỉ đạo Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp Hà Nội phối hợp với các cơ quan liên quan xây dựng kịch bản chi tiết, lập dự toán kinh phí trình UBND Thành phố phê duyệt; thẩm định và hướng dẫn thanh quyết toán theo đúng quy định pháp luật.<br>
+        2. <strong>Công an Thành phố, Sở Giao thông Vận tải, Sở Y tế:</strong> Phối hợp bảo đảm tuyệt đối công tác an ninh trật tự, phân luồng giao thông, phòng chống cháy nổ và an toàn vệ sinh thực phẩm trong suốt thời gian diễn ra sự kiện.<br>
+        3. <strong>Văn phòng UBND Thành phố:</strong> Phối hợp với Sở Tài chính rà soát nội dung bài phát biểu chỉ đạo của Lãnh đạo Thành phố và đón tiếp các đoàn đại biểu cấp cao.
+    </p>
+
+    <table style="width: 100%; border-collapse: collapse; margin-top: 40px;">
+        <tr>
+            <td style="width: 50%; vertical-align: top; font-size: 11pt;">
+                <strong><em>Nơi nhận:</em></strong><br>
+                - Thường trực Thành ủy (để b/c);<br>
+                - Thường trực HĐND TP (để b/c);<br>
+                - Chủ tịch, các PCT UBND TP;<br>
+                - Các Sở, ban, ngành liên quan;<br>
+                - Lưu: VT, KT.
+            </td>
+            <td style="width: 50%; text-align: center; vertical-align: top;">
+                <strong>TM. ỦY BAN NHÂN DÂN THÀNH PHỐ</strong><br>
+                <strong>KT. CHỦ TỊCH</strong><br>
+                <strong>PHÓ CHỦ TỊCH</strong><br>
+                <div style="height: 70px;"></div>
+                <strong>(Đã ký & đóng dấu)</strong>
+            </td>
+        </tr>
+    </table>
+</div>
+    </div>
+</body>
+</html>

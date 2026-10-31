@@ -1,0 +1,105 @@
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+    <meta charset='utf-8'>
+    <title>Giấy mời Đại biểu cấp cao & Bộ ngành Trung ương (UBND TP Hà Nội)</title>
+    <!-- Template Metadata:
+         ID: form_giaymoi_ubnd
+         CODE: GM-UBND/VIP
+         GROUP: cap_ubnd
+         GROUP_NAME: 1. Cấp UBND Thành phố Hà Nội
+         TITLE: Giấy mời Đại biểu cấp cao & Bộ ngành Trung ương (UBND TP Hà Nội)
+    -->
+    <style>
+        @page WordSection1 {
+            size: 21.0cm 29.7cm;
+            margin: 2.0cm 2.0cm 2.0cm 3.0cm;
+            mso-page-orientation: portrait;
+        }
+        div.WordSection1 {
+            page: WordSection1;
+            font-family: 'Times New Roman', serif;
+            font-size: 14pt;
+            line-height: 1.5;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 12px 0;
+        }
+        td, th {
+            border: 1px solid #000;
+            padding: 6px 8px;
+            font-size: 13pt;
+            vertical-align: top;
+        }
+        p {
+            margin: 6px 0;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="WordSection1">
+        <div style="font-family: 'Times New Roman', serif; line-height: 1.6; font-size: 14pt;">
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+        <tr>
+            <td style="width: 50%; text-align: center; vertical-align: top;">
+                <strong>ỦY BAN NHÂN DÂN</strong><br>
+                <strong>THÀNH PHỐ HÀ NỘI</strong><br>
+                <span style="font-size: 11pt;">Số: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /GM-UBND</span>
+            </td>
+            <td style="width: 50%; text-align: center; vertical-align: top;">
+                <strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><br>
+                <strong>Độc lập - Tự do - Hạnh phúc</strong><br>
+                <span style="font-size: 11pt; font-style: italic;">Hà Nội, {{NGAY_HOM_NAY}}</span>
+            </td>
+        </tr>
+    </table>
+
+    <div style="text-align: center; margin: 30px 0;">
+        <h2 style="font-size: 20pt; font-weight: bold; color: #1e3a8a; margin: 0; text-transform: uppercase;">GIẤY MỜI</h2>
+        <p style="font-size: 14pt; font-weight: bold; margin: 10px 0;">Tham dự chương trình: {{TEN_SU_KIEN}}</p>
+    </div>
+
+    <p style="text-align: center; font-size: 15pt; font-weight: bold; margin-bottom: 20px;">
+        ỦY BAN NHÂN DÂN THÀNH PHỐ HÀ NỘI TRÂN TRỌNG KÍNH MỜI:
+    </p>
+
+    <div style="border: 1px solid #cbd5e1; padding: 20px; background-color: #f8fafc; margin-bottom: 25px; border-radius: 6px;">
+        <p style="margin: 6px 0;"><strong>Đồng chí / Quý Đại biểu:</strong> ....................................................................................................</p>
+        <p style="margin: 6px 0;"><strong>Chức vụ / Đơn vị:</strong> .............................................................................................................</p>
+    </div>
+
+    <p style="text-indent: 30px; text-align: justify;">
+        <strong>Tới tham dự và chỉ đạo chương trình:</strong> {{TEN_SU_KIEN}} do Ủy ban nhân dân Thành phố Hà Nội tổ chức nhằm thúc đẩy hợp tác đầu tư và kết nối giao thương.
+    </p>
+
+    <p style="text-indent: 30px; text-align: justify;">
+        - <strong>Thời gian:</strong> Đúng <strong>{{GIO_KHAI_MAC}}</strong>, ngày <strong>{{NGAY_TO_CHUC}}</strong>.<br>
+        - <strong>Địa điểm:</strong> {{DIA_DIEM}}.<br>
+        - <strong>Trang phục:</strong> Trang trọng (Nam: Comple, caravat; Nữ: Áo dài truyền thống hoặc công sở lịch sự).
+    </p>
+
+    <p style="text-indent: 30px; font-style: italic; margin-top: 15px;">
+        Sự hiện diện của Đồng chí và Quý đại biểu là niềm vinh hạnh to lớn cho Ban Tổ chức chương trình./.
+    </p>
+
+    <table style="width: 100%; border-collapse: collapse; margin-top: 40px;">
+        <tr>
+            <td style="width: 50%; vertical-align: top; font-size: 11pt;">
+                <em>* Xin vui lòng mang theo Giấy mời khi tham dự.<br>
+                * Thẻ xe VIP được gửi đính kèm Giấy mời này.<br>
+                * Đón tiếp tại Phòng Khánh tiết VIP trước giờ khai mạc 30 phút.</em>
+            </td>
+            <td style="width: 50%; text-align: center; vertical-align: top;">
+                <strong>TM. ỦY BAN NHÂN DÂN THÀNH PHỐ</strong><br>
+                <strong>CHỦ TỊCH</strong><br>
+                <div style="height: 70px;"></div>
+                <strong>(Đã ký & đóng dấu)</strong>
+            </td>
+        </tr>
+    </table>
+</div>
+    </div>
+</body>
+</html>

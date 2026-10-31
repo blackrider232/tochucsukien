@@ -63,8 +63,8 @@ for item in manifest:
             "id": t_id,
             "code": item.get("code", "BM-SCE"),
             "title": item.get("title", filename.replace(".doc", "")),
-            "group": item.get("group", "grp1"),
-            "groupName": item.get("groupName", "Nhóm 1: Khách mời & Lễ tân"),
+            "group": item.get("group", "cap_trungtam"),
+            "groupName": item.get("groupName", "3. Cấp Trung tâm (SCE)"),
             "type": item.get("type", "doc"),
             "description": item.get("description", ""),
             "content": inner_content

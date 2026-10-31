@@ -1,0 +1,89 @@
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+    <meta charset='utf-8'>
+    <title>Quyết định phê duyệt Dự toán chi tiết kinh phí sự kiện (Sở Tài chính)</title>
+    <!-- Template Metadata:
+         ID: form_qd_stc_dutoan
+         CODE: QD-STC/DT
+         GROUP: cap_stc
+         GROUP_NAME: 2. Cấp Sở Tài chính
+         TITLE: Quyết định phê duyệt Dự toán chi tiết kinh phí sự kiện (Sở Tài chính)
+    -->
+    <style>
+        @page WordSection1 {
+            size: 21.0cm 29.7cm;
+            margin: 2.0cm 2.0cm 2.0cm 3.0cm;
+            mso-page-orientation: portrait;
+        }
+        div.WordSection1 {
+            page: WordSection1;
+            font-family: 'Times New Roman', serif;
+            font-size: 14pt;
+            line-height: 1.5;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 12px 0;
+        }
+        td, th {
+            border: 1px solid #000;
+            padding: 6px 8px;
+            font-size: 13pt;
+            vertical-align: top;
+        }
+        p {
+            margin: 6px 0;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="WordSection1">
+        <div style="font-family: 'Times New Roman', serif; line-height: 1.6; font-size: 14pt;">
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+        <tr>
+            <td style="width: 50%; text-align: center; vertical-align: top;">
+                <strong>ỦY BAN NHÂN DÂN THÀNH PHỐ HÀ NỘI</strong><br>
+                <strong>SỞ TÀI CHÍNH</strong><br>
+                <span style="font-size: 11pt;">Số: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /QĐ-STC-HCSN</span>
+            </td>
+            <td style="width: 50%; text-align: center; vertical-align: top;">
+                <strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><br>
+                <strong>Độc lập - Tự do - Hạnh phúc</strong><br>
+                <span style="font-size: 11pt; font-style: italic;">Hà Nội, {{NGAY_HOM_NAY}}</span>
+            </td>
+        </tr>
+    </table>
+
+    <div style="text-align: center; margin: 25px 0;">
+        <h2 style="font-size: 16pt; font-weight: bold; margin: 0; text-transform: uppercase;">QUYẾT ĐỊNH</h2>
+        <p style="font-size: 14pt; font-weight: bold; margin: 5px 0;">Về việc phê duyệt dự toán chi tiết kinh phí tổ chức chương trình<br>{{TEN_SU_KIEN}}</p>
+    </div>
+
+    <p style="text-indent: 30px; text-align: justify;">
+        Căn cứ Luật Đấu thầu và Luật Ngân sách Nhà nước; xét đề nghị thẩm định dự toán của Phòng Hành chính sự nghiệp - Sở Tài chính,
+    </p>
+
+    <p style="text-align: center; font-weight: bold; margin: 15px 0;">QUYẾT ĐỊNH:</p>
+
+    <p style="text-indent: 30px; text-align: justify;">
+        <strong>Điều 1.</strong> Phê duyệt dự toán chi tiết kinh phí tổ chức chương trình <strong>{{TEN_SU_KIEN}}</strong> với tổng số tiền: <strong>{{KINH_PHI_DU_TOAN}} VNĐ</strong>.<br>
+        <strong>Điều 2.</strong> Nguồn kinh phí: Kinh phí sự nghiệp xúc tiến năm 2026 được UBND Thành phố giao.<br>
+        <strong>Điều 3.</strong> Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp Hà Nội có trách nhiệm quản lý, sử dụng và quyết toán kinh phí theo đúng chế độ quản lý tài chính hiện hành./.
+    </p>
+
+    <table style="width: 100%; border-collapse: collapse; margin-top: 40px;">
+        <tr>
+            <td style="width: 50%;"></td>
+            <td style="width: 50%; text-align: center;">
+                <strong>GIÁM ĐỐC SỞ TÀI CHÍNH</strong><br>
+                <div style="height: 70px;"></div>
+                <strong>(Ký tên & đóng dấu)</strong>
+            </td>
+        </tr>
+    </table>
+</div>
+    </div>
+</body>
+</html>

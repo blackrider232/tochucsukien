@@ -1,0 +1,62 @@
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+    <meta charset='utf-8'>
+    <title>Bài viết tuyên truyền & Thư mời đăng Cổng thông tin HPA</title>
+    <!-- Template Metadata:
+         ID: form_thumoi_hpa
+         CODE: BV-SCE/CONG-HPA
+         GROUP: cap_trungtam
+         GROUP_NAME: 3. Cấp Trung tâm (SCE)
+         TITLE: Bài viết tuyên truyền & Thư mời đăng Cổng thông tin HPA
+    -->
+    <style>
+        @page WordSection1 {
+            size: 21.0cm 29.7cm;
+            margin: 2.0cm 2.0cm 2.0cm 3.0cm;
+            mso-page-orientation: portrait;
+        }
+        div.WordSection1 {
+            page: WordSection1;
+            font-family: 'Times New Roman', serif;
+            font-size: 14pt;
+            line-height: 1.5;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 12px 0;
+        }
+        td, th {
+            border: 1px solid #000;
+            padding: 6px 8px;
+            font-size: 13pt;
+            vertical-align: top;
+        }
+        p {
+            margin: 6px 0;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="WordSection1">
+        <div style="font-family: 'Times New Roman', serif; line-height: 1.6; font-size: 13pt;">
+    <div style="border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-bottom: 15px;">
+        <span style="font-size: 10pt; font-weight: bold; color: #2563eb; text-transform: uppercase;">TIN TỨC XÚC TIẾN ĐẦU TƯ THỦ ĐÔ</span>
+        <h2 style="font-size: 16pt; font-weight: bold; margin: 5px 0; color: #1e3a8a;">Mời tham dự: {{TEN_SU_KIEN}}</h2>
+        <p style="font-size: 11pt; color: #64748b; margin: 0;">Đăng tải ngày {{NGAY_HOM_NAY}} • Chuyên mục: Sự kiện nổi bật</p>
+    </div>
+
+    <p style="text-indent: 25px; text-align: justify;">
+        Nhằm thúc đẩy dòng vốn đầu tư chất lượng cao vào Hà Nội, Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp Hà Nội (SCE) trân trọng thông báo và kính mời cộng đồng doanh nghiệp, nhà đầu tư tham dự sự kiện <strong>{{TEN_SU_KIEN}}</strong>.
+    </p>
+
+    <div style="background-color: #eff6ff; padding: 15px; border-radius: 8px; margin: 15px 0;">
+        <p style="margin: 3px 0;">📍 <strong>Địa điểm:</strong> {{DIA_DIEM}}</p>
+        <p style="margin: 3px 0;">⏰ <strong>Thời gian:</strong> {{GIO_KHAI_MAC}}, ngày {{NGAY_TO_CHUC}}</p>
+        <p style="margin: 3px 0;">🔗 <strong>Đăng ký tham dự trực tuyến:</strong> Hạn chót đăng ký trước ngày mốc T - 3 ngày làm việc.</p>
+    </div>
+</div>
+    </div>
+</body>
+</html>

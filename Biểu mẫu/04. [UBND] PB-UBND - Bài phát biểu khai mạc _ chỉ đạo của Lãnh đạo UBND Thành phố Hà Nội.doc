@@ -1,0 +1,70 @@
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+    <meta charset='utf-8'>
+    <title>Bài phát biểu khai mạc / chỉ đạo của Lãnh đạo UBND Thành phố Hà Nội</title>
+    <!-- Template Metadata:
+         ID: form_phatbieu_ubnd
+         CODE: PB-UBND
+         GROUP: cap_ubnd
+         GROUP_NAME: 1. Cấp UBND Thành phố Hà Nội
+         TITLE: Bài phát biểu khai mạc / chỉ đạo của Lãnh đạo UBND Thành phố Hà Nội
+    -->
+    <style>
+        @page WordSection1 {
+            size: 21.0cm 29.7cm;
+            margin: 2.0cm 2.0cm 2.0cm 3.0cm;
+            mso-page-orientation: portrait;
+        }
+        div.WordSection1 {
+            page: WordSection1;
+            font-family: 'Times New Roman', serif;
+            font-size: 14pt;
+            line-height: 1.5;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 12px 0;
+        }
+        td, th {
+            border: 1px solid #000;
+            padding: 6px 8px;
+            font-size: 13pt;
+            vertical-align: top;
+        }
+        p {
+            margin: 6px 0;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="WordSection1">
+        <div style="font-family: 'Times New Roman', serif; line-height: 1.6; font-size: 14pt;">
+    <div style="text-align: center; margin-bottom: 25px;">
+        <h3 style="font-size: 15pt; font-weight: bold; text-transform: uppercase; margin: 0;">BÀI PHÁT BIỂU CHỈ ĐẠO CỦA LÃNH ĐẠO UBND THÀNH PHỐ HÀ NỘI</h3>
+        <p style="font-size: 14pt; font-weight: bold; margin: 5px 0;">Tại Lễ Khai mạc chương trình: {{TEN_SU_KIEN}}</p>
+        <p style="font-style: italic; font-size: 12pt;">(Ngày {{NGAY_TO_CHUC}} tại {{DIA_DIEM}})</p>
+    </div>
+
+    <p style="text-align: justify;">
+        <em>Kính thưa các đồng chí Lãnh đạo các Bộ, ban, ngành Trung ương!</em><br>
+        <em>Thưa các vị Đại sứ, đại diện các tổ chức quốc tế và đối tác ngoại giao!</em><br>
+        <em>Thưa toàn thể quý vị đại biểu, cộng đồng doanh nhân và nhà đầu tư!</em>
+    </p>
+
+    <p style="text-indent: 30px; text-align: justify;">
+        Hôm nay, trong không khí trang trọng và phấn khởi, Ủy ban nhân dân Thành phố Hà Nội long trọng tổ chức chương trình <strong>{{TEN_SU_KIEN}}</strong>. Thay mặt Lãnh đạo Thành phố Hà Nội, tôi nhiệt liệt chào mừng và gửi tới toàn thể quý vị đại biểu lời chúc sức khỏe, hạnh phúc và thành công!
+    </p>
+
+    <p style="text-indent: 30px; text-align: justify;">
+        Thành phố Hà Nội luôn xác định cộng đồng doanh nghiệp, nhà đầu tư là động lực then chốt, nguồn lực to lớn cho sự phát triển bền vững của Thủ đô. Chính quyền Thành phố cam kết tiếp tục đẩy mạnh cải cách hành chính, tạo lập môi trường đầu tư kinh doanh thông thoáng, minh bạch, an toàn và bình đẳng cho mọi thành phần kinh tế...
+    </p>
+
+    <p style="text-indent: 30px; text-align: justify;">
+        Với tinh thần đó, tôi xin tuyên bố Khai mạc chương trình <strong>{{TEN_SU_KIEN}}</strong>. Chúc sự kiện thành công rực rỡ! Xin trân trọng cảm ơn!
+    </p>
+</div>
+    </div>
+</body>
+</html>

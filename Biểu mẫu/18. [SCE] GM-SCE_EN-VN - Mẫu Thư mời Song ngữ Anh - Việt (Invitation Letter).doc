@@ -1,0 +1,104 @@
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+    <meta charset='utf-8'>
+    <title>Mẫu Thư mời Song ngữ Anh - Việt (Invitation Letter)</title>
+    <!-- Template Metadata:
+         ID: form_giaymoi_en
+         CODE: GM-SCE/EN-VN
+         GROUP: cap_trungtam
+         GROUP_NAME: 3. Cấp Trung tâm (SCE)
+         TITLE: Mẫu Thư mời Song ngữ Anh - Việt (Invitation Letter)
+    -->
+    <style>
+        @page WordSection1 {
+            size: 21.0cm 29.7cm;
+            margin: 2.0cm 2.0cm 2.0cm 3.0cm;
+            mso-page-orientation: portrait;
+        }
+        div.WordSection1 {
+            page: WordSection1;
+            font-family: 'Times New Roman', serif;
+            font-size: 14pt;
+            line-height: 1.5;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 12px 0;
+        }
+        td, th {
+            border: 1px solid #000;
+            padding: 6px 8px;
+            font-size: 13pt;
+            vertical-align: top;
+        }
+        p {
+            margin: 6px 0;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="WordSection1">
+        <div style="font-family: 'Times New Roman', serif; line-height: 1.5; font-size: 13pt; padding: 20px;">
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+        <tr>
+            <td style="width: 50%; text-align: left; vertical-align: top;">
+                <strong>HANOI PROMOTION AND ENTERPRISE SUPPORT CENTER (SCE)</strong><br>
+                <span style="font-size: 11pt; color: #64748b;">Hanoi Department of Finance</span>
+            </td>
+            <td style="width: 50%; text-align: right; vertical-align: top;">
+                <strong>SOCIALIST REPUBLIC OF VIETNAM</strong><br>
+                <span style="font-size: 11pt; font-style: italic;">Independence - Freedom - Happiness</span>
+            </td>
+        </tr>
+    </table>
+
+    <div style="text-align: center; margin: 25px 0;">
+        <h2 style="font-size: 17pt; font-weight: bold; margin: 0; text-transform: uppercase; color: #1e3a8a;">INVITATION LETTER / THƯ MỜI</h2>
+        <p style="font-size: 14pt; font-weight: bold; color: #991b1b; margin: 5px 0;">{{TEN_SU_KIEN}}</p>
+    </div>
+
+    <p style="font-weight: bold; font-size: 13pt;">
+        To: His / Her Excellency Ambassador / Chief Representative / General Director<br>
+        <em>Kính gửi: Ngài Đại sứ / Trưởng đại diện / Tổng Giám đốc</em>
+    </p>
+
+    <p style="text-align: justify; text-indent: 25px;">
+        Hanoi Promotion and Enterprise Support Center (SCE) under the Hanoi Department of Finance has the greatest honor to cordially invite you to participate in:
+    </p>
+    <p style="text-align: center; font-weight: bold; font-size: 14pt; color: #1e40af; margin: 10px 0;">
+        "{{TEN_SU_KIEN}}"
+    </p>
+    <p style="text-align: justify; text-indent: 25px; font-style: italic;">
+        Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp Hà Nội (SCE) trực thuộc Sở Tài chính Hà Nội trân trọng kính mời Quý cơ quan tham dự chương trình: "{{TEN_SU_KIEN}}".
+    </p>
+
+    <div style="background-color: #f1f5f9; padding: 12px 18px; border-radius: 6px; margin: 15px 0; font-size: 12pt;">
+        <p style="margin: 4px 0;">🕒 <strong>Time / Thời gian:</strong> {{GIO_KHAI_MAC}}, {{NGAY_TO_CHUC}}</p>
+        <p style="margin: 4px 0;">📍 <strong>Venue / Địa điểm:</strong> {{DIA_DIEM}}</p>
+        <p style="margin: 4px 0;">🌐 <strong>Language / Ngôn ngữ:</strong> Vietnamese - English (Simultaneous interpretation / Cabin)</p>
+    </div>
+
+    <p style="text-align: justify; text-indent: 25px;">
+        Your presence is of paramount importance to the fruitful success of our event and the continuous cooperation between Hanoi and international partners.
+    </p>
+
+    <table style="width: 100%; border-collapse: collapse; margin-top: 30px;">
+        <tr>
+            <td style="width: 50%; font-size: 11pt; font-style: italic;">
+                RSVP Contact: Ms. {{CAN_BO_PHU_TRACH}}<br>
+                Email: sce.hanoi@gov.vn / Phone: +84 24 3825...
+            </td>
+            <td style="width: 50%; text-align: center;">
+                <strong>ON BEHALF OF ORGANIZING COMMITTEE</strong><br>
+                <strong>DIRECTOR</strong><br>
+                <div style="height: 60px;"></div>
+                <strong>SCE LEADERSHIP</strong>
+            </td>
+        </tr>
+    </table>
+</div>
+    </div>
+</body>
+</html>

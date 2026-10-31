@@ -1,0 +1,80 @@
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+    <meta charset='utf-8'>
+    <title>Báo cáo tiến độ hàng ngày (Mốc T - 10) trình Lãnh đạo TT & UBND TP</title>
+    <!-- Template Metadata:
+         ID: form_baocao_tiendo_hangngay
+         CODE: BC-SCE/TIENDO-T10
+         GROUP: cap_trungtam
+         GROUP_NAME: 3. Cấp Trung tâm (SCE)
+         TITLE: Báo cáo tiến độ hàng ngày (Mốc T - 10) trình Lãnh đạo TT & UBND TP
+    -->
+    <style>
+        @page WordSection1 {
+            size: 21.0cm 29.7cm;
+            margin: 2.0cm 2.0cm 2.0cm 3.0cm;
+            mso-page-orientation: portrait;
+        }
+        div.WordSection1 {
+            page: WordSection1;
+            font-family: 'Times New Roman', serif;
+            font-size: 14pt;
+            line-height: 1.5;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 12px 0;
+        }
+        td, th {
+            border: 1px solid #000;
+            padding: 6px 8px;
+            font-size: 13pt;
+            vertical-align: top;
+        }
+        p {
+            margin: 6px 0;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="WordSection1">
+        <div style="font-family: 'Times New Roman', serif; line-height: 1.6; font-size: 13pt;">
+    <div style="text-align: center; margin-bottom: 20px;">
+        <p style="font-size: 11pt; font-weight: bold; margin: 0;">SỞ TÀI CHÍNH HÀ NỘI - TRUNG TÂM XÚC TIẾN SCE</p>
+        <h2 style="font-size: 16pt; font-weight: bold; margin: 5px 0; text-transform: uppercase; color: #991b1b;">BÁO CÁO TIẾN ĐỘ THỰC HIỆN HÀNG NGÀY</h2>
+        <h3 style="font-size: 13pt; font-weight: bold; margin: 0; color: #1e3a8a;">{{TEN_SU_KIEN}}</h3>
+        <p style="font-size: 11pt; font-style: italic; margin-top: 4px;">Thời điểm báo cáo: 16h30 ngày {{NGAY_HOM_NAY}}</p>
+    </div>
+
+    <p style="text-indent: 25px;">Kính gửi: Ban Giám đốc Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp Hà Nội</p>
+
+    <p><strong>I. Tình hình triển khai công việc trong ngày:</strong></p>
+    <ul style="line-height: 1.8;">
+        <li><strong>Nhóm 1 (Khách mời & Lễ tân):</strong> Đã phát hành {{DINH_MUC_MOI_130}} giấy mời (đạt 100% kế hoạch). Đã nhận phản hồi xác nhận của 85 đại biểu.</li>
+        <li><strong>Nhóm 2 (Biển tên & Thẻ):</strong> Đã duyệt ma-két biển tên chữ A và in thử nghiệm đạt yêu cầu.</li>
+        <li><strong>Nhóm 3 (Nội dung & Kịch bản):</strong> Văn phòng UBND TP đã cho ý kiến thẩm định dự thảo bài phát biểu.</li>
+        <li><strong>Nhóm 4 (Địa điểm & Kỹ thuật):</strong> Hoàn tất lắp đặt khung backdrop và nghiệm thu âm thanh ánh sáng.</li>
+        <li><strong>Nhóm 5 (Truyền thông):</strong> Đăng tải thông cáo báo chí lên Cổng HPA.</li>
+    </ul>
+
+    <p><strong>II. Các khó khăn, vướng mắc cần xin ý kiến chỉ đạo gấp:</strong></p>
+    <p style="text-indent: 25px; font-style: italic; color: #b91c1c;">
+        (Ghi nhận các nội dung phát sinh cần Lãnh đạo quyết định ngay trong ngày để không làm gián đoạn tiến độ)
+    </p>
+
+    <table style="width: 100%; border-collapse: collapse; margin-top: 35px;">
+        <tr>
+            <td style="width: 50%;"></td>
+            <td style="width: 50%; text-align: center;">
+                <strong>CÁN BỘ TỔNG HỢP BÁO CÁO</strong><br>
+                <div style="height: 60px;"></div>
+                <strong>{{CAN_BO_PHU_TRACH}}</strong>
+            </td>
+        </tr>
+    </table>
+</div>
+    </div>
+</body>
+</html>

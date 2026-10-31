@@ -8,6 +8,7 @@ Thumbs.db
 # Internal documents & specifications
 *.docx
 *.doc
+!Biểu mẫu/*.doc
 *.xlsx
 *.xls
 *.pdf

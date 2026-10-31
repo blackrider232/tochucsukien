@@ -1,0 +1,98 @@
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+    <meta charset='utf-8'>
+    <title>Phiếu thống nhất Gian hàng, Sản phẩm & Kinh phí hỗ trợ (Hội chợ)</title>
+    <!-- Template Metadata:
+         ID: form_thoa_thuan_gianhang
+         CODE: TT-SCE/GIANHANG
+         GROUP: cap_trungtam
+         GROUP_NAME: 3. Cấp Trung tâm (SCE)
+         TITLE: Phiếu thống nhất Gian hàng, Sản phẩm & Kinh phí hỗ trợ (Hội chợ)
+    -->
+    <style>
+        @page WordSection1 {
+            size: 21.0cm 29.7cm;
+            margin: 2.0cm 2.0cm 2.0cm 3.0cm;
+            mso-page-orientation: portrait;
+        }
+        div.WordSection1 {
+            page: WordSection1;
+            font-family: 'Times New Roman', serif;
+            font-size: 14pt;
+            line-height: 1.5;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 12px 0;
+        }
+        td, th {
+            border: 1px solid #000;
+            padding: 6px 8px;
+            font-size: 13pt;
+            vertical-align: top;
+        }
+        p {
+            margin: 6px 0;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="WordSection1">
+        <div style="font-family: 'Times New Roman', serif; line-height: 1.6; font-size: 13pt;">
+    <div style="text-align: center; margin-bottom: 20px;">
+        <h3 style="font-size: 15pt; font-weight: bold; text-transform: uppercase; margin: 0;">PHIẾU THỐNG NHẤT THAM GIA GIAN HÀNG HỘI CHỢ, TRIỂN LÃM</h3>
+        <p style="margin: 5px 0; font-weight: bold; color: #1e3a8a;">Chương trình: {{TEN_SU_KIEN}}</p>
+    </div>
+
+    <p><strong>1. Thông tin Đơn vị / Doanh nghiệp tham gia:</strong></p>
+    <ul style="line-height: 1.8;">
+        <li>Tên Doanh nghiệp / HTX: ....................................................................................................</li>
+        <li>Người đại diện pháp luật: ........................................... Chức vụ: ......................................</li>
+        <li>Số điện thoại hotline: ................................................... Email: ..........................................</li>
+    </ul>
+
+    <p><strong>2. Thống nhất nội dung bố trí gian hàng:</strong></p>
+    <table style="width: 100%; border-collapse: collapse; font-size: 12pt; margin: 10px 0;" border="1">
+        <thead>
+            <tr style="background-color: #f8fafc; text-align: center;">
+                <th style="padding: 6px;">Vị trí gian hàng</th>
+                <th style="padding: 6px;">Kích thước / Diện tích</th>
+                <th style="padding: 6px;">Sản phẩm trưng bày chính</th>
+                <th style="padding: 6px;">Mức hỗ trợ kinh phí của TP</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="padding: 8px; text-align: center; font-weight: bold;">Gian số: B12 - B13</td>
+                <td style="padding: 8px; text-align: center;">02 gian tiêu chuẩn (18m²)</td>
+                <td style="padding: 8px;">Sản phẩm OCOP 4 sao, nông sản chế biến sâu</td>
+                <td style="padding: 8px; text-align: center; font-weight: bold; color: #15803d;">Hỗ trợ 50% chi phí gian hàng</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <p><strong>3. Cam kết của Doanh nghiệp:</strong></p>
+    <p style="text-align: justify; text-indent: 20px;">
+        Doanh nghiệp cam kết sản phẩm trưng bày có đầy đủ chứng nhận nguồn gốc xuất xứ, an toàn vệ sinh thực phẩm; cử cán bộ trực gian hàng trong toàn bộ khung giờ mở cửa; tuân thủ nghiêm ngặt quy định phòng cháy chữa cháy và bảo vệ môi trường của Ban Tổ chức.
+    </p>
+
+    <table style="width: 100%; border-collapse: collapse; margin-top: 30px;">
+        <tr>
+            <td style="width: 50%; text-align: center;">
+                <strong>ĐẠI DIỆN DOANH NGHIỆP</strong><br>
+                <div style="height: 60px;"></div>
+                <em>(Ký tên, đóng dấu)</em>
+            </td>
+            <td style="width: 50%; text-align: center;">
+                <strong>ĐẠI DIỆN BAN TỔ CHỨC SCE</strong><br>
+                <div style="height: 60px;"></div>
+                <strong>{{CAN_BO_PHU_TRACH}}</strong>
+            </td>
+        </tr>
+    </table>
+</div>
+    </div>
+</body>
+</html>
