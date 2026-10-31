@@ -193,7 +193,19 @@
                 <div class="flex flex-col items-center sm:items-end gap-2 w-full md:w-auto">
                     <!-- HÀNG 1: CÁC ICON CHỨC NĂNG (TOOLTIP HOVER) -->
                     <div class="flex items-center gap-1 sm:gap-1.5 bg-white/10 dark:bg-slate-800/80 p-1 rounded-xl backdrop-blur-md border border-white/15 dark:border-slate-700/60 shadow-inner max-w-full overflow-x-auto hide-scrollbar">
-                        <!-- 1. Báo cáo Word / In -->
+                        <!-- 1. Hoàn tác (Undo) -->
+                        <button onclick="window.undoAction()" id="btnUndo" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-white/90 hover:text-white hover:bg-white/20 transition group relative disabled:opacity-40 disabled:cursor-not-allowed shrink-0" title="Hoàn tác (Ctrl+Z)" disabled>
+                            <i class="fas fa-undo text-xs"></i>
+                        </button>
+
+                        <!-- 2. Làm lại (Redo) -->
+                        <button onclick="window.redoAction()" id="btnRedo" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-white/90 hover:text-white hover:bg-white/20 transition group relative disabled:opacity-40 disabled:cursor-not-allowed shrink-0" title="Làm lại (Ctrl+Y)" disabled>
+                            <i class="fas fa-redo text-xs"></i>
+                        </button>
+
+                        <div class="w-px h-3.5 sm:h-4 bg-white/20 dark:bg-slate-700 mx-0.5 shrink-0"></div>
+
+                        <!-- 3. Báo cáo Word / In -->
                         <button onclick="printAllEventsPlan()" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-indigo-200 hover:text-white hover:bg-indigo-600/60 transition group relative shrink-0" title="Báo cáo tiến độ (Word / In)">
                             <i class="fas fa-print text-xs sm:text-sm"></i>
                         </button>
@@ -217,7 +229,7 @@
                         </button>
                     </div>
 
-                    <!-- HÀNG 2: TẠO SỰ KIỆN, TÊN CHUYÊN VIÊN, ĐĂNG XUẤT -->
+                    <!-- HÀNG 2: TẠO SỰ KIỆN, TÊN CHUYÊN VIÊN, ĐĂNG XUẤT (CHUẨN /QUANLYDAUTHAU) -->
                     <div class="flex items-center justify-center sm:justify-end gap-1.5 sm:gap-2 flex-wrap w-full">
                         <!-- Nút Tạo Sự kiện -->
                         <button onclick="openCreateEventModal()" id="btnHeaderCreateEvent" class="items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold shadow-md hover:shadow-lg transition flex">
@@ -225,44 +237,21 @@
                             <span><span class="sm:hidden">+ Tạo SK</span><span class="hidden sm:inline">+ Tạo Sự Kiện Mới</span></span>
                         </button>
 
-                        <!-- User Profile Dropdown -->
-                        <div id="userProfileDropdown" class="relative">
-                            <button onclick="toggleUserDropdown()" class="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 border border-white/15 transition text-xs">
-                                <div class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-[10px] ring-1 ring-blue-400/50" id="userAvatarText">SC</div>
-                                <div class="hidden sm:block text-left text-xs leading-tight">
-                                    <div class="font-semibold text-white truncate max-w-[120px]" id="headerUserName">Chuyên viên</div>
-                                    <div class="text-[10px] text-blue-200 truncate max-w-[120px]" id="headerUserRole">Đang tải...</div>
-                                </div>
-                                <i class="fas fa-chevron-down text-[10px] text-blue-200"></i>
-                            </button>
+                        <!-- Tên chuyên viên & Vai trò (User Badge chuẩn /quanlydauthau) -->
+                        <button onclick="window.openProfileModal()" id="userBadge" class="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 bg-white/10 hover:bg-white/20 border border-white/15 rounded-lg text-xs font-medium text-white transition backdrop-blur-md cursor-pointer" title="Thông tin cá nhân & Đổi mật khẩu">
+                            <i class="fas fa-user-circle"></i>
+                            <span class="truncate max-w-[90px] sm:max-w-none font-semibold">Chuyên viên</span>
+                            <span class="hidden sm:inline text-[10px] bg-blue-700 px-1.5 py-0.5 rounded ml-1 font-bold uppercase">CHUYÊN VIÊN</span>
+                            <span class="hidden md:inline text-[10px] bg-indigo-900/70 text-indigo-100 border border-indigo-400/30 px-1.5 py-0.5 rounded ml-1">P. Xúc tiến đầu tư</span>
+                        </button>
 
-                            <!-- Dropdown Menu -->
-                            <div id="userMenuContent" class="hidden absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-2xl py-2 z-50 border border-slate-200 dark:border-slate-700 text-xs">
-                                <div class="px-3 py-2 border-b border-slate-100 dark:border-slate-700">
-                                    <p class="text-slate-500 dark:text-slate-400 text-[10px]">Đang đăng nhập với email:</p>
-                                    <p class="font-bold text-slate-800 dark:text-slate-200 truncate" id="menuUserEmail">...</p>
-                                    <span id="menuUserDeptBadge" class="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-200">Phòng Xúc tiến đầu tư</span>
-                                </div>
-                                <button onclick="openProfileModal(); toggleUserDropdown()" class="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-200">
-                                    <i class="fas fa-user-shield text-blue-500 w-4"></i> Hồ sơ & Bảo mật 2FA
-                                </button>
-                                <button onclick="openUserMgmtModal(); toggleUserDropdown()" id="menuUserMgmtBtn" class="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-200">
-                                    <i class="fas fa-users-cog text-emerald-500 w-4"></i> Quản lý Người dùng 4 Phòng
-                                </button>
-                                <button onclick="openAuditLogsModal(); toggleUserDropdown()" class="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-200">
-                                    <i class="fas fa-history text-indigo-500 w-4"></i> Nhật ký Kiểm toán (Audit)
-                                </button>
-                                <button onclick="openBackupsModal(); toggleUserDropdown()" class="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-200">
-                                    <i class="fas fa-database text-amber-500 w-4"></i> Sao lưu & Phục hồi Snapshot
-                                </button>
-                                <div class="border-t border-slate-100 dark:border-slate-700 my-1"></div>
-                                <button onclick="handleSignOut()" class="w-full text-left px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 flex items-center gap-2">
-                                    <i class="fas fa-sign-out-alt w-4"></i> Đăng xuất an toàn
-                                </button>
-                            </div>
-                        </div>
+                        <!-- Nút Đăng xuất màu đỏ chuẩn /quanlydauthau -->
+                        <button onclick="window.handleSignOut()" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center bg-red-600 hover:bg-red-700 text-white transition shadow-sm shrink-0" title="Đăng xuất khỏi hệ thống">
+                            <i class="fas fa-sign-out-alt text-xs"></i>
+                        </button>
                     </div>
                 </div>
+            </div>
             </div>
 
             <!-- Thanh Điều hướng Nghiệp vụ (Tabs Navigation) -->
@@ -288,7 +277,11 @@
                         <i class="fas fa-chart-line text-sm text-rose-300"></i>
                         <span>Báo Cáo & Tổng Kết</span>
                     </button>
-                    <button onclick="switchMainTab('tab-admin')" id="tabBtn-admin" class="hidden px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-1.5">
+                    <button onclick="switchMainTab('tab-users')" id="tabBtn-users" class="px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-1.5">
+                        <i class="fas fa-users-gear text-sm text-cyan-300"></i>
+                        <span>Tài khoản</span>
+                    </button>
+                    <button onclick="switchMainTab('tab-admin')" id="tabBtn-admin" class="px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-1.5">
                         <i class="fas fa-sliders text-sm text-slate-400"></i>
                         <span>Cài Đặt & Quản Trị</span>
                     </button>
@@ -302,6 +295,106 @@
         <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 lg:p-8 space-y-6">
 
             <!-- TAB QUẢN TRỊ & CÀI ĐẶT (ADMIN ONLY) -->
+                        <!-- TAB TÀI KHOẢN (USERS MANAGEMENT) CHUẨN /QUANLYDAUTHAU -->
+            <section id="mainTab-users" class="hidden space-y-6">
+                <div class="bg-white dark:bg-slate-800 p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 space-y-5">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-4 border-b border-slate-100 dark:border-slate-700">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-cyan-100 dark:bg-cyan-900/60 text-cyan-700 dark:text-cyan-300 flex items-center justify-center text-lg font-bold">
+                                <i class="fas fa-users-gear"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-base sm:text-lg font-bold text-slate-800 dark:text-white">Quản Lý Phân Quyền Tài Khoản 4 Phòng Ban</h2>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">Cấp tài khoản, phân quyền RBAC và quản lý danh sách cán bộ Trung tâm Xúc tiến đầu tư (SCE)</p>
+                            </div>
+                        </div>
+                        <button onclick="loadUserProfilesFromDb()" class="px-3.5 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+                            <i class="fas fa-sync-alt"></i> Tải lại danh sách
+                        </button>
+                    </div>
+
+                    <!-- Card Cấp tài khoản mới -->
+                    <div class="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-200/80 dark:border-slate-700/80">
+                        <h3 class="text-xs font-bold uppercase text-slate-700 dark:text-slate-300 mb-3 tracking-wider flex items-center gap-1.5">
+                            <i class="fas fa-user-plus text-emerald-500"></i> Cấp tài khoản cán bộ mới
+                        </h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 mb-3">
+                            <div>
+                                <label class="block text-[11px] font-medium text-slate-500 mb-1">Email đăng nhập</label>
+                                <input type="email" id="newTabUserEmail" placeholder="canbo@sce.gov.vn" class="w-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2 rounded-lg text-xs outline-none focus:ring-2 focus:ring-cyan-500 dark:text-white">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-medium text-slate-500 mb-1">Mật khẩu ban đầu</label>
+                                <input type="password" id="newTabUserPass" placeholder="Tối thiểu 6 ký tự" class="w-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2 rounded-lg text-xs outline-none focus:ring-2 focus:ring-cyan-500 dark:text-white">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-medium text-slate-500 mb-1">Họ và tên cán bộ</label>
+                                <input type="text" id="newTabUserFullname" placeholder="Nguyễn Văn A" class="w-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2 rounded-lg text-xs outline-none focus:ring-2 focus:ring-cyan-500 dark:text-white">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-medium text-slate-500 mb-1">Phòng chuyên môn</label>
+                                <select id="newTabUserDept" class="w-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2 rounded-lg text-xs outline-none focus:ring-2 focus:ring-cyan-500 dark:text-white">
+                                    <option value="Phòng Hành chính - Tổ chức">Phòng Hành chính - Tổ chức</option>
+                                    <option value="Phòng Phát triển doanh nghiệp">Phòng Phát triển doanh nghiệp</option>
+                                    <option value="Phòng Xúc tiến đầu tư" selected>Phòng Xúc tiến đầu tư</option>
+                                    <option value="Phòng Tư vấn doanh nghiệp">Phòng Tư vấn doanh nghiệp</option>
+                                    <option value="Ban Giám đốc">Ban Giám đốc</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-medium text-slate-500 mb-1">Vai trò phân quyền</label>
+                                <select id="newTabUserRole" class="w-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2 rounded-lg text-xs outline-none focus:ring-2 focus:ring-cyan-500 dark:text-white">
+                                    <option value="user">Chuyên viên thực hiện</option>
+                                    <option value="team_lead">Tổ trưởng / Phụ trách</option>
+                                    <option value="dept_leader">Lãnh đạo Phòng (Xem trong phòng)</option>
+                                    <option value="leader">Ban Giám đốc (Xem toàn Trung tâm)</option>
+                                    <option value="admin">Quản trị viên (Toàn quyền)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="flex justify-end">
+                            <button onclick="createNewAccountFromTab()" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-xs font-semibold shadow-sm transition flex items-center gap-1.5">
+                                <i class="fas fa-plus"></i> Thêm tài khoản
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tìm kiếm & Lọc tài khoản -->
+                    <div class="flex flex-col sm:flex-row gap-2.5 text-xs">
+                        <div class="relative flex-1">
+                            <i class="fas fa-search absolute left-3 top-2.5 text-slate-400"></i>
+                            <input type="text" id="tabUserSearch" oninput="renderTabUserTable()" placeholder="Tìm kiếm theo họ tên hoặc email cán bộ..." class="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white outline-none">
+                        </div>
+                        <select id="tabUserDeptFilter" onchange="renderTabUserTable()" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white outline-none">
+                            <option value="">Tất cả 4 Phòng chuyên môn</option>
+                            <option value="Phòng Hành chính - Tổ chức">Phòng Hành chính - Tổ chức</option>
+                            <option value="Phòng Phát triển doanh nghiệp">Phòng Phát triển doanh nghiệp</option>
+                            <option value="Phòng Xúc tiến đầu tư">Phòng Xúc tiến đầu tư</option>
+                            <option value="Phòng Tư vấn doanh nghiệp">Phòng Tư vấn doanh nghiệp</option>
+                            <option value="Ban Giám đốc">Ban Giám đốc</option>
+                        </select>
+                    </div>
+
+                    <!-- Danh sách tài khoản dạng bảng -->
+                    <div class="overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-xl">
+                        <table class="w-full text-left text-xs min-w-[700px]">
+                            <thead class="bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 uppercase text-[11px] font-semibold border-b border-slate-200 dark:border-slate-700">
+                                <tr>
+                                    <th class="p-3">Tài khoản (Email) & Cán bộ</th>
+                                    <th class="p-3">Phòng chuyên môn</th>
+                                    <th class="p-3">Vai trò phân quyền</th>
+                                    <th class="p-3 text-center">Trạng thái</th>
+                                    <th class="p-3 text-right">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabUserTableBody" class="divide-y divide-slate-100 dark:divide-slate-800 dark:text-slate-300">
+                                <!-- Nạp qua JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
             <section id="mainTab-admin" class="hidden space-y-6">
 
             <!-- Card Giới thiệu & Trạng thái phân hệ -->
@@ -3715,6 +3808,124 @@
         };
         let cachedProfiles = [];
 
+        // Hệ thống Hoàn tác (Undo) & Làm lại (Redo) chuẩn /quanlydauthau
+        window.undoStack = [];
+        window.redoStack = [];
+        window.MAX_HISTORY = 30;
+        let lastCommittedState = null;
+        let isPerformingHistoryAction = false;
+
+        window.updateUndoRedoUI = function() {
+            const btnUndo = document.getElementById('btnUndo');
+            const btnRedo = document.getElementById('btnRedo');
+            if (btnUndo) {
+                btnUndo.disabled = (window.undoStack.length === 0);
+                btnUndo.title = window.undoStack.length > 0 ? `Hoàn tác (${window.undoStack.length} thao tác - Ctrl+Z)` : 'Hoàn tác (Ctrl+Z)';
+            }
+            if (btnRedo) {
+                btnRedo.disabled = (window.redoStack.length === 0);
+                btnRedo.title = window.redoStack.length > 0 ? `Làm lại (${window.redoStack.length} thao tác - Ctrl+Y)` : 'Làm lại (Ctrl+Y)';
+            }
+        };
+
+        window.recordUndoSnapshot = function(actionSummary = '') {
+            if (isPerformingHistoryAction) return;
+            try {
+                const curStateStr = JSON.stringify(appData);
+                if (!lastCommittedState) {
+                    lastCommittedState = curStateStr;
+                } else if (lastCommittedState !== curStateStr) {
+                    window.undoStack.push(lastCommittedState);
+                    if (window.undoStack.length > window.MAX_HISTORY) window.undoStack.shift();
+                    window.redoStack = [];
+                    window.updateUndoRedoUI();
+                    lastCommittedState = curStateStr;
+                }
+            } catch (e) {
+                console.warn('Lỗi ghi lại snapshot hoàn tác:', e);
+            }
+        };
+
+        window.undoAction = async function() {
+            if (window.undoStack.length === 0 || isPerformingHistoryAction) return;
+            isPerformingHistoryAction = true;
+            try {
+                window.redoStack.push(JSON.stringify(appData));
+                if (window.redoStack.length > window.MAX_HISTORY) window.redoStack.shift();
+
+                const prevStateStr = window.undoStack.pop();
+                appData = JSON.parse(prevStateStr);
+                lastCommittedState = prevStateStr;
+
+                localStorage.setItem('sce_tcsk_app_data', JSON.stringify(appData));
+                localStorage.setItem('sce_tcsk_local_events', JSON.stringify(appData.events || []));
+
+                if (typeof renderModule2 === 'function') renderModule2();
+                if (typeof renderModule3 === 'function') renderModule3();
+                if (typeof renderModule4 === 'function') renderModule4();
+                if (typeof renderModule5 === 'function') renderModule5();
+                if (typeof renderModule6 === 'function') renderModule6();
+                window.updateUndoRedoUI();
+
+                if (supabaseClient && currentUser) {
+                    await saveAppDataToSupabase('Hoàn tác (Ctrl+Z)');
+                }
+
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'info',
+                    title: 'Đã hoàn tác (Ctrl+Z)',
+                    showConfirmButton: false,
+                    timer: 2000
+                });
+            } catch (e) {
+                console.error("Lỗi hoàn tác:", e);
+            } finally {
+                isPerformingHistoryAction = false;
+            }
+        };
+
+        window.redoAction = async function() {
+            if (window.redoStack.length === 0 || isPerformingHistoryAction) return;
+            isPerformingHistoryAction = true;
+            try {
+                window.undoStack.push(JSON.stringify(appData));
+                if (window.undoStack.length > window.MAX_HISTORY) window.undoStack.shift();
+
+                const nextStateStr = window.redoStack.pop();
+                appData = JSON.parse(nextStateStr);
+                lastCommittedState = nextStateStr;
+
+                localStorage.setItem('sce_tcsk_app_data', JSON.stringify(appData));
+                localStorage.setItem('sce_tcsk_local_events', JSON.stringify(appData.events || []));
+
+                if (typeof renderModule2 === 'function') renderModule2();
+                if (typeof renderModule3 === 'function') renderModule3();
+                if (typeof renderModule4 === 'function') renderModule4();
+                if (typeof renderModule5 === 'function') renderModule5();
+                if (typeof renderModule6 === 'function') renderModule6();
+                window.updateUndoRedoUI();
+
+                if (supabaseClient && currentUser) {
+                    await saveAppDataToSupabase('Làm lại (Ctrl+Y)');
+                }
+
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'info',
+                    title: 'Đã làm lại (Ctrl+Y)',
+                    showConfirmButton: false,
+                    timer: 2000
+                });
+            } catch (e) {
+                console.error("Lỗi làm lại:", e);
+            } finally {
+                isPerformingHistoryAction = false;
+            }
+        };
+
         // -------------------------------------------------------------
         // B. QUẢN LÝ PHIÊN SUPABASE AUTH & HỒ SƠ sce_tcsk_profiles
         // -------------------------------------------------------------
@@ -3736,7 +3947,9 @@
                 appScreen.classList.remove('hidden');
                 appScreen.classList.add('flex');
             }
+            window.renderUserBadge();
             updateUserHeaderUI();
+            window.updateUndoRedoUI();
         }
 
         async function initAuthSession() {
@@ -3986,49 +4199,55 @@
             }
         }
 
+        window.renderUserBadge = function() {
+            const badgeEl = document.getElementById('userBadge');
+            if (!badgeEl) return;
+
+            let name = 'Chuyên viên';
+            let roleCode = 'user';
+            let dept = 'Phòng Xúc tiến đầu tư';
+
+            if (currentProfile) {
+                name = currentProfile.fullname || (currentUser && currentUser.email) || 'Chuyên viên';
+                roleCode = currentProfile.role || 'user';
+                dept = currentProfile.department || 'Phòng Xúc tiến đầu tư';
+            } else if (currentUser) {
+                name = (currentUser.user_metadata && (currentUser.user_metadata.fullname || currentUser.user_metadata.full_name)) || currentUser.email || 'Chuyên viên';
+                roleCode = (currentUser.user_metadata && currentUser.user_metadata.role) || 'user';
+                dept = (currentUser.user_metadata && currentUser.user_metadata.department) || 'Phòng Xúc tiến đầu tư';
+            }
+
+            const roleLabels = {
+                'admin': 'Admin',
+                'leader': 'Ban Giám đốc',
+                'dept_leader': 'Lãnh đạo phòng',
+                'team_lead': 'Tổ trưởng',
+                'user': 'Chuyên viên'
+            };
+            const roleLabel = roleLabels[roleCode] || 'Chuyên viên';
+            const deptStr = dept ? String(dept).replace('Phòng ', 'P. ') : '';
+            const deptBadge = deptStr ? `<span class="hidden md:inline text-[10px] bg-indigo-900/70 text-indigo-100 border border-indigo-400/30 px-1.5 py-0.5 rounded ml-1">${escapeHtml(deptStr)}</span>` : '';
+
+            badgeEl.innerHTML = `<i class="fas fa-user-circle"></i> <span class="truncate max-w-[90px] sm:max-w-none font-semibold">${escapeHtml(name)}</span> <span class="hidden sm:inline text-[10px] bg-blue-700 px-1.5 py-0.5 rounded ml-1 font-bold uppercase">${escapeHtml(roleLabel)}</span>${deptBadge}`;
+        };
+
         function updateUserHeaderUI() {
-            const userDropdown = document.getElementById('userProfileDropdown');
-            const menuUserMgmtBtn = document.getElementById('menuUserMgmtBtn');
+            window.renderUserBadge();
             const tabAdminBtn = document.getElementById('tabBtn-admin');
+            const tabUsersBtn = document.getElementById('tabBtn-users');
 
             if (currentUser && currentProfile) {
-                if (userDropdown) userDropdown.classList.remove('hidden');
-
-                const name = currentProfile.fullname || currentUser.email;
-                const role = getRoleBadgeTitle(currentProfile.role);
-                const initials = name.split(' ').map(w => w[0]).slice(-2).join('').toUpperCase() || 'SC';
-
-                const nameEl = document.getElementById('headerUserName');
-                if (nameEl) nameEl.textContent = name;
-                const roleEl = document.getElementById('headerUserRole');
-                if (roleEl) roleEl.textContent = `${role} • ${currentProfile.department || 'SCE'}`;
-                const avatarEl = document.getElementById('userAvatarText');
-                if (avatarEl) avatarEl.textContent = initials;
-                const emailEl = document.getElementById('menuUserEmail');
-                if (emailEl) emailEl.textContent = currentUser.email;
-                const deptEl = document.getElementById('menuUserDeptBadge');
-                if (deptEl) deptEl.textContent = currentProfile.department || 'Phòng Xúc tiến đầu tư';
-
-                // Phân quyền Tab Cài đặt & Quản trị (chỉ Admin, Leader, Dept Leader)
                 const isAdminOrLeader = ['admin', 'leader', 'dept_leader'].includes(currentProfile.role);
                 if (tabAdminBtn) {
-                    if (isAdminOrLeader) {
-                        tabAdminBtn.classList.remove('hidden');
-                    } else {
-                        tabAdminBtn.classList.add('hidden');
-                    }
+                    if (isAdminOrLeader) tabAdminBtn.classList.remove('hidden');
+                    else tabAdminBtn.classList.add('hidden');
                 }
-
-                if (menuUserMgmtBtn) {
-                    if (['admin', 'leader'].includes(currentProfile.role)) {
-                        menuUserMgmtBtn.classList.remove('hidden');
-                    } else {
-                        menuUserMgmtBtn.classList.add('hidden');
-                    }
+                if (tabUsersBtn) {
+                    if (isAdminOrLeader) tabUsersBtn.classList.remove('hidden');
+                    else tabUsersBtn.classList.add('hidden');
                 }
             } else {
-                if (userDropdown) userDropdown.classList.add('hidden');
-                if (tabAdminBtn) tabAdminBtn.classList.add('hidden');
+                if (tabUsersBtn) tabUsersBtn.classList.remove('hidden');
             }
         }
 
@@ -4068,6 +4287,10 @@
                 } else {
                     renderModule2();
                 }
+                lastCommittedState = JSON.stringify(appData);
+                window.undoStack = [];
+                window.redoStack = [];
+                window.updateUndoRedoUI();
             } catch (err) {
                 console.warn('Lỗi tải app_data:', err);
             }
@@ -4076,8 +4299,11 @@
         async function saveAppDataToSupabase(note = 'Cập nhật hệ thống') {
             if (!supabaseClient) return;
             if (!currentUser) {
-                Swal.fire('Yêu cầu đăng nhập', 'Bạn cần đăng nhập để lưu dữ liệu lên đám mây Supabase.', 'warning');
                 return;
+            }
+            // Ghi nhận snapshot hoàn tác
+            if (typeof window.recordUndoSnapshot === 'function') {
+                window.recordUndoSnapshot(note);
             }
 
             try {
@@ -4161,11 +4387,118 @@
 
                 if (!error && data) {
                     cachedProfiles = data;
-                    document.getElementById('statUserCount').textContent = `${cachedProfiles.length} Người`;
+                    const statEl = document.getElementById('statUserCount');
+                    if (statEl) statEl.textContent = `${cachedProfiles.length} Người`;
                     renderUserMgmtTable();
+                    renderTabUserTable();
                 }
             } catch (e) {
                 console.warn('Lỗi nạp danh sách profiles:', e);
+            }
+        }
+
+        function renderTabUserTable() {
+            const tbody = document.getElementById('tabUserTableBody');
+            if (!tbody) return;
+
+            const search = (document.getElementById('tabUserSearch')?.value || '').toLowerCase();
+            const deptFilter = document.getElementById('tabUserDeptFilter')?.value || '';
+
+            const filtered = (cachedProfiles || []).filter(u => {
+                const matchSearch = (u.fullname || '').toLowerCase().includes(search) || (u.email || '').toLowerCase().includes(search);
+                const matchDept = !deptFilter || u.department === deptFilter;
+                return matchSearch && matchDept;
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-400">Không tìm thấy tài khoản phù hợp</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(u => {
+                const activeBadge = u.is_active 
+                    ? `<span class="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 px-2 py-0.5 rounded-full text-[10px] font-bold">Hoạt động</span>`
+                    : `<span class="bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-300 px-2 py-0.5 rounded-full text-[10px] font-bold">Khóa</span>`;
+
+                return `
+                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition">
+                        <td class="p-3">
+                            <div class="font-bold text-slate-800 dark:text-slate-100">${escapeHtml(u.fullname || 'Chưa đặt tên')}</div>
+                            <div class="text-[11px] text-slate-400 font-mono">${escapeHtml(u.email || '')}</div>
+                        </td>
+                        <td class="p-3">
+                            <select onchange="updateUserDepartment('${u.id}', this.value)" class="px-2 py-1 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs">
+                                <option value="Phòng Hành chính - Tổ chức" ${u.department === 'Phòng Hành chính - Tổ chức' ? 'selected' : ''}>Phòng Hành chính - Tổ chức</option>
+                                <option value="Phòng Phát triển doanh nghiệp" ${u.department === 'Phòng Phát triển doanh nghiệp' ? 'selected' : ''}>Phòng Phát triển doanh nghiệp</option>
+                                <option value="Phòng Xúc tiến đầu tư" ${u.department === 'Phòng Xúc tiến đầu tư' ? 'selected' : ''}>Phòng Xúc tiến đầu tư</option>
+                                <option value="Phòng Tư vấn doanh nghiệp" ${u.department === 'Phòng Tư vấn doanh nghiệp' ? 'selected' : ''}>Phòng Tư vấn doanh nghiệp</option>
+                                <option value="Ban Giám đốc" ${u.department === 'Ban Giám đốc' ? 'selected' : ''}>Ban Giám đốc</option>
+                            </select>
+                        </td>
+                        <td class="p-3">
+                            <select onchange="updateUserRole('${u.id}', this.value)" class="px-2 py-1 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold">
+                                <option value="user" ${u.role === 'user' ? 'selected' : ''}>Chuyên viên</option>
+                                <option value="team_lead" ${u.role === 'team_lead' ? 'selected' : ''}>Tổ trưởng</option>
+                                <option value="dept_leader" ${u.role === 'dept_leader' ? 'selected' : ''}>Lãnh đạo Phòng</option>
+                                <option value="leader" ${u.role === 'leader' ? 'selected' : ''}>Ban Giám đốc</option>
+                                <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Quản trị viên (Admin)</option>
+                            </select>
+                        </td>
+                        <td class="p-3 text-center">${activeBadge}</td>
+                        <td class="p-3 text-right">
+                            <button onclick="toggleUserActiveState('${u.id}', ${!u.is_active})" class="px-2.5 py-1 rounded text-[11px] font-semibold ${u.is_active ? 'bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-900/60 dark:text-amber-300' : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-900/60 dark:text-emerald-300'} transition">
+                                ${u.is_active ? '<i class="fas fa-lock mr-1"></i>Khóa' : '<i class="fas fa-lock-open mr-1"></i>Mở'}
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function createNewAccountFromTab() {
+            const email = document.getElementById('newTabUserEmail')?.value.trim();
+            const password = document.getElementById('newTabUserPass')?.value;
+            const fullname = document.getElementById('newTabUserFullname')?.value.trim();
+            const department = document.getElementById('newTabUserDept')?.value;
+            const role = document.getElementById('newTabUserRole')?.value || 'user';
+
+            if (!email || !password || !fullname) {
+                return Swal.fire('Thiếu thông tin', 'Vui lòng nhập đầy đủ Email, Mật khẩu và Họ tên cán bộ.', 'warning');
+            }
+            if (password.length < 6) {
+                return Swal.fire('Mật khẩu yếu', 'Mật khẩu phải từ 6 ký tự trở lên.', 'warning');
+            }
+
+            try {
+                Swal.fire({ title: 'Đang tạo tài khoản...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                const { data, error } = await supabaseClient.auth.signUp({
+                    email,
+                    password,
+                    options: {
+                        data: { fullname, department, role }
+                    }
+                });
+                if (error) throw error;
+
+                if (data && data.user) {
+                    await supabaseClient.from('sce_tcsk_profiles').upsert({
+                        id: data.user.id,
+                        email,
+                        fullname,
+                        department,
+                        role,
+                        is_active: true,
+                        updated_at: new Date().toISOString()
+                    });
+                }
+
+                document.getElementById('newTabUserEmail').value = '';
+                document.getElementById('newTabUserPass').value = '';
+                document.getElementById('newTabUserFullname').value = '';
+                await loadUserProfilesFromDb();
+                Swal.fire('Thành công', `Đã tạo tài khoản cán bộ: ${fullname} (${email})`, 'success');
+            } catch (e) {
+                Swal.fire('Lỗi tạo tài khoản', e.message, 'error');
             }
         }
 
@@ -4676,7 +5009,7 @@
 
         function toggleUserDropdown() {
             const m = document.getElementById('userMenuContent');
-            m.classList.toggle('hidden');
+            if (m) m.classList.toggle('hidden');
         }
 
         document.addEventListener('click', (e) => {
@@ -4706,12 +5039,25 @@
         }
 
         function openProfileModal() {
-            if (!currentUser) return;
-            document.getElementById('profEmail').value = currentUser.email;
-            document.getElementById('profFullname').value = (currentProfile && currentProfile.fullname) || '';
-            document.getElementById('profDept').value = (currentProfile && currentProfile.department) || 'Phòng Xúc tiến đầu tư';
-            document.getElementById('profNewPassword').value = '';
-            document.getElementById('profileModal').classList.remove('hidden');
+            const emailInput = document.getElementById('profEmail');
+            const nameInput = document.getElementById('profFullname');
+            const deptInput = document.getElementById('profDept');
+            const passInput = document.getElementById('profNewPassword');
+
+            if (emailInput) {
+                emailInput.value = (currentUser && currentUser.email) || 'chuyenvien@sce.gov.vn';
+            }
+            if (nameInput) {
+                nameInput.value = (currentProfile && currentProfile.fullname) || (currentUser && (currentUser.user_metadata?.fullname || currentUser.user_metadata?.full_name)) || 'Chuyên viên SCE';
+            }
+            if (deptInput) {
+                deptInput.value = (currentProfile && currentProfile.department) || (currentUser && currentUser.user_metadata?.department) || 'Phòng Xúc tiến đầu tư';
+            }
+            if (passInput) {
+                passInput.value = '';
+            }
+            const modal = document.getElementById('profileModal');
+            if (modal) modal.classList.remove('hidden');
         }
 
         function closeProfileModal() {
@@ -4768,8 +5114,6 @@
         function switchMainTab(tabId) {
             // Hỗ trợ cả Tab ID mới và Legacy ID
             const tabMapping = {
-                'tab-admin': 'events',
-                'tab-module1': 'admin',
                 'tab-events': 'events',
                 'tab-module2': 'events',
                 'tab-templates': 'templates',
@@ -4779,24 +5123,26 @@
                 'tab-live': 'live',
                 'tab-module5': 'live',
                 'tab-reports': 'reports',
-                'tab-module6': 'reports'
+                'tab-module6': 'reports',
+                'tab-users': 'users',
+                'tab-admin': 'admin',
+                'tab-module1': 'admin'
             };
-            if (tabId === 'tab-admin') tabMapping['tab-admin'] = 'admin';
 
-            const activeTarget = tabMapping[tabId] || 'events';
+            const activeTarget = tabMapping[tabId] || tabId.replace('tab-', '') || 'events';
 
-            const tabKeys = ['events', 'templates', 'guests', 'live', 'reports', 'admin'];
-            const legacyMap = { 'events': 'module2', 'templates': 'module3', 'guests': 'module4', 'live': 'module5', 'reports': 'module6', 'admin': 'module1' };
+            const tabKeys = ['events', 'templates', 'guests', 'live', 'reports', 'users', 'admin'];
+            const legacyMap = { 'events': 'module2', 'templates': 'module3', 'guests': 'module4', 'live': 'module5', 'reports': 'module6', 'admin': 'module1', 'users': 'users' };
 
             tabKeys.forEach(k => {
-                const sec = document.getElementById(`mainTab-${k}`) || document.getElementById(`mainTab-${legacyMap[k]}`);
-                const btn = document.getElementById(`tabBtn-${k}`) || document.getElementById(`tabBtn-${legacyMap[k]}`);
+                const sec = document.getElementById(`mainTab-${k}`) || (legacyMap[k] ? document.getElementById(`mainTab-${legacyMap[k]}`) : null);
+                const btn = document.getElementById(`tabBtn-${k}`) || (legacyMap[k] ? document.getElementById(`tabBtn-${legacyMap[k]}`) : null);
                 if (sec) sec.classList.add('hidden');
                 if (btn) btn.className = "px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-1.5";
             });
 
-            const activeSec = document.getElementById(`mainTab-${activeTarget}`) || document.getElementById(`mainTab-${legacyMap[activeTarget]}`);
-            const activeBtn = document.getElementById(`tabBtn-${activeTarget}`) || document.getElementById(`tabBtn-${legacyMap[activeTarget]}`);
+            const activeSec = document.getElementById(`mainTab-${activeTarget}`) || (legacyMap[activeTarget] ? document.getElementById(`mainTab-${legacyMap[activeTarget]}`) : null);
+            const activeBtn = document.getElementById(`tabBtn-${activeTarget}`) || (legacyMap[activeTarget] ? document.getElementById(`tabBtn-${legacyMap[activeTarget]}`) : null);
 
             if (activeSec) activeSec.classList.remove('hidden');
             if (activeBtn) {
@@ -4805,6 +5151,7 @@
                 else if (activeTarget === 'guests') activeColor = "bg-amber-600";
                 else if (activeTarget === 'live') activeColor = "bg-emerald-600";
                 else if (activeTarget === 'reports') activeColor = "bg-rose-600";
+                else if (activeTarget === 'users') activeColor = "bg-cyan-600";
                 else if (activeTarget === 'admin') activeColor = "bg-slate-700";
                 activeBtn.className = `px-3 py-1.5 rounded-lg font-semibold flex items-center gap-2 ${activeColor} text-white shadow-sm transition`;
             }
@@ -4815,6 +5162,9 @@
             else if (activeTarget === 'guests' && typeof renderModule4 === 'function') renderModule4();
             else if (activeTarget === 'live' && typeof renderModule5 === 'function') renderModule5();
             else if (activeTarget === 'reports' && typeof renderModule6 === 'function') renderModule6();
+            else if (activeTarget === 'users') {
+                loadUserProfilesFromDb();
+            }
         }
 
         // -------------------------------------------------------------
@@ -7406,6 +7756,10 @@
         // M. LƯU TRỮ ĐỒNG BỘ SUPABASE & AUDIT LOG
         // -------------------------------------------------------------
         async function persistEventsData(actionSummary) {
+            // Ghi nhận snapshot hoàn tác
+            if (typeof window.recordUndoSnapshot === 'function') {
+                window.recordUndoSnapshot(actionSummary);
+            }
             // Lưu bản sao LocalStorage trước
             localStorage.setItem('sce_tcsk_local_events', JSON.stringify(appData.events || []));
 
@@ -12208,6 +12562,26 @@ function renderExecutiveBiDashboard() {
     }
 }
 
+        // Phím tắt toàn cục: Ctrl+Z (Hoàn tác) và Ctrl+Y / Ctrl+Shift+Z (Làm lại)
+        window.addEventListener('keydown', function(e) {
+            const activeEl = document.activeElement;
+            const activeTag = activeEl ? activeEl.tagName.toLowerCase() : '';
+            const isTextInput = activeTag === 'textarea' || 
+                (activeTag === 'input' && !['checkbox', 'radio', 'button', 'submit', 'reset', 'file', 'image', 'range', 'color'].includes(activeEl.type));
+            const isEditingText = isTextInput || Boolean(activeEl && activeEl.isContentEditable);
+            if (isEditingText) return;
+
+            if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+                const key = e.key.toLowerCase();
+                if (key === 'z' && !e.shiftKey) {
+                    e.preventDefault();
+                    window.undoAction();
+                } else if (key === 'y' || (key === 'z' && e.shiftKey)) {
+                    e.preventDefault();
+                    window.redoAction();
+                }
+            }
+        });
     </script>
 </body>
 </html>
