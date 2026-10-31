@@ -1,0 +1,18 @@
+# OS & Temporary files
+.DS_Store
+Thumbs.db
+*.bak
+*.tmp
+*.log
+
+# Internal documents & specifications
+*.docx
+*.doc
+*.xlsx
+*.xls
+*.pdf
+database/
+*.sql
+KE_HOACH_*.md
+QUY_TRINH_*.md
+Logo (tách nền sát cạnh).png
