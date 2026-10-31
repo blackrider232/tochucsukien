@@ -60,6 +60,48 @@
             50% { opacity: 0.85; transform: scale(1.03); }
         }
         .pulse-badge { animation: subtle-pulse 2s infinite ease-in-out; }
+    
+        /* 10. Chế độ thu gọn Sidebar bên trái (Mini Sidebar) */
+        #mainSidebar {
+            transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s ease;
+        }
+        #mainSidebar.collapsed {
+            width: 4.5rem !important; /* 72px */
+        }
+        #mainSidebar.collapsed .sidebar-text {
+            display: none !important;
+        }
+        #mainSidebar.collapsed .sidebar-header-box {
+            padding: 0.75rem 0.25rem !important;
+            justify-content: center !important;
+            gap: 0.5rem !important;
+            flex-direction: column !important;
+        }
+        #mainSidebar.collapsed .sidebar-nav-btn {
+            justify-content: center !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            gap: 0 !important;
+        }
+        #mainSidebar.collapsed .sidebar-nav-btn i {
+            margin: 0 !important;
+            font-size: 1.15rem !important;
+            width: 100% !important;
+            text-align: center !important;
+        }
+        #mainSidebar.collapsed .sidebar-footer-box {
+            padding: 0.75rem 0.25rem !important;
+        }
+        #mainSidebar.collapsed .sidebar-footer-box > div {
+            flex-direction: column !important;
+            gap: 0.5rem !important;
+            align-items: center !important;
+        }
+        #mainSidebar.collapsed .sidebar-footer-user-btn {
+            justify-content: center !important;
+            width: 100% !important;
+        }
+
     </style>
 </head>
 <body class="h-full bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 flex flex-col antialiased select-none min-h-screen">
@@ -179,87 +221,92 @@
 
         <!-- 1. THANH ĐIỀU HƯỚNG BÊN TRÁI (LEFT SIDEBAR) -->
         <aside id="mainSidebar" class="fixed md:sticky top-0 left-0 h-screen w-64 bg-slate-900 dark:bg-slate-950 text-slate-200 border-r border-slate-800 dark:border-slate-800/80 z-50 flex flex-col shrink-0 transition-transform duration-300 -translate-x-full md:translate-x-0 shadow-2xl md:shadow-none select-none">
-            <!-- Logo & Đơn vị chủ quản -->
-            <div class="p-3.5 sm:p-4 border-b border-slate-800/80 flex items-center justify-between gap-3 bg-slate-950/50">
-                <a href="javascript:void(0)" onclick="switchMainTab('tab-events'); toggleSidebar(false);" class="flex items-center gap-3 group min-w-0" title="Về trang Tiến độ">
+            <!-- Logo & Đơn vị chủ quản & Nút Thu Gọn/Mở Rộng -->
+            <div class="sidebar-header-box p-3 sm:p-3.5 border-b border-slate-800/80 flex items-center justify-between gap-2.5 bg-slate-950/50">
+                <a href="javascript:void(0)" onclick="switchMainTab('tab-events'); toggleSidebar(false);" class="flex items-center gap-2.5 group min-w-0" title="Về trang Tiến độ">
                     <div class="w-9 h-9 rounded-xl bg-white p-1 shadow-md flex items-center justify-center shrink-0 group-hover:scale-105 transition">
                         <img src="logo-192.png" alt="SCE" class="h-full w-auto object-contain" onerror="this.onerror=null; this.src='https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Emblem_of_Vietnam.svg/120px-Emblem_of_Vietnam.svg.png';">
                     </div>
-                    <div class="min-w-0">
+                    <div class="min-w-0 sidebar-text">
                         <h1 class="text-xs font-black tracking-wide text-white uppercase truncate">SỰ KIỆN SCE</h1>
                         <p class="text-[10px] text-blue-300/90 font-medium truncate">Trung tâm XTĐT Hà Nội</p>
                     </div>
                 </a>
-                <button onclick="toggleSidebar(false)" class="md:hidden text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition cursor-pointer" title="Đóng menu">
+                <!-- Nút Thu Gọn / Mở Rộng Sidebar (Desktop) -->
+                <button onclick="toggleSidebarCollapse()" id="btnCollapseSidebar" class="hidden md:flex text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition cursor-pointer shrink-0" title="Thu gọn / Mở rộng thanh bên">
+                    <i id="collapseSidebarIcon" class="fas fa-angles-left text-xs"></i>
+                </button>
+                <!-- Nút Đóng Sidebar (Mobile) -->
+                <button onclick="toggleSidebar(false)" class="md:hidden text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition cursor-pointer shrink-0" title="Đóng menu">
                     <i class="fas fa-times text-sm"></i>
                 </button>
             </div>
 
             <!-- Danh sách các chức năng (Sidebar Navigation) -->
-            <nav class="flex-1 overflow-y-auto p-3 space-y-1.5 hide-scrollbar">
-                <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 pt-2 pb-1">
+            <nav class="flex-1 overflow-y-auto p-2.5 sm:p-3 space-y-1.5 hide-scrollbar">
+                <div class="sidebar-text text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 pt-2 pb-1">
                     Danh mục chức năng
                 </div>
 
                 <!-- 1. Tiến độ -->
-                <button onclick="switchMainTab('tab-events'); toggleSidebar(false);" id="tabBtn-events" class="w-full px-3 py-2.5 rounded-xl font-semibold flex items-center gap-3 bg-blue-600 text-white shadow-md shadow-blue-600/30 transition text-xs cursor-pointer text-left">
+                <button onclick="switchMainTab('tab-events'); toggleSidebar(false);" id="tabBtn-events" title="Tiến độ" class="sidebar-nav-btn w-full px-3 py-2.5 rounded-xl font-semibold flex items-center gap-3 bg-blue-600 text-white shadow-md shadow-blue-600/30 transition text-xs cursor-pointer text-left">
                     <i class="fas fa-calendar-check text-sm w-5 text-center text-blue-300 shrink-0"></i>
-                    <span class="flex-1 truncate">Tiến độ</span>
+                    <span class="sidebar-text flex-1 truncate">Tiến độ</span>
                 </button>
 
                 <!-- 2. Biểu mẫu -->
-                <button onclick="switchMainTab('tab-templates'); toggleSidebar(false);" id="tabBtn-templates" class="w-full px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-3 text-xs font-medium cursor-pointer text-left">
+                <button onclick="switchMainTab('tab-templates'); toggleSidebar(false);" id="tabBtn-templates" title="Biểu mẫu" class="sidebar-nav-btn w-full px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-3 text-xs font-medium cursor-pointer text-left">
                     <i class="fas fa-file-signature text-sm w-5 text-center text-purple-300 shrink-0"></i>
-                    <span class="flex-1 truncate">Biểu mẫu</span>
+                    <span class="sidebar-text flex-1 truncate">Biểu mẫu</span>
                 </button>
 
                 <!-- 3. Khách mời & Gian hàng -->
-                <button onclick="switchMainTab('tab-guests'); toggleSidebar(false);" id="tabBtn-guests" class="w-full px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-3 text-xs font-medium cursor-pointer text-left">
+                <button onclick="switchMainTab('tab-guests'); toggleSidebar(false);" id="tabBtn-guests" title="Khách mời & Gian hàng" class="sidebar-nav-btn w-full px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-3 text-xs font-medium cursor-pointer text-left">
                     <i class="fas fa-users-rectangle text-sm w-5 text-center text-amber-300 shrink-0"></i>
-                    <span class="flex-1 truncate">Khách mời & Gian hàng</span>
+                    <span class="sidebar-text flex-1 truncate">Khách mời & Gian hàng</span>
                 </button>
 
                 <!-- 4. Tổ chức sự kiện -->
-                <button onclick="switchMainTab('tab-live'); toggleSidebar(false);" id="tabBtn-live" class="w-full px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-3 text-xs font-medium cursor-pointer text-left">
+                <button onclick="switchMainTab('tab-live'); toggleSidebar(false);" id="tabBtn-live" title="Tổ chức sự kiện" class="sidebar-nav-btn w-full px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-3 text-xs font-medium cursor-pointer text-left">
                     <i class="fas fa-mobile-screen-button text-sm w-5 text-center text-emerald-300 shrink-0"></i>
-                    <span class="flex-1 truncate">Tổ chức sự kiện</span>
+                    <span class="sidebar-text flex-1 truncate">Tổ chức sự kiện</span>
                 </button>
 
                 <!-- 5. Báo cáo & Tổng kết -->
-                <button onclick="switchMainTab('tab-reports'); toggleSidebar(false);" id="tabBtn-reports" class="w-full px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-3 text-xs font-medium cursor-pointer text-left">
+                <button onclick="switchMainTab('tab-reports'); toggleSidebar(false);" id="tabBtn-reports" title="Báo cáo & Tổng kết" class="sidebar-nav-btn w-full px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-3 text-xs font-medium cursor-pointer text-left">
                     <i class="fas fa-chart-line text-sm w-5 text-center text-rose-300 shrink-0"></i>
-                    <span class="flex-1 truncate">Báo cáo & Tổng kết</span>
+                    <span class="sidebar-text flex-1 truncate">Báo cáo & Tổng kết</span>
                 </button>
 
                 <div class="pt-3 pb-1">
                     <div class="border-t border-slate-800"></div>
-                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 pt-3 pb-1">
+                    <div class="sidebar-text text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 pt-3 pb-1">
                         Hệ thống & Quản trị
                     </div>
                 </div>
 
                 <!-- 6. Tài khoản -->
-                <button onclick="switchMainTab('tab-users'); toggleSidebar(false);" id="tabBtn-users" class="w-full px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-3 text-xs font-medium cursor-pointer text-left">
+                <button onclick="switchMainTab('tab-users'); toggleSidebar(false);" id="tabBtn-users" title="Tài khoản" class="sidebar-nav-btn w-full px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-3 text-xs font-medium cursor-pointer text-left">
                     <i class="fas fa-users-gear text-sm w-5 text-center text-cyan-300 shrink-0"></i>
-                    <span class="flex-1 truncate">Tài khoản</span>
+                    <span class="sidebar-text flex-1 truncate">Tài khoản</span>
                     <span id="tabUsersPendingBadge" class="hidden px-2 py-0.5 bg-amber-500 text-white rounded-full text-[10px] font-bold">0</span>
                 </button>
 
                 <!-- 7. Cài đặt & Quản trị -->
-                <button onclick="switchMainTab('tab-admin'); toggleSidebar(false);" id="tabBtn-admin" class="w-full px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-3 text-xs font-medium cursor-pointer text-left">
+                <button onclick="switchMainTab('tab-admin'); toggleSidebar(false);" id="tabBtn-admin" title="Cài đặt & Quản trị" class="sidebar-nav-btn w-full px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-3 text-xs font-medium cursor-pointer text-left">
                     <i class="fas fa-sliders text-sm w-5 text-center text-slate-400 shrink-0"></i>
-                    <span class="flex-1 truncate">Cài đặt & Quản trị</span>
+                    <span class="sidebar-text flex-1 truncate">Cài đặt & Quản trị</span>
                 </button>
             </nav>
 
             <!-- Sidebar Footer: Hồ sơ người dùng & Đăng xuất -->
-            <div class="p-3 border-t border-slate-800/80 bg-slate-950/60">
+            <div class="sidebar-footer-box p-3 border-t border-slate-800/80 bg-slate-950/60">
                 <div class="flex items-center justify-between gap-2">
-                    <button onclick="window.openProfileModal()" class="flex items-center gap-2.5 min-w-0 text-left hover:opacity-90 transition flex-1 cursor-pointer" title="Hồ sơ cá nhân & Đổi mật khẩu">
+                    <button onclick="window.openProfileModal()" class="sidebar-footer-user-btn flex items-center gap-2.5 min-w-0 text-left hover:opacity-90 transition flex-1 cursor-pointer" title="Hồ sơ cá nhân & Đổi mật khẩu">
                         <div class="w-8 h-8 rounded-lg bg-blue-600/30 text-blue-400 flex items-center justify-center text-sm shrink-0 border border-blue-500/30">
                             <i class="fas fa-user-circle"></i>
                         </div>
-                        <div class="min-w-0 flex-1">
+                        <div class="min-w-0 flex-1 sidebar-text">
                             <div id="sidebarUserName" class="text-xs font-bold text-white truncate">Chuyên viên</div>
                             <div id="sidebarUserRole" class="text-[10px] text-slate-400 truncate">P. Xúc tiến đầu tư</div>
                         </div>
@@ -277,9 +324,12 @@
             <header class="bg-gradient-to-r from-blue-900 via-indigo-900 to-blue-950 dark:from-slate-900 dark:to-slate-950 text-white shadow-md sticky top-0 z-30 transition-colors border-b border-blue-800/40 dark:border-slate-800">
                 <div class="px-3 sm:px-6 py-2 sm:py-2.5 flex justify-between items-center gap-3">
                     <!-- Nút bật menu bên trái (Mobile/Tablet) + Tiêu đề chức năng hiện tại -->
-                    <div class="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+                    <div class="flex items-center gap-2 sm:gap-3 min-w-0">
                         <button onclick="toggleSidebar(true)" class="md:hidden w-8 h-8 rounded-lg flex items-center justify-center bg-white/10 hover:bg-white/20 text-white transition shrink-0 cursor-pointer" title="Mở danh mục chức năng">
                             <i class="fas fa-bars text-sm"></i>
+                        </button>
+                        <button onclick="toggleSidebarCollapse()" id="topBarToggleCollapse" class="hidden md:flex w-8 h-8 rounded-lg items-center justify-center bg-white/10 hover:bg-white/20 text-white transition shrink-0 cursor-pointer" title="Thu gọn / Mở rộng thanh bên">
+                            <i id="topBarCollapseIcon" class="fas fa-bars-staggered text-sm"></i>
                         </button>
                         <div class="min-w-0">
                             <h2 id="topBarActiveTitle" class="text-sm sm:text-base font-bold text-white truncate flex items-center gap-2">
@@ -3936,6 +3986,40 @@
         }
         window.toggleSidebar = toggleSidebar;
 
+        // Thu gọn / Mở rộng Sidebar bên trái (Desktop)
+        function toggleSidebarCollapse() {
+            const sidebar = document.getElementById('mainSidebar');
+            const icon = document.getElementById('collapseSidebarIcon');
+            const topIcon = document.getElementById('topBarCollapseIcon');
+            if (!sidebar) return;
+            const isCollapsed = sidebar.classList.toggle('collapsed');
+            
+            if (icon) {
+                icon.className = isCollapsed ? 'fas fa-angles-right text-xs' : 'fas fa-angles-left text-xs';
+            }
+            if (topIcon) {
+                topIcon.className = isCollapsed ? 'fas fa-bars text-sm' : 'fas fa-bars-staggered text-sm';
+            }
+            
+            try {
+                localStorage.setItem('sce_sidebar_collapsed', isCollapsed ? '1' : '0');
+            } catch (e) {}
+        }
+        window.toggleSidebarCollapse = toggleSidebarCollapse;
+
+        // Khôi phục trạng thái thu gọn Sidebar từ localStorage khi tải trang
+        try {
+            if (localStorage.getItem('sce_sidebar_collapsed') === '1') {
+                const sidebar = document.getElementById('mainSidebar');
+                const icon = document.getElementById('collapseSidebarIcon');
+                const topIcon = document.getElementById('topBarCollapseIcon');
+                if (sidebar) sidebar.classList.add('collapsed');
+                if (icon) icon.className = 'fas fa-angles-right text-xs';
+                if (topIcon) topIcon.className = 'fas fa-bars text-sm';
+            }
+        } catch (e) {}
+
+
         window.renderUserBadge = function() {
             const badgeEl = document.getElementById('userBadge');
             if (!badgeEl) return;
@@ -5367,7 +5451,7 @@
                 const sec = document.getElementById(`mainTab-${k}`) || (legacyMap[k] ? document.getElementById(`mainTab-${legacyMap[k]}`) : null);
                 const btn = document.getElementById(`tabBtn-${k}`) || (legacyMap[k] ? document.getElementById(`tabBtn-${legacyMap[k]}`) : null);
                 if (sec) sec.classList.add('hidden');
-                if (btn) btn.className = "w-full px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-3 text-xs font-medium cursor-pointer text-left";
+                if (btn) btn.className = "sidebar-nav-btn w-full px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-3 text-xs font-medium cursor-pointer text-left";
             });
 
             const activeSec = document.getElementById(`mainTab-${activeTarget}`) || (legacyMap[activeTarget] ? document.getElementById(`mainTab-${legacyMap[activeTarget]}`) : null);
@@ -5382,7 +5466,7 @@
                 else if (activeTarget === 'reports') activeColor = "bg-rose-600 shadow-md shadow-rose-600/30 text-white font-bold";
                 else if (activeTarget === 'users') activeColor = "bg-cyan-600 shadow-md shadow-cyan-600/30 text-white font-bold";
                 else if (activeTarget === 'admin') activeColor = "bg-slate-700 shadow-md text-white font-bold";
-                activeBtn.className = `w-full px-3 py-2.5 rounded-xl flex items-center gap-3 ${activeColor} transition text-xs cursor-pointer text-left`;
+                activeBtn.className = `sidebar-nav-btn w-full px-3 py-2.5 rounded-xl flex items-center gap-3 ${activeColor} transition text-xs cursor-pointer text-left`;
             }
 
             // Cập nhật tiêu đề Top Bar
@@ -5564,7 +5648,7 @@
 
             // Đăng ký Service Worker cho PWA
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('./sw.js?v=2').catch(err => console.log('SW registration failed:', err));
+                navigator.serviceWorker.register('./sw.js?v=3').catch(err => console.log('SW registration failed:', err));
             }
         });
 
