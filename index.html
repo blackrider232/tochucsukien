@@ -558,6 +558,10 @@
                             <i class="fas fa-file-signature"></i>
                             <span>Quản trị Biểu Mẫu</span>
                         </button>
+                        <button onclick="openHallTemplatesModal()" class="flex-1 md:flex-initial px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm transition flex items-center justify-center gap-2" title="Quản trị và chỉnh sửa các Hội trường mẫu (NCC, UBND Thành phố...)">
+                            <i class="fas fa-landmark"></i>
+                            <span>Hội Trường Mẫu</span>
+                        </button>
                     </div>
                 </div>
 
@@ -1238,10 +1242,8 @@
                         </div>
                         <div>
                             <div class="flex flex-wrap items-center gap-2">
-                                <h2 class="text-base sm:text-xl font-bold text-slate-800 dark:text-white">Quản Lý Khách Mời, Biển Tên & Chỗ Ngồi</h2>
-                                <span class="bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-amber-300 dark:border-amber-700">Kiểm Soát Định Mức 130% & 120%</span>
+                                <h2 class="text-base sm:text-xl font-bold text-slate-800 dark:text-white">Khách Mời & Chỗ Ngồi</h2>
                             </div>
-                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Quản lý danh sách khách mời, xác nhận RSVP, tự động in Biển tên chữ A, Thẻ đại biểu QR và bố trí chỗ ngồi hội trường theo khu vực.</p>
                         </div>
                     </div>
 
@@ -1276,61 +1278,81 @@
                     </div>
                 </div>
 
-                <!-- 4 Thẻ KPI Định Mức & Giám Sát Tự Động -->
+                <!-- 4 Thẻ KPI Định Mức & Giám Sát Tự Động (Bấm để xem danh sách chi tiết) -->
                 <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 pt-5">
-                    <!-- Thẻ 1: Định Mức Mời 130% -->
-                    <div class="bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-xl border border-slate-100 dark:border-slate-700 space-y-1.5">
+                    <!-- Thẻ 1: Khách Mời -->
+                    <div onclick="openGuestListPopup('all')" class="cursor-pointer group hover:shadow-lg hover:border-amber-400 dark:hover:border-amber-500 bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-xl border border-slate-100 dark:border-slate-700 space-y-1.5 transition transform hover:-translate-y-0.5" title="Bấm để xem toàn bộ danh sách khách mời & đại biểu">
                         <div class="flex items-center justify-between">
-                            <span class="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">Định Mức Mời (≥130%)</span>
+                            <span class="text-[11px] text-slate-700 dark:text-slate-300 font-bold group-hover:text-amber-600 dark:group-hover:text-amber-400 flex items-center gap-1.5">
+                                <i class="fas fa-users text-amber-500"></i> Khách Mời
+                            </span>
                             <span class="text-[10px] font-bold px-1.5 py-0.2 rounded font-mono" id="crmQuotaBadge">Đạt chuẩn</span>
                         </div>
                         <div class="flex items-baseline gap-1.5">
                             <span class="text-xl font-extrabold text-slate-800 dark:text-white" id="crmTotalInvited">0</span>
-                            <span class="text-xs text-slate-400">/ Mục tiêu <strong id="crmTargetQuota130">0</strong></span>
+                            <span class="text-xs text-slate-400">/ Dự kiến <strong id="crmTargetQuota130">0</strong></span>
                         </div>
                         <div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
                             <div class="h-1.5 rounded-full transition-all duration-500 bg-amber-500" id="crmQuotaProgressBar" style="width: 0%"></div>
                         </div>
-                        <p class="text-[10px] text-slate-400 italic" id="crmQuotaText">Dự kiến: 0 đại biểu chính thức</p>
+                        <p class="text-[10px] text-slate-500 font-medium" id="crmQuotaText">Dự kiến: 0 đại biểu</p>
+                        <div class="text-[9px] text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1 pt-0.5">
+                            <i class="fas fa-arrow-up-right-from-square text-[8px]"></i> Bấm xem danh sách đại biểu
+                        </div>
                     </div>
 
                     <!-- Thẻ 2: Phản Hồi Xác Nhận (RSVP) -->
-                    <div class="bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-xl border border-slate-100 dark:border-slate-700 space-y-1.5">
+                    <div onclick="openConfirmedGuestsPopup()" class="cursor-pointer group hover:shadow-lg hover:border-emerald-400 dark:hover:border-emerald-500 bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-xl border border-slate-100 dark:border-slate-700 space-y-1.5 transition transform hover:-translate-y-0.5" title="Bấm để xem danh sách khách mời đã xác nhận tham dự">
                         <div class="flex items-center justify-between">
-                            <span class="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">Xác Nhận Tham Dự (RSVP)</span>
-                            <i class="fas fa-check-double text-emerald-500 text-xs"></i>
+                            <span class="text-[11px] text-slate-700 dark:text-slate-300 font-bold group-hover:text-emerald-600 dark:group-hover:text-emerald-400 flex items-center gap-1.5">
+                                <i class="fas fa-check-double text-emerald-500"></i> Xác Nhận Tham Dự (RSVP)
+                            </span>
+                            <i class="fas fa-circle-check text-emerald-500 text-xs"></i>
                         </div>
                         <div class="flex items-baseline gap-1.5">
                             <span class="text-xl font-extrabold text-emerald-600 dark:text-emerald-400" id="crmRsvpConfirmed">0</span>
                             <span class="text-xs text-slate-400">đại biểu chốt tham gia</span>
                         </div>
                         <p class="text-[10px] text-slate-500" id="crmRsvpBreakdown">Vắng: 0 • Người thay: 0 • Chưa liên hệ: 0</p>
+                        <div class="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1 pt-0.5">
+                            <i class="fas fa-arrow-up-right-from-square text-[8px]"></i> Bấm xem khách đã xác nhận
+                        </div>
                     </div>
 
-                    <!-- Thẻ 3: Biển Tên VIP & Thẻ Đại Biểu 120% -->
-                    <div class="bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-xl border border-slate-100 dark:border-slate-700 space-y-1.5">
+                    <!-- Thẻ 3: Biển Tên & Thẻ -->
+                    <div onclick="openNamecardsAndBadgesPopup()" class="cursor-pointer group hover:shadow-lg hover:border-blue-400 dark:hover:border-blue-500 bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-xl border border-slate-100 dark:border-slate-700 space-y-1.5 transition transform hover:-translate-y-0.5" title="Bấm để xem danh sách các biển tên và thẻ in">
                         <div class="flex items-center justify-between">
-                            <span class="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">Biển Tên & Thẻ (≥120%)</span>
-                            <i class="fas fa-id-badge text-blue-500 text-xs"></i>
+                            <span class="text-[11px] text-slate-700 dark:text-slate-300 font-bold group-hover:text-blue-600 dark:group-hover:text-blue-400 flex items-center gap-1.5">
+                                <i class="fas fa-id-badge text-blue-500"></i> Biển Tên & Thẻ
+                            </span>
+                            <i class="fas fa-print text-blue-500 text-xs"></i>
                         </div>
                         <div class="flex items-baseline gap-1.5">
                             <span class="text-xl font-extrabold text-blue-600 dark:text-blue-400" id="crmVipNamecardsCount">0</span>
                             <span class="text-xs text-slate-500">Biển VIP • <strong id="crmBadgeQuota120">0</strong> thẻ in</span>
                         </div>
                         <p class="text-[10px] text-slate-400 italic">Sẵn sàng in ấn theo mẫu chuẩn</p>
+                        <div class="text-[9px] text-blue-600 dark:text-blue-400 font-semibold flex items-center gap-1 pt-0.5">
+                            <i class="fas fa-arrow-up-right-from-square text-[8px]"></i> Bấm xem danh sách in biển & thẻ
+                        </div>
                     </div>
 
                     <!-- Thẻ 4: Tiệc Chiêu Đãi & Xếp Chỗ VIP -->
-                    <div class="bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-xl border border-slate-100 dark:border-slate-700 space-y-1.5">
+                    <div onclick="openBanquetGuestsPopup()" class="cursor-pointer group hover:shadow-lg hover:border-orange-400 dark:hover:border-orange-500 bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-xl border border-slate-100 dark:border-slate-700 space-y-1.5 transition transform hover:-translate-y-0.5" title="Bấm để xem danh sách các đại biểu đã đăng ký ăn tiệc">
                         <div class="flex items-center justify-between">
-                            <span class="text-[11px] text-slate-500 dark:text-slate-400 font-semibold" id="crmCard4Title">Tiệc & Xếp Chỗ</span>
-                            <i class="fas fa-champagne-glasses text-orange-500 text-xs"></i>
+                            <span class="text-[11px] text-slate-700 dark:text-slate-300 font-bold group-hover:text-orange-600 dark:group-hover:text-orange-400 flex items-center gap-1.5" id="crmCard4Title">
+                                <i class="fas fa-champagne-glasses text-orange-500"></i> Tiệc & Xếp Chỗ
+                            </span>
+                            <i class="fas fa-utensils text-orange-500 text-xs"></i>
                         </div>
                         <div class="flex items-baseline gap-1.5">
                             <span class="text-xl font-extrabold text-orange-600 dark:text-orange-400" id="crmCard4Primary">0</span>
                             <span class="text-xs text-slate-500" id="crmCard4Secondary">suất tiệc chốt</span>
                         </div>
                         <p class="text-[10px] text-slate-400 italic" id="crmCard4Note">VIP đã bố trí chỗ: 0 đại biểu</p>
+                        <div class="text-[9px] text-orange-600 dark:text-orange-400 font-semibold flex items-center gap-1 pt-0.5">
+                            <i class="fas fa-arrow-up-right-from-square text-[8px]"></i> Bấm xem danh sách ăn tiệc
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1421,7 +1443,7 @@
                             <i class="fas fa-user-group"></i>
                         </div>
                         <h4 class="text-sm font-bold text-slate-700 dark:text-slate-200">Chưa có khách mời trong danh sách</h4>
-                        <p class="text-xs text-slate-500 max-w-sm mx-auto">Bấm "Thêm Khách Mời" hoặc "Nạp Mẫu Chuẩn" để tự động tạo danh sách khách mời chuẩn kiểm soát định mức ≥ 130%.</p>
+                        <p class="text-xs text-slate-500 max-w-sm mx-auto">Bấm "Thêm Khách Mời" hoặc "Nạp Mẫu Chuẩn" để tự động tạo danh sách khách mời chuẩn theo kế hoạch sự kiện.</p>
                         <div class="flex justify-center gap-2 pt-1">
                             <button onclick="openCreateGuestModal()" class="bg-amber-600 hover:bg-amber-500 text-white px-3.5 py-1.5 rounded-xl text-xs font-semibold shadow transition">Thêm Khách Mới</button>
                             <button onclick="quickPopulateStarterGuests()" class="bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition">Nạp Mẫu Chuẩn</button>
@@ -1462,7 +1484,7 @@
                         <div>
                             <h3 class="font-bold text-sm sm:text-base text-slate-800 dark:text-white flex items-center gap-2">
                                 <i class="fas fa-qrcode text-indigo-600"></i>
-                                <span>Thẻ Đại Biểu Tham Dự (Định Mức ≥ 120% Kèm Mã QR)</span>
+                                <span>Thẻ Đại Biểu Tham Dự (Kèm Mã QR Check-in)</span>
                             </h3>
                             <p class="text-xs text-slate-500 mt-0.5">Khổ chuẩn 9cm x 13cm, tích hợp mã QR riêng biệt cho từng đại biểu phục vụ Check-in tức thì tại bàn Lễ tân.</p>
                         </div>
@@ -1483,27 +1505,67 @@
             <!-- SUB-TAB 3: SƠ ĐỒ CHỖ NGỒI HỘI TRƯỜNG TƯƠNG TÁC (SEATING MAP) -->
             <!-- ========================================================================= -->
             <div id="crmSubTabContent-seating" class="hidden space-y-4">
-                <div class="bg-white dark:bg-slate-800 rounded-xl p-3 sm:p-4 shadow-sm border border-slate-200 dark:border-slate-700 space-y-4">
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-700">
-                        <div>
+                <div class="bg-white dark:bg-slate-800 rounded-xl p-3 sm:p-5 shadow-sm border border-slate-200 dark:border-slate-700 space-y-4">
+                    <!-- Thanh Tiêu Đề & Bộ Điều Khiển Hội Trường -->
+                    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3.5 border-b border-slate-100 dark:border-slate-700">
+                        <div class="space-y-1">
                             <h3 class="font-bold text-sm sm:text-base text-slate-800 dark:text-white flex items-center gap-2">
                                 <i class="fas fa-chair text-indigo-600"></i>
                                 <span>Sơ Đồ Phân Khu Chỗ Ngồi Hội Trường Tương Tác</span>
                             </h3>
-                            <p class="text-xs text-slate-500 mt-0.5">Bấm vào ghế để chỉ định đại biểu hoặc xem vị trí biển tên chữ A.</p>
+                            <div class="flex flex-wrap items-center gap-2 text-xs text-slate-500" id="seatingHallMetaInfo">
+                                <span class="text-slate-400">Chọn mẫu hội trường và phân khu đại biểu chốt tham gia.</span>
+                            </div>
                         </div>
 
-                        <!-- Chú thích màu sắc ghế -->
-                        <div class="flex flex-wrap items-center gap-3 text-xs">
-                            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-red-500"></span> Khu A (VIP)</span>
-                            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-blue-500"></span> Khu B (Sở ngành)</span>
-                            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-slate-400"></span> Khu C (Doanh nghiệp)</span>
-                            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded border border-dashed border-slate-400 bg-white"></span> Còn trống</span>
+                        <!-- Các Nút Thao Tác: Chọn Mẫu, Cấu Hình Phân Khu & Tự Động Xếp Chỗ -->
+                        <div class="flex flex-wrap items-center gap-2">
+                            <!-- Chọn Hội Trường Mẫu -->
+                            <div class="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
+                                <i class="fas fa-landmark text-indigo-600 ml-1"></i>
+                                <span class="text-slate-500 text-[11px] font-semibold hidden sm:inline">Hội trường:</span>
+                                <select id="seatingHallSelector" onchange="onSeatingHallChange(this.value)" class="bg-white dark:bg-slate-800 py-1.5 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 max-w-[210px] sm:max-w-xs truncate">
+                                    <!-- Nạp qua JS: Trung tâm Hội nghị Quốc gia, Hội trường tầng 3 UBND... -->
+                                </select>
+                            </div>
+
+                            <!-- Nút Cán Bộ Cấu Hình Phân Khu -->
+                            <button onclick="openCustomizeZonesModal()" class="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition flex items-center gap-1.5" title="Cán bộ xử lý chính tùy chỉnh phân bổ các khu vực">
+                                <i class="fas fa-layer-group text-blue-500"></i>
+                                <span>Cấu Hình Phân Khu</span>
+                            </button>
+
+                            <!-- Nút Admin Quản Trị Hội Trường Mẫu -->
+                            <button onclick="openHallTemplatesModal()" class="px-3 py-2 rounded-xl text-xs font-semibold bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 transition flex items-center gap-1.5" title="Admin tạo và chỉnh sửa các Hội trường mẫu hệ thống">
+                                <i class="fas fa-sliders text-amber-600"></i>
+                                <span class="hidden sm:inline">Mẫu Hội Trường</span>
+                            </button>
+
+                            <!-- Nút Tự Động Xếp Chỗ Ngẫu Nhiên Theo Phân Khu -->
+                            <button onclick="autoRandomAssignSeats()" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-md shadow-purple-600/20 transition flex items-center gap-2" title="Tự động random xếp chỗ các đại biểu đã xác nhận đăng ký vào các phân khu">
+                                <i class="fas fa-dice text-sm"></i>
+                                <span>Tự Động Xếp Chỗ (Random)</span>
+                            </button>
+
+                            <!-- Nút Hủy Tất Cả Ghế Đã Xếp -->
+                            <button onclick="clearAllSeatingAssignments()" class="p-2 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-600 dark:bg-slate-700 dark:hover:bg-rose-950/50 text-slate-600 dark:text-slate-300 text-xs transition border border-slate-200 dark:border-slate-600" title="Hủy tất cả vị trí ghế đã xếp">
+                                <i class="fas fa-rotate-left"></i>
+                            </button>
+
+                            <!-- Nút In Sơ Đồ -->
+                            <button onclick="printSeatingChartDiagram()" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs transition border border-slate-200 dark:border-slate-600" title="Xem trước & In sơ đồ phân khu chỗ ngồi">
+                                <i class="fas fa-print text-indigo-500"></i>
+                            </button>
                         </div>
                     </div>
 
+                    <!-- Chú thích màu sắc và phân khu động -->
+                    <div id="seatingZoneLegendContainer" class="flex flex-wrap items-center gap-3 text-xs pt-1 pb-1">
+                        <!-- Nạp qua JS tương ứng với các khu của hội trường -->
+                    </div>
+
                     <!-- MÔ PHỎNG HỘI TRƯỜNG TRỰC QUAN -->
-                    <div class="p-6 bg-slate-100 dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col items-center space-y-6 overflow-x-auto min-w-[700px]">
+                    <div class="p-6 bg-slate-100 dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col items-center space-y-6 overflow-x-auto min-w-[700px]" id="seatingPrintArea">
                         <!-- Sân khấu chính -->
                         <div class="w-3/4 max-w-xl bg-gradient-to-r from-blue-900 to-indigo-900 text-white text-center py-3 rounded-lg shadow-md font-bold text-xs uppercase tracking-widest border border-blue-700">
                             ★ SÂN KHẤU CHÍNH / MAIN STAGE ★
@@ -1516,37 +1578,9 @@
                             <span class="bg-purple-100 dark:bg-purple-900/40 text-purple-900 dark:text-purple-200 px-3 py-1 rounded border border-purple-300 font-semibold">🌐 Cabin Dịch song ngữ</span>
                         </div>
 
-                        <!-- HÀNG GHẾ KHU A: VIP (12 Ghế Hàng 1) -->
-                        <div class="w-full max-w-2xl space-y-2">
-                            <div class="flex items-center justify-between text-xs font-bold text-red-600 dark:text-red-400">
-                                <span>KHU A: ĐẠI BIỂU VIP (ĐẶT BIỂN TÊN CHỮ A ĐỂ BÀN)</span>
-                                <span class="text-[11px] font-normal" id="seatingStatsZoneA">0/12 đã xếp</span>
-                            </div>
-                            <div class="grid grid-cols-6 gap-2" id="seatingGridZoneA">
-                                <!-- Nạp qua JS -->
-                            </div>
-                        </div>
-
-                        <!-- HÀNG GHẾ KHU B: SỞ NGÀNH & QUỐC TẾ (18 Ghế Hàng 2 - 3) -->
-                        <div class="w-full max-w-2xl space-y-2">
-                            <div class="flex items-center justify-between text-xs font-bold text-blue-600 dark:text-blue-400">
-                                <span>KHU B: LÃNH ĐẠO SỞ BAN NGÀNH, ĐẠI SỨ QUÁN & TỔ CHỨC QUỐC TẾ</span>
-                                <span class="text-[11px] font-normal" id="seatingStatsZoneB">0/18 đã xếp</span>
-                            </div>
-                            <div class="grid grid-cols-6 gap-2" id="seatingGridZoneB">
-                                <!-- Nạp qua JS -->
-                            </div>
-                        </div>
-
-                        <!-- HÀNG GHẾ KHU C: DOANH NGHIỆP & NHÀ ĐẦU TƯ (24 Ghế) -->
-                        <div class="w-full max-w-2xl space-y-2">
-                            <div class="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
-                                <span>KHU C: ĐẠI DIỆN DOANH NGHIỆP, HIỆP HỘI & NHÀ ĐẦU TƯ</span>
-                                <span class="text-[11px] font-normal" id="seatingStatsZoneC">0/24 đã xếp</span>
-                            </div>
-                            <div class="grid grid-cols-6 gap-2" id="seatingGridZoneC">
-                                <!-- Nạp qua JS -->
-                            </div>
+                        <!-- CÁC PHÂN KHU HỘI TRƯỜNG ĐỘNG (Render tự động theo mẫu hội trường đã chọn) -->
+                        <div id="seatingHallZonesContainer" class="w-full max-w-3xl space-y-6">
+                            <!-- Nạp qua JS renderSeatingChart() -->
                         </div>
                     </div>
                 </div>
@@ -3595,20 +3629,50 @@
 
     <!-- Modal 4: Xem Trước & In Biển Tên Chữ A Chuẩn A4 (Print Namecards Modal) -->
     <div id="printNameCardsModal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
-        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-4xl w-full p-4 sm:p-6 border border-slate-200 dark:border-slate-700 space-y-4 max-h-[95vh] flex flex-col">
-            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700 print:hidden">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-5xl w-full p-4 sm:p-6 border border-slate-200 dark:border-slate-700 space-y-4 max-h-[96vh] flex flex-col">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-700 print:hidden">
                 <div class="flex items-center gap-2">
                     <i class="fas fa-print text-blue-600 text-lg"></i>
                     <div>
-                        <h3 class="font-bold text-base text-slate-800 dark:text-white">Xem Trước Bản In Biển Tên Chữ A Để Bàn</h3>
+                        <h3 class="font-bold text-base text-slate-800 dark:text-white">Xem Trước Bản In Biển Tên Chữ A Để Bàn (VIP)</h3>
                         <p class="text-[11px] text-slate-500">Khổ chuẩn gấp đôi A4 (10cm x 28cm), in 2 mặt đối xứng cho khách mời VIP</p>
                     </div>
                 </div>
+
                 <div class="flex items-center gap-2">
                     <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-lg text-xs font-semibold shadow flex items-center gap-1.5">
                         <i class="fas fa-print"></i> In Ngay
                     </button>
-                    <button onclick="closePrintNameCardsModal()" class="text-slate-400 hover:text-slate-600 p-1.5"><i class="fas fa-times"></i></button>
+                    <button onclick="closePrintNameCardsModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1.5"><i class="fas fa-times"></i></button>
+                </div>
+            </div>
+
+            <!-- THANH CÔNG CỤ CHỌN BACKGROUND BIỂN TÊN VIP -->
+            <div class="bg-slate-50 dark:bg-slate-800/80 p-3 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3 text-xs print:hidden">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                        <i class="fas fa-palette text-amber-500"></i> Chọn Mẫu Background Biển Tên:
+                    </span>
+                    <select id="vipCardBgSelector" onchange="changeVipCardBgTheme(this.value)" class="py-1.5 px-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                        <option value="red_gold">🏛️ 1. Đỏ Đô & Vàng Gold Hoàng Gia (Mặc định)</option>
+                        <option value="imperial_gold">👑 2. Hoàng Gia Vàng Champagne</option>
+                        <option value="dong_son">☀️ 3. Hoa Văn Trống Đồng Đông Sơn</option>
+                        <option value="diplomatic_blue">🌐 4. Xanh Dương Ngoại Giao Quốc Tế</option>
+                        <option value="classic_white">📄 5. Trắng Tối Giản Viền Đỏ Chuẩn Công Vụ</option>
+                        <option value="custom">🖼️ 6. Tùy Chỉnh (Tải Ảnh Nền Từ Máy)</option>
+                    </select>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <label class="cursor-pointer bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 font-medium flex items-center gap-1.5 transition">
+                        <i class="fas fa-upload text-blue-500"></i>
+                        <span>Tải ảnh nền riêng</span>
+                        <input type="file" id="vipCardBgFileInput" accept="image/*" class="hidden" onchange="uploadVipCardBg(event)">
+                    </label>
+                    <span id="vipCardCustomBgStatus" class="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold hidden">
+                        <i class="fas fa-check"></i> Đang dùng ảnh riêng
+                        <button onclick="clearCustomVipCardBg()" class="text-rose-500 hover:underline ml-1">(Xóa)</button>
+                    </span>
                 </div>
             </div>
 
@@ -3620,25 +3684,444 @@
 
     <!-- Modal 5: Xem Trước & In Thẻ Đại Biểu Hàng Loạt Chuẩn A4 (Print Badges Modal) -->
     <div id="printBadgesModal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
-        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-4xl w-full p-4 sm:p-6 border border-slate-200 dark:border-slate-700 space-y-4 max-h-[95vh] flex flex-col">
-            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700 print:hidden">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-5xl w-full p-4 sm:p-6 border border-slate-200 dark:border-slate-700 space-y-4 max-h-[96vh] flex flex-col">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-700 print:hidden">
                 <div class="flex items-center gap-2">
                     <i class="fas fa-id-badge text-indigo-600 text-lg"></i>
                     <div>
-                        <h3 class="font-bold text-base text-slate-800 dark:text-white">Xem Trước Bản In Thẻ Đại Biểu (Mỗi Trang 4 Thẻ Kèm Mã QR)</h3>
+                        <h3 class="font-bold text-base text-slate-800 dark:text-white">Xem Trước Bản In Thẻ Đại Biểu (4 Thẻ/Trang A4 Kèm QR)</h3>
                         <p class="text-[11px] text-slate-500">Khổ chuẩn 9cm x 13cm có vạch cắt, phục vụ Check-in tự động tại sự kiện</p>
                     </div>
                 </div>
+
                 <div class="flex items-center gap-2">
                     <button onclick="window.print()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded-lg text-xs font-semibold shadow flex items-center gap-1.5">
                         <i class="fas fa-print"></i> In Ngay
                     </button>
-                    <button onclick="closePrintBadgesModal()" class="text-slate-400 hover:text-slate-600 p-1.5"><i class="fas fa-times"></i></button>
+                    <button onclick="closePrintBadgesModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1.5"><i class="fas fa-times"></i></button>
+                </div>
+            </div>
+
+            <!-- THANH CÔNG CỤ CHỌN BACKGROUND THẺ ĐẠI BIỂU -->
+            <div class="bg-slate-50 dark:bg-slate-800/80 p-3 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3 text-xs print:hidden">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                        <i class="fas fa-palette text-indigo-500"></i> Chọn Mẫu Background Thẻ:
+                    </span>
+                    <select id="badgeBgSelector" onchange="changeBadgeBgTheme(this.value)" class="py-1.5 px-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="navy_sce">🌊 1. Xanh Navy SCE & Vàng Gold (Mặc định)</option>
+                        <option value="red_prestige">🏛️ 2. Đỏ Cờ Sang Trọng Sự Kiện Cấp Cao</option>
+                        <option value="modern_emerald">🌿 3. Xanh Ngọc Lục Bảo (Đổi Mới & Đầu Tư)</option>
+                        <option value="dark_gold">✨ 4. VIP Đẳng Cấp Gold & Nền Tối</option>
+                        <option value="clean_white">📄 5. Trắng Thanh Lịch Tiêu Chuẩn</option>
+                        <option value="custom">🖼️ 6. Tùy Chỉnh (Tải Ảnh Nền Từ Máy)</option>
+                    </select>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <label class="cursor-pointer bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 font-medium flex items-center gap-1.5 transition">
+                        <i class="fas fa-upload text-indigo-500"></i>
+                        <span>Tải ảnh nền thẻ</span>
+                        <input type="file" id="badgeBgFileInput" accept="image/*" class="hidden" onchange="uploadBadgeBg(event)">
+                    </label>
+                    <span id="badgeCustomBgStatus" class="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold hidden">
+                        <i class="fas fa-check"></i> Đang dùng ảnh riêng
+                        <button onclick="clearCustomBadgeBg()" class="text-rose-500 hover:underline ml-1">(Xóa)</button>
+                    </span>
                 </div>
             </div>
 
             <div id="printBadgesContentArea" class="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-100 rounded-xl space-y-6">
                 <!-- Nạp qua JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- 4 CÁC MODAL POPUP CHO 4 THẺ KPI KHÁCH MỜI & CHỖ NGỒI -->
+    <!-- ========================================================================= -->
+
+    <!-- Popup 1: Danh Sách Toàn Bộ Khách Mời & Đại Biểu (Khi ấn Card 1) -->
+    <div id="guestListPopupModal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-5xl w-full p-4 sm:p-6 border border-slate-200 dark:border-slate-700 space-y-4 max-h-[92vh] flex flex-col">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-900/50 text-amber-600 flex items-center justify-center font-bold">
+                        <i class="fas fa-users text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base text-slate-800 dark:text-white flex items-center gap-2">
+                            <span>Danh Sách Khách Mời & Đại Biểu</span>
+                            <span class="bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 text-xs px-2.5 py-0.5 rounded-full font-mono font-bold" id="popupTotalGuestsBadge">0 đại biểu</span>
+                        </h3>
+                        <p class="text-xs text-slate-500" id="popupGuestListSubtitle">Danh sách khách mời sự kiện hiện tại</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="openCreateGuestModal(); closeGuestListPopup();" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded-xl text-xs font-semibold shadow transition flex items-center gap-1.5">
+                        <i class="fas fa-plus"></i> Thêm Khách
+                    </button>
+                    <button onclick="closeGuestListPopup()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1.5"><i class="fas fa-times text-lg"></i></button>
+                </div>
+            </div>
+
+            <!-- Thanh tìm kiếm & lọc nhanh trong pop-up -->
+            <div class="flex flex-col sm:flex-row gap-2 text-xs">
+                <div class="relative flex-1">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="text" id="popupGuestSearchInput" oninput="renderPopupGuestsTable()" placeholder="Tìm theo tên đại biểu, chức danh, đơn vị, điện thoại..." class="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                </div>
+                <select id="popupGuestGroupFilter" onchange="renderPopupGuestsTable()" class="py-2 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200">
+                    <option value="all">Tất cả nhóm</option>
+                    <option value="VIP">⭐ VIP</option>
+                    <option value="SoNganh">🏛️ Sở ngành</option>
+                    <option value="DoanhNghiep">💼 Doanh nghiệp</option>
+                    <option value="QuocTe">🌐 Quốc tế</option>
+                    <option value="BaoChi">📰 Báo chí</option>
+                </select>
+                <select id="popupGuestRsvpFilter" onchange="renderPopupGuestsTable()" class="py-2 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200">
+                    <option value="all">Tất cả RSVP</option>
+                    <option value="confirmed">✓ Đã xác nhận</option>
+                    <option value="declined">✗ Báo vắng</option>
+                    <option value="substituted">⇄ Người đi thay</option>
+                    <option value="pending">⏳ Chờ phản hồi</option>
+                </select>
+            </div>
+
+            <!-- Bảng Danh Sách Khách Mời Trong Pop-up -->
+            <div class="flex-1 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead class="sticky top-0 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
+                        <tr>
+                            <th class="p-2.5 text-center w-12">STT</th>
+                            <th class="p-2.5">Họ và Tên Đại Biểu</th>
+                            <th class="p-2.5">Chức Danh & Cơ Quan</th>
+                            <th class="p-2.5 text-center">Nhóm</th>
+                            <th class="p-2.5 text-center">RSVP</th>
+                            <th class="p-2.5 text-center">Tiệc</th>
+                            <th class="p-2.5 text-center">Ghế Ngồi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="popupGuestTableBody" class="divide-y divide-slate-100 dark:divide-slate-800">
+                        <!-- Nạp qua JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-700 text-xs">
+                <span class="text-slate-500" id="popupGuestTableSummary">Hiển thị 0 đại biểu</span>
+                <button onclick="closeGuestListPopup()" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-semibold">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Popup 2: Khách Mời Đã Xác Nhận Tham Dự (Khi ấn Card 2 RSVP) -->
+    <div id="confirmedGuestsPopupModal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-4xl w-full p-4 sm:p-6 border border-slate-200 dark:border-slate-700 space-y-4 max-h-[92vh] flex flex-col">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 flex items-center justify-center font-bold">
+                        <i class="fas fa-check-double text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base text-slate-800 dark:text-white flex items-center gap-2">
+                            <span>Khách Mời Đã Xác Nhận Tham Dự (RSVP)</span>
+                            <span class="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 text-xs px-2.5 py-0.5 rounded-full font-mono font-bold" id="popupConfirmedCountBadge">0 đại biểu</span>
+                        </h3>
+                        <p class="text-xs text-slate-500">Danh sách chốt đại biểu chính thức & người được ủy quyền đi thay</p>
+                    </div>
+                </div>
+                <button onclick="closeConfirmedGuestsPopup()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1.5"><i class="fas fa-times text-lg"></i></button>
+            </div>
+
+            <div class="relative text-xs">
+                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <input type="text" id="popupConfirmedSearchInput" oninput="renderPopupConfirmedTable()" placeholder="Tìm kiếm đại biểu đã xác nhận..." class="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            </div>
+
+            <!-- Bảng Khách Đã Xác Nhận -->
+            <div class="flex-1 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead class="sticky top-0 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
+                        <tr>
+                            <th class="p-2.5 text-center w-12">STT</th>
+                            <th class="p-2.5">Họ và Tên Đại Biểu</th>
+                            <th class="p-2.5">Chức Vụ & Đơn Vị</th>
+                            <th class="p-2.5 text-center">Người Đi Thay (nếu có)</th>
+                            <th class="p-2.5 text-center">Ghế Ngồi</th>
+                            <th class="p-2.5 text-center">Tiệc</th>
+                            <th class="p-2.5 text-center">Điện Thoại</th>
+                        </tr>
+                    </thead>
+                    <tbody id="popupConfirmedTableBody" class="divide-y divide-slate-100 dark:divide-slate-800">
+                        <!-- Nạp qua JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-700 text-xs">
+                <span class="text-slate-500" id="popupConfirmedSummary">Tổng cộng 0 đại biểu</span>
+                <button onclick="closeConfirmedGuestsPopup()" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-semibold">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Popup 3: Chi Tiết Danh Sách Biển Tên VIP & Thẻ In (Khi ấn Card 3) -->
+    <div id="namecardsAndBadgesPopupModal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-4xl w-full p-4 sm:p-6 border border-slate-200 dark:border-slate-700 space-y-4 max-h-[92vh] flex flex-col">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-900/50 text-blue-600 flex items-center justify-center font-bold">
+                        <i class="fas fa-id-badge text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base text-slate-800 dark:text-white">Chi Tiết Biển Tên VIP & Thẻ Đại Biểu Cần In</h3>
+                        <p class="text-xs text-slate-500">Xem trước danh sách các biển tên chữ A và thẻ đeo có mã QR check-in</p>
+                    </div>
+                </div>
+                <button onclick="closeNamecardsAndBadgesPopup()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1.5"><i class="fas fa-times text-lg"></i></button>
+            </div>
+
+            <!-- Tab Switcher bên trong Pop-up: Biển Tên VIP vs Thẻ Đại Biểu -->
+            <div class="flex gap-2 border-b border-slate-200 dark:border-slate-700 pb-2 text-xs">
+                <button onclick="switchPopupBadgeSubTab('vip')" id="popupBadgeTabBtn-vip" class="px-3.5 py-1.5 rounded-lg font-bold bg-blue-600 text-white flex items-center gap-1.5 shadow-sm">
+                    <i class="fas fa-id-card"></i> Biển Tên VIP Chữ A (<span id="popupCountVipCards">0</span>)
+                </button>
+                <button onclick="switchPopupBadgeSubTab('badges')" id="popupBadgeTabBtn-badges" class="px-3.5 py-1.5 rounded-lg font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1.5">
+                    <i class="fas fa-qrcode"></i> Thẻ Đại Biểu QR (<span id="popupCountDelegateBadges">0</span>)
+                </button>
+            </div>
+
+            <!-- Nội dung 1: Biển Tên VIP -->
+            <div id="popupBadgeContent-vip" class="flex-1 overflow-y-auto space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs text-slate-500 font-semibold">Danh sách đại biểu VIP cần in Biển tên chữ A để bàn (10cm x 28cm):</span>
+                    <button onclick="closeNamecardsAndBadgesPopup(); openPrintNameCardsModal();" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow flex items-center gap-1.5">
+                        <i class="fas fa-print"></i> In Toàn Bộ Biển Tên VIP
+                    </button>
+                </div>
+                <div class="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                            <tr>
+                                <th class="p-2.5 text-center w-12">STT</th>
+                                <th class="p-2.5">Đại Biểu VIP</th>
+                                <th class="p-2.5">Chức Vụ & Đơn Vị</th>
+                                <th class="p-2.5 text-center">Vị Trí Ghế</th>
+                                <th class="p-2.5 text-right">In Riêng</th>
+                            </tr>
+                        </thead>
+                        <tbody id="popupVipCardsTableBody" class="divide-y divide-slate-100 dark:divide-slate-800">
+                            <!-- Nạp qua JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Nội dung 2: Thẻ Đại Biểu QR -->
+            <div id="popupBadgeContent-badges" class="hidden flex-1 overflow-y-auto space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs text-slate-500 font-semibold">Danh sách đại biểu cần in Thẻ đeo có mã QR Check-in (Khổ 9cm x 13cm):</span>
+                    <button onclick="closeNamecardsAndBadgesPopup(); openPrintBadgesModal();" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow flex items-center gap-1.5">
+                        <i class="fas fa-print"></i> In Hàng Loạt Thẻ Đại Biểu
+                    </button>
+                </div>
+                <div class="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                            <tr>
+                                <th class="p-2.5 text-center w-12">STT</th>
+                                <th class="p-2.5">Họ và Tên Đại Biểu</th>
+                                <th class="p-2.5">Đơn Vị Công Tác</th>
+                                <th class="p-2.5 text-center">Nhóm</th>
+                                <th class="p-2.5 text-center">Mã Check-in</th>
+                                <th class="p-2.5 text-right">In Riêng</th>
+                            </tr>
+                        </thead>
+                        <tbody id="popupBadgesTableBody" class="divide-y divide-slate-100 dark:divide-slate-800">
+                            <!-- Nạp qua JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end pt-2 border-t border-slate-100 dark:border-slate-700 text-xs">
+                <button onclick="closeNamecardsAndBadgesPopup()" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-semibold">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Popup 4: Khách Mời Đã Đăng Ký Ăn Tiệc (Khi ấn Card 4) -->
+    <div id="banquetGuestsPopupModal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-4xl w-full p-4 sm:p-6 border border-slate-200 dark:border-slate-700 space-y-4 max-h-[92vh] flex flex-col">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-orange-100 dark:bg-orange-900/50 text-orange-600 flex items-center justify-center font-bold">
+                        <i class="fas fa-champagne-glasses text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base text-slate-800 dark:text-white flex items-center gap-2">
+                            <span>Danh Sách Đại Biểu Đăng Ký Ăn Tiệc Chiêu Đãi</span>
+                            <span class="bg-orange-100 text-orange-800 dark:bg-orange-900/60 dark:text-orange-300 text-xs px-2.5 py-0.5 rounded-full font-mono font-bold" id="popupBanquetCountBadge">0 suất</span>
+                        </h3>
+                        <p class="text-xs text-slate-500">Phục vụ hậu cần tiệc chiêu đãi, bố trí bàn tiệc và suất ăn chuyên biệt</p>
+                    </div>
+                </div>
+                <button onclick="closeBanquetGuestsPopup()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1.5"><i class="fas fa-times text-lg"></i></button>
+            </div>
+
+            <div class="relative text-xs">
+                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <input type="text" id="popupBanquetSearchInput" oninput="renderPopupBanquetTable()" placeholder="Tìm kiếm đại biểu ăn tiệc..." class="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500">
+            </div>
+
+            <!-- Bảng Khách Ăn Tiệc -->
+            <div class="flex-1 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead class="sticky top-0 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
+                        <tr>
+                            <th class="p-2.5 text-center w-12">STT</th>
+                            <th class="p-2.5">Họ và Tên Đại Biểu</th>
+                            <th class="p-2.5">Chức Vụ & Đơn Vị</th>
+                            <th class="p-2.5 text-center">Nhóm</th>
+                            <th class="p-2.5 text-center">Ghế Hội Trường</th>
+                            <th class="p-2.5 text-center">Bàn Tiệc / Phục Vụ</th>
+                            <th class="p-2.5 text-center">Yêu Cầu Đặc Biệt</th>
+                        </tr>
+                    </thead>
+                    <tbody id="popupBanquetTableBody" class="divide-y divide-slate-100 dark:divide-slate-800">
+                        <!-- Nạp qua JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-700 text-xs">
+                <span class="text-slate-500" id="popupBanquetSummary">Tổng cộng 0 suất tiệc</span>
+                <button onclick="closeBanquetGuestsPopup()" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-semibold">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- CÁC MODAL HỘI TRƯỜNG MẪU & CẤU HÌNH PHÂN KHU (REQUIREMENT 4) -->
+    <!-- ========================================================================= -->
+
+    <!-- Modal Admin Quản Lý Các Hội Trường Mẫu (adminHallTemplatesModal) -->
+    <div id="adminHallTemplatesModal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-4xl w-full p-4 sm:p-6 border border-slate-200 dark:border-slate-700 space-y-4 max-h-[92vh] flex flex-col">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 flex items-center justify-center text-xl font-bold">
+                        <i class="fas fa-landmark"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base text-slate-800 dark:text-white">Quản Trị Kho Hội Trường Mẫu</h3>
+                        <p class="text-xs text-slate-500">Admin tạo và chỉnh sửa các sơ đồ hội trường mẫu (NCC, Tầng 3 UBND...)</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="openEditHallTemplateModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow transition flex items-center gap-1.5">
+                        <i class="fas fa-plus"></i> Thêm Hội Trường
+                    </button>
+                    <button onclick="closeHallTemplatesModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1.5"><i class="fas fa-times text-lg"></i></button>
+                </div>
+            </div>
+
+            <!-- Danh Sách Các Mẫu Hội Trường Đang Có -->
+            <div class="flex-1 overflow-y-auto space-y-3" id="adminHallTemplatesList">
+                <!-- Nạp qua JS renderAdminHallTemplatesList() -->
+            </div>
+
+            <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-700 text-xs">
+                <button onclick="resetDefaultHallTemplates()" class="text-amber-600 hover:underline flex items-center gap-1 font-semibold">
+                    <i class="fas fa-rotate-left"></i> Khôi phục mẫu mặc định ban hành
+                </button>
+                <button onclick="closeHallTemplatesModal()" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-semibold">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Thêm / Chỉnh Sửa Hội Trường Mẫu (editHallTemplateModal) -->
+    <div id="editHallTemplateModal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full p-5 border border-slate-200 dark:border-slate-700 space-y-4 max-h-[92vh] flex flex-col">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
+                <h3 class="font-bold text-base text-slate-800 dark:text-white flex items-center gap-2" id="editHallTemplateModalTitle">
+                    <i class="fas fa-building-columns text-indigo-500"></i>
+                    <span>Tạo Hội Trường Mẫu Mới</span>
+                </h3>
+                <button onclick="closeEditHallTemplateModal()" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times"></i></button>
+            </div>
+
+            <form id="hallTemplateForm" onsubmit="saveHallTemplateForm(event)" class="space-y-4 flex-1 overflow-y-auto pr-1 text-xs">
+                <input type="hidden" id="tplHallId">
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div class="sm:col-span-2">
+                        <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Tên Hội Trường Mẫu <span class="text-rose-500">*</span></label>
+                        <input type="text" id="tplHallName" required placeholder="Ví dụ: Trung tâm Hội nghị Quốc gia (Phòng Đa năng)" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Địa Chỉ / Vị Trí Địa Lý</label>
+                        <input type="text" id="tplHallLocation" placeholder="Ví dụ: Đại lộ Thăng Long, Mễ Trì, Nam Từ Liêm, Hà Nội" class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Mô Tả & Quy Chuẩn Hội Trường</label>
+                        <textarea id="tplHallDescription" rows="2" placeholder="Ghi chú về sức chứa, âm thanh, bục phát biểu, cabin dịch..." class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                    </div>
+                </div>
+
+                <!-- Cấu Hình Các Phân Khu Của Hội Trường Mẫu -->
+                <div class="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <div class="flex items-center justify-between">
+                        <label class="font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
+                            <i class="fas fa-layer-group text-blue-500"></i> Thiết Kế Phân Khu & Số Ghế
+                        </label>
+                        <button type="button" onclick="addZoneToHallTemplateForm()" class="bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 px-2.5 py-1 rounded-lg border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 font-semibold flex items-center gap-1">
+                            <i class="fas fa-plus text-[10px]"></i> Thêm Khu Vực
+                        </button>
+                    </div>
+
+                    <div id="tplZonesContainer" class="space-y-2.5">
+                        <!-- Danh sách các phân khu do JS nạp -->
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-700">
+                    <button type="button" onclick="closeEditHallTemplateModal()" class="px-4 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 font-semibold">Hủy</button>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-xl font-semibold shadow">Lưu Hội Trường</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Cán Bộ Xử Lý Chính Cấu Hình Phân Khu Cho Sự Kiện (customizeZonesModal) -->
+    <div id="customizeZonesModal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full p-5 border border-slate-200 dark:border-slate-700 space-y-4 max-h-[92vh] flex flex-col">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-600 flex items-center justify-center font-bold">
+                        <i class="fas fa-layer-group"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base text-slate-800 dark:text-white">Cấu Hình Phân Khu Hội Trường</h3>
+                        <p class="text-xs text-slate-500">Cán bộ xử lý chính chỉ định nhóm đại biểu và số ghế tương ứng từng khu</p>
+                    </div>
+                </div>
+                <button onclick="closeCustomizeZonesModal()" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times"></i></button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto space-y-3.5 text-xs pr-1" id="customizeZonesListContainer">
+                <!-- Nạp qua JS renderCustomizeZonesList() -->
+            </div>
+
+            <div class="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-700 text-xs">
+                <button type="button" onclick="resetZonesToHallDefault()" class="text-slate-500 hover:text-slate-700 underline font-medium">Khôi phục về mẫu gốc</button>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="closeCustomizeZonesModal()" class="px-4 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 font-semibold">Đóng</button>
+                    <button type="button" onclick="saveEventZoneCustomization()" class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-xl font-semibold shadow">Lưu Phân Khu</button>
+                </div>
             </div>
         </div>
     </div>
@@ -10120,14 +10603,139 @@ let module4State = {
 };
 
 // -------------------------------------------------------------
-// A. KHỞI TẠO VÀ ĐỒNG BỘ DỮ LIỆU
+// A. KHỞI TẠO VÀ ĐỒNG BỘ DỮ LIỆU & HỘI TRƯỜNG MẪU (HALL TEMPLATES)
 // -------------------------------------------------------------
+const DEFAULT_HALL_TEMPLATES = [
+    {
+        id: 'hall_ncc',
+        name: 'Trung tâm Hội nghị Quốc gia (NCC)',
+        location: 'Đại lộ Thăng Long, Mễ Trì, Nam Từ Liêm, Hà Nội',
+        description: 'Hội trường đa năng cấp quốc tế, âm thanh ánh sáng và bàn ghế tiêu chuẩn cao cấp',
+        totalSeats: 114,
+        zones: [
+            {
+                id: 'zone_A',
+                name: 'Khu A: Đại biểu VIP (Bố trí Biển tên chữ A)',
+                prefix: 'A-',
+                seatCount: 18,
+                colorScheme: 'red',
+                assignedGroup: 'VIP',
+                badgeText: 'Biển tên để bàn chữ A'
+            },
+            {
+                id: 'zone_B',
+                name: 'Khu B: Lãnh đạo các Ban, Bộ, Sở ngành & Quận/Huyện',
+                prefix: 'B-',
+                seatCount: 36,
+                colorScheme: 'blue',
+                assignedGroup: 'SoNganh',
+                badgeText: 'Thẻ đại biểu'
+            },
+            {
+                id: 'zone_C',
+                name: 'Khu C: Khách Ngoại giao, Đại sứ quán & Quốc tế',
+                prefix: 'C-',
+                seatCount: 24,
+                colorScheme: 'emerald',
+                assignedGroup: 'QuocTe',
+                badgeText: 'Thẻ đại biểu'
+            },
+            {
+                id: 'zone_D',
+                name: 'Khu D: Doanh nghiệp, Hiệp hội & Báo chí',
+                prefix: 'D-',
+                seatCount: 36,
+                colorScheme: 'slate',
+                assignedGroup: 'DoanhNghiep',
+                badgeText: 'Thẻ đại biểu'
+            }
+        ]
+    },
+    {
+        id: 'hall_ubnd_tang3',
+        name: 'Hội trường Tầng 3 UBND Thành phố',
+        location: 'Số 12 Lê Lai, Hoàn Kiếm, Hà Nội',
+        description: 'Hội trường giao ban và hội nghị kinh tế đối ngoại UBND Thành phố Hà Nội',
+        totalSeats: 54,
+        zones: [
+            {
+                id: 'zone_A',
+                name: 'Khu A: Đoàn Chủ tịch & Lãnh đạo Thành phố VIP',
+                prefix: 'A-',
+                seatCount: 12,
+                colorScheme: 'red',
+                assignedGroup: 'VIP',
+                badgeText: 'Biển tên để bàn chữ A'
+            },
+            {
+                id: 'zone_B',
+                name: 'Khu B: Giám đốc các Sở, Ban, Ngành & Đại diện Quận Huyện',
+                prefix: 'B-',
+                seatCount: 18,
+                colorScheme: 'blue',
+                assignedGroup: 'SoNganh',
+                badgeText: 'Thẻ đại biểu'
+            },
+            {
+                id: 'zone_C',
+                name: 'Khu C: Doanh nghiệp tiêu biểu, Hiệp hội & Báo chí',
+                prefix: 'C-',
+                seatCount: 24,
+                colorScheme: 'slate',
+                assignedGroup: 'DoanhNghiep',
+                badgeText: 'Thẻ đại biểu'
+            }
+        ]
+    },
+    {
+        id: 'hall_sce_tang2',
+        name: 'Hội trường Đa năng Tầng 2 Trung tâm SCE',
+        location: 'Tòa nhà Liên cơ quan Sở ngành, Võ Chí Công, Tây Hồ, Hà Nội',
+        description: 'Phòng hội thảo chuyên đề kết nối đầu tư, hỗ trợ doanh nghiệp và xúc tiến thương mại',
+        totalSeats: 42,
+        zones: [
+            {
+                id: 'zone_A',
+                name: 'Khu A: Bàn Chủ tọa & Khách mời VIP',
+                prefix: 'A-',
+                seatCount: 10,
+                colorScheme: 'red',
+                assignedGroup: 'VIP',
+                badgeText: 'Biển tên để bàn chữ A'
+            },
+            {
+                id: 'zone_B',
+                name: 'Khu B: Khối Sở ban ngành & Tổ chức Quốc tế',
+                prefix: 'B-',
+                seatCount: 16,
+                colorScheme: 'blue',
+                assignedGroup: 'SoNganh',
+                badgeText: 'Thẻ đại biểu'
+            },
+            {
+                id: 'zone_C',
+                name: 'Khu C: Đại diện Doanh nghiệp & Nhà đầu tư',
+                prefix: 'C-',
+                seatCount: 16,
+                colorScheme: 'emerald',
+                assignedGroup: 'DoanhNghiep',
+                badgeText: 'Thẻ đại biểu'
+            }
+        ]
+    }
+];
+
 function initModule4() {
     if (!appData.eventGuests) appData.eventGuests = {};
     if (!appData.eventBooths) appData.eventBooths = {};
     if (!appData.eventSeating) appData.eventSeating = {};
+    if (!appData.hallTemplates || !Array.isArray(appData.hallTemplates) || appData.hallTemplates.length === 0) {
+        appData.hallTemplates = JSON.parse(JSON.stringify(DEFAULT_HALL_TEMPLATES));
+    }
+    if (!appData.eventHallConfig) appData.eventHallConfig = {};
 
     populateCrmEventSelector();
+    populateSeatingHallSelector();
 
     const events = appData.events || [];
     if (!module4State.selectedEventId && events.length > 0) {
@@ -10211,8 +10819,21 @@ function ensureStarterDataForEvent(eventId) {
     if (!appData.eventGuests) appData.eventGuests = {};
     if (!appData.eventBooths) appData.eventBooths = {};
     if (!appData.eventSeating) appData.eventSeating = {};
+    if (!appData.hallTemplates || !Array.isArray(appData.hallTemplates) || appData.hallTemplates.length === 0) {
+        appData.hallTemplates = JSON.parse(JSON.stringify(DEFAULT_HALL_TEMPLATES));
+    }
+    if (!appData.eventHallConfig) appData.eventHallConfig = {};
 
     let hasChanged = false;
+    if (!appData.eventHallConfig[eventId]) {
+        const defaultHall = appData.hallTemplates[0];
+        appData.eventHallConfig[eventId] = {
+            hallId: defaultHall.id,
+            zones: JSON.parse(JSON.stringify(defaultHall.zones))
+        };
+        hasChanged = true;
+    }
+
     if (!appData.eventGuests[eventId] || appData.eventGuests[eventId].length === 0) {
         appData.eventGuests[eventId] = generateStarterGuestsList(eventId);
         hasChanged = true;
@@ -10848,11 +11469,9 @@ function renderModule4() {
 
 function updateCrmKpiCards(currentEvent, guests, booths, seating) {
     const targetExpected = currentEvent.expectedDelegates || 100;
-    const quota130 = Math.ceil(targetExpected * 1.3);
-    const quota120 = Math.ceil(targetExpected * 1.2);
     const totalInvited = guests.length;
 
-    // 1. Thẻ KPI 1: Định Mức Mời 130%
+    // 1. Thẻ KPI 1: Khách Mời (Bỏ quy định bắt buộc >130%, ghi rõ cần mời thêm bao nhiêu khách)
     const totalInvitedEl = document.getElementById('crmTotalInvited');
     const targetQuota130El = document.getElementById('crmTargetQuota130');
     const quotaBadgeEl = document.getElementById('crmQuotaBadge');
@@ -10860,29 +11479,34 @@ function updateCrmKpiCards(currentEvent, guests, booths, seating) {
     const quotaTextEl = document.getElementById('crmQuotaText');
 
     if (totalInvitedEl) totalInvitedEl.textContent = totalInvited;
-    if (targetQuota130El) targetQuota130El.textContent = quota130;
+    if (targetQuota130El) targetQuota130El.textContent = targetExpected;
 
     const percentInvitedOfTarget = targetExpected > 0 ? Math.round((totalInvited / targetExpected) * 100) : 0;
-    const percentOf130 = quota130 > 0 ? Math.min(100, Math.round((totalInvited / quota130) * 100)) : 0;
 
     if (quotaBadgeEl) {
-        if (totalInvited >= quota130) {
+        if (totalInvited >= targetExpected) {
             quotaBadgeEl.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300";
-            quotaBadgeEl.textContent = `Đạt chuẩn (${percentInvitedOfTarget}%)`;
+            quotaBadgeEl.textContent = `Đủ số lượng (${percentInvitedOfTarget}%)`;
         } else {
-            const missing = quota130 - totalInvited;
+            const missing = targetExpected - totalInvited;
             quotaBadgeEl.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300";
-            quotaBadgeEl.textContent = `Cần thêm ${missing} khách`;
+            quotaBadgeEl.textContent = `Cần mời thêm ${missing} khách`;
         }
     }
 
     if (quotaProgressEl) {
-        quotaProgressEl.style.width = percentOf130 + '%';
-        quotaProgressEl.className = totalInvited >= quota130 ? 'h-1.5 rounded-full transition-all duration-500 bg-emerald-500' : 'h-1.5 rounded-full transition-all duration-500 bg-amber-500';
+        quotaProgressEl.style.width = Math.min(100, percentInvitedOfTarget) + '%';
+        quotaProgressEl.className = totalInvited >= targetExpected ? 'h-1.5 rounded-full transition-all duration-500 bg-emerald-500' : 'h-1.5 rounded-full transition-all duration-500 bg-amber-500';
     }
 
     if (quotaTextEl) {
-        quotaTextEl.textContent = `Mục tiêu: ${targetExpected} đại biểu chính thức (Quy định bắt buộc ≥ 130%)`;
+        if (totalInvited < targetExpected) {
+            const missing = targetExpected - totalInvited;
+            quotaTextEl.innerHTML = `<span class="text-amber-600 dark:text-amber-400 font-bold">Cần mời thêm ${missing} khách</span> (Mục tiêu dự kiến: ${targetExpected} đại biểu)`;
+        } else {
+            const surplus = totalInvited - targetExpected;
+            quotaTextEl.innerHTML = `<span class="text-emerald-600 dark:text-emerald-400 font-bold">Đã đủ số lượng mời</span> (Dự kiến: ${targetExpected} • Vượt +${surplus})`;
+        }
     }
 
     // 2. Thẻ KPI 2: RSVP Xác Nhận
@@ -10898,12 +11522,13 @@ function updateCrmKpiCards(currentEvent, guests, booths, seating) {
         rsvpBreakdownEl.textContent = `Vắng: ${declinedCount} • Người thay: ${substitutedCount} • Chờ phản hồi: ${pendingCount}`;
     }
 
-    // 3. Thẻ KPI 3: Biển Tên VIP & Thẻ Đại Biểu 120%
+    // 3. Thẻ KPI 3: Biển Tên VIP & Thẻ Đại Biểu (Bỏ >120%)
     const vipCount = guests.filter(g => g.group === 'VIP').length;
+    const delegateBadgeCount = guests.filter(g => g.group !== 'VIP').length;
     const vipNamecardsEl = document.getElementById('crmVipNamecardsCount');
     const badgeQuota120El = document.getElementById('crmBadgeQuota120');
     if (vipNamecardsEl) vipNamecardsEl.textContent = vipCount;
-    if (badgeQuota120El) badgeQuota120El.textContent = quota120;
+    if (badgeQuota120El) badgeQuota120El.textContent = delegateBadgeCount;
 
     // 4. Thẻ KPI 4: Tiệc Chiêu Đãi & Xếp Chỗ VIP
     const banquetCount = guests.filter(g => g.banquet === true || g.banquet === 'confirmed' || g.hasBanquet).length;
@@ -10913,7 +11538,7 @@ function updateCrmKpiCards(currentEvent, guests, booths, seating) {
     const card4SecondaryEl = document.getElementById('crmCard4Secondary');
     const card4NoteEl = document.getElementById('crmCard4Note');
 
-    if (card4TitleEl) card4TitleEl.textContent = 'Tiệc & Xếp Chỗ';
+    if (card4TitleEl) card4TitleEl.innerHTML = '<i class="fas fa-champagne-glasses text-orange-500"></i> Tiệc & Xếp Chỗ';
     if (card4PrimaryEl) card4PrimaryEl.textContent = banquetCount;
     if (card4SecondaryEl) card4SecondaryEl.textContent = 'suất tiệc đăng ký';
     if (card4NoteEl) card4NoteEl.textContent = `Ghế đã xếp: ${assignedSeatsCount} vị trí`;
@@ -10923,7 +11548,7 @@ function updateCrmKpiCards(currentEvent, guests, booths, seating) {
     const subTabBadgeNamecards = document.getElementById('subTabBadgeNamecards');
 
     if (subTabBadgeGuests) subTabBadgeGuests.textContent = totalInvited;
-    if (subTabBadgeNamecards) subTabBadgeNamecards.textContent = `${vipCount} VIP / ${quota120} Thẻ`;
+    if (subTabBadgeNamecards) subTabBadgeNamecards.textContent = `${vipCount} Biển VIP • ${delegateBadgeCount} Thẻ`;
 }
 
 function renderActiveCrmSubTab() {
@@ -11468,10 +12093,457 @@ function renderQrCodeIntoElement(el, text, size = 64) {
     `;
 }
 
-// In Biển tên để bàn chữ A hàng loạt
+// =========================================================================
+// E. POP-UP CHI TIẾT CHO 4 THẺ KPI KHÁCH MỜI & CHỖ NGỒI
+// =========================================================================
+
+// --- 1. POPUP: TOÀN BỘ KHÁCH MỜI & ĐẠI BIỂU ---
+function openGuestListPopup(filter = 'all') {
+    const evId = module4State.selectedEventId;
+    const events = appData.events || [];
+    const curEvent = events.find(e => e.id === evId) || { name: 'Sự kiện hiện tại' };
+    const guests = (appData.eventGuests && appData.eventGuests[evId]) || [];
+
+    const badgeEl = document.getElementById('popupTotalGuestsBadge');
+    const subTitleEl = document.getElementById('popupGuestListSubtitle');
+    if (badgeEl) badgeEl.textContent = `${guests.length} đại biểu`;
+    if (subTitleEl) subTitleEl.textContent = `Sự kiện: ${curEvent.name}`;
+
+    const searchInput = document.getElementById('popupGuestSearchInput');
+    if (searchInput) searchInput.value = '';
+    const rsvpFilter = document.getElementById('popupGuestRsvpFilter');
+    if (rsvpFilter) rsvpFilter.value = 'all';
+    const groupFilter = document.getElementById('popupGuestGroupFilter');
+    if (groupFilter) groupFilter.value = filter;
+
+    renderPopupGuestsTable();
+    const modal = document.getElementById('guestListPopupModal');
+    if (modal) modal.classList.remove('hidden');
+}
+
+function closeGuestListPopup() {
+    const modal = document.getElementById('guestListPopupModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function renderPopupGuestsTable() {
+    const tbody = document.getElementById('popupGuestTableBody');
+    const summaryEl = document.getElementById('popupGuestTableSummary');
+    if (!tbody) return;
+
+    const evId = module4State.selectedEventId;
+    const guests = (appData.eventGuests && appData.eventGuests[evId]) || [];
+
+    const keyword = (document.getElementById('popupGuestSearchInput')?.value || '').trim().toLowerCase();
+    const groupVal = document.getElementById('popupGuestGroupFilter')?.value || 'all';
+    const rsvpVal = document.getElementById('popupGuestRsvpFilter')?.value || 'all';
+
+    const filtered = guests.filter(g => {
+        if (groupVal !== 'all' && g.group !== groupVal) return false;
+        if (rsvpVal !== 'all') {
+            if (rsvpVal === 'confirmed' && g.rsvpStatus !== 'confirmed') return false;
+            if (rsvpVal === 'declined' && g.rsvpStatus !== 'declined') return false;
+            if (rsvpVal === 'substituted' && g.rsvpStatus !== 'substituted') return false;
+            if (rsvpVal === 'pending' && g.rsvpStatus && g.rsvpStatus !== 'pending') return false;
+        }
+        if (keyword) {
+            const matchName = (g.name || '').toLowerCase().includes(keyword);
+            const matchOrg = (g.organization || '').toLowerCase().includes(keyword);
+            const matchTitle = (g.title || '').toLowerCase().includes(keyword);
+            const matchPhone = (g.phone || '').includes(keyword);
+            if (!matchName && !matchOrg && !matchTitle && !matchPhone) return false;
+        }
+        return true;
+    });
+
+    if (summaryEl) summaryEl.textContent = `Hiển thị ${filtered.length}/${guests.length} đại biểu`;
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">Không tìm thấy đại biểu nào phù hợp.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = filtered.map((g, idx) => {
+        let rsvpBadge = '<span class="px-2 py-0.5 rounded text-[10px] bg-slate-100 text-slate-600">Chờ phản hồi</span>';
+        if (g.rsvpStatus === 'confirmed') rsvpBadge = '<span class="px-2 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-800 font-bold">✓ Tham dự</span>';
+        else if (g.rsvpStatus === 'declined') rsvpBadge = '<span class="px-2 py-0.5 rounded text-[10px] bg-rose-100 text-rose-800 font-bold">✗ Báo vắng</span>';
+        else if (g.rsvpStatus === 'substituted') rsvpBadge = '<span class="px-2 py-0.5 rounded text-[10px] bg-amber-100 text-amber-800 font-bold">⇄ Người đi thay</span>';
+
+        const banquetBadge = (g.banquet === true || g.banquet === 'confirmed' || g.hasBanquet)
+            ? '<span class="text-orange-600 font-bold">✓ Ăn tiệc</span>'
+            : '<span class="text-slate-400">Không</span>';
+
+        return `
+            <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition">
+                <td class="p-2.5 text-center font-mono text-slate-400">${idx + 1}</td>
+                <td class="p-2.5">
+                    <div class="font-bold text-slate-800 dark:text-white">${escapeHtml(g.name)}</div>
+                    <div class="text-[10px] text-slate-400 font-mono">${escapeHtml(g.phone || '')}</div>
+                </td>
+                <td class="p-2.5">
+                    <div class="font-medium text-slate-700 dark:text-slate-200">${escapeHtml(g.title || '')}</div>
+                    <div class="text-[11px] text-slate-500">${escapeHtml(g.organization || '')}</div>
+                </td>
+                <td class="p-2.5 text-center">${renderGroupBadgeHtml(g.group)}</td>
+                <td class="p-2.5 text-center">${rsvpBadge}</td>
+                <td class="p-2.5 text-center text-[11px]">${banquetBadge}</td>
+                <td class="p-2.5 text-center">
+                    <span class="font-mono font-bold ${g.seatCode ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-200' : 'text-slate-400'}">
+                        ${g.seatCode || 'Chưa xếp'}
+                    </span>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// --- 2. POPUP: KHÁCH MỜI ĐÃ XÁC NHẬN THAM DỰ ---
+function openConfirmedGuestsPopup() {
+    const evId = module4State.selectedEventId;
+    const guests = (appData.eventGuests && appData.eventGuests[evId]) || [];
+    const confirmed = guests.filter(g => g.rsvpStatus === 'confirmed' || g.rsvpStatus === 'substituted');
+
+    const countBadge = document.getElementById('popupConfirmedCountBadge');
+    if (countBadge) countBadge.textContent = `${confirmed.length} đại biểu`;
+
+    const searchInput = document.getElementById('popupConfirmedSearchInput');
+    if (searchInput) searchInput.value = '';
+
+    renderPopupConfirmedTable();
+    const modal = document.getElementById('confirmedGuestsPopupModal');
+    if (modal) modal.classList.remove('hidden');
+}
+
+function closeConfirmedGuestsPopup() {
+    const modal = document.getElementById('confirmedGuestsPopupModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function renderPopupConfirmedTable() {
+    const tbody = document.getElementById('popupConfirmedTableBody');
+    const summaryEl = document.getElementById('popupConfirmedSummary');
+    if (!tbody) return;
+
+    const evId = module4State.selectedEventId;
+    const guests = (appData.eventGuests && appData.eventGuests[evId]) || [];
+    const keyword = (document.getElementById('popupConfirmedSearchInput')?.value || '').trim().toLowerCase();
+
+    const confirmed = guests.filter(g => {
+        if (g.rsvpStatus !== 'confirmed' && g.rsvpStatus !== 'substituted') return false;
+        if (keyword) {
+            const matchName = (g.name || '').toLowerCase().includes(keyword);
+            const matchOrg = (g.organization || '').toLowerCase().includes(keyword);
+            const matchSub = (g.substituteName || '').toLowerCase().includes(keyword);
+            if (!matchName && !matchOrg && !matchSub) return false;
+        }
+        return true;
+    });
+
+    if (summaryEl) summaryEl.textContent = `Tổng cộng ${confirmed.length} đại biểu chốt tham gia`;
+
+    if (confirmed.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">Chưa có đại biểu nào xác nhận tham dự.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = confirmed.map((g, idx) => `
+        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition">
+            <td class="p-2.5 text-center font-mono text-slate-400">${idx + 1}</td>
+            <td class="p-2.5">
+                <div class="font-bold text-slate-800 dark:text-white">${escapeHtml(g.name)}</div>
+                <div class="text-[10px] text-slate-400">${renderGroupBadgeHtml(g.group)}</div>
+            </td>
+            <td class="p-2.5">
+                <div class="font-medium text-slate-700 dark:text-slate-200">${escapeHtml(g.title || '')}</div>
+                <div class="text-[11px] text-slate-500">${escapeHtml(g.organization || '')}</div>
+            </td>
+            <td class="p-2.5 text-center">
+                ${g.rsvpStatus === 'substituted' && g.substituteName ? `<span class="bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 px-2 py-0.5 rounded text-[11px] font-semibold">${escapeHtml(g.substituteName)}</span>` : '<span class="text-slate-400">-</span>'}
+            </td>
+            <td class="p-2.5 text-center">
+                <span class="font-mono font-bold ${g.seatCode ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-200' : 'text-amber-600'}">
+                    ${g.seatCode || 'Chưa xếp'}
+                </span>
+            </td>
+            <td class="p-2.5 text-center text-[11px]">
+                ${(g.banquet === true || g.banquet === 'confirmed' || g.hasBanquet) ? '<span class="text-emerald-600 font-bold">✓ Ăn tiệc</span>' : '<span class="text-slate-400">Không</span>'}
+            </td>
+            <td class="p-2.5 text-center font-mono text-[11px] text-slate-600 dark:text-slate-300">
+                ${escapeHtml(g.phone || '-')}
+            </td>
+        </tr>
+    `).join('');
+}
+
+// --- 3. POPUP: CHI TIẾT BIỂN TÊN VIP & THẺ IN ---
+function openNamecardsAndBadgesPopup() {
+    renderPopupNamecardsAndBadges();
+    const modal = document.getElementById('namecardsAndBadgesPopupModal');
+    if (modal) modal.classList.remove('hidden');
+}
+
+function closeNamecardsAndBadgesPopup() {
+    const modal = document.getElementById('namecardsAndBadgesPopupModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function switchPopupBadgeSubTab(subTab) {
+    const btnVip = document.getElementById('popupBadgeTabBtn-vip');
+    const btnBadges = document.getElementById('popupBadgeTabBtn-badges');
+    const contentVip = document.getElementById('popupBadgeContent-vip');
+    const contentBadges = document.getElementById('popupBadgeContent-badges');
+
+    if (subTab === 'vip') {
+        if (btnVip) btnVip.className = "px-3.5 py-1.5 rounded-lg font-bold bg-blue-600 text-white flex items-center gap-1.5 shadow-sm";
+        if (btnBadges) btnBadges.className = "px-3.5 py-1.5 rounded-lg font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1.5";
+        if (contentVip) contentVip.classList.remove('hidden');
+        if (contentBadges) contentBadges.classList.add('hidden');
+    } else {
+        if (btnBadges) btnBadges.className = "px-3.5 py-1.5 rounded-lg font-bold bg-indigo-600 text-white flex items-center gap-1.5 shadow-sm";
+        if (btnVip) btnVip.className = "px-3.5 py-1.5 rounded-lg font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1.5";
+        if (contentBadges) contentBadges.classList.remove('hidden');
+        if (contentVip) contentVip.classList.add('hidden');
+    }
+}
+
+function renderPopupNamecardsAndBadges() {
+    const evId = module4State.selectedEventId;
+    const guests = (appData.eventGuests && appData.eventGuests[evId]) || [];
+    const vipList = guests.filter(g => g.group === 'VIP' || (g.seatCode && g.seatCode.startsWith('A-')));
+    const badgeList = guests.filter(g => g.group !== 'VIP');
+
+    const countVipEl = document.getElementById('popupCountVipCards');
+    const countBadgesEl = document.getElementById('popupCountDelegateBadges');
+    if (countVipEl) countVipEl.textContent = vipList.length;
+    if (countBadgesEl) countBadgesEl.textContent = badgeList.length;
+
+    // Render bảng VIP
+    const tbodyVip = document.getElementById('popupVipCardsTableBody');
+    if (tbodyVip) {
+        if (vipList.length === 0) {
+            tbodyVip.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-400">Không có biển tên VIP nào.</td></tr>`;
+        } else {
+            tbodyVip.innerHTML = vipList.map((g, idx) => `
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition">
+                    <td class="p-2.5 text-center font-mono text-slate-400">${idx + 1}</td>
+                    <td class="p-2.5 font-bold text-slate-900 dark:text-white uppercase">${escapeHtml(g.name)}</td>
+                    <td class="p-2.5 text-slate-600 dark:text-slate-300">
+                        <div class="font-semibold text-rose-700">${escapeHtml(g.title || 'ĐẠI BIỂU')}</div>
+                        <div class="text-[11px]">${escapeHtml(g.organization || '')}</div>
+                    </td>
+                    <td class="p-2.5 text-center font-mono font-bold text-amber-700">${g.seatCode || 'Hàng VIP'}</td>
+                    <td class="p-2.5 text-right">
+                        <button onclick="closeNamecardsAndBadgesPopup(); printSingleVipNameCard('${g.id}');" class="bg-blue-50 text-blue-700 hover:bg-blue-100 px-2.5 py-1 rounded-lg font-semibold text-xs transition">
+                            <i class="fas fa-print"></i> In biển
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+    }
+
+    // Render bảng Thẻ đại biểu
+    const tbodyBadges = document.getElementById('popupBadgesTableBody');
+    if (tbodyBadges) {
+        if (badgeList.length === 0) {
+            tbodyBadges.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400">Không có thẻ đại biểu nào để in.</td></tr>`;
+        } else {
+            tbodyBadges.innerHTML = badgeList.map((g, idx) => `
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition">
+                    <td class="p-2.5 text-center font-mono text-slate-400">${idx + 1}</td>
+                    <td class="p-2.5 font-bold text-slate-900 dark:text-white">${escapeHtml(g.name)}</td>
+                    <td class="p-2.5 text-slate-600 dark:text-slate-300 text-[11px]">${escapeHtml(g.organization || '')}</td>
+                    <td class="p-2.5 text-center">${renderGroupBadgeHtml(g.group)}</td>
+                    <td class="p-2.5 text-center font-mono text-[11px] text-slate-500">CHK-${g.id.slice(-6).toUpperCase()}</td>
+                    <td class="p-2.5 text-right">
+                        <button onclick="closeNamecardsAndBadgesPopup(); printSingleBadge('${g.id}');" class="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-2.5 py-1 rounded-lg font-semibold text-xs transition">
+                            <i class="fas fa-print"></i> In thẻ
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+    }
+}
+
+// --- 4. POPUP: KHÁCH MỜI ĐÃ ĐĂNG KÝ ĂN TIỆC ---
+function openBanquetGuestsPopup() {
+    const evId = module4State.selectedEventId;
+    const guests = (appData.eventGuests && appData.eventGuests[evId]) || [];
+    const banquetList = guests.filter(g => g.banquet === true || g.banquet === 'confirmed' || g.hasBanquet);
+
+    const countBadge = document.getElementById('popupBanquetCountBadge');
+    if (countBadge) countBadge.textContent = `${banquetList.length} suất tiệc`;
+
+    const searchInput = document.getElementById('popupBanquetSearchInput');
+    if (searchInput) searchInput.value = '';
+
+    renderPopupBanquetTable();
+    const modal = document.getElementById('banquetGuestsPopupModal');
+    if (modal) modal.classList.remove('hidden');
+}
+
+function closeBanquetGuestsPopup() {
+    const modal = document.getElementById('banquetGuestsPopupModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function renderPopupBanquetTable() {
+    const tbody = document.getElementById('popupBanquetTableBody');
+    const summaryEl = document.getElementById('popupBanquetSummary');
+    if (!tbody) return;
+
+    const evId = module4State.selectedEventId;
+    const guests = (appData.eventGuests && appData.eventGuests[evId]) || [];
+    const keyword = (document.getElementById('popupBanquetSearchInput')?.value || '').trim().toLowerCase();
+
+    const banquetList = guests.filter(g => {
+        if (!g.banquet && g.banquet !== 'confirmed' && !g.hasBanquet) return false;
+        if (keyword) {
+            const matchName = (g.name || '').toLowerCase().includes(keyword);
+            const matchOrg = (g.organization || '').toLowerCase().includes(keyword);
+            if (!matchName && !matchOrg) return false;
+        }
+        return true;
+    });
+
+    if (summaryEl) summaryEl.textContent = `Tổng cộng ${banquetList.length} suất tiệc chiêu đãi đã đăng ký`;
+
+    if (banquetList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">Không có đại biểu nào đăng ký ăn tiệc.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = banquetList.map((g, idx) => `
+        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition">
+            <td class="p-2.5 text-center font-mono text-slate-400">${idx + 1}</td>
+            <td class="p-2.5">
+                <div class="font-bold text-slate-800 dark:text-white">${escapeHtml(g.name)}</div>
+                <div class="text-[10px] text-slate-400 font-mono">${escapeHtml(g.phone || '')}</div>
+            </td>
+            <td class="p-2.5">
+                <div class="font-medium text-slate-700 dark:text-slate-200">${escapeHtml(g.title || '')}</div>
+                <div class="text-[11px] text-slate-500">${escapeHtml(g.organization || '')}</div>
+            </td>
+            <td class="p-2.5 text-center">${renderGroupBadgeHtml(g.group)}</td>
+            <td class="p-2.5 text-center font-mono font-bold text-indigo-600">${g.seatCode || 'Hội trường'}</td>
+            <td class="p-2.5 text-center">
+                <span class="bg-orange-50 text-orange-800 dark:bg-orange-950/40 dark:text-orange-300 px-2 py-0.5 rounded font-semibold text-[11px]">
+                    ${g.group === 'VIP' ? '🍷 Bàn VIP Chủ Tọa' : '🍽️ Bàn Tiệc Khách Mời'}
+                </span>
+            </td>
+            <td class="p-2.5 text-center text-[11px] text-slate-500">
+                ${escapeHtml(g.dietaryNotes || g.notes || 'Tiêu chuẩn SCE')}
+            </td>
+        </tr>
+    `).join('');
+}
+
+// =========================================================================
+// F. IN BIỂN TÊN VIP & THẺ ĐẠI BIỂU CÓ CHỌN BACKGROUND (REQUIREMENT 2)
+// =========================================================================
+
+let currentVipCardBgTheme = 'red_gold';
+let customVipCardBgDataUrl = '';
+let currentBadgeBgTheme = 'navy_sce';
+let customBadgeBgDataUrl = '';
+
+function changeVipCardBgTheme(theme) {
+    currentVipCardBgTheme = theme;
+    const customStatus = document.getElementById('vipCardCustomBgStatus');
+    if (theme === 'custom') {
+        if (!customVipCardBgDataUrl) {
+            const fileInput = document.getElementById('vipCardBgFileInput');
+            if (fileInput) fileInput.click();
+            return;
+        } else if (customStatus) {
+            customStatus.classList.remove('hidden');
+        }
+    } else {
+        if (customStatus) customStatus.classList.add('hidden');
+    }
+    openPrintNameCardsModal();
+}
+
+function uploadVipCardBg(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        customVipCardBgDataUrl = e.target.result;
+        currentVipCardBgTheme = 'custom';
+        const sel = document.getElementById('vipCardBgSelector');
+        if (sel) sel.value = 'custom';
+        const customStatus = document.getElementById('vipCardCustomBgStatus');
+        if (customStatus) customStatus.classList.remove('hidden');
+        openPrintNameCardsModal();
+    };
+    reader.readAsDataURL(file);
+}
+
+function clearCustomVipCardBg() {
+    customVipCardBgDataUrl = '';
+    currentVipCardBgTheme = 'red_gold';
+    const sel = document.getElementById('vipCardBgSelector');
+    if (sel) sel.value = 'red_gold';
+    const customStatus = document.getElementById('vipCardCustomBgStatus');
+    if (customStatus) customStatus.classList.add('hidden');
+    openPrintNameCardsModal();
+}
+
+function getVipCardBgStyles(theme) {
+    if (theme === 'custom' && customVipCardBgDataUrl) {
+        return {
+            containerStyle: `background: #ffffff url('${customVipCardBgDataUrl}') center/cover no-repeat; -webkit-print-color-adjust: exact; print-color-adjust: exact;`,
+            innerBorder: `border: 3px double #d97706; background: rgba(255, 255, 255, 0.92);`,
+            headerColor: `color: #991b1b;`,
+            nameColor: `color: #0f172a;`
+        };
+    } else if (theme === 'imperial_gold') {
+        return {
+            containerStyle: `background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 50%, #fde68a 100%); -webkit-print-color-adjust: exact; print-color-adjust: exact;`,
+            innerBorder: `border: 4px double #b45309; background: rgba(255, 255, 255, 0.85); box-shadow: inset 0 0 20px rgba(245, 158, 11, 0.15);`,
+            headerColor: `color: #92400e;`,
+            nameColor: `color: #451a03;`
+        };
+    } else if (theme === 'dong_son') {
+        return {
+            containerStyle: `background: #fffdf9 url("data:image/svg+xml,%3Csvg width='240' height='240' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='50' cy='50' r='46' stroke='%23d97706' stroke-width='1.2' fill='none' opacity='0.12'/%3E%3Ccircle cx='50' cy='50' r='36' stroke='%23b45309' stroke-width='1' stroke-dasharray='3,2' fill='none' opacity='0.12'/%3E%3Ccircle cx='50' cy='50' r='20' stroke='%2392400e' stroke-width='1' fill='none' opacity='0.12'/%3E%3Cpolygon points='50,15 53,40 75,50 53,60 50,85 47,60 25,50 47,40' fill='%23b45309' opacity='0.08'/%3E%3C/svg%3E") repeat center center; -webkit-print-color-adjust: exact; print-color-adjust: exact;`,
+            innerBorder: `border: 4px double #92400e; background: rgba(255, 255, 255, 0.90);`,
+            headerColor: `color: #9a3412;`,
+            nameColor: `color: #292524;`
+        };
+    } else if (theme === 'diplomatic_blue') {
+        return {
+            containerStyle: `background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #f8fafc 100%); -webkit-print-color-adjust: exact; print-color-adjust: exact;`,
+            innerBorder: `border: 4px double #1e3a8a; background: rgba(255, 255, 255, 0.92);`,
+            headerColor: `color: #1e3a8a;`,
+            nameColor: `color: #0f172a;`
+        };
+    } else if (theme === 'classic_white') {
+        return {
+            containerStyle: `background: #ffffff; -webkit-print-color-adjust: exact; print-color-adjust: exact;`,
+            innerBorder: `border: 4px double #dc2626; background: #ffffff;`,
+            headerColor: `color: #b91c1c;`,
+            nameColor: `color: #000000;`
+        };
+    } else {
+        // Mặc định: red_gold
+        return {
+            containerStyle: `background: linear-gradient(135deg, #fffaf0 0%, #fef3c7 40%, #fff7ed 100%); -webkit-print-color-adjust: exact; print-color-adjust: exact;`,
+            innerBorder: `border: 5px double #b45309; background: rgba(255, 255, 255, 0.94);`,
+            headerColor: `color: #991b1b;`,
+            nameColor: `color: #09090b;`
+        };
+    }
+}
+
 function openPrintNameCardsModal(targetGuestId = null) {
     const container = document.getElementById('printNameCardsContentArea');
     if (!container) return;
+
+    const sel = document.getElementById('vipCardBgSelector');
+    if (sel) sel.value = currentVipCardBgTheme;
 
     const evId = module4State.selectedEventId;
     const guests = (appData.eventGuests && appData.eventGuests[evId]) || [];
@@ -11484,30 +12556,32 @@ function openPrintNameCardsModal(targetGuestId = null) {
     if (vipList.length === 0) {
         container.innerHTML = '<div class="p-8 text-center text-slate-500">Không có biển tên VIP nào để in.</div>';
     } else {
+        const bgStyles = getVipCardBgStyles(currentVipCardBgTheme);
+
         container.innerHTML = vipList.map(g => `
-            <div class="page-a4-landscape bg-white text-slate-900 p-6 sm:p-10 shadow-xl border border-slate-300 rounded mb-8 font-serif" style="width: 100%; max-width: 900px; margin: 0 auto; min-height: 460px; page-break-after: always;">
-                <div class="border-4 border-double border-amber-700 p-6 h-full flex flex-col justify-between" style="min-height: 420px;">
+            <div class="page-a4-landscape p-6 sm:p-10 shadow-xl border border-slate-300 rounded mb-8 font-serif" style="width: 100%; max-width: 900px; margin: 0 auto; min-height: 460px; page-break-after: always; ${bgStyles.containerStyle}">
+                <div class="p-6 h-full flex flex-col justify-between rounded" style="min-height: 420px; ${bgStyles.innerBorder}">
                     <!-- Mặt 1 (Lộn ngược để gập đôi thành biển chữ A) -->
-                    <div class="text-center rotate-180 p-4 border-b-2 border-dashed border-slate-400">
-                        <div class="text-xs font-bold text-amber-800 tracking-widest uppercase">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+                    <div class="text-center rotate-180 p-4 border-b-2 border-dashed border-amber-600/50">
+                        <div class="text-xs font-bold tracking-widest uppercase" style="${bgStyles.headerColor}">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
                         <div class="text-[10px] text-slate-600 italic mb-2">Độc lập - Tự do - Hạnh phúc</div>
-                        <div class="text-sm font-bold text-rose-800 uppercase tracking-wide mb-1">${escapeHtml(g.title || 'ĐẠI BIỂU')}</div>
-                        <div class="text-2xl font-black text-slate-950 uppercase tracking-wider mb-1">${escapeHtml(g.name)}</div>
-                        <div class="text-xs font-semibold text-slate-700">${escapeHtml(g.organization)}</div>
+                        <div class="text-sm font-bold uppercase tracking-wide mb-1" style="${bgStyles.headerColor}">${escapeHtml(g.title || 'ĐẠI BIỂU')}</div>
+                        <div class="text-2xl sm:text-3xl font-black uppercase tracking-wider mb-1" style="${bgStyles.nameColor}">${escapeHtml(g.name)}</div>
+                        <div class="text-xs font-semibold text-slate-700">${escapeHtml(g.organization || '')}</div>
                     </div>
 
                     <!-- Chỉ dẫn đường gấp sống lưng -->
-                    <div class="text-center text-[10px] text-slate-400 font-mono py-2">
+                    <div class="text-center text-[10px] text-amber-700/80 font-mono py-2 font-semibold">
                         [ VẠCH GẤP ĐÔI SỐNG LƯNG TẠO BIỂN CHỮ A - KHỔ CHUẨN 10cm x 28cm ]
                     </div>
 
                     <!-- Mặt 2 (Thuận hướng đối diện) -->
                     <div class="text-center p-4">
-                        <div class="text-xs font-bold text-amber-800 tracking-widest uppercase">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+                        <div class="text-xs font-bold tracking-widest uppercase" style="${bgStyles.headerColor}">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
                         <div class="text-[10px] text-slate-600 italic mb-2">Độc lập - Tự do - Hạnh phúc</div>
-                        <div class="text-sm font-bold text-rose-800 uppercase tracking-wide mb-1">${escapeHtml(g.title || 'ĐẠI BIỂU')}</div>
-                        <div class="text-2xl font-black text-slate-950 uppercase tracking-wider mb-1">${escapeHtml(g.name)}</div>
-                        <div class="text-xs font-semibold text-slate-700">${escapeHtml(g.organization)}</div>
+                        <div class="text-sm font-bold uppercase tracking-wide mb-1" style="${bgStyles.headerColor}">${escapeHtml(g.title || 'ĐẠI BIỂU')}</div>
+                        <div class="text-2xl sm:text-3xl font-black uppercase tracking-wider mb-1" style="${bgStyles.nameColor}">${escapeHtml(g.name)}</div>
+                        <div class="text-xs font-semibold text-slate-700">${escapeHtml(g.organization || '')}</div>
                     </div>
                 </div>
             </div>
@@ -11529,10 +12603,97 @@ function printSingleVipNameCard(guestId) {
     openPrintNameCardsModal(guestId);
 }
 
-// In Thẻ Đại Biểu hàng loạt (khổ A4, 4 thẻ/trang kèm vạch cắt)
+// Background cho Thẻ Đại Biểu
+function changeBadgeBgTheme(theme) {
+    currentBadgeBgTheme = theme;
+    const customStatus = document.getElementById('badgeCustomBgStatus');
+    if (theme === 'custom') {
+        if (!customBadgeBgDataUrl) {
+            const fileInput = document.getElementById('badgeBgFileInput');
+            if (fileInput) fileInput.click();
+            return;
+        } else if (customStatus) {
+            customStatus.classList.remove('hidden');
+        }
+    } else {
+        if (customStatus) customStatus.classList.add('hidden');
+    }
+    openPrintBadgesModal();
+}
+
+function uploadBadgeBg(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        customBadgeBgDataUrl = e.target.result;
+        currentBadgeBgTheme = 'custom';
+        const sel = document.getElementById('badgeBgSelector');
+        if (sel) sel.value = 'custom';
+        const customStatus = document.getElementById('badgeCustomBgStatus');
+        if (customStatus) customStatus.classList.remove('hidden');
+        openPrintBadgesModal();
+    };
+    reader.readAsDataURL(file);
+}
+
+function clearCustomBadgeBg() {
+    customBadgeBgDataUrl = '';
+    currentBadgeBgTheme = 'navy_sce';
+    const sel = document.getElementById('badgeBgSelector');
+    if (sel) sel.value = 'navy_sce';
+    const customStatus = document.getElementById('badgeCustomBgStatus');
+    if (customStatus) customStatus.classList.add('hidden');
+    openPrintBadgesModal();
+}
+
+function getBadgeBgStyles(theme) {
+    if (theme === 'custom' && customBadgeBgDataUrl) {
+        return {
+            cardStyle: `background: #ffffff url('${customBadgeBgDataUrl}') center/cover no-repeat; border: 2px dashed #64748b; -webkit-print-color-adjust: exact; print-color-adjust: exact;`,
+            headerStyle: `background: rgba(15, 23, 42, 0.90); color: #ffffff;`,
+            badgeContainer: `background: rgba(255, 255, 255, 0.92); border-radius: 8px; padding: 4px;`
+        };
+    } else if (theme === 'red_prestige') {
+        return {
+            cardStyle: `background: linear-gradient(180deg, #ffffff 0%, #fef2f2 100%); border: 2px dashed #ef4444; -webkit-print-color-adjust: exact; print-color-adjust: exact;`,
+            headerStyle: `background: linear-gradient(135deg, #7f1d1d 0%, #b91c1c 100%); color: #ffffff;`,
+            badgeContainer: `background: #ffffff; border-radius: 8px; padding: 4px;`
+        };
+    } else if (theme === 'modern_emerald') {
+        return {
+            cardStyle: `background: linear-gradient(180deg, #ffffff 0%, #ecfdf5 100%); border: 2px dashed #10b981; -webkit-print-color-adjust: exact; print-color-adjust: exact;`,
+            headerStyle: `background: linear-gradient(135deg, #064e3b 0%, #059669 100%); color: #ffffff;`,
+            badgeContainer: `background: #ffffff; border-radius: 8px; padding: 4px;`
+        };
+    } else if (theme === 'dark_gold') {
+        return {
+            cardStyle: `background: linear-gradient(180deg, #ffffff 0%, #fefce8 100%); border: 2px dashed #f59e0b; -webkit-print-color-adjust: exact; print-color-adjust: exact;`,
+            headerStyle: `background: linear-gradient(135deg, #18181b 0%, #27272a 100%); color: #fef08a; border-bottom: 2px solid #f59e0b;`,
+            badgeContainer: `background: #ffffff; border-radius: 8px; padding: 4px;`
+        };
+    } else if (theme === 'clean_white') {
+        return {
+            cardStyle: `background: #ffffff; border: 2px dashed #94a3b8; -webkit-print-color-adjust: exact; print-color-adjust: exact;`,
+            headerStyle: `background: #334155; color: #ffffff;`,
+            badgeContainer: `background: #ffffff; border-radius: 8px; padding: 4px;`
+        };
+    } else {
+        // Mặc định: navy_sce
+        return {
+            cardStyle: `background: linear-gradient(180deg, #ffffff 0%, #eff6ff 100%); border: 2px dashed #3b82f6; -webkit-print-color-adjust: exact; print-color-adjust: exact;`,
+            headerStyle: `background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); color: #ffffff;`,
+            badgeContainer: `background: #ffffff; border-radius: 8px; padding: 4px;`
+        };
+    }
+}
+
 function openPrintBadgesModal(targetGuestId = null) {
     const container = document.getElementById('printBadgesContentArea');
     if (!container) return;
+
+    const sel = document.getElementById('badgeBgSelector');
+    if (sel) sel.value = currentBadgeBgTheme;
 
     const evId = module4State.selectedEventId;
     const events = appData.events || [];
@@ -11547,7 +12708,7 @@ function openPrintBadgesModal(targetGuestId = null) {
     if (badgeList.length === 0) {
         container.innerHTML = '<div class="p-8 text-center text-slate-500">Không có thẻ đại biểu nào để in.</div>';
     } else {
-        // Chia nhóm 4 thẻ trên một trang A4
+        const bgStyles = getBadgeBgStyles(currentBadgeBgTheme);
         const pages = [];
         for (let i = 0; i < badgeList.length; i += 4) {
             pages.push(badgeList.slice(i, i + 4));
@@ -11562,25 +12723,25 @@ function openPrintBadgesModal(targetGuestId = null) {
 
                 <div class="grid grid-cols-2 gap-6">
                     ${group.map(g => `
-                        <div class="border-2 border-dashed border-slate-400 p-4 rounded-xl flex flex-col justify-between" style="min-height: 280px;">
-                            <div class="bg-blue-900 text-white p-2.5 rounded-lg text-center">
+                        <div class="p-4 rounded-xl flex flex-col justify-between" style="min-height: 280px; ${bgStyles.cardStyle}">
+                            <div class="p-2.5 rounded-lg text-center" style="${bgStyles.headerStyle}">
                                 <div class="text-[9px] font-bold tracking-widest text-amber-300 uppercase">TRUNG TÂM XÚC TIẾN ĐẦU TƯ SCE</div>
                                 <div class="text-[10px] font-extrabold uppercase line-clamp-1 mt-0.5">${escapeHtml(currentEvent.name)}</div>
                             </div>
 
-                            <div class="text-center py-3 space-y-1">
+                            <div class="text-center py-3 space-y-1" style="${bgStyles.badgeContainer}">
                                 <div class="text-[11px] font-semibold text-slate-500">${escapeHtml(g.title || 'Đại biểu')}</div>
                                 <div class="text-base font-black text-slate-900 uppercase leading-snug">${escapeHtml(g.name)}</div>
-                                <div class="text-xs font-medium text-slate-600 truncate">${escapeHtml(g.organization)}</div>
+                                <div class="text-xs font-medium text-slate-600 truncate">${escapeHtml(g.organization || '')}</div>
                                 <div class="pt-1">${renderGroupBadgeHtml(g.group)}</div>
                             </div>
 
-                            <div class="border-t border-slate-200 pt-2 flex items-center justify-between">
+                            <div class="border-t border-slate-200/80 pt-2 flex items-center justify-between">
                                 <div class="text-[10px] text-slate-500">
                                     <div class="font-bold text-indigo-700">${g.seatCode ? 'VỊ TRÍ: ' + g.seatCode : 'KHU VỰC ĐẠI BIỂU'}</div>
                                     <div class="text-[9px] text-slate-400 font-mono mt-0.5">ID: ${g.id.slice(-6).toUpperCase()}</div>
                                 </div>
-                                <div id="printQr_${g.id}" class="w-14 h-14 bg-white p-1 border border-slate-200 rounded flex items-center justify-center"></div>
+                                <div id="printQr_${g.id}" class="w-14 h-14 bg-white p-1 border border-slate-300 rounded shadow-sm flex items-center justify-center"></div>
                             </div>
                         </div>
                     `).join('')}
@@ -11612,67 +12773,752 @@ function printSingleBadge(guestId) {
     openPrintBadgesModal(guestId);
 }
 
-// -------------------------------------------------------------
-// F. SƠ ĐỒ CHỖ NGỒI HỘI TRƯỜNG TƯƠNG TÁC (SEATING MAP)
-// -------------------------------------------------------------
+// =========================================================================
+// G. QUẢN LÝ HỘI TRƯỜNG MẪU & SƠ ĐỒ CHỖ NGỒI (REQUIREMENT 4)
+// =========================================================================
+
+function getEventHallConfig(evId) {
+    if (!appData.eventHallConfig) appData.eventHallConfig = {};
+    if (!appData.hallTemplates || appData.hallTemplates.length === 0) {
+        appData.hallTemplates = JSON.parse(JSON.stringify(DEFAULT_HALL_TEMPLATES));
+    }
+
+    if (!appData.eventHallConfig[evId]) {
+        const defaultHall = appData.hallTemplates[0];
+        appData.eventHallConfig[evId] = {
+            hallId: defaultHall.id,
+            zones: JSON.parse(JSON.stringify(defaultHall.zones))
+        };
+    }
+    return appData.eventHallConfig[evId];
+}
+
+function populateSeatingHallSelector() {
+    const selectEl = document.getElementById('seatingHallSelector');
+    if (!selectEl) return;
+
+    if (!appData.hallTemplates || appData.hallTemplates.length === 0) {
+        appData.hallTemplates = JSON.parse(JSON.stringify(DEFAULT_HALL_TEMPLATES));
+    }
+
+    const evId = module4State.selectedEventId;
+    const currentConfig = evId ? getEventHallConfig(evId) : null;
+    const selectedHallId = currentConfig ? currentConfig.hallId : appData.hallTemplates[0].id;
+
+    selectEl.innerHTML = appData.hallTemplates.map(h => `
+        <option value="${h.id}" ${h.id === selectedHallId ? 'selected' : ''}>
+            🏛️ ${escapeHtml(h.name)} (${h.totalSeats || 0} chỗ)
+        </option>
+    `).join('');
+}
+
+function onSeatingHallChange(newHallId) {
+    const evId = module4State.selectedEventId;
+    if (!evId) return;
+
+    const templates = appData.hallTemplates || DEFAULT_HALL_TEMPLATES;
+    const targetHall = templates.find(h => h.id === newHallId);
+    if (!targetHall) return;
+
+    Swal.fire({
+        title: 'Áp Dụng Hội Trường Mẫu?',
+        html: `
+            <div class="text-left text-xs space-y-2 text-slate-600 dark:text-slate-300">
+                <p>Bạn đang chuyển sang mẫu hội trường: <strong class="text-indigo-600">${escapeHtml(targetHall.name)}</strong></p>
+                <p>Sức chứa: <strong>${targetHall.totalSeats} ghế</strong> với <strong>${targetHall.zones.length} phân khu</strong>.</p>
+                <p class="text-amber-600 font-semibold italic">Lưu ý: Bạn có thể chọn giữ nguyên vị trí cũ hoặc hủy xếp chỗ để phân chia lại từ đầu.</p>
+            </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#4f46e5',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Đồng ý chuyển hội trường',
+        cancelButtonText: 'Hủy'
+    }).then((res) => {
+        if (!res.isConfirmed) {
+            populateSeatingHallSelector();
+            return;
+        }
+
+        if (!appData.eventHallConfig) appData.eventHallConfig = {};
+        appData.eventHallConfig[evId] = {
+            hallId: targetHall.id,
+            zones: JSON.parse(JSON.stringify(targetHall.zones))
+        };
+
+        syncModule4Storage(true);
+        renderSeatingChart();
+
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: `Đã chuyển sang ${targetHall.name}`,
+            showConfirmButton: false,
+            timer: 2000
+        });
+    });
+}
+
+// --- ADMIN CRUD: QUẢN LÝ HỘI TRƯỜNG MẪU ---
+function openHallTemplatesModal() {
+    renderAdminHallTemplatesList();
+    const modal = document.getElementById('adminHallTemplatesModal');
+    if (modal) modal.classList.remove('hidden');
+}
+
+function closeHallTemplatesModal() {
+    const modal = document.getElementById('adminHallTemplatesModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function renderAdminHallTemplatesList() {
+    const container = document.getElementById('adminHallTemplatesList');
+    if (!container) return;
+
+    if (!appData.hallTemplates || appData.hallTemplates.length === 0) {
+        appData.hallTemplates = JSON.parse(JSON.stringify(DEFAULT_HALL_TEMPLATES));
+    }
+
+    container.innerHTML = appData.hallTemplates.map((h, idx) => `
+        <div class="bg-slate-50 dark:bg-slate-800/80 rounded-xl p-4 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="space-y-1.5 flex-1">
+                <div class="flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-lg bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-bold text-xs flex items-center justify-center">${idx + 1}</span>
+                    <h4 class="font-bold text-sm text-slate-800 dark:text-white">${escapeHtml(h.name)}</h4>
+                    <span class="bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 font-mono text-[10px] font-bold px-2 py-0.5 rounded border border-indigo-200">
+                        ${h.totalSeats || 0} ghế
+                    </span>
+                </div>
+                <div class="text-xs text-slate-500 flex items-center gap-1.5">
+                    <i class="fas fa-location-dot text-rose-500"></i> ${escapeHtml(h.location || 'Chưa cập nhật địa điểm')}
+                </div>
+                <div class="text-[11px] text-slate-400 italic">${escapeHtml(h.description || '')}</div>
+
+                <!-- Các phân khu -->
+                <div class="flex flex-wrap gap-1.5 pt-1">
+                    ${(h.zones || []).map(z => `
+                        <span class="text-[10px] font-medium px-2 py-0.5 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300">
+                            ${escapeHtml(z.name)}: <strong>${z.seatCount} ghế (${z.prefix})</strong>
+                        </span>
+                    `).join('')}
+                </div>
+            </div>
+
+            <div class="flex items-center gap-1.5 shrink-0">
+                <button onclick="openEditHallTemplateModal('${h.id}')" class="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-semibold transition flex items-center gap-1">
+                    <i class="fas fa-edit"></i> Sửa
+                </button>
+                <button onclick="deleteHallTemplate('${h.id}')" class="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-semibold transition flex items-center gap-1">
+                    <i class="fas fa-trash-alt"></i> Xóa
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+let editingHallTemplateZones = [];
+
+function openEditHallTemplateModal(templateId = null) {
+    const modal = document.getElementById('editHallTemplateModal');
+    const titleEl = document.getElementById('editHallTemplateModalTitle');
+    const idInput = document.getElementById('tplHallId');
+    const nameInput = document.getElementById('tplHallName');
+    const locInput = document.getElementById('tplHallLocation');
+    const descInput = document.getElementById('tplHallDescription');
+
+    if (!appData.hallTemplates) appData.hallTemplates = JSON.parse(JSON.stringify(DEFAULT_HALL_TEMPLATES));
+
+    if (templateId) {
+        const h = appData.hallTemplates.find(x => x.id === templateId);
+        if (!h) return;
+        if (titleEl) titleEl.innerHTML = `<i class="fas fa-edit text-indigo-500"></i> Chỉnh Sửa Hội Trường Mẫu: ${escapeHtml(h.name)}`;
+        if (idInput) idInput.value = h.id;
+        if (nameInput) nameInput.value = h.name || '';
+        if (locInput) locInput.value = h.location || '';
+        if (descInput) descInput.value = h.description || '';
+        editingHallTemplateZones = JSON.parse(JSON.stringify(h.zones || []));
+    } else {
+        if (titleEl) titleEl.innerHTML = `<i class="fas fa-plus text-indigo-500"></i> Thêm Hội Trường Mẫu Mới`;
+        if (idInput) idInput.value = '';
+        if (nameInput) nameInput.value = '';
+        if (locInput) locInput.value = '';
+        if (descInput) descInput.value = '';
+        editingHallTemplateZones = [
+            { id: 'zone_A', name: 'Khu A: Đại biểu VIP', prefix: 'A-', seatCount: 12, colorScheme: 'red', assignedGroup: 'VIP', badgeText: 'Biển tên để bàn chữ A' },
+            { id: 'zone_B', name: 'Khu B: Lãnh đạo Sở ngành & Quận/Huyện', prefix: 'B-', seatCount: 24, colorScheme: 'blue', assignedGroup: 'SoNganh', badgeText: 'Thẻ đại biểu' },
+            { id: 'zone_C', name: 'Khu C: Doanh nghiệp, Hiệp hội & Báo chí', prefix: 'C-', seatCount: 30, colorScheme: 'slate', assignedGroup: 'DoanhNghiep', badgeText: 'Thẻ đại biểu' }
+        ];
+    }
+
+    renderHallTemplateZonesForm();
+    if (modal) modal.classList.remove('hidden');
+}
+
+function closeEditHallTemplateModal() {
+    const modal = document.getElementById('editHallTemplateModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function renderHallTemplateZonesForm() {
+    const container = document.getElementById('tplZonesContainer');
+    if (!container) return;
+
+    container.innerHTML = editingHallTemplateZones.map((z, idx) => `
+        <div class="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 text-xs">
+            <span class="w-5 h-5 rounded bg-indigo-100 dark:bg-indigo-900 text-indigo-600 font-bold flex items-center justify-center shrink-0">${idx + 1}</span>
+            <input type="text" value="${escapeHtml(z.name)}" oninput="editingHallTemplateZones[${idx}].name = this.value" placeholder="Tên khu (vd: Khu A: VIP)" class="flex-1 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 font-semibold">
+            <input type="text" value="${escapeHtml(z.prefix)}" oninput="editingHallTemplateZones[${idx}].prefix = this.value" placeholder="Mã (vd: A-)" class="w-16 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 font-mono text-center">
+            <input type="number" min="1" max="500" value="${z.seatCount || 10}" oninput="editingHallTemplateZones[${idx}].seatCount = parseInt(this.value) || 1" placeholder="Số ghế" class="w-20 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-center font-bold">
+            <select onchange="editingHallTemplateZones[${idx}].colorScheme = this.value" class="p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900">
+                <option value="red" ${z.colorScheme === 'red' ? 'selected' : ''}>🔴 Đỏ VIP</option>
+                <option value="blue" ${z.colorScheme === 'blue' ? 'selected' : ''}>🔵 Xanh Dương</option>
+                <option value="emerald" ${z.colorScheme === 'emerald' ? 'selected' : ''}>🟢 Xanh Lục</option>
+                <option value="purple" ${z.colorScheme === 'purple' ? 'selected' : ''}>🟣 Tím</option>
+                <option value="slate" ${z.colorScheme === 'slate' ? 'selected' : ''}>⚪ Xám Đá</option>
+            </select>
+            <select onchange="editingHallTemplateZones[${idx}].assignedGroup = this.value" class="p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900">
+                <option value="VIP" ${z.assignedGroup === 'VIP' ? 'selected' : ''}>⭐ VIP</option>
+                <option value="SoNganh" ${z.assignedGroup === 'SoNganh' ? 'selected' : ''}>🏛️ Sở ngành</option>
+                <option value="QuocTe" ${z.assignedGroup === 'QuocTe' ? 'selected' : ''}>🌐 Quốc tế</option>
+                <option value="DoanhNghiep" ${z.assignedGroup === 'DoanhNghiep' ? 'selected' : ''}>💼 Doanh nghiệp</option>
+                <option value="BaoChi" ${z.assignedGroup === 'BaoChi' ? 'selected' : ''}>📰 Báo chí</option>
+                <option value="all" ${z.assignedGroup === 'all' ? 'selected' : ''}>👥 Tất cả</option>
+            </select>
+            <button type="button" onclick="removeZoneFromHallTemplateForm(${idx})" class="p-1.5 text-rose-500 hover:text-rose-700" title="Xóa khu này">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+function addZoneToHallTemplateForm() {
+    const letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+    const nextIdx = editingHallTemplateZones.length;
+    const nextLetter = letters[nextIdx] || `K${nextIdx + 1}`;
+    editingHallTemplateZones.push({
+        id: `zone_${nextLetter}`,
+        name: `Khu ${nextLetter}: Đại biểu`,
+        prefix: `${nextLetter}-`,
+        seatCount: 18,
+        colorScheme: 'slate',
+        assignedGroup: 'all',
+        badgeText: 'Thẻ đại biểu'
+    });
+    renderHallTemplateZonesForm();
+}
+
+function removeZoneFromHallTemplateForm(idx) {
+    if (editingHallTemplateZones.length <= 1) {
+        Swal.fire('Lưu ý', 'Hội trường phải có ít nhất 1 phân khu.', 'warning');
+        return;
+    }
+    editingHallTemplateZones.splice(idx, 1);
+    renderHallTemplateZonesForm();
+}
+
+function saveHallTemplateForm(event) {
+    event.preventDefault();
+    const idInput = document.getElementById('tplHallId');
+    const nameInput = document.getElementById('tplHallName');
+    const locInput = document.getElementById('tplHallLocation');
+    const descInput = document.getElementById('tplHallDescription');
+
+    const name = nameInput.value.trim();
+    if (!name) return;
+
+    if (!appData.hallTemplates) appData.hallTemplates = JSON.parse(JSON.stringify(DEFAULT_HALL_TEMPLATES));
+
+    const totalSeats = editingHallTemplateZones.reduce((acc, z) => acc + (parseInt(z.seatCount) || 0), 0);
+
+    const templateData = {
+        id: idInput.value || `hall_${Date.now()}`,
+        name: name,
+        location: locInput.value.trim(),
+        description: descInput.value.trim(),
+        totalSeats: totalSeats,
+        zones: JSON.parse(JSON.stringify(editingHallTemplateZones))
+    };
+
+    const existingIdx = appData.hallTemplates.findIndex(h => h.id === templateData.id);
+    if (existingIdx >= 0) {
+        appData.hallTemplates[existingIdx] = templateData;
+    } else {
+        appData.hallTemplates.push(templateData);
+    }
+
+    syncModule4Storage(true);
+    closeEditHallTemplateModal();
+    renderAdminHallTemplatesList();
+    populateSeatingHallSelector();
+
+    Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: `Đã lưu hội trường mẫu: ${name}`,
+        showConfirmButton: false,
+        timer: 2000
+    });
+}
+
+function deleteHallTemplate(templateId) {
+    if (!appData.hallTemplates || appData.hallTemplates.length <= 1) {
+        Swal.fire('Không thể xóa', 'Hệ thống cần duy trì ít nhất 1 hội trường mẫu.', 'warning');
+        return;
+    }
+
+    const h = appData.hallTemplates.find(x => x.id === templateId);
+    if (!h) return;
+
+    Swal.fire({
+        title: `Xóa hội trường "${h.name}"?`,
+        text: 'Hội trường mẫu này sẽ bị xóa khỏi danh sách chọn của hệ thống.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Đồng ý xóa',
+        cancelButtonText: 'Hủy'
+    }).then((res) => {
+        if (!res.isConfirmed) return;
+        appData.hallTemplates = appData.hallTemplates.filter(x => x.id !== templateId);
+        syncModule4Storage(true);
+        renderAdminHallTemplatesList();
+        populateSeatingHallSelector();
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'info',
+            title: `Đã xóa hội trường mẫu: ${h.name}`,
+            showConfirmButton: false,
+            timer: 2000
+        });
+    });
+}
+
+function resetDefaultHallTemplates() {
+    Swal.fire({
+        title: 'Khôi phục hội trường mẫu?',
+        text: 'Thao tác sẽ đưa danh sách Hội trường mẫu về mặc định ban hành (NCC, Hội trường tầng 3 UBND Thành phố, Tầng 2 SCE).',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#d97706',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Khôi phục ngay',
+        cancelButtonText: 'Hủy'
+    }).then((res) => {
+        if (!res.isConfirmed) return;
+        appData.hallTemplates = JSON.parse(JSON.stringify(DEFAULT_HALL_TEMPLATES));
+        syncModule4Storage(true);
+        renderAdminHallTemplatesList();
+        populateSeatingHallSelector();
+        renderSeatingChart();
+        Swal.fire('Thành công', 'Đã khôi phục các hội trường mẫu về mặc định.', 'success');
+    });
+}
+
+// --- CÁN BỘ XỬ LÝ CHÍNH: TÙY CHỈNH PHÂN KHU CHO SỰ KIỆN ---
+let currentCustomizingZones = [];
+
+function openCustomizeZonesModal() {
+    const evId = module4State.selectedEventId;
+    if (!evId) return;
+
+    const config = getEventHallConfig(evId);
+    currentCustomizingZones = JSON.parse(JSON.stringify(config.zones || []));
+
+    renderCustomizeZonesList();
+    const modal = document.getElementById('customizeZonesModal');
+    if (modal) modal.classList.remove('hidden');
+}
+
+function closeCustomizeZonesModal() {
+    const modal = document.getElementById('customizeZonesModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function renderCustomizeZonesList() {
+    const container = document.getElementById('customizeZonesListContainer');
+    if (!container) return;
+
+    container.innerHTML = currentCustomizingZones.map((z, idx) => `
+        <div class="p-3.5 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2.5">
+            <div class="flex items-center justify-between">
+                <span class="font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                    <span class="w-6 h-6 rounded bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-xs">${idx + 1}</span>
+                    <input type="text" value="${escapeHtml(z.name)}" oninput="currentCustomizingZones[${idx}].name = this.value" class="font-bold text-xs p-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 w-64">
+                </span>
+                <span class="font-mono text-slate-500 font-bold">Tiền tố: ${z.prefix}</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div>
+                    <label class="block font-semibold text-slate-600 dark:text-slate-400 mb-1">Chỉ định nhóm đại biểu ưu tiên:</label>
+                    <select onchange="currentCustomizingZones[${idx}].assignedGroup = this.value" class="w-full p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 font-semibold text-slate-800 dark:text-slate-100">
+                        <option value="VIP" ${z.assignedGroup === 'VIP' ? 'selected' : ''}>⭐ Đại biểu VIP (Biển tên chữ A để bàn)</option>
+                        <option value="SoNganh" ${z.assignedGroup === 'SoNganh' ? 'selected' : ''}>🏛️ Khối Sở, Ban, Ngành & Quận/Huyện</option>
+                        <option value="QuocTe" ${z.assignedGroup === 'QuocTe' ? 'selected' : ''}>🌐 Ngoại giao, Đại sứ quán & Quốc tế</option>
+                        <option value="DoanhNghiep" ${z.assignedGroup === 'DoanhNghiep' ? 'selected' : ''}>💼 Doanh nghiệp, Hiệp hội & Nhà đầu tư</option>
+                        <option value="BaoChi" ${z.assignedGroup === 'BaoChi' ? 'selected' : ''}>📰 Phóng viên Báo chí & Truyền hình</option>
+                        <option value="all" ${z.assignedGroup === 'all' ? 'selected' : ''}>👥 Hỗn hợp / Không giới hạn nhóm</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-600 dark:text-slate-400 mb-1">Số lượng ghế quy hoạch:</label>
+                    <div class="flex items-center gap-2">
+                        <input type="number" min="1" max="500" value="${z.seatCount || 10}" oninput="currentCustomizingZones[${idx}].seatCount = parseInt(this.value) || 1" class="w-24 p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-center font-bold text-slate-800 dark:text-slate-100">
+                        <span class="text-slate-500 text-[11px]">ghế ngồi</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function saveEventZoneCustomization() {
+    const evId = module4State.selectedEventId;
+    if (!evId) return;
+
+    if (!appData.eventHallConfig) appData.eventHallConfig = {};
+    if (!appData.eventHallConfig[evId]) {
+        getEventHallConfig(evId);
+    }
+
+    appData.eventHallConfig[evId].zones = JSON.parse(JSON.stringify(currentCustomizingZones));
+    syncModule4Storage(true);
+    closeCustomizeZonesModal();
+    renderSeatingChart();
+
+    Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: 'Đã lưu cấu hình phân khu cho sự kiện!',
+        showConfirmButton: false,
+        timer: 2000
+    });
+}
+
+function resetZonesToHallDefault() {
+    const evId = module4State.selectedEventId;
+    if (!evId) return;
+    const currentConfig = getEventHallConfig(evId);
+    const tmpl = (appData.hallTemplates || DEFAULT_HALL_TEMPLATES).find(h => h.id === currentConfig.hallId);
+    if (!tmpl) return;
+
+    currentCustomizingZones = JSON.parse(JSON.stringify(tmpl.zones || []));
+    renderCustomizeZonesList();
+}
+
+// --- THUẬT TOÁN TỰ ĐỘNG XẾP CHỖ NGẪU NHIÊN THEO KHU VỰC (RANDOM) ---
+function autoRandomAssignSeats() {
+    const evId = module4State.selectedEventId;
+    if (!evId) {
+        Swal.fire('Chưa chọn sự kiện', 'Vui lòng chọn sự kiện trước.', 'warning');
+        return;
+    }
+    const guests = (appData.eventGuests && appData.eventGuests[evId]) || [];
+    const confirmedGuests = guests.filter(g => g.rsvpStatus === 'confirmed' || g.rsvpStatus === 'substituted');
+
+    if (confirmedGuests.length === 0) {
+        Swal.fire({
+            title: 'Chưa Có Đại Biểu Xác Nhận',
+            text: 'Không có đại biểu nào đã xác nhận tham dự (RSVP) để tự động xếp chỗ. Vui lòng cập nhật trạng thái RSVP trước!',
+            icon: 'info',
+            confirmButtonColor: '#4f46e5'
+        });
+        return;
+    }
+
+    const hallConfig = getEventHallConfig(evId);
+    if (!hallConfig || !hallConfig.zones || hallConfig.zones.length === 0) {
+        Swal.fire('Chưa cấu hình hội trường', 'Vui lòng chọn hội trường và cấu hình phân khu trước.', 'warning');
+        return;
+    }
+
+    Swal.fire({
+        title: 'Tự Động Random Xếp Chỗ Theo Khu Vực?',
+        html: `
+            <div class="text-left text-xs space-y-2.5 text-slate-700 dark:text-slate-200">
+                <p>Hệ thống sẽ tự động <strong>random xếp chỗ ngẫu nhiên</strong> cho <strong class="text-emerald-600">${confirmedGuests.length} đại biểu đã xác nhận tham dự</strong> vào các phân khu đã được cấu hình:</p>
+                <div class="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 space-y-1.5 max-h-48 overflow-y-auto">
+                    ${hallConfig.zones.map(z => `
+                        <div class="flex justify-between items-center text-[11px] pb-1 border-b border-slate-100 dark:border-slate-700/60 last:border-0">
+                            <span class="font-bold text-slate-800 dark:text-white">${escapeHtml(z.name)} (${z.seatCount} ghế):</span>
+                            <span class="text-indigo-600 dark:text-indigo-400 font-semibold">${getGroupName(z.assignedGroup)}</span>
+                        </div>
+                    `).join('')}
+                </div>
+                <p class="text-[11px] text-amber-600 dark:text-amber-400 italic">Thao tác này sẽ phân phối ngẫu nhiên ghế ngồi tương ứng theo từng khu vực đã chọn.</p>
+            </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#7c3aed',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: '🎲 Tiến Hành Xếp Chỗ Ngẫu Nhiên',
+        cancelButtonText: 'Hủy'
+    }).then((res) => {
+        if (!res.isConfirmed) return;
+        executeAutoRandomSeatAssignment(evId, confirmedGuests, hallConfig);
+    });
+}
+
+function shuffleArray(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
+
+function getGroupName(groupKey) {
+    if (groupKey === 'VIP') return '⭐ Đại biểu VIP';
+    if (groupKey === 'SoNganh') return '🏛️ Khối Sở ban ngành';
+    if (groupKey === 'QuocTe') return '🌐 Ngoại giao & Quốc tế';
+    if (groupKey === 'DoanhNghiep') return '💼 Doanh nghiệp & Nhà đầu tư';
+    if (groupKey === 'BaoChi') return '📰 Báo chí & Truyền thông';
+    return '👥 Chung / Tất cả nhóm';
+}
+
+function executeAutoRandomSeatAssignment(evId, confirmedGuests, hallConfig) {
+    // 1. Reset chỗ ngồi hiện tại
+    appData.eventSeating[evId] = {};
+    const guests = appData.eventGuests[evId] || [];
+    guests.forEach(g => { g.seatCode = ''; });
+
+    let unassignedGuests = [...confirmedGuests];
+    shuffleArray(unassignedGuests);
+
+    const zoneResults = [];
+
+    // 2. Với mỗi phân khu, random xếp các khách thuộc nhóm ưu tiên của khu đó
+    hallConfig.zones.forEach(zone => {
+        const prefix = zone.prefix || 'A-';
+        const count = zone.seatCount || 10;
+        const targetGroup = zone.assignedGroup || 'all';
+
+        const seatCodes = [];
+        for (let i = 1; i <= count; i++) {
+            seatCodes.push(`${prefix}${String(i).padStart(2, '0')}`);
+        }
+        shuffleArray(seatCodes);
+
+        // Lọc các khách phù hợp nhóm
+        let matching = [];
+        if (targetGroup === 'all') {
+            matching = [...unassignedGuests];
+        } else {
+            matching = unassignedGuests.filter(g => g.group === targetGroup);
+        }
+        shuffleArray(matching);
+
+        let assignedCount = 0;
+        seatCodes.forEach(code => {
+            if (matching.length > 0) {
+                const guest = matching.shift();
+                guest.seatCode = code;
+                appData.eventSeating[evId][code] = guest.id;
+                assignedCount++;
+                unassignedGuests = unassignedGuests.filter(g => g.id !== guest.id);
+            }
+        });
+
+        zoneResults.push({
+            name: zone.name,
+            total: count,
+            assigned: assignedCount
+        });
+    });
+
+    // 3. Nếu còn khách xác nhận chưa được xếp và còn ghế trống ở bất kỳ khu nào:
+    if (unassignedGuests.length > 0) {
+        const emptySeats = [];
+        hallConfig.zones.forEach(zone => {
+            const prefix = zone.prefix || 'A-';
+            const count = zone.seatCount || 10;
+            for (let i = 1; i <= count; i++) {
+                const code = `${prefix}${String(i).padStart(2, '0')}`;
+                if (!appData.eventSeating[evId][code]) {
+                    emptySeats.push(code);
+                }
+            }
+        });
+        shuffleArray(emptySeats);
+
+        while (unassignedGuests.length > 0 && emptySeats.length > 0) {
+            const guest = unassignedGuests.shift();
+            const seatCode = emptySeats.shift();
+            guest.seatCode = seatCode;
+            appData.eventSeating[evId][seatCode] = guest.id;
+        }
+    }
+
+    syncModule4Storage(true);
+    renderModule4();
+
+    const totalAssigned = Object.keys(appData.eventSeating[evId]).length;
+    Swal.fire({
+        title: '🎉 Xếp Chỗ Thành Công!',
+        html: `
+            <div class="text-left text-xs space-y-2.5 text-slate-700 dark:text-slate-200">
+                <p>Đã tự động random xếp chỗ thành công cho <strong class="text-emerald-600">${totalAssigned}/${confirmedGuests.length}</strong> đại biểu đã xác nhận tham dự:</p>
+                <div class="bg-slate-50 dark:bg-slate-800 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 space-y-1">
+                    ${zoneResults.map(r => `
+                        <div class="flex justify-between items-center text-[11px]">
+                            <span>${escapeHtml(r.name)}:</span>
+                            <span class="font-bold text-indigo-600 dark:text-indigo-400">${r.assigned}/${r.total} ghế</span>
+                        </div>
+                    `).join('')}
+                </div>
+                ${unassignedGuests.length > 0 ? `<p class="text-rose-500 font-semibold">Còn ${unassignedGuests.length} đại biểu chưa xếp được do hết ghế trong hội trường.</p>` : '<p class="text-emerald-600 font-semibold">Tất cả đại biểu xác nhận đều đã được xếp ghế ngẫu nhiên theo khu vực!</p>'}
+            </div>
+        `,
+        icon: 'success',
+        confirmButtonColor: '#4f46e5'
+    });
+}
+
+function clearAllSeatingAssignments() {
+    const evId = module4State.selectedEventId;
+    if (!evId) return;
+
+    Swal.fire({
+        title: 'Hủy tất cả xếp chỗ?',
+        text: 'Thao tác sẽ đưa toàn bộ ghế hội trường về trạng thái Trống để xếp lại từ đầu.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Đồng ý hủy tất cả',
+        cancelButtonText: 'Không'
+    }).then((res) => {
+        if (!res.isConfirmed) return;
+
+        appData.eventSeating[evId] = {};
+        const guests = (appData.eventGuests && appData.eventGuests[evId]) || [];
+        guests.forEach(g => { g.seatCode = ''; });
+
+        syncModule4Storage(true);
+        renderModule4();
+
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'info',
+            title: 'Đã giải phóng toàn bộ ghế ngồi',
+            showConfirmButton: false,
+            timer: 2000
+        });
+    });
+}
+
+function printSeatingChartDiagram() {
+    window.print();
+}
+
+// --- RENDER SƠ ĐỒ CHỖ NGỒI HỘI TRƯỜNG ĐỘNG THEO MẪU ĐÃ CHỌN ---
 function renderSeatingChart() {
     const evId = module4State.selectedEventId;
+    if (!evId) return;
+
+    populateSeatingHallSelector();
+
+    const hallConfig = getEventHallConfig(evId);
+    const templates = appData.hallTemplates || DEFAULT_HALL_TEMPLATES;
+    const currentHall = templates.find(h => h.id === hallConfig.hallId) || templates[0];
+
+    // Cập nhật thông tin tiêu đề hội trường
+    const metaEl = document.getElementById('seatingHallMetaInfo');
+    if (metaEl) {
+        metaEl.innerHTML = `
+            <span class="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1">
+                <i class="fas fa-building text-indigo-500"></i> ${escapeHtml(currentHall.name)}
+            </span>
+            <span>•</span>
+            <span><i class="fas fa-location-dot text-rose-500"></i> ${escapeHtml(currentHall.location || '')}</span>
+            <span>•</span>
+            <span class="bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 font-bold px-2 py-0.5 rounded text-[10px]">
+                Tổng ${currentHall.totalSeats || 0} ghế (${hallConfig.zones.length} khu)
+            </span>
+        `;
+    }
+
+    // Cập nhật chú thích phân khu
+    const legendEl = document.getElementById('seatingZoneLegendContainer');
+    if (legendEl) {
+        legendEl.innerHTML = `
+            ${hallConfig.zones.map(z => {
+                let dotColor = 'bg-slate-400';
+                if (z.colorScheme === 'red') dotColor = 'bg-red-500';
+                else if (z.colorScheme === 'blue') dotColor = 'bg-blue-500';
+                else if (z.colorScheme === 'emerald') dotColor = 'bg-emerald-500';
+                else if (z.colorScheme === 'purple') dotColor = 'bg-purple-500';
+
+                return `
+                    <span class="flex items-center gap-1.5 font-medium">
+                        <span class="w-3 h-3 rounded ${dotColor}"></span>
+                        <span>${escapeHtml(z.name)} (${getGroupName(z.assignedGroup)})</span>
+                    </span>
+                `;
+            }).join('')}
+            <span class="flex items-center gap-1.5 font-medium">
+                <span class="w-3 h-3 rounded border border-dashed border-slate-400 bg-white"></span>
+                <span>Còn trống</span>
+            </span>
+        `;
+    }
+
+    // Render danh sách ghế từng phân khu
+    const container = document.getElementById('seatingHallZonesContainer');
+    if (!container) return;
+
     const guests = (appData.eventGuests && appData.eventGuests[evId]) || [];
     const seating = (appData.eventSeating && appData.eventSeating[evId]) || {};
 
-    // 1. Khu A (VIP): 12 Ghế A-01 đến A-12
-    const gridA = document.getElementById('seatingGridZoneA');
-    const statsA = document.getElementById('seatingStatsZoneA');
-    let countA = 0;
-    if (gridA) {
-        let htmlA = '';
-        for (let i = 1; i <= 12; i++) {
-            const code = `A-${String(i).padStart(2, '0')}`;
-            const guestId = seating[code];
+    container.innerHTML = hallConfig.zones.map(zone => {
+        const prefix = zone.prefix || 'A-';
+        const count = zone.seatCount || 10;
+        const colorScheme = zone.colorScheme || 'slate';
+
+        let textColorClass = 'text-slate-700 dark:text-slate-300';
+        if (colorScheme === 'red') textColorClass = 'text-red-600 dark:text-red-400';
+        else if (colorScheme === 'blue') textColorClass = 'text-blue-600 dark:text-blue-400';
+        else if (colorScheme === 'emerald') textColorClass = 'text-emerald-600 dark:text-emerald-400';
+        else if (colorScheme === 'purple') textColorClass = 'text-purple-600 dark:text-purple-400';
+
+        let assignedCount = 0;
+        let tilesHtml = '';
+
+        for (let i = 1; i <= count; i++) {
+            const seatCode = `${prefix}${String(i).padStart(2, '0')}`;
+            const guestId = seating[seatCode];
             const guest = guestId ? guests.find(g => g.id === guestId) : null;
-            if (guest) countA++;
+            if (guest) assignedCount++;
 
-            htmlA += renderSeatTileHtml(code, guest, 'red', 'Biển tên chữ A');
+            tilesHtml += renderSeatTileHtml(seatCode, guest, colorScheme, zone.badgeText || 'Thẻ đại biểu');
         }
-        gridA.innerHTML = htmlA;
-    }
-    if (statsA) statsA.textContent = `${countA}/12 đã xếp`;
 
-    // 2. Khu B (Sở ngành & Quốc tế): 18 Ghế B-01 đến B-18
-    const gridB = document.getElementById('seatingGridZoneB');
-    const statsB = document.getElementById('seatingStatsZoneB');
-    let countB = 0;
-    if (gridB) {
-        let htmlB = '';
-        for (let i = 1; i <= 18; i++) {
-            const code = `B-${String(i).padStart(2, '0')}`;
-            const guestId = seating[code];
-            const guest = guestId ? guests.find(g => g.id === guestId) : null;
-            if (guest) countB++;
-
-            htmlB += renderSeatTileHtml(code, guest, 'blue', 'Thẻ đại biểu');
-        }
-        gridB.innerHTML = htmlB;
-    }
-    if (statsB) statsB.textContent = `${countB}/18 đã xếp`;
-
-    // 3. Khu C (Doanh nghiệp & Báo chí): 24 Ghế C-01 đến C-24
-    const gridC = document.getElementById('seatingGridZoneC');
-    const statsC = document.getElementById('seatingStatsZoneC');
-    let countC = 0;
-    if (gridC) {
-        let htmlC = '';
-        for (let i = 1; i <= 24; i++) {
-            const code = `C-${String(i).padStart(2, '0')}`;
-            const guestId = seating[code];
-            const guest = guestId ? guests.find(g => g.id === guestId) : null;
-            if (guest) countC++;
-
-            htmlC += renderSeatTileHtml(code, guest, 'slate', 'Thẻ đại biểu');
-        }
-        gridC.innerHTML = htmlC;
-    }
-    if (statsC) statsC.textContent = `${countC}/24 đã xếp`;
+        return `
+            <div class="w-full space-y-2">
+                <div class="flex items-center justify-between text-xs font-bold ${textColorClass}">
+                    <span class="flex items-center gap-1.5">
+                        <i class="fas fa-layer-group"></i>
+                        <span>${escapeHtml(zone.name.toUpperCase())}</span>
+                    </span>
+                    <span class="text-[11px] font-mono font-semibold bg-white dark:bg-slate-800 px-2.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                        ${assignedCount}/${count} đã xếp
+                    </span>
+                </div>
+                <div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-6 gap-2">
+                    ${tilesHtml}
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 function renderSeatTileHtml(seatCode, guest, colorScheme, noteTag) {
@@ -11682,25 +13528,35 @@ function renderSeatTileHtml(seatCode, guest, colorScheme, noteTag) {
         if (colorScheme === 'blue') {
             borderClass = 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-950 dark:text-blue-200';
             badgeColor = 'text-blue-700 dark:text-blue-400';
+        } else if (colorScheme === 'emerald') {
+            borderClass = 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-950 dark:text-emerald-200';
+            badgeColor = 'text-emerald-700 dark:text-emerald-400';
+        } else if (colorScheme === 'purple') {
+            borderClass = 'border-purple-500 bg-purple-50 dark:bg-purple-950/40 text-purple-950 dark:text-purple-200';
+            badgeColor = 'text-purple-700 dark:text-purple-400';
         } else if (colorScheme === 'slate') {
             borderClass = 'border-slate-400 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200';
             badgeColor = 'text-slate-700 dark:text-slate-300';
         }
 
         return `
-            <div onclick="openAssignSeatModal('${seatCode}')" class="cursor-pointer border-2 ${borderClass} rounded-xl p-2 text-center transition hover:shadow-md flex flex-col justify-between" style="min-height: 82px;" title="Ghế ${seatCode}: ${escapeHtml(guest.name)} - Bấm để thay đổi">
+            <div onclick="openAssignSeatModal('${seatCode}')" class="cursor-pointer border-2 ${borderClass} rounded-xl p-2 text-center transition hover:shadow-md flex flex-col justify-between" style="min-height: 82px;" title="Ghế ${seatCode}: ${escapeHtml(guest.name)} (${escapeHtml(guest.organization || '')}) - Bấm để thay đổi">
                 <div class="flex items-center justify-between text-[10px] font-mono font-bold ${badgeColor}">
                     <span>${seatCode}</span>
                     <i class="fas fa-check-circle text-emerald-500 text-xs"></i>
                 </div>
-                <div class="text-[11px] font-extrabold truncate leading-tight my-1">${escapeHtml(guest.name)}</div>
-                <div class="text-[9px] text-slate-500 dark:text-slate-400 truncate">${escapeHtml(guest.organization)}</div>
+                <div class="text-[11px] font-extrabold truncate leading-tight my-1 uppercase">${escapeHtml(guest.name)}</div>
+                <div class="text-[9px] text-slate-500 dark:text-slate-400 truncate">${escapeHtml(guest.organization || '')}</div>
             </div>
         `;
     } else {
         let textBorderClass = 'border-dashed border-red-300 text-red-400 hover:border-red-500 hover:bg-red-50/50';
         if (colorScheme === 'blue') {
             textBorderClass = 'border-dashed border-blue-300 text-blue-400 hover:border-blue-500 hover:bg-blue-50/50';
+        } else if (colorScheme === 'emerald') {
+            textBorderClass = 'border-dashed border-emerald-300 text-emerald-400 hover:border-emerald-500 hover:bg-emerald-50/50';
+        } else if (colorScheme === 'purple') {
+            textBorderClass = 'border-dashed border-purple-300 text-purple-400 hover:border-purple-500 hover:bg-purple-50/50';
         } else if (colorScheme === 'slate') {
             textBorderClass = 'border-dashed border-slate-300 text-slate-400 hover:border-slate-500 hover:bg-slate-50';
         }
@@ -11735,7 +13591,7 @@ function openAssignSeatModal(seatCode) {
             ${guests.map(g => {
                 const isCurrent = g.id === currentOccupantId;
                 const otherSeat = g.seatCode && g.seatCode !== seatCode ? ` (Đang ở ${g.seatCode})` : '';
-                return `<option value="${g.id}" ${isCurrent ? 'selected' : ''}>${escapeHtml(g.name)} - ${escapeHtml(g.organization)}${otherSeat}</option>`;
+                return `<option value="${g.id}" ${isCurrent ? 'selected' : ''}>${escapeHtml(g.name)} - ${escapeHtml(g.organization || '')}${otherSeat}</option>`;
             }).join('')}
         `;
     }
@@ -11749,20 +13605,23 @@ function openAssignSeatModalForGuest(guestId) {
     const guest = guests.find(g => g.id === guestId);
     if (!guest) return;
 
-    // Tìm ghế trống đầu tiên phù hợp với nhóm
-    let preferredPrefix = 'C-';
-    let maxSeats = 24;
-    if (guest.group === 'VIP') {
-        preferredPrefix = 'A-';
-        maxSeats = 12;
-    } else if (guest.group === 'SoNganh' || guest.group === 'QuocTe') {
-        preferredPrefix = 'B-';
-        maxSeats = 18;
+    const hallConfig = getEventHallConfig(evId);
+    let preferredPrefix = 'A-';
+    const matchingZone = hallConfig.zones.find(z => z.assignedGroup === guest.group);
+    if (matchingZone) {
+        preferredPrefix = matchingZone.prefix;
+    } else if (guest.group !== 'VIP' && hallConfig.zones.length > 1) {
+        preferredPrefix = hallConfig.zones[1].prefix;
     }
 
     const seating = (appData.eventSeating && appData.eventSeating[evId]) || {};
     let targetCode = null;
-    for (let i = 1; i <= maxSeats; i++) {
+
+    // Tìm ghế trống đầu tiên của phân khu ưu tiên
+    const targetZone = hallConfig.zones.find(z => z.prefix === preferredPrefix) || hallConfig.zones[0];
+    const count = targetZone ? targetZone.seatCount : 20;
+
+    for (let i = 1; i <= count; i++) {
         const code = `${preferredPrefix}${String(i).padStart(2, '0')}`;
         if (!seating[code]) {
             targetCode = code;
