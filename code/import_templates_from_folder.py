@@ -6,8 +6,20 @@ Sử dụng khi người dùng hoàn thành việc chỉnh sửa các file .doc 
 import os
 import re
 import json
+import sys
 
-folder = "Biểu mẫu"
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stderr.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
+folder = os.path.join(script_dir, "..", "doc", "Biểu mẫu")
+if not os.path.exists(folder):
+    folder = os.path.join(script_dir, "Biểu mẫu")
+
 manifest_path = os.path.join(folder, "manifest.json")
 
 if not os.path.exists(manifest_path):
@@ -17,7 +29,8 @@ if not os.path.exists(manifest_path):
 with open(manifest_path, "r", encoding="utf-8") as mf:
     manifest = json.load(mf)
 
-with open("index.html", "r", encoding="utf-8") as f:
+index_path = os.path.join(script_dir, "index.html")
+with open(index_path, "r", encoding="utf-8") as f:
     html = f.read()
 
 m = re.search(r'const STANDARD_TEMPLATES = (\[.*?\]);', html)
@@ -76,7 +89,7 @@ new_json_str = json.dumps(updated_list, ensure_ascii=False)
 
 new_html = html[:m.start(1)] + new_json_str + html[m.end(1):]
 
-with open("index.html", "w", encoding="utf-8") as f:
+with open(index_path, "w", encoding="utf-8") as f:
     f.write(new_html)
 
 print(f"Đã cập nhật thành công {updated_count} biểu mẫu từ thư mục '{folder}' vào index.html.")

@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "name": "sce-tcsk-mcp-config",
+  "description": "Model Context Protocol (MCP) server definitions and database tooling for SCE Event Management",
+  "mcpServers": {
+    "supabase-tcsk": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://postgres:[YOUR-PASSWORD]@db.xqmeeticiwclsvckpqrd.supabase.co:5432/postgres"
+      ],
+      "env": {
+        "SUPABASE_URL": "https://xqmeeticiwclsvckpqrd.supabase.co"
+      },
+      "description": "Kết nối cơ sở dữ liệu PostgreSQL / Supabase dự án Quản trị Tổ chức Sự kiện SCE",
+      "tables": [
+        "public.sce_tcsk_profiles",
+        "public.sce_tcsk_app_data",
+        "public.sce_tcsk_backups",
+        "public.sce_tcsk_audit_logs"
+      ]
+    },
+    "tcsk-filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "g:\\My Drive\\Personal\\AI Software\\Tổ chức sự kiện"
+      ],
+      "description": "Truy cập tài nguyên mã nguồn (code), biểu mẫu (doc), nhận diện (icon)"
+    }
+  }
+}

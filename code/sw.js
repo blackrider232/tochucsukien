@@ -1,11 +1,13 @@
-const CACHE_NAME = 'sce-sukien-v4';
+const CACHE_NAME = 'sce-sukien-v5';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
     './manifest.json',
-    './apple-touch-icon.png',
-    './app-icon-192.png',
-    './app-icon-512.png'
+    '../icon/apple-touch-icon.png',
+    '../icon/app-icon-192.png',
+    '../icon/app-icon-512.png',
+    '../icon/logo-192.png',
+    '../icon/logo-512.png'
 ];
 
 self.addEventListener('install', (event) => {

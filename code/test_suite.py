@@ -17,7 +17,9 @@ def run_tests():
     print("RUNNING AUTOMATED TEST SUITE FOR TCSK GUEST & SEATING MODULE")
     print("=" * 60)
     
-    with open("index.html", "r", encoding="utf-8") as f:
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    index_file = os.path.join(script_dir, "index.html")
+    with open(index_file, "r", encoding="utf-8") as f:
         html = f.read()
 
     errors = []
@@ -80,11 +82,12 @@ def run_tests():
 
     # 3. Check JavaScript Functions and Logic
     print("\n[TEST 3] Function & Logic Unit Tests via Node.js:")
+    index_file_js = json.dumps(index_file)
     # We will run a Node.js script that tests the core logic in simulated environment
-    test_node_script = """
+    test_node_script = f"""
     const fs = require('fs');
-    const html = fs.readFileSync('index.html', 'utf8');
-
+    const html = fs.readFileSync({index_file_js}, 'utf8');
+""" + """
     // Extract script 2
     const scripts = html.match(/<script>([\\s\\S]*?)<\\/script>/g);
     if (!scripts || scripts.length < 2) {
