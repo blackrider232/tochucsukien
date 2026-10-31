@@ -468,7 +468,6 @@
                                 <label class="block text-[11px] font-medium text-slate-500 mb-1">Vai trò phân quyền</label>
                                 <select id="newTabUserRole" class="w-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2 rounded-lg text-xs outline-none focus:ring-2 focus:ring-cyan-500 dark:text-white">
                                     <option value="user">Chuyên viên thực hiện</option>
-                                    <option value="team_lead">Tổ trưởng / Phụ trách</option>
                                     <option value="dept_leader">Lãnh đạo Phòng (Xem trong phòng)</option>
                                     <option value="leader">Ban Giám đốc (Xem toàn Trung tâm)</option>
                                     <option value="admin">Quản trị viên (Toàn quyền)</option>
@@ -4226,7 +4225,6 @@
                 'admin': 'Admin',
                 'leader': 'Ban Giám đốc',
                 'dept_leader': 'Lãnh đạo phòng',
-                'team_lead': 'Tổ trưởng',
                 'user': 'Chuyên viên'
             };
             const roleLabel = roleLabels[roleCode] || 'Chuyên viên';
@@ -4622,7 +4620,6 @@
                 case 'admin': return 'Quản trị viên (Admin)';
                 case 'leader': return 'Ban Giám đốc';
                 case 'dept_leader': return 'Lãnh đạo Phòng';
-                case 'team_lead': return 'Tổ trưởng / Phụ trách';
                 default: return 'Chuyên viên';
             }
         }
@@ -4821,7 +4818,6 @@
                         <td class="p-3">
                             <select onchange="updateUserRole('${u.id}', this.value)" class="px-2 py-1 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold">
                                 <option value="user" ${u.role === 'user' ? 'selected' : ''}>Chuyên viên</option>
-                                <option value="team_lead" ${u.role === 'team_lead' ? 'selected' : ''}>Tổ trưởng</option>
                                 <option value="dept_leader" ${u.role === 'dept_leader' ? 'selected' : ''}>Lãnh đạo Phòng</option>
                                 <option value="leader" ${u.role === 'leader' ? 'selected' : ''}>Ban Giám đốc</option>
                                 <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Quản trị viên (Admin)</option>
@@ -4925,7 +4921,6 @@
                         <td class="p-3">
                             <select onchange="updateUserRole('${u.id}', this.value)" class="px-2 py-1 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold">
                                 <option value="user" ${u.role === 'user' ? 'selected' : ''}>Chuyên viên (user)</option>
-                                <option value="team_lead" ${u.role === 'team_lead' ? 'selected' : ''}>Tổ trưởng (team_lead)</option>
                                 <option value="dept_leader" ${u.role === 'dept_leader' ? 'selected' : ''}>Lãnh đạo Phòng (dept_leader)</option>
                                 <option value="leader" ${u.role === 'leader' ? 'selected' : ''}>Ban Giám đốc (leader)</option>
                                 <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Quản trị viên (admin)</option>
@@ -4947,7 +4942,6 @@
                 case 'admin': return `<span class="bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300 px-2 py-0.5 rounded font-bold text-[10px]">ADMIN</span>`;
                 case 'leader': return `<span class="bg-indigo-100 text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-300 px-2 py-0.5 rounded font-bold text-[10px]">BGĐ</span>`;
                 case 'dept_leader': return `<span class="bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300 px-2 py-0.5 rounded font-bold text-[10px]">TRƯỞNG PHÒNG</span>`;
-                case 'team_lead': return `<span class="bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 px-2 py-0.5 rounded font-bold text-[10px]">TỔ TRƯỞNG</span>`;
                 default: return `<span class="bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300 px-2 py-0.5 rounded font-bold text-[10px]">CHUYÊN VIÊN</span>`;
             }
         }
