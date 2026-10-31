@@ -823,7 +823,36 @@
                 </div>
             </div>
 
-            </section>
+                        <!-- Cấu hình Hòm Thư Đơn Vị Phát Hành Email (Google Mail) -->
+            <div class="bg-white dark:bg-slate-800 rounded-xl p-3.5 sm:p-4 shadow-sm border border-slate-200 dark:border-slate-700 space-y-3.5">
+                <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100 dark:border-slate-700">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-xl bg-red-600/10 text-red-600 dark:text-red-400 flex items-center justify-center font-bold text-sm">
+                            <i class="fab fa-google"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-xs sm:text-sm text-slate-800 dark:text-white flex items-center gap-2">
+                                <span>Hòm Thư Đơn Vị Phát Hành Email Khách Mời (Google Mail)</span>
+                                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">Phân hệ 4 & Admin</span>
+                            </h4>
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400">Admin thiết lập sẵn các email của đơn vị và phòng ban để chuyên viên chỉ việc chọn gửi thư mà không cần cấu hình phức tạp.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="openUnitEmailEditModal()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 transition cursor-pointer">
+                            <i class="fas fa-plus text-xs"></i>
+                            <span>Thêm Email Đơn Vị</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Danh sách hòm thư rút gọn trong tab Admin -->
+                <div id="adminUnitEmailsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                    <!-- Nạp động qua renderAdminUnitEmailsSection() -->
+                </div>
+            </div>
+
+</section>
 
         <!-- ========================================================================= -->
         <!-- TAB 3 (HỆ THỐNG & QUẢN TRỊ): QUẢN TRỊ BIỂU MẪU -->
@@ -4418,19 +4447,46 @@
             </button>
         </div>
 
-        <!-- Google Auth & Connection Bar -->
-        <div class="px-5 py-2.5 bg-gradient-to-r from-slate-100 via-rose-50/40 to-slate-100 dark:from-slate-800/80 dark:via-rose-950/20 dark:to-slate-800/80 border-b border-slate-200 dark:border-slate-800 text-xs">
-            <div class="flex flex-wrap items-center justify-between gap-3">
-                <!-- User Profile / Auth Status -->
-                <div id="bulkEmailGoogleStatusContainer" class="flex items-center gap-2.5">
-                    <!-- Sẽ render động qua renderBulkEmailAuthBar() -->
+        <!-- Google Auth & Sender Unit Email Bar -->
+        <div class="px-5 py-2.5 bg-gradient-to-r from-slate-100 via-rose-50/50 to-slate-100 dark:from-slate-800/90 dark:via-rose-950/30 dark:to-slate-800/90 border-b border-slate-200 dark:border-slate-800 text-xs">
+            <div class="flex flex-wrap items-center justify-between gap-2.5">
+                
+                <!-- Khối Chọn Hòm Thư Đơn Vị Phát Hành (Chuyên viên chỉ việc chọn) -->
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                        <i class="fas fa-paper-plane text-red-500"></i>
+                        <span>Gửi từ Hòm Thư:</span>
+                    </span>
+                    
+                    <div class="relative min-w-[260px] sm:min-w-[340px]">
+                        <select id="bulkEmailSenderSelect" onchange="onBulkEmailSenderChange(this.value)" class="w-full text-xs py-1.5 pl-3 pr-8 rounded-lg border border-red-300 dark:border-red-900/60 bg-white dark:bg-slate-900 text-slate-800 dark:text-white font-bold shadow-2xs focus:ring-2 focus:ring-red-500 cursor-pointer">
+                            <!-- Nạp động qua JS: Danh sách email đơn vị do Admin nhập sẵn -->
+                        </select>
+                    </div>
+
+                    <!-- Huy hiệu xác nhận trạng thái hòm thư gửi -->
+                    <span id="bulkEmailSenderBadge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 flex items-center gap-1">
+                        <i class="fas fa-check-circle text-emerald-600"></i> Hòm thư đơn vị đã duyệt
+                    </span>
                 </div>
 
-                <!-- Action & Settings -->
-                <div class="flex items-center gap-2">
-                    <button type="button" onclick="toggleGoogleClientIdConfig()" class="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center gap-1.5 transition">
+                <!-- Khối Nút Thao tác & Quản trị Hòm Thư (Admin & Cài đặt) -->
+                <div class="flex items-center gap-1.5 sm:gap-2">
+                    <!-- Nút Quản trị danh sách email đơn vị (Dành cho Admin) -->
+                    <button type="button" onclick="openUnitEmailManagerModal()" class="px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 font-semibold flex items-center gap-1.5 transition shadow-2xs cursor-pointer" title="Quản trị danh sách email đơn vị (Dành cho Admin)">
+                        <i class="fas fa-mail-bulk text-blue-500"></i>
+                        <span>Quản lý Hòm Thư Đơn Vị</span>
+                    </button>
+
+                    <!-- User Profile / Auth Status -->
+                    <div id="bulkEmailGoogleStatusContainer" class="flex items-center gap-1.5">
+                        <!-- Sẽ render động qua renderBulkEmailAuthBar() -->
+                    </div>
+
+                    <!-- Action & Settings -->
+                    <button type="button" onclick="toggleGoogleClientIdConfig()" class="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center gap-1 transition" title="Cấu hình Google OAuth Client ID">
                         <i class="fas fa-cog"></i>
-                        <span>Cấu hình Client ID</span>
+                        <span class="hidden md:inline">Client ID</span>
                     </button>
                 </div>
             </div>
@@ -4544,6 +4600,8 @@
                         <button type="button" onclick="insertMergeTagIntoEmail('{can_bo_lien_he}')" class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-700 dark:text-slate-300 hover:text-red-600 border border-slate-200 dark:border-slate-700" title="Cán bộ phụ trách">{can_bo_lien_he}</button>
                         <button type="button" onclick="insertMergeTagIntoEmail('{sdt_lien_he}')" class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-700 dark:text-slate-300 hover:text-red-600 border border-slate-200 dark:border-slate-700" title="Số điện thoại hotline">{sdt_lien_he}</button>
                         <button type="button" onclick="insertMergeTagIntoEmail('{link_google_form}')" class="px-2 py-0.5 rounded bg-violet-100 dark:bg-violet-900/40 hover:bg-violet-200 text-violet-700 dark:text-violet-300 font-semibold border border-violet-300 dark:border-violet-700" title="Link xác nhận Google Form">{link_google_form}</button>
+                        <button type="button" onclick="insertMergeTagIntoEmail('{email_don_vi}')" class="px-2 py-0.5 rounded bg-rose-100 dark:bg-rose-900/40 hover:bg-rose-200 text-rose-700 dark:text-rose-300 font-semibold border border-rose-300 dark:border-rose-700" title="Địa chỉ email đơn vị đang chọn gửi">{email_don_vi}</button>
+                        <button type="button" onclick="insertMergeTagIntoEmail('{ten_don_vi_gui}')" class="px-2 py-0.5 rounded bg-rose-100 dark:bg-rose-900/40 hover:bg-rose-200 text-rose-700 dark:text-rose-300 font-semibold border border-rose-300 dark:border-rose-700" title="Tên cơ quan/phòng ban gửi thư">{ten_don_vi_gui}</button>
                     </div>
                 </div>
 
@@ -4673,6 +4731,140 @@
                 Đóng xem trước
             </button>
         </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: QUẢN LÝ DANH SÁCH HÒM THƯ ĐƠN VỊ PHÁT HÀNH EMAIL (ADMIN) -->
+<!-- ========================================================================= -->
+<div id="unitEmailManagerModal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col border border-slate-200 dark:border-slate-800 overflow-hidden my-auto">
+        <!-- Header -->
+        <div class="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-md text-lg">
+                    <i class="fas fa-mail-bulk"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-base text-slate-800 dark:text-white flex items-center gap-2">
+                        <span>Danh Sách Hòm Thư Đơn Vị Phát Hành Email</span>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">Dành cho Admin</span>
+                    </h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Thiết lập trước các email chính thức của đơn vị và phòng ban để chuyên viên chỉ việc chọn gửi thư</p>
+                </div>
+            </div>
+            <button onclick="closeUnitEmailManagerModal()" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <!-- Action Bar -->
+        <div class="px-5 py-3 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2.5 bg-slate-50/30 dark:bg-slate-900/30">
+            <span class="text-xs text-slate-600 dark:text-slate-300 font-medium">
+                💡 <span id="unitEmailTotalCountBadge" class="font-bold text-blue-600 dark:text-blue-400">4 hòm thư</span> đã sẵn sàng cho chuyên viên lựa chọn phát hành.
+            </span>
+            <button onclick="openUnitEmailEditModal()" class="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 transition cursor-pointer">
+                <i class="fas fa-plus-circle"></i>
+                <span>Thêm Hòm Thư Mới</span>
+            </button>
+        </div>
+
+        <!-- Table -->
+        <div class="flex-1 overflow-y-auto p-4">
+            <table class="w-full text-left text-xs border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+                <thead class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold uppercase text-[10px] tracking-wider">
+                    <tr>
+                        <th class="p-3 w-12 text-center">STT</th>
+                        <th class="p-3">Tên Hiển Thị (Display Name)</th>
+                        <th class="p-3">Địa Chỉ Email</th>
+                        <th class="p-3">Phòng Ban / Đơn Vị</th>
+                        <th class="p-3">Ghi Chú Nghiệp Vụ</th>
+                        <th class="p-3 text-center w-28">Trạng Thái</th>
+                        <th class="p-3 text-center w-28">Thao Tác</th>
+                    </tr>
+                </thead>
+                <tbody id="unitEmailTableBody" class="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
+                    <!-- Render qua renderUnitEmailsManagerTable() -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-5 py-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 flex items-center justify-between text-xs">
+            <span class="text-[11px] text-slate-400 italic">Mọi thay đổi sẽ tự động đồng bộ ngay vào danh sách chọn gửi của chuyên viên.</span>
+            <button onclick="closeUnitEmailManagerModal()" class="px-4 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition">
+                Đóng
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: THÊM / CHỈNH SỬA HÒM THƯ ĐƠN VỊ -->
+<!-- ========================================================================= -->
+<div id="unitEmailEditModal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[60] flex items-center justify-center p-3 sm:p-5">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-lg w-full border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div class="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+            <h4 id="unitEmailEditModalTitle" class="font-bold text-sm text-slate-800 dark:text-white flex items-center gap-2">
+                <i class="fas fa-envelope-plus text-blue-600"></i>
+                <span>Thêm Hòm Thư Đơn Vị Mới</span>
+            </h4>
+            <button onclick="closeUnitEmailEditModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <form id="unitEmailForm" onsubmit="saveUnitEmailRecord(event)" class="p-5 space-y-3.5 text-xs">
+            <input type="hidden" id="unitEmailEditId">
+
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Địa chỉ Email đơn vị <span class="text-red-500">*</span>:
+                </label>
+                <input type="email" id="unitEmailAddressInput" required placeholder="ví dụ: hanoi.sce.event@gmail.com" class="w-full text-xs p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Tên hiển thị người gửi (From Name) <span class="text-red-500">*</span>:
+                </label>
+                <input type="text" id="unitEmailDisplayNameInput" required placeholder="ví dụ: Trung tâm Xúc tiến Đầu tư Hà Nội (SCE)" class="w-full text-xs p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Phòng ban / Đơn vị:</label>
+                    <select id="unitEmailDeptInput" class="w-full text-xs p-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="Trung tâm SCE">Trung tâm SCE</option>
+                        <option value="Phòng Xúc tiến đầu tư">Phòng Xúc tiến đầu tư</option>
+                        <option value="Phòng Phát triển doanh nghiệp">Phòng Phát triển doanh nghiệp</option>
+                        <option value="Phòng Hành chính - Tổ chức">Phòng Hành chính - Tổ chức</option>
+                        <option value="Phòng Tư vấn doanh nghiệp">Phòng Tư vấn doanh nghiệp</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Ghi chú mục đích:</label>
+                    <input type="text" id="unitEmailNoteInput" placeholder="Thư mời VIP, thông báo..." class="w-full text-xs p-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+
+            <div class="pt-1">
+                <label class="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" id="unitEmailIsDefaultInput" class="rounded text-blue-600 focus:ring-blue-500 w-4 h-4">
+                    <span class="text-slate-700 dark:text-slate-300 font-medium">Đặt làm hòm thư mặc định ưu tiên</span>
+                </label>
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
+                <button type="button" onclick="closeUnitEmailEditModal()" class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 font-medium cursor-pointer">
+                    Hủy
+                </button>
+                <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold flex items-center gap-1.5 shadow-xs cursor-pointer">
+                    <i class="fas fa-save"></i>
+                    <span>Lưu Hòm Thư</span>
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -5815,7 +6007,8 @@
                 dailyReportThresholdDays: 10,
                 fieldPresenceHours: 2,
                 guestQuotaPercent: 130,
-                badgeQuotaPercent: 120
+                badgeQuotaPercent: 120,
+                unitSenderEmails: []
             }
         };
         window.appData = appData;
@@ -6547,6 +6740,7 @@
 
         function renderSystemSettingsUI() {
             const s = appData.systemSettings || {};
+            if (typeof renderAdminUnitEmailsSection === 'function') renderAdminUnitEmailsSection();
             if (s.parentAgency) document.getElementById('cfgParentAgency').value = s.parentAgency;
             if (s.agencyName) document.getElementById('cfgAgencyName').value = s.agencyName;
             if (s.dailyReportThresholdDays) document.getElementById('cfgReportThreshold').value = s.dailyReportThresholdDays;
@@ -17072,6 +17266,371 @@ const BULK_EMAIL_TEMPLATES = {
     }
 };
 
+const DEFAULT_UNIT_SENDER_EMAILS = [
+    {
+        id: 'unit_mail_1',
+        email: 'hanoi.sce.event@gmail.com',
+        displayName: 'Trung tâm Xúc tiến Đầu tư Hà Nội (SCE) - Ban Tổ Chức',
+        department: 'Trung tâm SCE',
+        isDefault: true,
+        note: 'Hòm thư chính thức phát hành giấy mời, thông báo và tài liệu hội nghị'
+    },
+    {
+        id: 'unit_mail_2',
+        email: 'xuctiendautu.sce.hanoi@gmail.com',
+        displayName: 'Phòng Xúc tiến Đầu tư - Trung tâm SCE',
+        department: 'Phòng Xúc tiến đầu tư',
+        isDefault: false,
+        note: 'Chuyên gửi giấy mời VIP, Sở ban ngành và đại biểu đầu tư'
+    },
+    {
+        id: 'unit_mail_3',
+        email: 'hotrodoanhnghiep.sce@gmail.com',
+        displayName: 'Phòng Phát triển Doanh nghiệp - Trung tâm SCE',
+        department: 'Phòng Phát triển doanh nghiệp',
+        isDefault: false,
+        note: 'Chuyên gửi thư mời doanh nghiệp, thông báo gian hàng & giao thương B2B'
+    },
+    {
+        id: 'unit_mail_4',
+        email: 'vanphong.sce.hanoi@gmail.com',
+        displayName: 'Văn phòng Trung tâm Xúc tiến Đầu tư Hà Nội',
+        department: 'Phòng Hành chính - Tổ chức',
+        isDefault: false,
+        note: 'Hòm thư công vụ hành chính, hậu cần và văn thư'
+    }
+];
+
+function ensureUnitSenderEmails() {
+    if (!appData.systemSettings) appData.systemSettings = {};
+    if (!Array.isArray(appData.systemSettings.unitSenderEmails) || appData.systemSettings.unitSenderEmails.length === 0) {
+        appData.systemSettings.unitSenderEmails = JSON.parse(JSON.stringify(DEFAULT_UNIT_SENDER_EMAILS));
+    }
+    return appData.systemSettings.unitSenderEmails;
+}
+
+function getActiveBulkEmailSender() {
+    ensureUnitSenderEmails();
+    const list = appData.systemSettings.unitSenderEmails || DEFAULT_UNIT_SENDER_EMAILS;
+
+    if (bulkEmailState.selectedSenderEmailId === 'personal') {
+        if (bulkEmailState.googleUser && bulkEmailState.googleUser.email) {
+            return {
+                id: 'personal',
+                email: bulkEmailState.googleUser.email,
+                displayName: bulkEmailState.googleUser.name || 'Cán bộ SCE',
+                department: 'Tài khoản cá nhân',
+                isPersonal: true
+            };
+        }
+        return {
+            id: 'personal',
+            email: 'canbo.canhan@gmail.com',
+            displayName: 'Cán bộ cá nhân (Chưa đăng nhập Google)',
+            department: 'Tài khoản cá nhân',
+            isPersonal: true
+        };
+    }
+
+    const found = list.find(m => m.id === bulkEmailState.selectedSenderEmailId);
+    if (found) return found;
+
+    const defaultItem = list.find(m => m.isDefault) || list[0] || DEFAULT_UNIT_SENDER_EMAILS[0];
+    return defaultItem;
+}
+
+function populateBulkEmailSenderSelector() {
+    const selectEl = document.getElementById('bulkEmailSenderSelect');
+    if (!selectEl) return;
+
+    ensureUnitSenderEmails();
+    const emails = appData.systemSettings.unitSenderEmails || [];
+
+    if (!bulkEmailState.selectedSenderEmailId || 
+        (bulkEmailState.selectedSenderEmailId !== 'personal' && !emails.some(e => e.id === bulkEmailState.selectedSenderEmailId))) {
+        const def = emails.find(e => e.isDefault) || emails[0];
+        bulkEmailState.selectedSenderEmailId = def ? def.id : 'unit_mail_1';
+    }
+
+    let html = emails.map(e => {
+        const isSel = (e.id === bulkEmailState.selectedSenderEmailId) ? 'selected' : '';
+        const star = e.isDefault ? ' ⭐ [Mặc định]' : '';
+        return `<option value="${e.id}" ${isSel}>✉️ ${escapeHtml(e.email)} — ${escapeHtml(e.displayName)}${star}</option>`;
+    }).join('');
+
+    const isPersonalSel = (bulkEmailState.selectedSenderEmailId === 'personal') ? 'selected' : '';
+    const personalLabel = (bulkEmailState.googleUser && bulkEmailState.googleUser.email)
+        ? `👤 Tài khoản cá nhân: ${bulkEmailState.googleUser.email}`
+        : '👤 Tài khoản Google cá nhân (Đăng nhập Google OAuth)';
+    html += `<option value="personal" ${isPersonalSel}>${personalLabel}</option>`;
+
+    selectEl.innerHTML = html;
+    selectEl.value = bulkEmailState.selectedSenderEmailId;
+
+    updateBulkEmailSenderBadge();
+}
+
+function updateBulkEmailSenderBadge() {
+    const badgeEl = document.getElementById('bulkEmailSenderBadge');
+    if (!badgeEl) return;
+
+    const sender = getActiveBulkEmailSender();
+    if (sender.isPersonal) {
+        if (bulkEmailState.googleUser && bulkEmailState.googleUser.email) {
+            badgeEl.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300 flex items-center gap-1";
+            badgeEl.innerHTML = '<i class="fas fa-user-check text-blue-600"></i> Hòm thư cá nhân';
+        } else {
+            badgeEl.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 flex items-center gap-1";
+            badgeEl.innerHTML = '<i class="fas fa-exclamation-triangle text-amber-600"></i> Chưa kết nối Google';
+        }
+    } else {
+        badgeEl.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 flex items-center gap-1";
+        badgeEl.innerHTML = `<i class="fas fa-check-circle text-emerald-600"></i> Hòm thư đơn vị (${escapeHtml(sender.department || 'Đã duyệt')})`;
+    }
+}
+
+function onBulkEmailSenderChange(senderId) {
+    bulkEmailState.selectedSenderEmailId = senderId;
+    updateBulkEmailSenderBadge();
+    const sender = getActiveBulkEmailSender();
+    logBulkEmailConsole('INFO', `Chuyên viên đã chọn gửi từ: ${sender.displayName} <${sender.email}>`);
+}
+
+function openUnitEmailManagerModal() {
+    ensureUnitSenderEmails();
+    renderUnitEmailsManagerTable();
+    document.getElementById('unitEmailManagerModal')?.classList.remove('hidden');
+}
+
+function closeUnitEmailManagerModal() {
+    document.getElementById('unitEmailManagerModal')?.classList.add('hidden');
+}
+
+function renderUnitEmailsManagerTable() {
+    const tbody = document.getElementById('unitEmailTableBody');
+    const countBadge = document.getElementById('unitEmailTotalCountBadge');
+    if (!tbody) return;
+
+    ensureUnitSenderEmails();
+    const list = appData.systemSettings.unitSenderEmails || [];
+    if (countBadge) countBadge.textContent = `${list.length} hòm thư`;
+
+    if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-400 italic">Chưa có hòm thư đơn vị nào. Bấm "Thêm Hòm Thư Mới" để thiết lập.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = list.map((item, idx) => {
+        const star = item.isDefault 
+            ? '<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 font-bold text-[10px] inline-flex items-center gap-1"><i class="fas fa-star text-amber-500"></i> Mặc định</span>'
+            : `<button onclick="setDefaultUnitEmail('${item.id}')" class="text-[11px] text-slate-500 hover:text-amber-600 dark:hover:text-amber-400 underline cursor-pointer">Đặt mặc định</button>`;
+
+        return `
+            <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
+                <td class="p-3 text-center font-bold text-slate-500">${idx + 1}</td>
+                <td class="p-3 font-semibold text-slate-800 dark:text-white">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-envelope text-red-500 text-xs"></i>
+                        <span>${escapeHtml(item.displayName)}</span>
+                    </div>
+                </td>
+                <td class="p-3 font-mono font-medium text-blue-600 dark:text-blue-400">${escapeHtml(item.email)}</td>
+                <td class="p-3 text-slate-600 dark:text-slate-300">${escapeHtml(item.department || 'Trung tâm SCE')}</td>
+                <td class="p-3 text-slate-500 italic text-[11px]">${escapeHtml(item.note || '—')}</td>
+                <td class="p-3 text-center">${star}</td>
+                <td class="p-3 text-center">
+                    <div class="flex items-center justify-center gap-2">
+                        <button onclick="openUnitEmailEditModal('${item.id}')" class="text-blue-600 hover:text-blue-800 dark:text-blue-400 p-1 rounded hover:bg-blue-50 dark:hover:bg-slate-700 cursor-pointer" title="Sửa thông tin hòm thư">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="deleteUnitEmailRecord('${item.id}')" class="text-rose-600 hover:text-rose-800 dark:text-rose-400 p-1 rounded hover:bg-rose-50 dark:hover:bg-slate-700 cursor-pointer" title="Xóa hòm thư này">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function openUnitEmailEditModal(editId = null) {
+    ensureUnitSenderEmails();
+    const list = appData.systemSettings.unitSenderEmails || [];
+    const modalTitle = document.getElementById('unitEmailEditModalTitle');
+    const idInput = document.getElementById('unitEmailEditId');
+    const emailInput = document.getElementById('unitEmailAddressInput');
+    const nameInput = document.getElementById('unitEmailDisplayNameInput');
+    const deptInput = document.getElementById('unitEmailDeptInput');
+    const noteInput = document.getElementById('unitEmailNoteInput');
+    const defInput = document.getElementById('unitEmailIsDefaultInput');
+
+    if (editId) {
+        const item = list.find(m => m.id === editId);
+        if (!item) return;
+        if (modalTitle) modalTitle.innerHTML = '<i class="fas fa-edit text-blue-600 mr-2"></i>Chỉnh Sửa Hòm Thư Đơn Vị';
+        if (idInput) idInput.value = item.id;
+        if (emailInput) emailInput.value = item.email || '';
+        if (nameInput) nameInput.value = item.displayName || '';
+        if (deptInput) deptInput.value = item.department || 'Trung tâm SCE';
+        if (noteInput) noteInput.value = item.note || '';
+        if (defInput) defInput.checked = !!item.isDefault;
+    } else {
+        if (modalTitle) modalTitle.innerHTML = '<i class="fas fa-envelope-plus text-blue-600 mr-2"></i>Thêm Hòm Thư Đơn Vị Mới';
+        if (idInput) idInput.value = '';
+        if (emailInput) emailInput.value = '';
+        if (nameInput) nameInput.value = '';
+        if (deptInput) deptInput.value = 'Trung tâm SCE';
+        if (noteInput) noteInput.value = '';
+        if (defInput) defInput.checked = list.length === 0;
+    }
+
+    document.getElementById('unitEmailEditModal')?.classList.remove('hidden');
+}
+
+function closeUnitEmailEditModal() {
+    document.getElementById('unitEmailEditModal')?.classList.add('hidden');
+}
+
+async function saveUnitEmailRecord(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    ensureUnitSenderEmails();
+    const list = appData.systemSettings.unitSenderEmails;
+
+    const editId = document.getElementById('unitEmailEditId')?.value || '';
+    const email = (document.getElementById('unitEmailAddressInput')?.value || '').trim();
+    const displayName = (document.getElementById('unitEmailDisplayNameInput')?.value || '').trim();
+    const department = document.getElementById('unitEmailDeptInput')?.value || 'Trung tâm SCE';
+    const note = (document.getElementById('unitEmailNoteInput')?.value || '').trim();
+    const isDefault = !!document.getElementById('unitEmailIsDefaultInput')?.checked;
+
+    if (!email || !email.includes('@')) {
+        Swal.fire('Email không hợp lệ', 'Vui lòng nhập địa chỉ email chính xác.', 'warning');
+        return;
+    }
+    if (!displayName) {
+        Swal.fire('Thiếu tên hiển thị', 'Vui lòng nhập tên hiển thị của người gửi.', 'warning');
+        return;
+    }
+
+    if (isDefault) {
+        list.forEach(m => m.isDefault = false);
+    }
+
+    if (editId) {
+        const item = list.find(m => m.id === editId);
+        if (item) {
+            item.email = email;
+            item.displayName = displayName;
+            item.department = department;
+            item.note = note;
+            item.isDefault = isDefault;
+        }
+    } else {
+        const newRecord = {
+            id: 'unit_mail_' + Date.now(),
+            email,
+            displayName,
+            department,
+            note,
+            isDefault: isDefault || list.length === 0
+        };
+        list.push(newRecord);
+    }
+
+    syncModule4Storage(true);
+    closeUnitEmailEditModal();
+    renderUnitEmailsManagerTable();
+    populateBulkEmailSenderSelector();
+    renderAdminUnitEmailsSection();
+
+    Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: editId ? 'Đã cập nhật hòm thư đơn vị' : 'Đã thêm hòm thư đơn vị mới',
+        showConfirmButton: false,
+        timer: 2000
+    });
+}
+
+function deleteUnitEmailRecord(id) {
+    ensureUnitSenderEmails();
+    const list = appData.systemSettings.unitSenderEmails;
+    if (list.length <= 1) {
+        Swal.fire('Không thể xóa', 'Hệ thống cần tối thiểu 1 hòm thư đơn vị để phục vụ chuyên viên gửi email.', 'warning');
+        return;
+    }
+
+    const item = list.find(m => m.id === id);
+    if (!item) return;
+
+    Swal.fire({
+        title: 'Xóa hòm thư này?',
+        html: `Bạn có chắc chắn muốn xóa hòm thư: <b>${escapeHtml(item.displayName)}</b> (${escapeHtml(item.email)})?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#e11d48',
+        confirmButtonText: 'Đồng ý xóa',
+        cancelButtonText: 'Hủy'
+    }).then(res => {
+        if (res.isConfirmed) {
+            appData.systemSettings.unitSenderEmails = list.filter(m => m.id !== id);
+            if (item.isDefault && appData.systemSettings.unitSenderEmails.length > 0) {
+                appData.systemSettings.unitSenderEmails[0].isDefault = true;
+            }
+            if (bulkEmailState.selectedSenderEmailId === id) {
+                bulkEmailState.selectedSenderEmailId = appData.systemSettings.unitSenderEmails[0]?.id || 'unit_mail_1';
+            }
+            syncModule4Storage(true);
+            renderUnitEmailsManagerTable();
+            populateBulkEmailSenderSelector();
+            renderAdminUnitEmailsSection();
+            Swal.fire('Đã xóa', 'Hòm thư đơn vị đã được xóa thành công.', 'success');
+        }
+    });
+}
+
+function setDefaultUnitEmail(id) {
+    ensureUnitSenderEmails();
+    const list = appData.systemSettings.unitSenderEmails;
+    list.forEach(m => {
+        m.isDefault = (m.id === id);
+    });
+    bulkEmailState.selectedSenderEmailId = id;
+    syncModule4Storage(true);
+    renderUnitEmailsManagerTable();
+    populateBulkEmailSenderSelector();
+    renderAdminUnitEmailsSection();
+}
+
+function renderAdminUnitEmailsSection() {
+    const container = document.getElementById('adminUnitEmailsContainer');
+    if (!container) return;
+
+    ensureUnitSenderEmails();
+    const list = appData.systemSettings.unitSenderEmails || [];
+
+    container.innerHTML = list.map(item => `
+        <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 space-y-1.5 flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between gap-1 mb-1">
+                    <span class="text-[10px] font-bold px-1.5 py-0.2 rounded ${item.isDefault ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}">
+                        ${item.isDefault ? '⭐ Mặc định' : escapeHtml(item.department || 'Đơn vị')}
+                    </span>
+                    <div class="flex items-center gap-1">
+                        <button onclick="openUnitEmailEditModal('${item.id}')" class="text-blue-500 hover:text-blue-700 p-0.5 text-xs cursor-pointer" title="Chỉnh sửa"><i class="fas fa-edit"></i></button>
+                        <button onclick="deleteUnitEmailRecord('${item.id}')" class="text-rose-500 hover:text-rose-700 p-0.5 text-xs cursor-pointer" title="Xóa"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                </div>
+                <div class="font-bold text-slate-800 dark:text-white truncate" title="${escapeHtml(item.displayName)}">${escapeHtml(item.displayName)}</div>
+                <div class="text-[11px] font-mono text-blue-600 dark:text-blue-400 truncate" title="${escapeHtml(item.email)}">${escapeHtml(item.email)}</div>
+                <div class="text-[10px] text-slate-400 italic line-clamp-1 mt-0.5">${escapeHtml(item.note || '—')}</div>
+            </div>
+            ${!item.isDefault ? `<button onclick="setDefaultUnitEmail('${item.id}')" class="mt-2 text-[10px] font-semibold text-slate-500 hover:text-amber-600 text-left cursor-pointer">Đặt làm mặc định</button>` : ''}
+        </div>
+    `).join('');
+}
+
 let bulkEmailState = {
     selectedRecipientIds: new Set(),
     currentFilter: 'all',
@@ -17081,7 +17640,8 @@ let bulkEmailState = {
     isPaused: false,
     isCancelled: false,
     googleUser: null,
-    tokenClient: null
+    tokenClient: null,
+    selectedSenderEmailId: 'unit_mail_1'
 };
 
 // Khởi tạo và mở Modal Phát Hành Thư Điện Tử
@@ -17114,6 +17674,7 @@ function openBulkEmailModal() {
     if (inputClientId) inputClientId.value = savedClientId;
 
     initGoogleTokenClient();
+    populateBulkEmailSenderSelector();
     renderBulkEmailAuthBar();
 
     // Khởi tạo danh sách khách mời
@@ -17497,7 +18058,9 @@ function applyMailMergeTags(templateText, guest, eventData) {
         '{so_ghe}': soGhe,
         '{can_bo_lien_he}': canBoLienHe,
         '{sdt_lien_he}': sdtLienHe,
-        '{ma_qr_checkin}': maQr
+        '{ma_qr_checkin}': maQr,
+        '{email_don_vi}': (typeof getActiveBulkEmailSender === 'function' ? getActiveBulkEmailSender().email : 'hanoi.sce.event@gmail.com'),
+        '{ten_don_vi_gui}': (typeof getActiveBulkEmailSender === 'function' ? getActiveBulkEmailSender().displayName : 'Trung tâm Xúc tiến Đầu tư Hà Nội (SCE)')
     };
 
     for (const [tag, val] of Object.entries(map)) {
@@ -17674,7 +18237,8 @@ function previewBulkEmailForFirstGuest() {
     const previewSubject = applyMailMergeTags(rawSubject, firstGuest, eventData);
     const previewBody = applyMailMergeTags(rawBody, firstGuest, eventData);
 
-    const fromEmail = bulkEmailState.googleUser?.email || 'canbo_tochucsukien@gmail.com (Mẫu)';
+    const activeSender = getActiveBulkEmailSender();
+    const fromEmail = `"${activeSender.displayName}" <${activeSender.email}>`;
     document.getElementById('previewEmailFrom').textContent = fromEmail;
     document.getElementById('previewEmailTo').textContent = `${firstGuest.name} <${firstGuest.email || 'chua_co_email@domain.vn'}>`;
     document.getElementById('previewEmailSubject').textContent = previewSubject;
@@ -17700,7 +18264,22 @@ function buildMimeMessage({ from, to, subject, htmlBody, attachments = [] }) {
     const utf8Subject = "=?UTF-8?B?" + btoa(unescape(encodeURIComponent(subject))) + "?=";
 
     const mimeParts = [
-        `From: ${from}`,
+        (() => {
+            let encodedFrom = from;
+            if (from && from.includes('<') && from.includes('>')) {
+                const match = from.match(/^(.*?)\s*<([^>]+)>$/);
+                if (match) {
+                    const namePart = match[1].replace(/^[\"']|[\"']$/g, '').trim();
+                    const emailPart = match[2].trim();
+                    if (namePart) {
+                        encodedFrom = `=?UTF-8?B?${btoa(unescape(encodeURIComponent(namePart)))}?= <${emailPart}>`;
+                    } else {
+                        encodedFrom = emailPart;
+                    }
+                }
+            }
+            return `From: ${encodedFrom}`;
+        })(),
         `To: ${to}`,
         `Subject: ${utf8Subject}`,
         `MIME-Version: 1.0`,
@@ -17797,8 +18376,10 @@ async function sendTestBulkEmailToSelf() {
 
     if (isLive) {
         try {
+            const activeSender = getActiveBulkEmailSender();
+            const senderHeader = `"${activeSender.displayName}" <${activeSender.email}>`;
             const rawMessage = buildMimeMessage({
-                from: bulkEmailState.googleUser.email,
+                from: senderHeader,
                 to: targetEmail,
                 subject: testSubject,
                 htmlBody: testBody,
@@ -17921,8 +18502,10 @@ async function startBulkEmailDispatchProcess() {
             }
 
             if (isLive) {
+                const activeSender = getActiveBulkEmailSender();
+                const senderHeader = `"${activeSender.displayName}" <${activeSender.email}>`;
                 const rawMessage = buildMimeMessage({
-                    from: bulkEmailState.googleUser.email,
+                    from: senderHeader,
                     to: guest.email,
                     subject: subject,
                     htmlBody: htmlBody,
