@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sce-sukien-v1-cache-v1';
+const CACHE_NAME = 'sce-sukien-v2';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
