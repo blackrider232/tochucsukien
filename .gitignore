@@ -7,6 +7,7 @@ Thumbs.db
 
 # Local Documentation & Office Templates (Chỉ lưu trên máy tính)
 /doc/
+PROJECT_KNOWLEDGE.md
 
 # Local AI Context & MCP Configuration (Chỉ lưu trên máy tính)
 /mcp/
