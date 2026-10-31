@@ -237,6 +237,12 @@
                             <span><span class="sm:hidden">+ Tạo SK</span><span class="hidden sm:inline">+ Tạo Sự Kiện Mới</span></span>
                         </button>
 
+                        <!-- Nút Duyệt tài khoản nhanh trên Header (Chỉ hiện khi Admin có tài khoản chờ duyệt) -->
+                        <button onclick="switchMainTab('tab-users')" id="btnPendingApprovalHeader" class="hidden items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold shadow-md transition animate-pulse cursor-pointer" title="Có tài khoản cán bộ mới chờ Quản trị viên phê duyệt">
+                            <i class="fas fa-user-clock text-xs"></i>
+                            <span id="pendingApprovalCountText">Duyệt tài khoản (0)</span>
+                        </button>
+
                         <!-- Tên chuyên viên & Vai trò (User Badge chuẩn /quanlydauthau) -->
                         <button onclick="window.openProfileModal()" id="userBadge" class="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 bg-white/10 hover:bg-white/20 border border-white/15 rounded-lg text-xs font-medium text-white transition backdrop-blur-md cursor-pointer" title="Thông tin cá nhân & Đổi mật khẩu">
                             <i class="fas fa-user-circle"></i>
@@ -251,7 +257,6 @@
                         </button>
                     </div>
                 </div>
-            </div>
             </div>
 
             <!-- Thanh Điều hướng Nghiệp vụ (Tabs Navigation) -->
@@ -280,6 +285,7 @@
                     <button onclick="switchMainTab('tab-users')" id="tabBtn-users" class="px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-1.5">
                         <i class="fas fa-users-gear text-sm text-cyan-300"></i>
                         <span>Tài khoản</span>
+                        <span id="tabUsersPendingBadge" class="hidden px-1.5 py-0.5 bg-amber-500 text-white rounded-full text-[10px] font-bold">0</span>
                     </button>
                     <button onclick="switchMainTab('tab-admin')" id="tabBtn-admin" class="px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-1.5">
                         <i class="fas fa-sliders text-sm text-slate-400"></i>
@@ -308,8 +314,30 @@
                                 <p class="text-xs text-slate-500 dark:text-slate-400">Cấp tài khoản, phân quyền RBAC và quản lý danh sách cán bộ Trung tâm Xúc tiến đầu tư (SCE)</p>
                             </div>
                         </div>
-                        <button onclick="loadUserProfilesFromDb()" class="px-3.5 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
-                            <i class="fas fa-sync-alt"></i> Tải lại danh sách
+                        <div class="flex items-center gap-2">
+                            <button onclick="window.approveAllPendingUsers()" id="btnApproveAllTop" class="hidden px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1.5">
+                                <i class="fas fa-user-check"></i> Duyệt tất cả tài khoản chờ
+                            </button>
+                            <button onclick="loadUserProfilesFromDb()" class="px-3.5 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+                                <i class="fas fa-sync-alt"></i> Tải lại danh sách
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Banner thông báo có tài khoản chờ phê duyệt -->
+                    <div id="tabUsersPendingBanner" class="hidden bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-lg bg-amber-500 text-white flex items-center justify-center text-base shadow-sm shrink-0">
+                                <i class="fas fa-user-clock"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-amber-900 dark:text-amber-200 text-xs sm:text-sm">Có <span id="tabUsersPendingCount" class="font-black text-amber-600 dark:text-amber-400">0</span> tài khoản cán bộ mới đang chờ Quản trị viên phê duyệt</h4>
+                                <p class="text-[11px] text-amber-700 dark:text-amber-400">Bấm nút "Duyệt tài khoản" ở từng dòng hoặc "Duyệt tất cả" để kích hoạt quyền đăng nhập cho cán bộ.</p>
+                            </div>
+                        </div>
+                        <button onclick="window.approveAllPendingUsers()" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm transition flex items-center gap-1.5 shrink-0">
+                            <i class="fas fa-user-check"></i>
+                            <span>Phê duyệt tất cả</span>
                         </button>
                     </div>
 
@@ -3775,8 +3803,8 @@
         const SUPABASE_URL = savedConfig.url || DEFAULT_SUPABASE_URL;
         const SUPABASE_ANON_KEY = savedConfig.key || DEFAULT_SUPABASE_ANON_KEY;
 
-        let supabaseClient = null;
-        if (window.supabase && window.supabase.createClient) {
+        let supabaseClient = window.supabaseClient || null;
+        if (!supabaseClient && window.supabase && window.supabase.createClient) {
             supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
                 auth: {
                     persistSession: true,
@@ -3784,6 +3812,7 @@
                     detectSessionInUrl: true
                 }
             });
+            window.supabaseClient = supabaseClient;
         }
 
         // State người dùng hiện tại & dữ liệu hệ thống
@@ -3806,6 +3835,7 @@
                 badgeQuotaPercent: 120
             }
         };
+        window.appData = appData;
         let cachedProfiles = [];
 
         // Hệ thống Hoàn tác (Undo) & Làm lại (Redo) chuẩn /quanlydauthau
@@ -3831,7 +3861,7 @@
         window.recordUndoSnapshot = function(actionSummary = '') {
             if (isPerformingHistoryAction) return;
             try {
-                const curStateStr = JSON.stringify(appData);
+                const data = window.appData || appData; const curStateStr = JSON.stringify(data);
                 if (!lastCommittedState) {
                     lastCommittedState = curStateStr;
                 } else if (lastCommittedState !== curStateStr) {
@@ -3850,11 +3880,11 @@
             if (window.undoStack.length === 0 || isPerformingHistoryAction) return;
             isPerformingHistoryAction = true;
             try {
-                window.redoStack.push(JSON.stringify(appData));
+                const data = window.appData || appData; window.redoStack.push(JSON.stringify(data));
                 if (window.redoStack.length > window.MAX_HISTORY) window.redoStack.shift();
 
                 const prevStateStr = window.undoStack.pop();
-                appData = JSON.parse(prevStateStr);
+                appData = JSON.parse(prevStateStr); window.appData = appData;
                 lastCommittedState = prevStateStr;
 
                 localStorage.setItem('sce_tcsk_app_data', JSON.stringify(appData));
@@ -3890,11 +3920,11 @@
             if (window.redoStack.length === 0 || isPerformingHistoryAction) return;
             isPerformingHistoryAction = true;
             try {
-                window.undoStack.push(JSON.stringify(appData));
+                const data = window.appData || appData; window.undoStack.push(JSON.stringify(data));
                 if (window.undoStack.length > window.MAX_HISTORY) window.undoStack.shift();
 
                 const nextStateStr = window.redoStack.pop();
-                appData = JSON.parse(nextStateStr);
+                appData = JSON.parse(nextStateStr); window.appData = appData;
                 lastCommittedState = nextStateStr;
 
                 localStorage.setItem('sce_tcsk_app_data', JSON.stringify(appData));
@@ -3938,6 +3968,132 @@
                 appScreen.classList.remove('flex');
             }
         }
+
+        window.renderUserBadge = function() {
+            const badgeEl = document.getElementById('userBadge');
+            if (!badgeEl) return;
+
+            const u = window.currentUser || currentUser;
+            const p = window.currentProfile || currentProfile;
+
+            let email = (u && u.email) || (p && p.email) || '';
+            const isAdminEmail = (email && email.toLowerCase() === 'blackrider232@gmail.com') || 
+                                 (email && email.toLowerCase().includes('admin@')) ||
+                                 (email && email.toLowerCase() === 'admin@sce.gov.vn');
+
+            let name = 'Chuyên viên';
+            let roleCode = 'user';
+            let dept = 'Phòng Xúc tiến đầu tư';
+
+            if (p) {
+                name = p.fullname || email.split('@')[0] || 'Chuyên viên';
+                roleCode = p.role || 'user';
+                dept = p.department || 'Phòng Xúc tiến đầu tư';
+            } else if (u) {
+                name = (u.user_metadata && (u.user_metadata.fullname || u.user_metadata.full_name)) || email.split('@')[0] || 'Chuyên viên';
+                roleCode = (u.user_metadata && u.user_metadata.role) || 'user';
+                dept = (u.user_metadata && u.user_metadata.department) || 'Phòng Xúc tiến đầu tư';
+            }
+
+            if (isAdminEmail) {
+                roleCode = 'admin';
+                if (!dept || dept === 'Phòng Xúc tiến đầu tư') dept = 'Ban Giám đốc';
+            }
+
+            const roleLabels = {
+                'admin': 'Admin',
+                'leader': 'Ban Giám đốc',
+                'dept_leader': 'Lãnh đạo phòng',
+                'team_lead': 'Tổ trưởng',
+                'user': 'Chuyên viên'
+            };
+            const roleLabel = roleLabels[roleCode] || 'Chuyên viên';
+            const deptStr = dept ? String(dept).replace('Phòng ', 'P. ') : '';
+            const deptBadge = deptStr ? `<span class="hidden md:inline text-[10px] bg-indigo-900/70 text-indigo-100 border border-indigo-400/30 px-1.5 py-0.5 rounded ml-1">${escapeHtml(deptStr)}</span>` : '';
+
+            const roleBadgeClass = roleCode === 'admin'
+                ? 'bg-purple-600 text-white font-black shadow-sm'
+                : (roleCode === 'leader' ? 'bg-amber-600 text-white font-bold' : 'bg-blue-700 text-white font-bold');
+
+            badgeEl.innerHTML = `<i class="fas fa-user-circle"></i> <span class="truncate max-w-[90px] sm:max-w-none font-semibold">${escapeHtml(name)}</span> <span class="hidden sm:inline text-[10px] ${roleBadgeClass} px-1.5 py-0.5 rounded ml-1 uppercase">${escapeHtml(roleLabel)}</span>${deptBadge}`;
+        };
+
+        function updatePendingApprovalsUI() {
+            const profiles = window.cachedProfiles || cachedProfiles || [];
+            const pending = profiles.filter(u => u.is_active === false);
+            const count = pending.length;
+
+            const u = window.currentUser || currentUser;
+            const p = window.currentProfile || currentProfile;
+            const email = (u && u.email) || (p && p.email) || '';
+            const isAdmin = (u && u.role === 'admin') || (p && p.role === 'admin') || email.toLowerCase() === 'blackrider232@gmail.com' || email.toLowerCase().includes('admin@');
+
+            // Nút Duyệt nhanh trên Header
+            const headerBtn = document.getElementById('btnPendingApprovalHeader');
+            const headerText = document.getElementById('pendingApprovalCountText');
+
+            if (headerBtn && headerText) {
+                if (isAdmin && count > 0) {
+                    headerText.textContent = `Duyệt tài khoản (${count})`;
+                    headerBtn.classList.remove('hidden');
+                    headerBtn.classList.add('inline-flex');
+                } else {
+                    headerBtn.classList.add('hidden');
+                    headerBtn.classList.remove('inline-flex');
+                }
+            }
+
+            // Badge trên Tab Tài khoản
+            const tabBadge = document.getElementById('tabUsersPendingBadge');
+            if (tabBadge) {
+                if (count > 0) {
+                    tabBadge.textContent = String(count);
+                    tabBadge.classList.remove('hidden');
+                } else {
+                    tabBadge.classList.add('hidden');
+                }
+            }
+
+            // Banner bên trong Tab Tài khoản
+            const pendingBanner = document.getElementById('tabUsersPendingBanner');
+            const pendingCountSpan = document.getElementById('tabUsersPendingCount');
+            const btnApproveAllTop = document.getElementById('btnApproveAllTop');
+            if (pendingBanner && pendingCountSpan) {
+                if (count > 0) {
+                    pendingCountSpan.textContent = count;
+                    pendingBanner.classList.remove('hidden');
+                    if (btnApproveAllTop) btnApproveAllTop.classList.remove('hidden');
+                } else {
+                    pendingBanner.classList.add('hidden');
+                    if (btnApproveAllTop) btnApproveAllTop.classList.add('hidden');
+                }
+            }
+        }
+        window.updatePendingApprovalsUI = updatePendingApprovalsUI;
+
+        function updateUserHeaderUI() {
+            window.renderUserBadge();
+            const tabAdminBtn = document.getElementById('tabBtn-admin');
+            const tabUsersBtn = document.getElementById('tabBtn-users');
+
+            const u = window.currentUser || currentUser;
+            const p = window.currentProfile || currentProfile;
+            const role = (p && p.role) || (u && u.role) || 'user';
+            const email = (u && u.email) || (p && p.email) || '';
+            const isAdmin = role === 'admin' || email.toLowerCase() === 'blackrider232@gmail.com' || email.toLowerCase().includes('admin@');
+            const isAdminOrLeader = isAdmin || ['leader', 'dept_leader'].includes(role);
+
+            if (tabAdminBtn) {
+                if (isAdminOrLeader) tabAdminBtn.classList.remove('hidden');
+                else tabAdminBtn.classList.add('hidden');
+            }
+            if (tabUsersBtn) {
+                if (isAdminOrLeader) tabUsersBtn.classList.remove('hidden');
+                else tabUsersBtn.classList.add('hidden');
+            }
+            updatePendingApprovalsUI();
+        }
+        window.updateUserHeaderUI = updateUserHeaderUI;
 
         function showAppScreen() {
             const loginScreen = document.getElementById('loginScreen');
@@ -4161,6 +4317,10 @@
         }
 
         async function fetchUserProfile(userId, email) {
+            const isAdminEmail = (email && email.toLowerCase() === 'blackrider232@gmail.com') || 
+                                 (email && email.toLowerCase().includes('admin@')) ||
+                                 (email && email.toLowerCase() === 'admin@sce.gov.vn');
+
             try {
                 const { data, error } = await supabaseClient
                     .from('sce_tcsk_profiles')
@@ -4171,11 +4331,20 @@
                 if (error) throw error;
                 if (data) {
                     currentProfile = data;
+                    if (isAdminEmail && currentProfile.role !== 'admin') {
+                        currentProfile.role = 'admin';
+                        currentProfile.is_active = true;
+                        try {
+                            await supabaseClient
+                                .from('sce_tcsk_profiles')
+                                .update({ role: 'admin', is_active: true, updated_at: new Date().toISOString() })
+                                .eq('id', userId);
+                        } catch(e) {}
+                    }
                 } else {
-                    // Nếu chưa có profile trong bảng mới, tạo tự động
-                    const displayName = (currentUser.user_metadata && (currentUser.user_metadata.fullname || currentUser.user_metadata.full_name)) || email.split('@')[0];
-                    const defaultDept = (currentUser.user_metadata && currentUser.user_metadata.department) || 'Phòng Xúc tiến đầu tư';
-                    const defaultRole = (currentUser.user_metadata && currentUser.user_metadata.role) || 'user';
+                    const displayName = (currentUser && currentUser.user_metadata && (currentUser.user_metadata.fullname || currentUser.user_metadata.full_name)) || email.split('@')[0];
+                    const defaultDept = (currentUser && currentUser.user_metadata && currentUser.user_metadata.department) || (isAdminEmail ? 'Ban Giám đốc' : 'Phòng Xúc tiến đầu tư');
+                    const defaultRole = isAdminEmail ? 'admin' : ((currentUser && currentUser.user_metadata && currentUser.user_metadata.role) || 'user');
 
                     const { data: inserted, error: insErr } = await supabaseClient
                         .from('sce_tcsk_profiles')
@@ -4197,57 +4366,24 @@
             } catch (e) {
                 console.error('Lỗi nạp profile:', e);
             }
-        }
 
-        window.renderUserBadge = function() {
-            const badgeEl = document.getElementById('userBadge');
-            if (!badgeEl) return;
-
-            let name = 'Chuyên viên';
-            let roleCode = 'user';
-            let dept = 'Phòng Xúc tiến đầu tư';
-
-            if (currentProfile) {
-                name = currentProfile.fullname || (currentUser && currentUser.email) || 'Chuyên viên';
-                roleCode = currentProfile.role || 'user';
-                dept = currentProfile.department || 'Phòng Xúc tiến đầu tư';
-            } else if (currentUser) {
-                name = (currentUser.user_metadata && (currentUser.user_metadata.fullname || currentUser.user_metadata.full_name)) || currentUser.email || 'Chuyên viên';
-                roleCode = (currentUser.user_metadata && currentUser.user_metadata.role) || 'user';
-                dept = (currentUser.user_metadata && currentUser.user_metadata.department) || 'Phòng Xúc tiến đầu tư';
-            }
-
-            const roleLabels = {
-                'admin': 'Admin',
-                'leader': 'Ban Giám đốc',
-                'dept_leader': 'Lãnh đạo phòng',
-                'team_lead': 'Tổ trưởng',
-                'user': 'Chuyên viên'
-            };
-            const roleLabel = roleLabels[roleCode] || 'Chuyên viên';
-            const deptStr = dept ? String(dept).replace('Phòng ', 'P. ') : '';
-            const deptBadge = deptStr ? `<span class="hidden md:inline text-[10px] bg-indigo-900/70 text-indigo-100 border border-indigo-400/30 px-1.5 py-0.5 rounded ml-1">${escapeHtml(deptStr)}</span>` : '';
-
-            badgeEl.innerHTML = `<i class="fas fa-user-circle"></i> <span class="truncate max-w-[90px] sm:max-w-none font-semibold">${escapeHtml(name)}</span> <span class="hidden sm:inline text-[10px] bg-blue-700 px-1.5 py-0.5 rounded ml-1 font-bold uppercase">${escapeHtml(roleLabel)}</span>${deptBadge}`;
-        };
-
-        function updateUserHeaderUI() {
-            window.renderUserBadge();
-            const tabAdminBtn = document.getElementById('tabBtn-admin');
-            const tabUsersBtn = document.getElementById('tabBtn-users');
-
-            if (currentUser && currentProfile) {
-                const isAdminOrLeader = ['admin', 'leader', 'dept_leader'].includes(currentProfile.role);
-                if (tabAdminBtn) {
-                    if (isAdminOrLeader) tabAdminBtn.classList.remove('hidden');
-                    else tabAdminBtn.classList.add('hidden');
+            if (isAdminEmail) {
+                if (!currentProfile) {
+                    currentProfile = {
+                        id: userId,
+                        email: email,
+                        fullname: (currentUser && currentUser.user_metadata && (currentUser.user_metadata.fullname || currentUser.user_metadata.full_name)) || 'Quản trị viên (Admin)',
+                        role: 'admin',
+                        department: 'Ban Giám đốc',
+                        is_active: true
+                    };
+                } else {
+                    currentProfile.role = 'admin';
+                    currentProfile.is_active = true;
                 }
-                if (tabUsersBtn) {
-                    if (isAdminOrLeader) tabUsersBtn.classList.remove('hidden');
-                    else tabUsersBtn.classList.add('hidden');
+                if (currentUser) {
+                    currentUser.role = 'admin';
                 }
-            } else {
-                if (tabUsersBtn) tabUsersBtn.classList.remove('hidden');
             }
         }
 
@@ -4378,18 +4514,26 @@
         // D. QUẢN LÝ TÀI KHOẢN NGƯỜI DÙNG (USER MANAGEMENT)
         // -------------------------------------------------------------
         async function loadUserProfilesFromDb() {
-            if (!supabaseClient) return;
+            const client = window.supabaseClient || (typeof supabaseClient !== 'undefined' ? supabaseClient : null);
+            if (!client) {
+                if (window.cachedProfiles && window.cachedProfiles.length > 0) {
+                    cachedProfiles = window.cachedProfiles;
+                    renderTabUserTable();
+                }
+                return;
+            }
             try {
-                const { data, error } = await supabaseClient
+                const { data, error } = await client
                     .from('sce_tcsk_profiles')
                     .select('*')
                     .order('created_at', { ascending: false });
 
                 if (!error && data) {
                     cachedProfiles = data;
+                    window.cachedProfiles = cachedProfiles;
                     const statEl = document.getElementById('statUserCount');
                     if (statEl) statEl.textContent = `${cachedProfiles.length} Người`;
-                    renderUserMgmtTable();
+                    if (typeof renderUserMgmtTable === 'function') renderUserMgmtTable();
                     renderTabUserTable();
                 }
             } catch (e) {
@@ -4397,14 +4541,15 @@
             }
         }
 
-        function renderTabUserTable() {
+        window.renderTabUserTable = function() {
             const tbody = document.getElementById('tabUserTableBody');
             if (!tbody) return;
 
             const search = (document.getElementById('tabUserSearch')?.value || '').toLowerCase();
             const deptFilter = document.getElementById('tabUserDeptFilter')?.value || '';
 
-            const filtered = (cachedProfiles || []).filter(u => {
+            const profiles = window.cachedProfiles || cachedProfiles || [];
+            const filtered = profiles.filter(u => {
                 const matchSearch = (u.fullname || '').toLowerCase().includes(search) || (u.email || '').toLowerCase().includes(search);
                 const matchDept = !deptFilter || u.department === deptFilter;
                 return matchSearch && matchDept;
@@ -4416,14 +4561,22 @@
             }
 
             tbody.innerHTML = filtered.map(u => {
-                const activeBadge = u.is_active 
-                    ? `<span class="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 px-2 py-0.5 rounded-full text-[10px] font-bold">Hoạt động</span>`
-                    : `<span class="bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-300 px-2 py-0.5 rounded-full text-[10px] font-bold">Khóa</span>`;
+                const isActive = u.is_active !== false;
+                const activeBadge = isActive
+                    ? `<span class="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 px-2.5 py-1 rounded-full text-[11px] font-bold inline-flex items-center gap-1"><i class="fas fa-check-circle text-xs"></i> Đã duyệt</span>`
+                    : `<span class="bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 px-2.5 py-1 rounded-full text-[11px] font-bold animate-pulse inline-flex items-center gap-1"><i class="fas fa-clock text-xs"></i> Chờ duyệt</span>`;
+
+                const actionButton = !isActive
+                    ? `<button onclick="window.approveUserAccount('${u.id}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm transition inline-flex items-center gap-1.5 mr-2 cursor-pointer" title="Phê duyệt cho phép tài khoản này truy cập hệ thống"><i class="fas fa-user-check"></i> Duyệt tài khoản</button>`
+                    : `<button onclick="window.toggleUserActiveStatus('${u.id}', false)" class="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 rounded text-xs font-semibold transition cursor-pointer" title="Khóa tài khoản"><i class="fas fa-lock mr-1"></i>Khóa</button>`;
 
                 return `
-                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition">
+                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition ${!isActive ? 'bg-amber-50/50 dark:bg-amber-950/20' : ''}">
                         <td class="p-3">
-                            <div class="font-bold text-slate-800 dark:text-slate-100">${escapeHtml(u.fullname || 'Chưa đặt tên')}</div>
+                            <div class="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                                ${escapeHtml(u.fullname || 'Chưa đặt tên')}
+                                ${!isActive ? '<span class="inline-block w-2 h-2 rounded-full bg-amber-500 animate-ping" title="Tài khoản mới chờ duyệt"></span>' : ''}
+                            </div>
                             <div class="text-[11px] text-slate-400 font-mono">${escapeHtml(u.email || '')}</div>
                         </td>
                         <td class="p-3">
@@ -4445,10 +4598,8 @@
                             </select>
                         </td>
                         <td class="p-3 text-center">${activeBadge}</td>
-                        <td class="p-3 text-right">
-                            <button onclick="toggleUserActiveState('${u.id}', ${!u.is_active})" class="px-2.5 py-1 rounded text-[11px] font-semibold ${u.is_active ? 'bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-900/60 dark:text-amber-300' : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-900/60 dark:text-emerald-300'} transition">
-                                ${u.is_active ? '<i class="fas fa-lock mr-1"></i>Khóa' : '<i class="fas fa-lock-open mr-1"></i>Mở'}
-                            </button>
+                        <td class="p-3 text-right whitespace-nowrap">
+                            ${actionButton}
                         </td>
                     </tr>
                 `;
@@ -4522,9 +4673,10 @@
 
             tbody.innerHTML = filtered.map(u => {
                 const roleBadge = getRoleBadgeHTML(u.role);
-                const activeBadge = u.is_active 
-                    ? `<span class="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 px-2 py-0.5 rounded-full text-[10px] font-bold">Hoạt động</span>`
-                    : `<span class="bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-300 px-2 py-0.5 rounded-full text-[10px] font-bold">Khóa</span>`;
+                const isActive = u.is_active !== false;
+                const activeBadge = isActive 
+                    ? `<span class="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 px-2 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1"><i class="fas fa-check-circle"></i> Đã duyệt</span>`
+                    : `<span class="bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 px-2 py-0.5 rounded-full text-[10px] font-bold animate-pulse inline-flex items-center gap-1"><i class="fas fa-clock"></i> Chờ duyệt</span>`;
 
                 return `
                     <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition">
@@ -4600,20 +4752,123 @@
             }
         }
 
+        window.approveUserAccount = async function(userId) {
+            const u = window.currentUser || currentUser;
+            const p = window.currentProfile || currentProfile;
+            const email = (u && u.email) || (p && p.email) || '';
+            const isAdmin = (u && u.role === 'admin') || (p && p.role === 'admin') || email.toLowerCase() === 'blackrider232@gmail.com' || email.toLowerCase().includes('admin@');
+
+            if (!isAdmin) {
+                return Swal.fire('Không có quyền', 'Chỉ Quản trị viên (Admin) mới có quyền phê duyệt tài khoản!', 'warning');
+            }
+
+            const profiles = window.cachedProfiles || cachedProfiles || [];
+            const targetUser = profiles.find(u => u.id === userId);
+            const targetName = targetUser ? (targetUser.fullname || targetUser.email) : 'người dùng';
+
+            try {
+                Swal.fire({ title: 'Đang phê duyệt...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+                const client = window.supabaseClient || (typeof supabaseClient !== 'undefined' ? supabaseClient : null);
+                if (client) {
+                    const { error } = await client
+                        .from('sce_tcsk_profiles')
+                        .update({ is_active: true, updated_at: new Date().toISOString() })
+                        .eq('id', userId);
+
+                    if (error) throw error;
+                }
+
+                if (targetUser) targetUser.is_active = true;
+                await loadUserProfilesFromDb();
+                updatePendingApprovalsUI();
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Đã duyệt tài khoản!',
+                    text: `Tài khoản cán bộ "${targetName}" đã được kích hoạt thành công.`,
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            } catch (e) {
+                Swal.fire('Lỗi phê duyệt', e.message, 'error');
+            }
+        };
+
+        window.approveAllPendingUsers = async function() {
+            const u = window.currentUser || currentUser;
+            const p = window.currentProfile || currentProfile;
+            const email = (u && u.email) || (p && p.email) || '';
+            const isAdmin = (u && u.role === 'admin') || (p && p.role === 'admin') || email.toLowerCase() === 'blackrider232@gmail.com' || email.toLowerCase().includes('admin@');
+
+            if (!isAdmin) {
+                return Swal.fire('Không có quyền', 'Chỉ Quản trị viên (Admin) mới có quyền phê duyệt tài khoản!', 'warning');
+            }
+
+            const profiles = window.cachedProfiles || cachedProfiles || [];
+            const pending = profiles.filter(u => u.is_active === false);
+            if (pending.length === 0) {
+                return Swal.fire('Thông báo', 'Hiện không có tài khoản nào đang chờ duyệt.', 'info');
+            }
+
+            const confirm = await Swal.fire({
+                title: `Phê duyệt ${pending.length} tài khoản?`,
+                text: 'Tất cả các tài khoản cán bộ đang chờ sẽ được kích hoạt quyền truy cập vào hệ thống.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Phê duyệt ngay',
+                cancelButtonText: 'Hủy',
+                confirmButtonColor: '#10b981'
+            });
+
+            if (confirm.isConfirmed) {
+                try {
+                    Swal.fire({ title: 'Đang phê duyệt tất cả...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                    const pendingIds = pending.map(u => u.id);
+                    const client = window.supabaseClient || (typeof supabaseClient !== 'undefined' ? supabaseClient : null);
+                    if (client) {
+                        const { error } = await client
+                            .from('sce_tcsk_profiles')
+                            .update({ is_active: true, updated_at: new Date().toISOString() })
+                            .in('id', pendingIds);
+
+                        if (error) throw error;
+                    }
+
+                    pending.forEach(u => u.is_active = true);
+                    await loadUserProfilesFromDb();
+                    updatePendingApprovalsUI();
+
+                    Swal.fire('Thành công', `Đã phê duyệt kích hoạt ${pending.length} tài khoản cán bộ!`, 'success');
+                } catch (e) {
+                    Swal.fire('Lỗi', e.message, 'error');
+                }
+            }
+        };
+
         async function toggleUserActiveStatus(userId, newStatus) {
             try {
-                const { error } = await supabaseClient
-                    .from('sce_tcsk_profiles')
-                    .update({ is_active: newStatus, updated_at: new Date().toISOString() })
-                    .eq('id', userId);
+                const client = window.supabaseClient || (typeof supabaseClient !== 'undefined' ? supabaseClient : null);
+                if (client) {
+                    const { error } = await client
+                        .from('sce_tcsk_profiles')
+                        .update({ is_active: newStatus, updated_at: new Date().toISOString() })
+                        .eq('id', userId);
 
-                if (error) throw error;
+                    if (error) throw error;
+                }
+                const profiles = window.cachedProfiles || cachedProfiles || [];
+                const target = profiles.find(u => u.id === userId);
+                if (target) target.is_active = newStatus;
                 await loadUserProfilesFromDb();
-                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: newStatus ? 'Đã mở khóa tài khoản' : 'Đã khóa tài khoản', showConfirmButton: false, timer: 1500 });
+                updatePendingApprovalsUI();
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: newStatus ? 'Đã duyệt kích hoạt tài khoản' : 'Đã khóa tài khoản', showConfirmButton: false, timer: 1500 });
             } catch (err) {
                 Swal.fire('Lỗi', err.message, 'error');
             }
         }
+        window.toggleUserActiveStatus = toggleUserActiveStatus;
+        window.toggleUserActiveState = toggleUserActiveStatus;
 
         // -------------------------------------------------------------
         // E. THAO TÁC FORM AUTH (SIGN IN / SIGN UP / SIGN OUT / 2FA)
