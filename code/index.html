@@ -17261,6 +17261,47 @@ function getRsvpBadgeText(status) {
     return '⏳ Chờ phản hồi';
 }
 
+function getGuestSendMethodName(method) {
+    if (!method) return 'Thư điện tử (Email)';
+    const m = String(method).toLowerCase().trim();
+    if (m === 'direct' || m === 'tận tay' || m.includes('truc tiep') || m.includes('trực tiếp')) {
+        return 'Đưa tận tay (VIP)';
+    }
+    if (m === 'ems' || m.includes('buu dien') || m.includes('bưu điện') || m.includes('chuyen phat') || m.includes('chuyển phát')) {
+        return 'Bưu điện bảo đảm (EMS)';
+    }
+    if (m === 'email' || m.includes('mail') || m.includes('dien tu') || m.includes('điện tử')) {
+        return 'Thư điện tử (Email)';
+    }
+    return method;
+}
+
+function getGuestInviteStatusName(status) {
+    if (!status) return 'Đã phát hành';
+    const s = String(status).toLowerCase().trim();
+    if (s === 'received' || s.includes('nhận') || s.includes('nhan')) {
+        return 'Đã nhận được thư';
+    }
+    if (s === 'sent' || s.includes('phát hành') || s.includes('phat hanh') || s.includes('đã gửi') || s.includes('da gui')) {
+        return 'Đã phát hành';
+    }
+    if (s === 'pending' || s.includes('chưa') || s.includes('chua')) {
+        return 'Chưa gửi';
+    }
+    return status;
+}
+
+function getDepartmentHeadSignatureTitle(profile) {
+    const p = profile || (typeof currentProfile !== 'undefined' ? currentProfile : null) || (typeof window !== 'undefined' ? window.currentProfile : null) || (typeof global !== 'undefined' ? global.currentProfile : null);
+    const dept = (p && p.department) || '';
+    if (!dept) return 'TRƯỞNG PHÒNG PHỤ TRÁCH';
+    const cleanDept = dept.trim();
+    if (cleanDept.toLowerCase().startsWith('phòng ')) {
+        return 'TRƯỞNG ' + cleanDept.toUpperCase();
+    }
+    return 'TRƯỞNG PHÒNG ' + cleanDept.toUpperCase();
+}
+
 function loadExcelJsLibrary() {
     if (typeof ExcelJS !== 'undefined') return Promise.resolve(true);
     if (typeof window !== 'undefined' && window.ExcelJS) return Promise.resolve(true);
@@ -17521,15 +17562,36 @@ async function generateStyledXlsx(currentEvent, guests) {
         c7.font = { name: 'Arial', size: 9.5, color: { argb: 'FF2563EB' } };
         c7.alignment = { horizontal: 'left', vertical: 'middle' };
 
-        // Cột H: Hình thức gửi thư
+        // Cột H: Hình thức gửi thư (Việt hóa chuẩn)
         const c8 = row.getCell(8);
-        c8.value = g.sendMethod || 'Email';
+        const sendMethodText = getGuestSendMethodName(g.sendMethod);
+        c8.value = sendMethodText;
         c8.alignment = { horizontal: 'center', vertical: 'middle' };
+        if (String(g.sendMethod).toLowerCase() === 'direct') {
+            c8.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+            c8.font = { name: 'Arial', size: 9.5, bold: true, color: { argb: 'FF92400E' } };
+        } else if (String(g.sendMethod).toLowerCase() === 'ems') {
+            c8.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+            c8.font = { name: 'Arial', size: 9.5, color: { argb: 'FF334155' } };
+        } else {
+            c8.font = { name: 'Arial', size: 9.5, color: { argb: 'FF2563EB' } };
+        }
 
-        // Cột I: Trạng thái giấy mời
+        // Cột I: Trạng thái giấy mời (Việt hóa chuẩn)
         const c9 = row.getCell(9);
-        c9.value = g.inviteStatus || 'Đã gửi';
+        const inviteStatusText = getGuestInviteStatusName(g.inviteStatus);
+        c9.value = inviteStatusText;
         c9.alignment = { horizontal: 'center', vertical: 'middle' };
+        if (String(g.inviteStatus).toLowerCase() === 'received') {
+            c9.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
+            c9.font = { name: 'Arial', size: 9.5, bold: true, color: { argb: 'FF15803D' } };
+        } else if (String(g.inviteStatus).toLowerCase() === 'sent') {
+            c9.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0F2FE' } };
+            c9.font = { name: 'Arial', size: 9.5, color: { argb: 'FF0369A1' } };
+        } else {
+            c9.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF9C3' } };
+            c9.font = { name: 'Arial', size: 9.5, color: { argb: 'FF854D0E' } };
+        }
 
         // Cột J: Xác nhận RSVP
         const c10 = row.getCell(10);
@@ -17621,9 +17683,11 @@ async function generateStyledXlsx(currentEvent, guests) {
     signA.font = { name: 'Arial', size: 10.5, bold: true, color: { argb: 'FF0F172A' } };
     signA.alignment = { horizontal: 'center', vertical: 'middle' };
 
+    const deptHeadTitle = getDepartmentHeadSignatureTitle();
+
     worksheet.mergeCells(`F${titleRow}:I${titleRow}`);
     const signF = worksheet.getCell(`F${titleRow}`);
-    signF.value = 'CÁN BỘ PHỤ TRÁCH LỄ TÂN';
+    signF.value = deptHeadTitle;
     signF.font = { name: 'Arial', size: 10.5, bold: true, color: { argb: 'FF0F172A' } };
     signF.alignment = { horizontal: 'center', vertical: 'middle' };
 
@@ -17719,6 +17783,16 @@ function exportStyledHtmlSpreadsheet(currentEvent, guests) {
         else if (g.rsvpStatus === 'declined') rsvpStyle = 'background-color:#fee2e2; color:#b91c1c; font-weight:bold;';
         else if (g.rsvpStatus === 'substituted') rsvpStyle = 'background-color:#ede9fe; color:#6d28d9; font-weight:bold;';
 
+        const sendMethodText = getGuestSendMethodName(g.sendMethod);
+        let sendMethodStyle = 'color:#2563eb;';
+        if (String(g.sendMethod).toLowerCase() === 'direct') sendMethodStyle = 'background-color:#fef3c7; color:#92400e; font-weight:bold;';
+        else if (String(g.sendMethod).toLowerCase() === 'ems') sendMethodStyle = 'background-color:#f1f5f9; color:#334155;';
+
+        const inviteStatusText = getGuestInviteStatusName(g.inviteStatus);
+        let inviteStatusStyle = 'background-color:#fef9c3; color:#854d0e;';
+        if (String(g.inviteStatus).toLowerCase() === 'received') inviteStatusStyle = 'background-color:#dcfce7; color:#15803d; font-weight:bold;';
+        else if (String(g.inviteStatus).toLowerCase() === 'sent') inviteStatusStyle = 'background-color:#e0f2fe; color:#0369a1;';
+
         const banquetText = g.hasBanquet ? '✓ Có dự tiệc' : 'Không';
         const banquetStyle = g.hasBanquet ? 'background-color:#ccfbf1; color:#0f766e; font-weight:bold;' : 'color:#94a3b8;';
         const seatText = g.seatCode || g.assignedSeat || '-';
@@ -17733,8 +17807,8 @@ function exportStyledHtmlSpreadsheet(currentEvent, guests) {
             <td style="text-align:center; ${groupStyle}">${groupName}</td>
             <td style="mso-number-format:'\\@'; text-align:center;">${g.phone || ''}</td>
             <td style="color:#2563eb;">${g.email || ''}</td>
-            <td style="text-align:center;">${g.sendMethod || 'Email'}</td>
-            <td style="text-align:center;">${g.inviteStatus || 'Đã gửi'}</td>
+            <td style="text-align:center; ${sendMethodStyle}">${sendMethodText}</td>
+            <td style="text-align:center; ${inviteStatusStyle}">${inviteStatusText}</td>
             <td style="text-align:center; ${rsvpStyle}">${rsvpText}</td>
             <td style="font-style:italic;">${g.substituteName || ''}</td>
             <td style="text-align:center; ${banquetStyle}">${banquetText}</td>
@@ -17839,7 +17913,7 @@ function exportStyledHtmlSpreadsheet(currentEvent, guests) {
             </tr>
             <tr>
                 <td colspan="4" style="border:none; text-align:center; font-weight:bold; font-size:10.5pt;">NGƯỜI LẬP BIỂU</td>
-                <td colspan="5" style="border:none; text-align:center; font-weight:bold; font-size:10.5pt;">CÁN BỘ PHỤ TRÁCH LỄ TÂN</td>
+                <td colspan="5" style="border:none; text-align:center; font-weight:bold; font-size:10.5pt;">${getDepartmentHeadSignatureTitle()}</td>
                 <td colspan="5" style="border:none; text-align:center; font-weight:bold; font-size:10.5pt;">LÃNH ĐẠO TRUNG TÂM PHÊ DUYỆT</td>
             </tr>
             <tr>
