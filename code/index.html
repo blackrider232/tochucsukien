@@ -44,6 +44,8 @@
     <!-- Supabase JS v2 & SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- ExcelJS for professional styled .xlsx exports -->
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
     <!-- QRCode.js for 2FA -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <!-- Google Identity Services (GIS) for Google Mail OAuth -->
@@ -4054,6 +4056,10 @@
                     </div>
                 </div>
                 <div class="flex items-center gap-2">
+                    <button onclick="exportGuestListExcel()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-xl text-xs font-semibold shadow transition flex items-center gap-1.5" title="Xuất danh sách khách mời ra file Excel (.xlsx) chuẩn đẹp">
+                        <i class="fas fa-file-excel"></i>
+                        <span>Xuất Excel</span>
+                    </button>
                     <button onclick="openCreateGuestModal(); closeGuestListPopup();" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded-xl text-xs font-semibold shadow transition flex items-center gap-1.5">
                         <i class="fas fa-plus"></i> Thêm Khách
                     </button>
@@ -17233,74 +17239,697 @@ function deleteCrmBooth(boothId) {
 }
 
 // -------------------------------------------------------------
-// H. XUẤT FILE EXCEL / CSV CHUẨN UTF-8 BOM
+// H. XUẤT FILE EXCEL DANH SÁCH KHÁCH MỜI ĐỊNH DẠNG CHUẨN ĐẸP (EXCELJS + HTML SPREADSHEET)
 // -------------------------------------------------------------
-function exportGuestListExcel() {
+
+function getGuestGroupName(group) {
+    switch (group) {
+        case 'VIP': return '⭐ Đại biểu VIP';
+        case 'SoNganh': return '🏛️ Sở ban ngành';
+        case 'DoanhNghiep': return '🏢 Doanh nghiệp';
+        case 'QuocTe': return '🌐 Khách quốc tế';
+        case 'BaoChi': return '📰 Báo chí truyền thông';
+        case 'BanToChuc': return '🎯 Ban tổ chức';
+        default: return group || 'Khách mời';
+    }
+}
+
+function getRsvpBadgeText(status) {
+    if (status === 'confirmed') return '✓ Đã xác nhận';
+    if (status === 'declined') return '✕ Báo vắng';
+    if (status === 'substituted') return '⇄ Người đi thay';
+    return '⏳ Chờ phản hồi';
+}
+
+function loadExcelJsLibrary() {
+    if (typeof ExcelJS !== 'undefined') return Promise.resolve(true);
+    if (typeof window !== 'undefined' && window.ExcelJS) return Promise.resolve(true);
+
+    return new Promise((resolve) => {
+        if (typeof document === 'undefined') return resolve(false);
+        const existing = document.querySelector('script[src*="exceljs"]');
+        if (existing) {
+            let count = 0;
+            const timer = setInterval(() => {
+                if (typeof ExcelJS !== 'undefined' || (window && window.ExcelJS)) {
+                    clearInterval(timer);
+                    resolve(true);
+                } else if (++count > 25) {
+                    clearInterval(timer);
+                    resolve(false);
+                }
+            }, 100);
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
+        script.onload = () => resolve(true);
+        script.onerror = () => resolve(false);
+        document.head.appendChild(script);
+        setTimeout(() => resolve(typeof ExcelJS !== 'undefined' || !!(window && window.ExcelJS)), 3000);
+    });
+}
+
+// BỘ TẠO BẢNG TÍNH EXCEL .XLSX CHUYÊN NGHIỆP QUA EXCELJS
+async function generateStyledXlsx(currentEvent, guests) {
+    const ExcelLib = (typeof ExcelJS !== 'undefined') ? ExcelJS : (window && window.ExcelJS);
+    if (!ExcelLib) throw new Error('Thư viện ExcelJS chưa sẵn sàng');
+
+    const workbook = new ExcelLib.Workbook();
+    workbook.creator = 'Trung tâm Xúc tiến Đầu tư Hà Nội (SCE)';
+    workbook.lastModifiedBy = (typeof currentProfile !== 'undefined' && currentProfile && currentProfile.fullname) || 'Cán bộ Lễ tân SCE';
+    workbook.created = new Date();
+    workbook.modified = new Date();
+
+    const sheetName = 'Danh Sách Khách Mời';
+    const worksheet = workbook.addWorksheet(sheetName, {
+        views: [
+            { state: 'frozen', xSplit: 0, ySplit: 8, topLeftCell: 'A9', activeCell: 'A9' }
+        ],
+        properties: { tabColor: { argb: 'FF1E3A8A' } },
+        pageSetup: {
+            paperSize: 9, // A4
+            orientation: 'landscape',
+            fitToPage: true,
+            fitToWidth: 1,
+            fitToHeight: 0,
+            showGridLines: true,
+            margins: { left: 0.4, right: 0.4, top: 0.6, bottom: 0.6, header: 0.3, footer: 0.3 }
+        }
+    });
+
+    // 14 Cột với độ rộng chuẩn xác
+    worksheet.columns = [
+        { key: 'stt', width: 7 },          // A
+        { key: 'name', width: 28 },         // B
+        { key: 'title', width: 24 },        // C
+        { key: 'org', width: 34 },          // D
+        { key: 'group', width: 20 },        // E
+        { key: 'phone', width: 16 },        // F
+        { key: 'email', width: 30 },        // G
+        { key: 'sendMethod', width: 17 },   // H
+        { key: 'inviteStatus', width: 18 }, // I
+        { key: 'rsvp', width: 20 },         // J
+        { key: 'substitute', width: 24 },   // K
+        { key: 'banquet', width: 16 },      // L
+        { key: 'seat', width: 16 },         // M
+        { key: 'notes', width: 28 }         // N
+    ];
+
+    // DÒNG 1: Quốc hiệu & Cơ quan chủ quản
+    worksheet.mergeCells('A1:E1');
+    const cellA1 = worksheet.getCell('A1');
+    cellA1.value = 'ỦY BAN NHÂN DÂN THÀNH PHỐ HÀ NỘI';
+    cellA1.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF1E3A8A' } };
+    cellA1.alignment = { horizontal: 'center', vertical: 'middle' };
+
+    worksheet.mergeCells('J1:N1');
+    const cellJ1 = worksheet.getCell('J1');
+    cellJ1.value = 'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM';
+    cellJ1.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF0F172A' } };
+    cellJ1.alignment = { horizontal: 'center', vertical: 'middle' };
+    worksheet.getRow(1).height = 20;
+
+    // DÒNG 2: Tên trung tâm & Tiêu ngữ
+    worksheet.mergeCells('A2:E2');
+    const cellA2 = worksheet.getCell('A2');
+    cellA2.value = 'TRUNG TÂM XÚC TIẾN ĐẦU TƯ, THƯƠNG MẠI, DU LỊCH (SCE)';
+    cellA2.font = { name: 'Arial', size: 9.5, bold: true, color: { argb: 'FF0F766E' } };
+    cellA2.alignment = { horizontal: 'center', vertical: 'middle' };
+
+    worksheet.mergeCells('J2:N2');
+    const cellJ2 = worksheet.getCell('J2');
+    cellJ2.value = 'Độc lập - Tự do - Hạnh phúc';
+    cellJ2.font = { name: 'Arial', size: 10, bold: true, italic: true, color: { argb: 'FF0F172A' }, underline: true };
+    cellJ2.alignment = { horizontal: 'center', vertical: 'middle' };
+    worksheet.getRow(2).height = 20;
+
+    // DÒNG 3: Trống
+    worksheet.getRow(3).height = 10;
+
+    // DÒNG 4: Tiêu đề Bảng
+    worksheet.mergeCells('A4:N4');
+    const cellA4 = worksheet.getCell('A4');
+    cellA4.value = 'BẢNG DANH SÁCH ĐẠI BIỂU & KHÁCH MỜI THAM DỰ SỰ KIỆN';
+    cellA4.font = { name: 'Arial', size: 15, bold: true, color: { argb: 'FF1E3A8A' } };
+    cellA4.alignment = { horizontal: 'center', vertical: 'middle' };
+    cellA4.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEBF4FF' } };
+    cellA4.border = {
+        top: { style: 'medium', color: { argb: 'FF93C5FD' } },
+        bottom: { style: 'medium', color: { argb: 'FF93C5FD' } },
+        left: { style: 'thin', color: { argb: 'FF93C5FD' } },
+        right: { style: 'thin', color: { argb: 'FF93C5FD' } }
+    };
+    worksheet.getRow(4).height = 34;
+
+    // DÒNG 5: Thông tin sự kiện
+    worksheet.mergeCells('A5:N5');
+    const cellA5 = worksheet.getCell('A5');
+    const evName = (currentEvent.name || 'Sự kiện SCE').toUpperCase();
+    const evDate = currentEvent.eventDate || 'Theo thông báo';
+    const evLoc = currentEvent.location || 'Hội trường Thành phố';
+    cellA5.value = `Sự kiện: ${evName}   |   Ngày tổ chức: ${evDate}   |   Địa điểm: ${evLoc}`;
+    cellA5.font = { name: 'Arial', size: 10.5, italic: true, bold: true, color: { argb: 'FF334155' } };
+    cellA5.alignment = { horizontal: 'center', vertical: 'middle' };
+    cellA5.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+    cellA5.border = { bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } } };
+    worksheet.getRow(5).height = 24;
+
+    // DÒNG 6: Bảng thống kê tóm tắt KPI
+    const countVip = guests.filter(g => g.group === 'VIP').length;
+    const countSoNganh = guests.filter(g => g.group === 'SoNganh').length;
+    const countDN = guests.filter(g => g.group === 'DoanhNghiep').length;
+    const countBC = guests.filter(g => g.group === 'BaoChi').length;
+    const countConfirmed = guests.filter(g => g.rsvpStatus === 'confirmed').length;
+    const countBanquet = guests.filter(g => g.hasBanquet).length;
+    const countSeated = guests.filter(g => (g.seatCode || g.assignedSeat)).length;
+    const pct = guests.length > 0 ? Math.round((countConfirmed / guests.length) * 100) : 0;
+
+    worksheet.mergeCells('A6:N6');
+    const cellA6 = worksheet.getCell('A6');
+    cellA6.value = `📊 THỐNG KÊ: Tổng số ${guests.length} đại biểu  •  VIP: ${countVip}  •  Sở ngành: ${countSoNganh}  •  Doanh nghiệp: ${countDN}  •  Báo chí: ${countBC}  •  Đã xác nhận (RSVP): ${countConfirmed}/${guests.length} (${pct}%)  •  Dự tiệc: ${countBanquet}  •  Đã xếp chỗ: ${countSeated}`;
+    cellA6.font = { name: 'Arial', size: 9.5, bold: true, color: { argb: 'FF1E293B' } };
+    cellA6.alignment = { horizontal: 'center', vertical: 'middle' };
+    cellA6.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+    cellA6.border = { bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } } };
+    worksheet.getRow(6).height = 24;
+
+    // DÒNG 7: Trống
+    worksheet.getRow(7).height = 8;
+
+    // DÒNG 8: TIÊU ĐỀ CỘT
+    const headerRow = worksheet.getRow(8);
+    headerRow.height = 30;
+    const headers = [
+        'STT',
+        'Họ và Tên Đại Biểu',
+        'Chức Danh',
+        'Cơ Quan / Doanh Nghiệp',
+        'Nhóm Khách Mời',
+        'Số Điện Thoại',
+        'Địa Chỉ Email',
+        'Hình Thức Gửi Thư',
+        'Trạng Thái Giấy Mời',
+        'Xác Nhận RSVP',
+        'Người Đi Thay (nếu có)',
+        'Dự Tiệc Chiêu Đãi',
+        'Vị Trí Ghế Ngồi',
+        'Ghi Chú Đón Tiếp'
+    ];
+
+    headers.forEach((h, idx) => {
+        const cell = headerRow.getCell(idx + 1);
+        cell.value = h;
+        cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A8A' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        cell.border = {
+            top: { style: 'medium', color: { argb: 'FF1E3A8A' } },
+            bottom: { style: 'medium', color: { argb: 'FF1E3A8A' } },
+            left: { style: 'thin', color: { argb: 'FF60A5FA' } },
+            right: { style: 'thin', color: { argb: 'FF60A5FA' } }
+        };
+    });
+
+    // Kích hoạt bộ lọc AutoFilter trên dòng tiêu đề
+    worksheet.autoFilter = 'A8:N8';
+
+    const borderThinGray = {
+        top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+        left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+        bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+        right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+    };
+
+    // DÒNG 9 ĐẾN N: DỮ LIỆU ĐẠI BIỂU
+    guests.forEach((g, index) => {
+        const rowNum = 9 + index;
+        const row = worksheet.getRow(rowNum);
+        row.height = 25;
+        const isEven = (index % 2 === 1);
+        const zebraBg = isEven ? 'FFF8FAFC' : 'FFFFFFFF';
+
+        // Cột A: STT
+        const c1 = row.getCell(1);
+        c1.value = index + 1;
+        c1.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Cột B: Họ và tên
+        const c2 = row.getCell(2);
+        c2.value = g.name || '';
+        c2.font = { name: 'Arial', size: 10.5, bold: true, color: { argb: 'FF0F172A' } };
+        c2.alignment = { horizontal: 'left', vertical: 'middle' };
+
+        // Cột C: Chức danh
+        const c3 = row.getCell(3);
+        c3.value = g.title || '';
+        c3.alignment = { horizontal: 'left', vertical: 'middle' };
+
+        // Cột D: Cơ quan
+        const c4 = row.getCell(4);
+        c4.value = g.organization || '';
+        c4.alignment = { horizontal: 'left', vertical: 'middle' };
+
+        // Cột E: Nhóm khách
+        const c5 = row.getCell(5);
+        c5.value = getGuestGroupName(g.group);
+        c5.alignment = { horizontal: 'center', vertical: 'middle' };
+        if (g.group === 'VIP') {
+            c5.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+            c5.font = { name: 'Arial', size: 9.5, bold: true, color: { argb: 'FF92400E' } };
+        } else if (g.group === 'SoNganh') {
+            c5.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEDE9FE' } };
+            c5.font = { name: 'Arial', size: 9.5, bold: true, color: { argb: 'FF5B21B6' } };
+        } else if (g.group === 'DoanhNghiep') {
+            c5.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0F2FE' } };
+            c5.font = { name: 'Arial', size: 9.5, color: { argb: 'FF0369A1' } };
+        } else if (g.group === 'BaoChi') {
+            c5.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
+            c5.font = { name: 'Arial', size: 9.5, color: { argb: 'FF166534' } };
+        }
+
+        // Cột F: Số điện thoại (Text string định dạng '@')
+        const c6 = row.getCell(6);
+        c6.value = String(g.phone || '');
+        c6.numFmt = '@';
+        c6.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Cột G: Email
+        const c7 = row.getCell(7);
+        c7.value = g.email || '';
+        c7.font = { name: 'Arial', size: 9.5, color: { argb: 'FF2563EB' } };
+        c7.alignment = { horizontal: 'left', vertical: 'middle' };
+
+        // Cột H: Hình thức gửi thư
+        const c8 = row.getCell(8);
+        c8.value = g.sendMethod || 'Email';
+        c8.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Cột I: Trạng thái giấy mời
+        const c9 = row.getCell(9);
+        c9.value = g.inviteStatus || 'Đã gửi';
+        c9.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Cột J: Xác nhận RSVP
+        const c10 = row.getCell(10);
+        c10.value = getRsvpBadgeText(g.rsvpStatus);
+        c10.alignment = { horizontal: 'center', vertical: 'middle' };
+        if (g.rsvpStatus === 'confirmed') {
+            c10.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
+            c10.font = { name: 'Arial', size: 9.5, bold: true, color: { argb: 'FF15803D' } };
+        } else if (g.rsvpStatus === 'declined') {
+            c10.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+            c10.font = { name: 'Arial', size: 9.5, bold: true, color: { argb: 'FFB91C1C' } };
+        } else if (g.rsvpStatus === 'substituted') {
+            c10.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEDE9FE' } };
+            c10.font = { name: 'Arial', size: 9.5, bold: true, color: { argb: 'FF6D28D9' } };
+        } else {
+            c10.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF9C3' } };
+            c10.font = { name: 'Arial', size: 9.5, color: { argb: 'FF854D0E' } };
+        }
+
+        // Cột K: Người đi thay
+        const c11 = row.getCell(11);
+        c11.value = g.substituteName || '';
+        c11.font = { name: 'Arial', size: 9.5, italic: true };
+        c11.alignment = { horizontal: 'left', vertical: 'middle' };
+
+        // Cột L: Ăn tiệc
+        const c12 = row.getCell(12);
+        if (g.hasBanquet) {
+            c12.value = '✓ Có dự tiệc';
+            c12.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCCFBF1' } };
+            c12.font = { name: 'Arial', size: 9.5, bold: true, color: { argb: 'FF0F766E' } };
+        } else {
+            c12.value = 'Không';
+            c12.font = { name: 'Arial', size: 9.5, color: { argb: 'FF94A3B8' } };
+        }
+        c12.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Cột M: Ghế ngồi
+        const c13 = row.getCell(13);
+        const seatVal = g.seatCode || g.assignedSeat || '';
+        c13.value = seatVal || '-';
+        if (seatVal) {
+            c13.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF1E3A8A' } };
+        } else {
+            c13.font = { name: 'Arial', size: 9.5, color: { argb: 'FF94A3B8' } };
+        }
+        c13.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Cột N: Ghi chú
+        const c14 = row.getCell(14);
+        c14.value = g.notes || '';
+        c14.font = { name: 'Arial', size: 9, italic: true, color: { argb: 'FF64748B' } };
+        c14.alignment = { horizontal: 'left', vertical: 'middle' };
+
+        // Áp dụng viền và màu nền zebra cho các ô chưa có fill đặc biệt
+        for (let c = 1; c <= 14; c++) {
+            const cell = row.getCell(c);
+            cell.border = borderThinGray;
+            if (!cell.font) {
+                cell.font = { name: 'Arial', size: 9.5 };
+            }
+            if (!cell.fill) {
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: zebraBg } };
+            }
+        }
+    });
+
+    // KHỐI CHỮ KÝ VÀ NGÀY THÁNG (FOOTER)
+    const startFooterRow = 9 + guests.length + 1;
+    const now = new Date();
+    const dayStr = String(now.getDate()).padStart(2, '0');
+    const monthStr = String(now.getMonth() + 1).padStart(2, '0');
+    const yearStr = now.getFullYear();
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    // Dòng ngày tháng: Cột J đến N
+    worksheet.mergeCells(`J${startFooterRow}:N${startFooterRow}`);
+    const dateCell = worksheet.getCell(`J${startFooterRow}`);
+    dateCell.value = `Hà Nội, ngày ${dayStr} tháng ${monthStr} năm ${yearStr} (Xuất lúc ${timeStr})`;
+    dateCell.font = { name: 'Arial', size: 9.5, italic: true, color: { argb: 'FF475569' } };
+    dateCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    worksheet.getRow(startFooterRow).height = 20;
+
+    // Dòng chức danh
+    const titleRow = startFooterRow + 1;
+    worksheet.mergeCells(`A${titleRow}:D${titleRow}`);
+    const signA = worksheet.getCell(`A${titleRow}`);
+    signA.value = 'NGƯỜI LẬP BIỂU';
+    signA.font = { name: 'Arial', size: 10.5, bold: true, color: { argb: 'FF0F172A' } };
+    signA.alignment = { horizontal: 'center', vertical: 'middle' };
+
+    worksheet.mergeCells(`F${titleRow}:I${titleRow}`);
+    const signF = worksheet.getCell(`F${titleRow}`);
+    signF.value = 'CÁN BỘ PHỤ TRÁCH LỄ TÂN';
+    signF.font = { name: 'Arial', size: 10.5, bold: true, color: { argb: 'FF0F172A' } };
+    signF.alignment = { horizontal: 'center', vertical: 'middle' };
+
+    worksheet.mergeCells(`K${titleRow}:N${titleRow}`);
+    const signK = worksheet.getCell(`K${titleRow}`);
+    signK.value = 'LÃNH ĐẠO TRUNG TÂM PHÊ DUYỆT';
+    signK.font = { name: 'Arial', size: 10.5, bold: true, color: { argb: 'FF0F172A' } };
+    signK.alignment = { horizontal: 'center', vertical: 'middle' };
+    worksheet.getRow(titleRow).height = 22;
+
+    // Dòng ghi chú ký
+    const subTitleRow = titleRow + 1;
+    worksheet.mergeCells(`A${subTitleRow}:D${subTitleRow}`);
+    worksheet.getCell(`A${subTitleRow}`).value = '(Ký, ghi rõ họ tên)';
+    worksheet.getCell(`A${subTitleRow}`).font = { name: 'Arial', size: 9, italic: true, color: { argb: 'FF64748B' } };
+    worksheet.getCell(`A${subTitleRow}`).alignment = { horizontal: 'center', vertical: 'middle' };
+
+    worksheet.mergeCells(`F${subTitleRow}:I${subTitleRow}`);
+    worksheet.getCell(`F${subTitleRow}`).value = '(Ký, ghi rõ họ tên)';
+    worksheet.getCell(`F${subTitleRow}`).font = { name: 'Arial', size: 9, italic: true, color: { argb: 'FF64748B' } };
+    worksheet.getCell(`F${subTitleRow}`).alignment = { horizontal: 'center', vertical: 'middle' };
+
+    worksheet.mergeCells(`K${subTitleRow}:N${subTitleRow}`);
+    worksheet.getCell(`K${subTitleRow}`).value = '(Ký, đóng dấu và ghi rõ họ tên)';
+    worksheet.getCell(`K${subTitleRow}`).font = { name: 'Arial', size: 9, italic: true, color: { argb: 'FF64748B' } };
+    worksheet.getCell(`K${subTitleRow}`).alignment = { horizontal: 'center', vertical: 'middle' };
+    worksheet.getRow(subTitleRow).height = 18;
+
+    // Khoảng cách chữ ký (4 dòng)
+    worksheet.getRow(subTitleRow + 1).height = 16;
+    worksheet.getRow(subTitleRow + 2).height = 16;
+    worksheet.getRow(subTitleRow + 3).height = 16;
+
+    // Dòng tên người lập biểu
+    const nameRow = subTitleRow + 4;
+    worksheet.mergeCells(`A${nameRow}:D${nameRow}`);
+    const nameCell = worksheet.getCell(`A${nameRow}`);
+    nameCell.value = (typeof currentProfile !== 'undefined' && currentProfile && currentProfile.fullname) || 'Cán bộ Lễ tân SCE';
+    nameCell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF0F172A' } };
+    nameCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    worksheet.getRow(nameRow).height = 22;
+
+    // TẢI FILE BINARY .XLSX
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const safeName = (currentEvent.name || 'SuKien_SCE').replace(/[^a-zA-Z0-9\u00C0-\u1EF9]/g, '_').substring(0, 40);
+    link.href = url;
+    link.download = `DS_KhachMoi_${safeName}_${yearStr}${monthStr}${dayStr}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// BỘ TẠO BẢNG TÍNH EXCEL .XLS DỰ PHÒNG QUA HTML SPREADSHEET (OFFLINE FALLBACK)
+function exportStyledHtmlSpreadsheet(currentEvent, guests) {
+    const evName = (currentEvent.name || 'Sự kiện SCE').toUpperCase();
+    const evDate = currentEvent.eventDate || 'Theo thông báo';
+    const evLoc = currentEvent.location || 'Hội trường Thành phố';
+
+    const countVip = guests.filter(g => g.group === 'VIP').length;
+    const countSoNganh = guests.filter(g => g.group === 'SoNganh').length;
+    const countDN = guests.filter(g => g.group === 'DoanhNghiep').length;
+    const countBC = guests.filter(g => g.group === 'BaoChi').length;
+    const countConfirmed = guests.filter(g => g.rsvpStatus === 'confirmed').length;
+    const countBanquet = guests.filter(g => g.hasBanquet).length;
+    const countSeated = guests.filter(g => (g.seatCode || g.assignedSeat)).length;
+    const pct = guests.length > 0 ? Math.round((countConfirmed / guests.length) * 100) : 0;
+
+    const now = new Date();
+    const dayStr = String(now.getDate()).padStart(2, '0');
+    const monthStr = String(now.getMonth() + 1).padStart(2, '0');
+    const yearStr = now.getFullYear();
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const creatorName = (typeof currentProfile !== 'undefined' && currentProfile && currentProfile.fullname) || 'Cán bộ Lễ tân SCE';
+
+    let tableRows = '';
+    guests.forEach((g, idx) => {
+        const isEven = (idx % 2 === 1);
+        const rowClass = isEven ? 'zebra-even' : '';
+        const groupName = getGuestGroupName(g.group);
+        let groupStyle = '';
+        if (g.group === 'VIP') groupStyle = 'background-color:#fef3c7; color:#92400e; font-weight:bold;';
+        else if (g.group === 'SoNganh') groupStyle = 'background-color:#ede9fe; color:#5b21b6; font-weight:bold;';
+        else if (g.group === 'DoanhNghiep') groupStyle = 'background-color:#e0f2fe; color:#0369a1;';
+        else if (g.group === 'BaoChi') groupStyle = 'background-color:#dcfce7; color:#166534;';
+
+        const rsvpText = getRsvpBadgeText(g.rsvpStatus);
+        let rsvpStyle = 'background-color:#fef9c3; color:#854d0e;';
+        if (g.rsvpStatus === 'confirmed') rsvpStyle = 'background-color:#dcfce7; color:#15803d; font-weight:bold;';
+        else if (g.rsvpStatus === 'declined') rsvpStyle = 'background-color:#fee2e2; color:#b91c1c; font-weight:bold;';
+        else if (g.rsvpStatus === 'substituted') rsvpStyle = 'background-color:#ede9fe; color:#6d28d9; font-weight:bold;';
+
+        const banquetText = g.hasBanquet ? '✓ Có dự tiệc' : 'Không';
+        const banquetStyle = g.hasBanquet ? 'background-color:#ccfbf1; color:#0f766e; font-weight:bold;' : 'color:#94a3b8;';
+        const seatText = g.seatCode || g.assignedSeat || '-';
+        const seatStyle = seatText !== '-' ? 'font-weight:bold; color:#1e3a8a;' : 'color:#94a3b8;';
+
+        tableRows += `
+        <tr class="${rowClass}">
+            <td style="text-align:center;">${idx + 1}</td>
+            <td style="font-weight:bold; color:#0f172a;">${g.name || ''}</td>
+            <td>${g.title || ''}</td>
+            <td>${g.organization || ''}</td>
+            <td style="text-align:center; ${groupStyle}">${groupName}</td>
+            <td style="mso-number-format:'\\@'; text-align:center;">${g.phone || ''}</td>
+            <td style="color:#2563eb;">${g.email || ''}</td>
+            <td style="text-align:center;">${g.sendMethod || 'Email'}</td>
+            <td style="text-align:center;">${g.inviteStatus || 'Đã gửi'}</td>
+            <td style="text-align:center; ${rsvpStyle}">${rsvpText}</td>
+            <td style="font-style:italic;">${g.substituteName || ''}</td>
+            <td style="text-align:center; ${banquetStyle}">${banquetText}</td>
+            <td style="text-align:center; ${seatStyle}">${seatText}</td>
+            <td style="font-style:italic; color:#64748b;">${g.notes || ''}</td>
+        </tr>`;
+    });
+
+    const htmlContent = `
+    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+    <head>
+        <meta http-equiv="content-type" content="application/vnd.ms-excel; charset=UTF-8">
+        <!--[if gte mso 9]>
+        <xml>
+            <x:ExcelWorkbook>
+                <x:ExcelWorksheets>
+                    <x:ExcelWorksheet>
+                        <x:Name>Danh sách khách mời</x:Name>
+                        <x:WorksheetOptions>
+                            <x:DisplayGridlines/>
+                            <x:FreezePanes/>
+                            <x:FrozenNoSplit/>
+                            <x:SplitHorizontal>8</x:SplitHorizontal>
+                            <x:TopRowBottomPane>8</x:TopRowBottomPane>
+                            <x:ActivePane>2</x:ActivePane>
+                        </x:WorksheetOptions>
+                    </x:ExcelWorksheet>
+                </x:ExcelWorksheets>
+            </x:ExcelWorkbook>
+        </xml>
+        <![endif]-->
+        <style>
+            body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; }
+            table { border-collapse: collapse; width: 100%; }
+            th { background-color: #1e3a8a; color: #ffffff; font-weight: bold; border: 0.5pt solid #1e3a8a; padding: 8px 6px; text-align: center; font-size: 10pt; }
+            td { border: 0.5pt solid #cbd5e1; padding: 6px 8px; font-size: 9.5pt; vertical-align: middle; }
+            .zebra-even { background-color: #f8fafc; }
+        </style>
+    </head>
+    <body>
+        <table>
+            <!-- Row 1 -->
+            <tr>
+                <td colspan="5" style="border:none; text-align:center; font-weight:bold; color:#1e3a8a; font-size:10pt;">ỦY BAN NHÂN DÂN THÀNH PHỐ HÀ NỘI</td>
+                <td colspan="4" style="border:none;"></td>
+                <td colspan="5" style="border:none; text-align:center; font-weight:bold; font-size:10pt;">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</td>
+            </tr>
+            <!-- Row 2 -->
+            <tr>
+                <td colspan="5" style="border:none; text-align:center; font-weight:bold; color:#0f766e; font-size:9.5pt;">TRUNG TÂM XÚC TIẾN ĐẦU TƯ, THƯƠNG MẠI, DU LỊCH (SCE)</td>
+                <td colspan="4" style="border:none;"></td>
+                <td colspan="5" style="border:none; text-align:center; font-weight:bold; font-style:italic; text-decoration:underline; font-size:10pt;">Độc lập - Tự do - Hạnh phúc</td>
+            </tr>
+            <!-- Row 3 -->
+            <tr><td colspan="14" style="border:none; height:12px;"></td></tr>
+            <!-- Row 4 -->
+            <tr>
+                <td colspan="14" style="border:1pt solid #93c5fd; background-color:#ebf4ff; text-align:center; font-size:15pt; font-weight:bold; color:#1e3a8a; padding:12px;">
+                    BẢNG DANH SÁCH ĐẠI BIỂU & KHÁCH MỜI THAM DỰ SỰ KIỆN
+                </td>
+            </tr>
+            <!-- Row 5 -->
+            <tr>
+                <td colspan="14" style="border:0.5pt solid #cbd5e1; background-color:#f8fafc; text-align:center; font-size:10.5pt; font-style:italic; font-weight:bold; color:#334155; padding:6px;">
+                    Sự kiện: ${evName} &nbsp;|&nbsp; Ngày tổ chức: ${evDate} &nbsp;|&nbsp; Địa điểm: ${evLoc}
+                </td>
+            </tr>
+            <!-- Row 6 -->
+            <tr>
+                <td colspan="14" style="border:0.5pt solid #cbd5e1; background-color:#f1f5f9; text-align:center; font-size:9.5pt; font-weight:bold; color:#1e293b; padding:6px;">
+                    📊 THỐNG KÊ: Tổng số ${guests.length} đại biểu • VIP: ${countVip} • Sở ngành: ${countSoNganh} • Doanh nghiệp: ${countDN} • Báo chí: ${countBC} • Đã xác nhận (RSVP): ${countConfirmed}/${guests.length} (${pct}%) • Dự tiệc: ${countBanquet} • Đã xếp chỗ: ${countSeated}
+                </td>
+            </tr>
+            <!-- Row 7 -->
+            <tr><td colspan="14" style="border:none; height:8px;"></td></tr>
+            <!-- Row 8 (Headers) -->
+            <tr>
+                <th>STT</th>
+                <th>Họ và Tên Đại Biểu</th>
+                <th>Chức Danh</th>
+                <th>Cơ Quan / Doanh Nghiệp</th>
+                <th>Nhóm Khách Mời</th>
+                <th>Số Điện Thoại</th>
+                <th>Địa Chỉ Email</th>
+                <th>Hình Thức Gửi Thư</th>
+                <th>Trạng Thái Giấy Mời</th>
+                <th>Xác Nhận RSVP</th>
+                <th>Người Đi Thay (nếu có)</th>
+                <th>Dự Tiệc Chiêu Đãi</th>
+                <th>Vị Trí Ghế Ngồi</th>
+                <th>Ghi Chú Đón Tiếp</th>
+            </tr>
+            <!-- Data Rows -->
+            ${tableRows}
+            <!-- Footer -->
+            <tr><td colspan="14" style="border:none; height:16px;"></td></tr>
+            <tr>
+                <td colspan="9" style="border:none;"></td>
+                <td colspan="5" style="border:none; text-align:center; font-style:italic; font-size:9.5pt; color:#475569;">
+                    Hà Nội, ngày ${dayStr} tháng ${monthStr} năm ${yearStr} (Xuất lúc ${timeStr})
+                </td>
+            </tr>
+            <tr>
+                <td colspan="4" style="border:none; text-align:center; font-weight:bold; font-size:10.5pt;">NGƯỜI LẬP BIỂU</td>
+                <td colspan="5" style="border:none; text-align:center; font-weight:bold; font-size:10.5pt;">CÁN BỘ PHỤ TRÁCH LỄ TÂN</td>
+                <td colspan="5" style="border:none; text-align:center; font-weight:bold; font-size:10.5pt;">LÃNH ĐẠO TRUNG TÂM PHÊ DUYỆT</td>
+            </tr>
+            <tr>
+                <td colspan="4" style="border:none; text-align:center; font-style:italic; font-size:9pt; color:#64748b;">(Ký, ghi rõ họ tên)</td>
+                <td colspan="5" style="border:none; text-align:center; font-style:italic; font-size:9pt; color:#64748b;">(Ký, ghi rõ họ tên)</td>
+                <td colspan="5" style="border:none; text-align:center; font-style:italic; font-size:9pt; color:#64748b;">(Ký, đóng dấu và ghi rõ họ tên)</td>
+            </tr>
+            <tr><td colspan="14" style="border:none; height:45px;"></td></tr>
+            <tr>
+                <td colspan="4" style="border:none; text-align:center; font-weight:bold; font-size:10pt;">${creatorName}</td>
+                <td colspan="5" style="border:none;"></td>
+                <td colspan="5" style="border:none;"></td>
+            </tr>
+        </table>
+    </body>
+    </html>`;
+
+    const blob = new Blob(['\uFEFF' + htmlContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const safeName = (currentEvent.name || 'SuKien_SCE').replace(/[^a-zA-Z0-9\u00C0-\u1EF9]/g, '_').substring(0, 40);
+    link.href = url;
+    link.download = `DS_KhachMoi_${safeName}_${yearStr}${monthStr}${dayStr}.xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// HÀM ĐIỀU PHỐI CHÍNH XUẤT EXCEL DANH SÁCH KHÁCH MỜI
+async function exportGuestListExcel() {
     const evId = module4State.selectedEventId;
     const events = appData.events || [];
     const currentEvent = events.find(e => e.id === evId) || { name: 'SuKien_SCE' };
     const guests = (appData.eventGuests && appData.eventGuests[evId]) || [];
 
     if (guests.length === 0) {
-        Swal.fire('Danh sách trống', 'Chưa có đại biểu nào để xuất file.', 'info');
+        Swal.fire('Danh sách trống', 'Chưa có đại biểu nào trong sự kiện này để xuất file.', 'info');
         return;
     }
 
-    const headers = [
-        'STT',
-        'Họ và tên đại biểu',
-        'Chức danh',
-        'Cơ quan công tác',
-        'Nhóm khách',
-        'Số điện thoại',
-        'Email',
-        'Hình thức gửi thư',
-        'Trạng thái giấy mời',
-        'Xác nhận tham dự (RSVP)',
-        'Họ tên người đi thay',
-        'Dự tiệc chiêu đãi',
-        'Vị trí ghế ngồi',
-        'Ghi chú đón tiếp'
-    ];
+    if (typeof Swal !== 'undefined' && Swal.fire) {
+        Swal.fire({
+            title: 'Đang tạo bảng Excel...',
+            html: '<div class="text-xs text-slate-500 py-2">Hệ thống đang tổng hợp dữ liệu, tạo định dạng bảng biểu, màu sắc và thống kê đại biểu...</div>',
+            allowOutsideClick: false,
+            didOpen: () => {
+                if (Swal.showLoading) Swal.showLoading();
+            }
+        });
+    }
 
-    const rows = guests.map((g, idx) => [
-        idx + 1,
-        `"${(g.name || '').replace(/"/g, '""')}"`,
-        `"${(g.title || '').replace(/"/g, '""')}"`,
-        `"${(g.organization || '').replace(/"/g, '""')}"`,
-        `"${g.group || ''}"`,
-        `"${g.phone || ''}"`,
-        `"${g.email || ''}"`,
-        `"${g.sendMethod || ''}"`,
-        `"${g.inviteStatus || ''}"`,
-        `"${g.rsvpStatus || ''}"`,
-        `"${(g.substituteName || '').replace(/"/g, '""')}"`,
-        g.hasBanquet ? 'Có' : 'Không',
-        `"${g.seatCode || ''}"`,
-        `"${(g.notes || '').replace(/"/g, '""')}"`
-    ]);
+    try {
+        await loadExcelJsLibrary();
+    } catch (e) {
+        console.warn('Lỗi kiểm tra tải ExcelJS:', e);
+    }
 
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
-    const bom = '\uFEFF'; // UTF-8 BOM cho Excel tiếng Việt
-    const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    const safeName = currentEvent.name.replace(/[^a-zA-Z0-9\u00C0-\u1EF9]/g, '_').substring(0, 40);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `DS_KhachMoi_${safeName}_${Date.now()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const hasExcelJs = (typeof ExcelJS !== 'undefined') || (typeof window !== 'undefined' && window.ExcelJS);
+    if (hasExcelJs) {
+        try {
+            await generateStyledXlsx(currentEvent, guests);
+            if (typeof Swal !== 'undefined' && Swal.close) Swal.close();
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: 'Đã xuất file Excel (.xlsx) chuẩn đẹp thành công!',
+                showConfirmButton: false,
+                timer: 3000
+            });
+            return;
+        } catch (err) {
+            console.error('Lỗi xuất ExcelJS, chuyển sang phương án dự phòng HTML Spreadsheet:', err);
+        }
+    }
 
+    // Phương án dự phòng: Xuất file HTML Spreadsheet (.xls) có đầy đủ màu sắc, border và CSS styling
+    exportStyledHtmlSpreadsheet(currentEvent, guests);
+    if (typeof Swal !== 'undefined' && Swal.close) Swal.close();
     Swal.fire({
         toast: true,
         position: 'top-end',
         icon: 'success',
-        title: 'Đã xuất file Excel danh sách khách mời',
+        title: 'Đã xuất bảng tính Excel (.xls) đẹp mắt thành công!',
         showConfirmButton: false,
-        timer: 2500
+        timer: 3000
     });
 }
+
 
 function exportBoothsExcel() {
     const evId = (typeof moduleBoothsState !== 'undefined' && moduleBoothsState.selectedEventId) || module4State.selectedEventId;

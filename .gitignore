@@ -4,6 +4,8 @@ Thumbs.db
 *.bak
 *.tmp
 *.log
+node_modules/
+package-lock.json
 
 # Local Documentation & Office Templates (Chỉ lưu trên máy tính)
 /doc/
