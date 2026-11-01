@@ -659,7 +659,7 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                         <div>
                             <label class="block font-medium text-slate-600 dark:text-slate-400 mb-1">Đơn vị chủ quản (Cấp trên)</label>
-                            <input type="text" id="cfgParentAgency" value="SỞ TÀI CHÍNH THÀNH PHỐ HÀ NỘI" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
+                            <input type="text" id="cfgParentAgency" value="SỞ TÀI CHÍNH HÀ NỘI" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                         <div>
                             <label class="block font-medium text-slate-600 dark:text-slate-400 mb-1">Đơn vị tổ chức sự kiện</label>
@@ -6064,7 +6064,7 @@
             ],
             systemSettings: {
                 agencyName: "TRUNG TÂM XÚC TIẾN ĐẦU TƯ VÀ HỖ TRỢ DOANH NGHIỆP HÀ NỘI (SCE)",
-                parentAgency: "SỞ TÀI CHÍNH THÀNH PHỐ HÀ NỘI",
+                parentAgency: "SỞ TÀI CHÍNH HÀ NỘI",
                 dailyReportThresholdDays: 10,
                 fieldPresenceHours: 2,
                 guestQuotaPercent: 130,
@@ -17297,7 +17297,7 @@ async function generateStyledXlsx(currentEvent, guests) {
     if (!ExcelLib) throw new Error('Thư viện ExcelJS chưa sẵn sàng');
 
     const workbook = new ExcelLib.Workbook();
-    workbook.creator = 'Trung tâm Xúc tiến Đầu tư Hà Nội (SCE)';
+    workbook.creator = 'Trung tâm Xúc tiến đầu tư và Hỗ trợ doanh nghiệp Hà Nội';
     workbook.lastModifiedBy = (typeof currentProfile !== 'undefined' && currentProfile && currentProfile.fullname) || 'Cán bộ Lễ tân SCE';
     workbook.created = new Date();
     workbook.modified = new Date();
@@ -17340,7 +17340,7 @@ async function generateStyledXlsx(currentEvent, guests) {
     // DÒNG 1: Quốc hiệu & Cơ quan chủ quản
     worksheet.mergeCells('A1:E1');
     const cellA1 = worksheet.getCell('A1');
-    cellA1.value = 'ỦY BAN NHÂN DÂN THÀNH PHỐ HÀ NỘI';
+    cellA1.value = 'SỞ TÀI CHÍNH HÀ NỘI';
     cellA1.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF1E3A8A' } };
     cellA1.alignment = { horizontal: 'center', vertical: 'middle' };
 
@@ -17354,7 +17354,7 @@ async function generateStyledXlsx(currentEvent, guests) {
     // DÒNG 2: Tên trung tâm & Tiêu ngữ
     worksheet.mergeCells('A2:E2');
     const cellA2 = worksheet.getCell('A2');
-    cellA2.value = 'TRUNG TÂM XÚC TIẾN ĐẦU TƯ, THƯƠNG MẠI, DU LỊCH (SCE)';
+    cellA2.value = 'TRUNG TÂM XÚC TIẾN ĐẦU TƯ VÀ HỖ TRỢ DOANH NGHIỆP HÀ NỘI';
     cellA2.font = { name: 'Arial', size: 9.5, bold: true, color: { argb: 'FF0F766E' } };
     cellA2.alignment = { horizontal: 'center', vertical: 'middle' };
 
@@ -17778,13 +17778,13 @@ function exportStyledHtmlSpreadsheet(currentEvent, guests) {
         <table>
             <!-- Row 1 -->
             <tr>
-                <td colspan="5" style="border:none; text-align:center; font-weight:bold; color:#1e3a8a; font-size:10pt;">ỦY BAN NHÂN DÂN THÀNH PHỐ HÀ NỘI</td>
+                <td colspan="5" style="border:none; text-align:center; font-weight:bold; color:#1e3a8a; font-size:10pt;">SỞ TÀI CHÍNH HÀ NỘI</td>
                 <td colspan="4" style="border:none;"></td>
                 <td colspan="5" style="border:none; text-align:center; font-weight:bold; font-size:10pt;">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</td>
             </tr>
             <!-- Row 2 -->
             <tr>
-                <td colspan="5" style="border:none; text-align:center; font-weight:bold; color:#0f766e; font-size:9.5pt;">TRUNG TÂM XÚC TIẾN ĐẦU TƯ, THƯƠNG MẠI, DU LỊCH (SCE)</td>
+                <td colspan="5" style="border:none; text-align:center; font-weight:bold; color:#0f766e; font-size:9.5pt;">TRUNG TÂM XÚC TIẾN ĐẦU TƯ VÀ HỖ TRỢ DOANH NGHIỆP HÀ NỘI</td>
                 <td colspan="4" style="border:none;"></td>
                 <td colspan="5" style="border:none; text-align:center; font-weight:bold; font-style:italic; text-decoration:underline; font-size:10pt;">Độc lập - Tự do - Hạnh phúc</td>
             </tr>
@@ -19040,7 +19040,7 @@ function fillMyEmailAsManualRecipient() {
     const myEmail = (bulkEmailState.googleUser && bulkEmailState.googleUser.email) || (currentUser && currentUser.email) || '';
     const myName = (bulkEmailState.googleUser && bulkEmailState.googleUser.name) || (currentProfile && currentProfile.fullname) || 'Cán bộ phát hành thư';
     const myTitle = (currentProfile && (currentProfile.role === 'admin' ? 'Quản trị viên' : (currentProfile.role === 'leader' ? 'Lãnh đạo đơn vị' : 'Chuyên viên'))) || 'Cán bộ tổ chức';
-    const myOrg = 'Trung tâm Xúc tiến Đầu tư Hà Nội (SCE)';
+    const myOrg = 'Trung tâm Xúc tiến đầu tư và Hỗ trợ doanh nghiệp Hà Nội';
 
     if (emailInput && myEmail) {
         emailInput.value = myEmail;
@@ -19421,7 +19421,7 @@ function getPreviewTargetGuest(targetTestEmail = null) {
         id: 'TEST-OFFICER',
         name: officerName,
         title: officerTitle,
-        organization: 'Trung tâm Xúc tiến Đầu tư Hà Nội (SCE)',
+        organization: 'Trung tâm Xúc tiến đầu tư và Hỗ trợ doanh nghiệp Hà Nội',
         email: targetTestEmail || (bulkEmailState.googleUser?.email) || 'canbo@hanoi.gov.vn',
         group: 'SoNganh',
         assignedSeat: 'Khu vực Lễ tân Ban Tổ Chức'
@@ -21660,8 +21660,8 @@ function openVipCarPassModal() {
             <div class="page-a5-landscape bg-white text-slate-900 p-6 shadow-xl border-4 border-double border-red-700 rounded-xl mb-6 font-serif relative overflow-hidden" style="width: 100%; max-width: 700px; margin: 0 auto; min-height: 340px; page-break-after: always;">
                 <!-- Header Thẻ Xe -->
                 <div class="text-center border-b-2 border-red-600 pb-2 mb-3">
-                    <div class="text-xs font-bold text-amber-800 tracking-widest uppercase">ỦY BAN NHÂN DÂN THÀNH PHỐ HÀ NỘI</div>
-                    <div class="text-[10px] font-bold text-slate-600 uppercase">TRUNG TÂM XÚC TIẾN ĐẦU TƯ VÀ HỖ TRỢ DOANH NGHIỆP (SCE)</div>
+                    <div class="text-xs font-bold text-amber-800 tracking-widest uppercase">SỞ TÀI CHÍNH HÀ NỘI</div>
+                    <div class="text-[10px] font-bold text-slate-600 uppercase">TRUNG TÂM XÚC TIẾN ĐẦU TƯ VÀ HỖ TRỢ DOANH NGHIỆP HÀ NỘI</div>
                 </div>
 
                 <!-- Tiêu đề Thẻ Xe To -->
@@ -22157,8 +22157,8 @@ function openGenerateDailyReportModal(customCountdown = null) {
             <!-- Quốc Hiệu & Tiêu Ngữ -->
             <div class="flex justify-between items-start pb-4 border-b-2 border-slate-800">
                 <div class="text-center w-5/12">
-                    <div class="text-[11px] font-bold uppercase">ỦY BAN NHÂN DÂN THÀNH PHỐ HÀ NỘI</div>
-                    <div class="text-[11px] font-extrabold uppercase text-rose-800">TRUNG TÂM XÚC TIẾN ĐẦU TƯ SCE</div>
+                    <div class="text-[11px] font-bold uppercase">SỞ TÀI CHÍNH HÀ NỘI</div>
+                    <div class="text-[11px] font-extrabold uppercase text-rose-800">TRUNG TÂM XÚC TIẾN ĐẦU TƯ VÀ HỖ TRỢ DOANH NGHIỆP HÀ NỘI</div>
                     <div class="text-[10px] text-slate-500 mt-1">Số: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/BC-SCE-VP</div>
                 </div>
                 <div class="text-center w-7/12">
