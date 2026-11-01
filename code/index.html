@@ -6663,6 +6663,9 @@
         // -------------------------------------------------------------
         // C. TẢI VÀ LƯU DỮ LIỆU APP DATA TỪ SUPABASE (ID = 1)
         // -------------------------------------------------------------
+        // Biến trạng thái nhận diện bảng Supabase tcsk đã sẵn sàng hay chưa
+        window._supabaseTcskTableMissing = false;
+
         async function loadAppDataFromSupabase() {
             if (!supabaseClient) return;
             try {
@@ -6672,7 +6675,18 @@
                     .eq('id', 1)
                     .maybeSingle();
 
-                if (!error && data && data.data) {
+                if (error) {
+                    const isTableMissing = error.code === 'PGRST205' || (error.message && (error.message.includes('schema cache') || error.message.includes('relation "public.sce_tcsk_app_data" does not exist')));
+                    if (isTableMissing) {
+                        window._supabaseTcskTableMissing = true;
+                        if (typeof updateDbStatusBadge === 'function') {
+                            updateDbStatusBadge('warning', 'Lưu trên máy (Chưa chạy SQL Cloud)');
+                        }
+                        console.info('[Supabase TCSK] Bảng public.sce_tcsk_app_data chưa được khởi tạo. Hệ thống tự động hoạt động ở chế độ LocalStorage an toàn.');
+                    }
+                    renderModule2();
+                } else if (data && data.data) {
+                    window._supabaseTcskTableMissing = false;
                     appData = Object.assign(appData, data.data);
                     if (!appData.events || !Array.isArray(appData.events) || appData.events.length === 0) {
                         if (appData.programs && Array.isArray(appData.programs) && appData.programs.length > 0) {
@@ -6683,6 +6697,9 @@
                     }
                     renderSystemSettingsUI();
                     renderModule2();
+                    if (typeof updateDbStatusBadge === 'function') {
+                        updateDbStatusBadge('online', 'Cloud Supabase Đã Kết Nối');
+                    }
                 } else {
                     renderModule2();
                 }
@@ -6692,17 +6709,24 @@
                 window.updateUndoRedoUI();
             } catch (err) {
                 console.warn('Lỗi tải app_data:', err);
+                renderModule2();
             }
         }
 
-        async function saveAppDataToSupabase(note = 'Cập nhật hệ thống') {
-            if (!supabaseClient) return;
-            if (!currentUser) {
-                return;
-            }
-            // Ghi nhận snapshot hoàn tác
+        async function saveAppDataToSupabase(note = 'Cập nhật hệ thống', isExplicit = false) {
+            // Ghi nhận snapshot hoàn tác cục bộ
             if (typeof window.recordUndoSnapshot === 'function') {
                 window.recordUndoSnapshot(note);
+            }
+
+            if (!supabaseClient || !currentUser) {
+                return;
+            }
+
+            // Nếu bảng Supabase chưa tạo và đây là tác vụ lưu ngầm (isExplicit = false),
+            // bỏ qua gọi mạng để tránh spam lỗi 404 làm chậm thao tác người dùng
+            if (window._supabaseTcskTableMissing && !isExplicit) {
+                return;
             }
 
             try {
@@ -6717,20 +6741,78 @@
                     });
 
                 if (error) throw error;
+
+                window._supabaseTcskTableMissing = false;
+                if (typeof updateDbStatusBadge === 'function') {
+                    updateDbStatusBadge('online', 'Cloud Supabase Đã Kết Nối');
+                }
+
                 // Tự động tạo snapshot backup nền
                 await createBackgroundBackup(note);
-                Swal.fire({
-                    toast: true,
-                    position: 'top-end',
-                    icon: 'success',
-                    title: 'Đã lưu lên Supabase thành công!',
-                    showConfirmButton: false,
-                    timer: 2000
-                });
+
+                if (isExplicit) {
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: 'Đã lưu lên Supabase thành công!',
+                        showConfirmButton: false,
+                        timer: 2000
+                    });
+                }
             } catch (e) {
-                console.error(e);
-                Swal.fire('Lỗi lưu dữ liệu', e.message, 'error');
+                const isTableMissing = e && (e.code === 'PGRST205' || (e.message && (e.message.includes('schema cache') || e.message.includes('relation "public.sce_tcsk_app_data" does not exist'))));
+                if (isTableMissing) {
+                    window._supabaseTcskTableMissing = true;
+                    if (typeof updateDbStatusBadge === 'function') {
+                        updateDbStatusBadge('warning', 'Lưu trên máy (Chưa chạy SQL Cloud)');
+                    }
+                    console.warn(`[Supabase TCSK] Bảng public.sce_tcsk_app_data chưa được tạo trên Supabase. Dữ liệu "${note}" đã được lưu trữ an toàn 100% tại LocalStorage.`);
+                } else {
+                    console.warn('[Supabase TCSK] Lỗi đồng bộ đám mây:', e);
+                }
+
+                // CHỈ hiển thị popup hướng dẫn KHI người dùng chủ động bấm lưu/đồng bộ thủ công
+                // Tuyệt đối KHÔNG hiển thị modal chặn màn hình khi đang thao tác tự động (chuyển hội trường, xếp chỗ...)
+                if (isExplicit) {
+                    if (isTableMissing) {
+                        showSupabaseMissingTableGuidance();
+                    } else {
+                        Swal.fire('Lỗi lưu dữ liệu đám mây', e.message || 'Không thể đồng bộ với Supabase', 'warning');
+                    }
+                }
             }
+        }
+
+        function showSupabaseMissingTableGuidance() {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Chưa Khởi Tạo Bảng Supabase Cloud',
+                html: `
+                    <div class="text-left text-xs space-y-2 text-slate-700 dark:text-slate-300">
+                        <div class="p-2.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-lg text-emerald-800 dark:text-emerald-300">
+                            <i class="fas fa-check-circle mr-1"></i>
+                            <strong>Dữ liệu an toàn 100%:</strong> Mọi thay đổi của bạn đã được lưu đầy đủ trên máy (LocalStorage).
+                        </div>
+                        <p>Dự án Supabase hiện chưa có bảng <code>public.sce_tcsk_app_data</code> (mã lỗi <code>PGRST205</code>).</p>
+                        <p class="font-medium text-slate-600 dark:text-slate-300">Để kích hoạt đồng bộ đám mây đa thiết bị:</p>
+                        <ol class="list-decimal pl-4 space-y-1 text-slate-600 dark:text-slate-400">
+                            <li>Mở <strong>Supabase Dashboard &gt; SQL Editor</strong></li>
+                            <li>Bấm nút <strong>Sao Chép Kịch Bản SQL</strong> bên dưới</li>
+                            <li>Dán vào SQL Editor và bấm <strong>Run</strong></li>
+                        </ol>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonColor: '#4f46e5',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: '<i class="fas fa-copy mr-1"></i> Sao Chép Kịch Bản SQL',
+                cancelButtonText: 'Đã hiểu'
+            }).then((res) => {
+                if (res.isConfirmed) {
+                    copySqlSchema();
+                }
+            });
         }
 
         function renderSystemSettingsUI() {
@@ -7451,18 +7533,26 @@
 
                 const { data, error } = await testClient.from('sce_tcsk_profiles').select('count', { count: 'exact', head: true });
                 if (error && error.code !== 'PGRST116') {
-                    // Nếu lỗi bảng chưa tạo
-                    if (error.message && error.message.includes('relation "public.sce_tcsk_profiles" does not exist')) {
+                    // Nếu lỗi bảng chưa tạo (hỗ trợ cả PGRST205 và chuỗi schema cache)
+                    const isMissing = error.code === 'PGRST205' || 
+                        (error.message && (error.message.includes('relation "public.sce_tcsk_profiles" does not exist') || error.message.includes('schema cache')));
+                    if (isMissing) {
                         Swal.fire({
                             title: 'Kết nối máy chủ OK!',
                             text: 'Kết nối được đến Supabase nhưng các bảng sce_tcsk_* chưa được tạo. Vui lòng bấm nút "Copy Kịch Bản SQL Khởi Tạo" và chạy trên Supabase SQL Editor.',
-                            icon: 'info'
+                            icon: 'info',
+                            showCancelButton: true,
+                            confirmButtonText: 'Sao Chép Kịch Bản SQL',
+                            cancelButtonText: 'Đóng'
+                        }).then((r) => {
+                            if (r.isConfirmed) copySqlSchema();
                         });
                         return;
                     }
                     throw error;
                 }
 
+                window._supabaseTcskTableMissing = false;
                 Swal.fire('Kết nối hoàn hảo!', 'Supabase đã sẵn sàng phục vụ Hệ thống Quản lý Tổ chức Sự kiện SCE.', 'success');
             } catch (e) {
                 Swal.fire('Kết nối thất bại', e.message || 'Kiểm tra lại URL hoặc Anon Key', 'error');
@@ -7479,14 +7569,89 @@
         }
 
         async function copySqlSchema() {
+            let sqlText = '';
             try {
                 const res = await fetch('./database/supabase_tcsk_schema.sql');
-                if (!res.ok) throw new Error('Không đọc được file SQL từ đường dẫn nội bộ');
-                const sqlText = await res.text();
-                await navigator.clipboard.writeText(sqlText);
-                Swal.fire('Đã copy SQL!', 'Kịch bản khởi tạo bảng sce_tcsk_* đã được copy vào clipboard. Hãy dán vào Supabase SQL Editor và bấm Run.', 'success');
+                if (res.ok) {
+                    sqlText = await res.text();
+                }
             } catch (e) {
-                Swal.fire('Thông báo', 'Bạn có thể mở trực tiếp file database/supabase_tcsk_schema.sql trong thư mục dự án để copy.', 'info');
+                console.warn('Không fetch được file SQL cục bộ, sử dụng SQL dự phòng:', e);
+            }
+
+            if (!sqlText || sqlText.length < 50) {
+                sqlText = `-- HỆ THỐNG QUẢN LÝ TỔ CHỨC SỰ KIỆN SCE (TCSK)
+CREATE TABLE IF NOT EXISTS public.sce_tcsk_profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    email TEXT UNIQUE NOT NULL,
+    fullname TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('admin', 'leader', 'dept_leader', 'user')),
+    department TEXT NOT NULL DEFAULT 'Phòng Xúc tiến đầu tư',
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.sce_tcsk_app_data (
+    id INT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    data JSONB NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    updated_by_email TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.sce_tcsk_backups (
+    id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+    data JSONB NOT NULL,
+    note TEXT DEFAULT 'Bản sao lưu dữ liệu sự kiện',
+    created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    created_by_email TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.sce_tcsk_audit_logs (
+    id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+    actor_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    actor_email TEXT,
+    action TEXT NOT NULL,
+    summary TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.sce_tcsk_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sce_tcsk_app_data ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sce_tcsk_backups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sce_tcsk_audit_logs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Authenticated users can view tcsk profiles" ON public.sce_tcsk_profiles;
+CREATE POLICY "Authenticated users can view tcsk profiles" ON public.sce_tcsk_profiles FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "Authenticated users can manage tcsk app_data" ON public.sce_tcsk_app_data;
+CREATE POLICY "Authenticated users can manage tcsk app_data" ON public.sce_tcsk_app_data FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Anon users can view tcsk app_data" ON public.sce_tcsk_app_data;
+CREATE POLICY "Anon users can view tcsk app_data" ON public.sce_tcsk_app_data FOR SELECT TO anon USING (true);
+
+DROP POLICY IF EXISTS "Authenticated users can manage backups" ON public.sce_tcsk_backups;
+CREATE POLICY "Authenticated users can manage backups" ON public.sce_tcsk_backups FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Authenticated users can manage audit logs" ON public.sce_tcsk_audit_logs;
+CREATE POLICY "Authenticated users can manage audit logs" ON public.sce_tcsk_audit_logs FOR ALL TO authenticated USING (true) WITH CHECK (true);`;
+            }
+
+            try {
+                await navigator.clipboard.writeText(sqlText);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Đã copy kịch bản SQL!',
+                    text: 'Kịch bản khởi tạo bảng sce_tcsk_* đã được sao chép vào bộ nhớ tạm. Hãy dán vào Supabase SQL Editor và bấm Run.'
+                });
+            } catch (err) {
+                Swal.fire({
+                    title: 'Kịch bản SQL khởi tạo bảng Supabase',
+                    html: `<textarea class="w-full h-48 text-xs font-mono p-2 border rounded bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100" readonly onclick="this.select()">${sqlText}</textarea>`,
+                    confirmButtonText: 'Đóng'
+                });
             }
         }
 
@@ -7858,18 +8023,18 @@
             if (syncIcon) syncIcon.className = 'fas fa-spinner fa-spin text-xs';
             try {
                 if (typeof saveAppDataToSupabase === 'function' && currentUser) {
-                    await saveAppDataToSupabase('Đồng bộ dữ liệu đám mây');
+                    await saveAppDataToSupabase('Đồng bộ dữ liệu đám mây', true);
                 } else if (typeof loadAppDataFromSupabase === 'function') {
                     await loadAppDataFromSupabase();
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: 'Đã nạp dữ liệu đám mây mới nhất',
+                        showConfirmButton: false,
+                        timer: 1500
+                    });
                 }
-                Swal.fire({
-                    toast: true,
-                    position: 'top-end',
-                    icon: 'success',
-                    title: 'Đã đồng bộ dữ liệu đám mây thành công',
-                    showConfirmButton: false,
-                    timer: 1500
-                });
             } catch (e) {
                 Swal.fire({
                     toast: true,
