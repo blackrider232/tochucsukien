@@ -4787,8 +4787,11 @@
                 <!-- Nội dung thư sau khi đã thay biến -->
             </div>
         </div>
-        <div class="px-5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex justify-end">
-            <button onclick="closeBulkEmailPreviewModal()" class="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-800 dark:text-white px-4 py-1.5 rounded-xl text-xs font-semibold">
+        <div class="px-5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+            <button type="button" onclick="closeBulkEmailPreviewModal(); sendTestBulkEmailToSelf();" class="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold shadow-md shadow-red-500/20 flex items-center gap-1.5 transition cursor-pointer">
+                <i class="fas fa-paper-plane"></i> Gửi Thử Nội Dung Này Đến Tôi
+            </button>
+            <button onclick="closeBulkEmailPreviewModal()" class="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-800 dark:text-white px-4 py-1.5 rounded-xl text-xs font-semibold cursor-pointer">
                 Đóng xem trước
             </button>
         </div>
@@ -18321,6 +18324,7 @@ function switchBulkRecipientMode(mode) {
 function addManualRecipient() {
     const emailInput = document.getElementById('manualRecipientEmailInput');
     const nameInput = document.getElementById('manualRecipientNameInput');
+    const titleInput = document.getElementById('manualRecipientTitleInput');
     const orgInput = document.getElementById('manualRecipientOrgInput');
     if (!emailInput) return;
 
@@ -18331,6 +18335,7 @@ function addManualRecipient() {
     }
 
     const customName = nameInput ? nameInput.value.trim() : '';
+    const customTitle = titleInput ? titleInput.value.trim() : '';
     const customOrg = orgInput ? orgInput.value.trim() : '';
 
     const emailRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g;
@@ -18363,8 +18368,8 @@ function addManualRecipient() {
                 id: manualId,
                 name: extractedName,
                 email: cleanEmail,
+                title: customTitle || 'Đại biểu',
                 organization: customOrg || 'Khách mời tự nhập',
-                title: 'Đại biểu',
                 group: 'DoanhNghiep',
                 isManual: true,
                 emailStatus: 'idle'
@@ -18378,6 +18383,7 @@ function addManualRecipient() {
 
     emailInput.value = '';
     if (nameInput) nameInput.value = '';
+    if (titleInput) titleInput.value = '';
     if (orgInput) orgInput.value = '';
 
     renderBulkManualRecipientsList();
@@ -18399,12 +18405,19 @@ function addManualRecipient() {
 function fillMyEmailAsManualRecipient() {
     const emailInput = document.getElementById('manualRecipientEmailInput');
     const nameInput = document.getElementById('manualRecipientNameInput');
+    const titleInput = document.getElementById('manualRecipientTitleInput');
+    const orgInput = document.getElementById('manualRecipientOrgInput');
+
     const myEmail = (bulkEmailState.googleUser && bulkEmailState.googleUser.email) || (currentUser && currentUser.email) || '';
     const myName = (bulkEmailState.googleUser && bulkEmailState.googleUser.name) || (currentProfile && currentProfile.fullname) || 'Cán bộ phát hành thư';
+    const myTitle = (currentProfile && (currentProfile.role === 'admin' ? 'Quản trị viên' : (currentProfile.role === 'leader' ? 'Lãnh đạo đơn vị' : 'Chuyên viên'))) || 'Cán bộ tổ chức';
+    const myOrg = 'Trung tâm Xúc tiến Đầu tư Hà Nội (SCE)';
 
     if (emailInput && myEmail) {
         emailInput.value = myEmail;
         if (nameInput) nameInput.value = myName;
+        if (titleInput) titleInput.value = myTitle;
+        if (orgInput) orgInput.value = myOrg;
         addManualRecipient();
     } else {
         Swal.fire('Chưa có thông tin email', 'Vui lòng đăng nhập Google Mail hoặc nhập địa chỉ email vào ô trên.', 'info');
@@ -18544,7 +18557,23 @@ function applyMailMergeTags(templateText, guest, eventData) {
     if (!templateText) return '';
     let text = templateText;
 
-    const danhXung = (guest.group === 'VIP' || (guest.title && (guest.title.toLowerCase().includes('chủ tịch') || guest.title.toLowerCase().includes('trưởng') || guest.title.toLowerCase().includes('giám đốc')))) ? 'Đồng chí' : 'Quý Ông/Bà';
+    // Xác định danh xưng chuẩn giao thức:
+    let danhXung = guest.honorific || guest.danhXung;
+    if (!danhXung) {
+        const titleLower = (guest.title || '').toLowerCase();
+        const isOfficial = guest.group === 'VIP' || guest.group === 'SoNganh' || 
+            titleLower.includes('chủ tịch') || 
+            titleLower.includes('bí thư') || 
+            titleLower.includes('trưởng') || 
+            titleLower.includes('giám đốc') || 
+            titleLower.includes('thứ trưởng') || 
+            titleLower.includes('bộ trưởng') ||
+            titleLower.includes('chuyên viên') ||
+            titleLower.includes('cán bộ') ||
+            titleLower.includes('viên chức');
+        danhXung = isOfficial ? 'Đồng chí' : 'Quý Ông/Bà';
+    }
+
     const hoTen = guest.name || 'Quý Đại biểu';
     const chucVu = guest.title || 'Đại biểu';
     const coQuan = guest.organization || 'Cơ quan/Đơn vị';
@@ -18727,15 +18756,58 @@ function generateGuestQrCheckinBase64(guest) {
     });
 }
 
+// XÁC ĐỊNH NGƯỜI NHẬN MẪU (ĐỒNG BỘ 100% GIỮA XEM TRƯỚC VÀ GỬI THỬ NGHIỆM)
+function getPreviewTargetGuest(targetTestEmail = null) {
+    const allSelected = getAllSelectedRecipients();
+
+    // 1. Nếu có email thử nghiệm cụ thể, ưu tiên tìm người nhận có email trùng khớp
+    if (targetTestEmail) {
+        const matchByEmail = allSelected.find(r => r.email && r.email.toLowerCase() === targetTestEmail.toLowerCase());
+        if (matchByEmail) return matchByEmail;
+    }
+
+    // 2. Nếu đang thao tác ở Tab Tự nhập Email, ưu tiên lấy người nhận tự nhập được chọn
+    if (bulkEmailState.activeRecipientTab === 'manual') {
+        const selectedManual = (bulkEmailState.manualRecipients || []).filter(m => bulkEmailState.selectedRecipientIds.has(m.id));
+        if (selectedManual.length > 0) return selectedManual[0];
+    }
+
+    // 3. Nếu đang ở Tab Đại biểu, ưu tiên lấy đại biểu sự kiện được chọn
+    const evId = module4State.selectedEventId;
+    const guests = (appData.eventGuests && appData.eventGuests[evId]) || [];
+    const selectedGuests = guests.filter(g => bulkEmailState.selectedRecipientIds.has(g.id) && g.email && g.email.includes('@'));
+    if (selectedGuests.length > 0 && bulkEmailState.activeRecipientTab === 'guests') {
+        return selectedGuests[0];
+    }
+
+    // 4. Lấy người nhận đầu tiên trong toàn bộ danh sách đang được chọn
+    if (allSelected.length > 0) {
+        return allSelected[0];
+    }
+
+    // 5. Nếu chưa có ai được chọn, tự động lấy chính thông tin cán bộ đang đăng nhập
+    const officerName = bulkEmailState.googleUser?.name || currentProfile?.fullname || currentUser?.email?.split('@')[0] || 'Cán bộ phát hành thư';
+    const officerTitle = (currentProfile && (currentProfile.role === 'admin' ? 'Quản trị viên' : 'Chuyên viên')) || 'Cán bộ tổ chức';
+    return {
+        id: 'TEST-OFFICER',
+        name: officerName,
+        title: officerTitle,
+        organization: 'Trung tâm Xúc tiến Đầu tư Hà Nội (SCE)',
+        email: targetTestEmail || (bulkEmailState.googleUser?.email) || 'canbo@hanoi.gov.vn',
+        group: 'SoNganh',
+        assignedSeat: 'Khu vực Lễ tân Ban Tổ Chức'
+    };
+}
+
 // XEM TRƯỚC THƯ (PREVIEW)
 function previewBulkEmailForFirstGuest() {
-    const selectedRecipients = getAllSelectedRecipients();
-    if (selectedRecipients.length === 0) {
+    const targetEmail = bulkEmailState.googleUser?.email || '';
+    const firstGuest = getPreviewTargetGuest(targetEmail);
+    if (!firstGuest) {
         Swal.fire('Chưa chọn người nhận', 'Vui lòng tích chọn ít nhất 1 đại biểu hoặc thêm email tự nhập để xem trước nội dung thư.', 'info');
         return;
     }
 
-    const firstGuest = selectedRecipients[0];
     const evId = module4State.selectedEventId;
     const eventData = (appData.events || []).find(e => e.id === evId) || {};
     const rawSubject = document.getElementById('bulkEmailSubject')?.value || '';
@@ -18772,19 +18844,12 @@ function buildMimeMessage({ from, to, subject, htmlBody, attachments = [] }) {
 
     const mimeParts = [
         (() => {
-            let encodedFrom = from;
-            if (from && from.includes('<') && from.includes('>')) {
-                const match = from.match(/^(.*?)\s*<([^>]+)>$/);
-                if (match) {
-                    const namePart = match[1].replace(/^[\"']|[\"']$/g, '').trim();
-                    const emailPart = match[2].trim();
-                    if (namePart) {
-                        encodedFrom = `=?UTF-8?B?${btoa(unescape(encodeURIComponent(namePart)))}?= <${emailPart}>`;
-                    } else {
-                        encodedFrom = emailPart;
-                    }
-                }
+            const match = from.match(/^"(.*)" <(.*)>$/);
+            if (match) {
+                const encodedName = "=?UTF-8?B?" + btoa(unescape(encodeURIComponent(match[1]))) + "?=";
+                return `From: ${encodedName} <${match[2]}>`;
             }
+            const encodedFrom = "=?UTF-8?B?" + btoa(unescape(encodeURIComponent(from))) + "?=";
             return `From: ${encodedFrom}`;
         })(),
         `To: ${to}`,
@@ -18839,7 +18904,7 @@ function logBulkEmailConsole(type, msg) {
     consoleEl.scrollTop = consoleEl.scrollHeight;
 }
 
-// GỬI THỬ NGHIỆM ĐẾN EMAIL CỦA CÁN BỘ
+// GỬI THỬ NGHIỆM ĐẾN EMAIL CỦA CÁN BỘ (ĐỒNG BỘ 100% VỚI NỘI DUNG XEM TRƯỚC)
 async function sendTestBulkEmailToSelf() {
     const targetEmail = bulkEmailState.googleUser?.email || prompt('Nhập địa chỉ email của bạn để nhận thư thử nghiệm:');
     if (!targetEmail || !targetEmail.includes('@')) {
@@ -18849,15 +18914,9 @@ async function sendTestBulkEmailToSelf() {
 
     const evId = module4State.selectedEventId;
     const eventData = (appData.events || []).find(e => e.id === evId) || {};
-    const guests = (appData.eventGuests && appData.eventGuests[evId]) || [];
-    const sampleGuest = guests.find(g => bulkEmailState.selectedRecipientIds.has(g.id)) || guests[0] || {
-        id: 'DEMO-01',
-        name: 'Nguyễn Văn A',
-        title: 'Giám đốc',
-        organization: 'Doanh nghiệp Mẫu',
-        group: 'DoanhNghiep',
-        assignedSeat: 'A-01'
-    };
+    
+    // ĐỒNG BỘ TUYỆT ĐỐI VỚI HÀM XEM TRƯỚC THƯ:
+    const sampleGuest = getPreviewTargetGuest(targetEmail);
 
     const rawSubject = document.getElementById('bulkEmailSubject')?.value || '';
     const rawBody = document.getElementById('bulkEmailBody')?.value || '';
