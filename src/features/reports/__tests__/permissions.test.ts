@@ -123,8 +123,8 @@ describe('reads go through RLS', () => {
 
 describe('the permission each command checks and audits under', () => {
   // reports.read and reports.write grant the same roles today, so no actor tells them apart; the declared permission is
-  // what the pipeline checks and what sce_tcsk_audit_command re-checks in SQL, so it is pinned here.
-  it('edits are reports.write, issuing is reports.issue, all on the event', async () => {
+  // what the pipeline checks and what the database re-checks when it writes the command's audit row, so it is pinned here.
+  it('edits are reports.write and issuing is reports.issue', async () => {
     const { commands } = await import('../server/commands');
     const perms = Object.fromEntries(Object.entries(commands).map(([verb, spec]) => [verb, spec.authorize.perm]));
     expect(perms).toEqual({
