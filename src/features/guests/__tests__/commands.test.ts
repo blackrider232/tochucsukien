@@ -208,6 +208,7 @@ describe('every command is denied to an actor outside the event department, with
     ({
       create: { eventId, id: newId<'Guest'>(), draft: draft({ name: 'X' }) },
       update: { eventId, id: guest.id, version: guest.version, patch: { notes: 'x' } },
+      undoRsvp: { eventId, id: guest.id, version: guest.version, patch: { rsvpStatus: 'confirmed' }, seatCode: null },
       delete: { eventId, id: guest.id, version: guest.version },
       restore: { eventId, guest: { id: newId<'Guest'>(), draft: draft({ name: 'Y' }), checkinCode: 'ABCDEF' as CheckinCode, rsvpAt: null, seatCode: null } },
       applyRsvp: { eventId, id: guest.id, status: 'declined', source: 'google_form', respondedAt: '2026-11-05T00:00:00.000Z' as Instant },

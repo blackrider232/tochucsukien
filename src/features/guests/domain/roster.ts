@@ -102,18 +102,20 @@ export function filterGuests<G extends RosterEntry>(roster: ReadonlyArray<G>, f:
 }
 
 /**
- * The one RSVP transition, for the form, the row menu and the form sync (m4a B18): what the patch becomes against the
- * current row, and whether the seat must be released.
+ * The one RSVP transition, for the form, the row menu, the undo and the form sync (m4a B18): what the patch becomes
+ * against the current row, whether the seat must be released, and whether the result is a substitution nobody is named
+ * for (a command that takes an answer from outside refuses that).
  */
 export function rsvpTransition(current: Pick<Guest, 'rsvpStatus' | 'substituteName'>, patch: Partial<GuestDraft>): {
   patch: Partial<GuestDraft>;
   statusChanged: boolean;
   releasesSeat: boolean;
+  needsSubstitute: boolean;
 } {
   const status = patch.rsvpStatus ?? current.rsvpStatus;
   const substitute = patch.substituteName ?? current.substituteName;
   const next = status !== 'substituted' && substitute ? { ...patch, substituteName: '' } : patch;
-  return { patch: next, statusChanged: status !== current.rsvpStatus, releasesSeat: status === 'declined' };
+  return { patch: next, statusChanged: status !== current.rsvpStatus, releasesSeat: status === 'declined', needsSubstitute: status === 'substituted' && !substitute };
 }
 
 /** Display fallback of an empty title, as the legacy table and cards show it. */

@@ -69,8 +69,8 @@ describe('identity and dedupe (m4a B41)', () => {
   });
 
   it('is the only identity rule: records agree exactly when their keys are equal, whatever one of them lacks', () => {
-    const base = { name: 'Nguyễn Văn An', organization: 'Sở Tài chính', email: null, phone: '' };
-    const key = (o: Partial<typeof base> & { email?: string | null }) => guestIdentityKey({ ...base, ...o, email: (o.email ?? null) as never });
+    const base = { name: 'Nguyễn Văn An', organization: 'Sở Tài chính', email: null as string | null, phone: '' };
+    const key = (o: Partial<typeof base>) => guestIdentityKey({ ...base, ...o } as Parameters<typeof guestIdentityKey>[0]);
     // Only one record has an email: it is identified by the email, the other by what it has.
     expect(key({ email: 'a@x.vn' })).not.toBe(key({}));
     expect(key({ email: 'a@x.vn' })).not.toBe(key({ phone: '0912345678' }));
@@ -111,7 +111,14 @@ describe('one search and filter for every list (m4a B45)', () => {
 
 describe('rsvpTransition (m4a B18)', () => {
   it('releases the seat on decline and drops the substitute when leaving substituted', () => {
-    expect(rsvpTransition({ rsvpStatus: 'substituted', substituteName: 'X' }, { rsvpStatus: 'declined' })).toEqual({ patch: { rsvpStatus: 'declined', substituteName: '' }, statusChanged: true, releasesSeat: true });
-    expect(rsvpTransition({ rsvpStatus: 'pending', substituteName: '' }, { notes: 'n' })).toEqual({ patch: { notes: 'n' }, statusChanged: false, releasesSeat: false });
+    expect(rsvpTransition({ rsvpStatus: 'substituted', substituteName: 'X' }, { rsvpStatus: 'declined' })).toEqual({ patch: { rsvpStatus: 'declined', substituteName: '' }, statusChanged: true, releasesSeat: true, needsSubstitute: false });
+    expect(rsvpTransition({ rsvpStatus: 'pending', substituteName: '' }, { notes: 'n' })).toEqual({ patch: { notes: 'n' }, statusChanged: false, releasesSeat: false, needsSubstitute: false });
+  });
+
+  it('flags a substitution that names nobody, whether the name comes from the patch or the current row', () => {
+    expect(rsvpTransition({ rsvpStatus: 'pending', substituteName: '' }, { rsvpStatus: 'substituted' }).needsSubstitute).toBe(true);
+    expect(rsvpTransition({ rsvpStatus: 'pending', substituteName: '' }, { rsvpStatus: 'substituted', substituteName: 'Vũ D' }).needsSubstitute).toBe(false);
+    expect(rsvpTransition({ rsvpStatus: 'substituted', substituteName: 'Vũ D' }, { rsvpStatus: 'substituted' }).needsSubstitute).toBe(false);
+    expect(rsvpTransition({ rsvpStatus: 'pending', substituteName: '' }, { rsvpStatus: 'confirmed' }).needsSubstitute).toBe(false);
   });
 });

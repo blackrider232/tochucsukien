@@ -34,9 +34,10 @@ const venueSpec = (run: CommandSpec<Venue, unknown>['run']): CommandSpec<Venue, 
   run,
 });
 /** Stand-in for venue's two commands guests asks: release a guest's seat, and give a seat back (refused if taken). */
-const venue = {
+const venueOf = (state: { releaseFails: boolean }) => ({
   commands: {
     releaseGuestSeat: venueSpec(async (ctx, { eventId, guestId }) => {
+      if (state.releaseFails) throw new DbError('forbidden');
       await ctx.db.table(seatsTable).removeWhere({ eventId, guestId });
       return { value: null, audit: { action: 'GIẢI PHÓNG GHẾ', summary: 'test', eventId, entity: 'seat', entityId: guestId } };
     }),
@@ -47,11 +48,13 @@ const venue = {
       return { value: row, audit: { action: 'XẾP GHẾ', summary: 'test', eventId, entity: 'seat', entityId: guestId } };
     }),
   },
-};
+});
 
 export function harness() {
   const seed = { sce_tcsk_events: [], sce_tcsk_task_groups: [], sce_tcsk_steps: [], sce_tcsk_guests: [], sce_tcsk_seat_assignments: [], sce_tcsk_checkins: [], sce_tcsk_audit_logs: [] };
-  const lookup = commandLookup({ guests: { commands }, progress: { commands: progressCommands }, venue });
+  /** Set `releaseFails` to make venue refuse to release a seat, as it would for an actor without seating rights. */
+  const venueState = { releaseFails: false };
+  const lookup = commandLookup({ guests: { commands }, progress: { commands: progressCommands }, venue: venueOf(venueState) });
   const ctx = (actor: Actor): RequestContext => ({ actor, db: memoryDb(seed, actor), settings: SETTINGS, calendar: buildWorkCalendar([]), now: NOW });
   const run = <K extends CommandId>(actor: Actor, id: K, input: InputOf<K>) => runCommand(ctx(actor), lookup, id, input) as Promise<CommandResult<OutputOf<K>>>;
   /**
@@ -96,5 +99,5 @@ export function harness() {
   const roster = (actor: Actor, eventId: EventId) => readRoster(ctx(actor), eventId);
   const audits = () => inspectMemoryDb(seed, 'sce_tcsk_audit_logs');
   const rows = (table: string) => inspectMemoryDb(seed, table);
-  return { seed, ctx, run, runWithoutRls, ok, undo, createEvent, addGuest, seat, unseat, seedGuests, roster, audits, rows };
+  return { seed, venueState, ctx, run, runWithoutRls, ok, undo, createEvent, addGuest, seat, unseat, seedGuests, roster, audits, rows };
 }

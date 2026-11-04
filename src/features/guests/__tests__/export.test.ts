@@ -7,7 +7,6 @@ import { entry } from './roster-fixture';
 
 // 09:05 on 4/11/2026 in Hà Nội is 02:05 UTC; a UTC date would already differ near midnight.
 const NOW = '2026-11-04T02:05:00.000Z' as Instant;
-const INJECTIONS = ['=HYPERLINK("http://evil","x")', '+cmd|calc', '-2+3', '@SUM(A1)', '\tTAB'];
 
 function input(overrides: Partial<GuestListExport> = {}): GuestListExport {
   return {
