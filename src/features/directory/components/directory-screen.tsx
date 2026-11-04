@@ -88,7 +88,7 @@ export function DirectoryScreen({ contacts, canAdmin, events }: DirectoryScreenP
     { id: 'name', header: 'Họ và tên & chức danh', cell: (c) => <NameCell c={c} />, sortValue: (c) => foldVi(c.name), width: '16rem' },
     { id: 'group', header: 'Nhóm', cell: (c) => <GroupBadge group={c.group} />, sortValue: (c) => Object.keys(GUEST_GROUPS).indexOf(c.group), hideOnMobile: true },
     { id: 'org', header: 'Cơ quan / doanh nghiệp & địa chỉ', cell: (c) => <OrgCell c={c} />, sortValue: (c) => foldVi(c.organization), width: '16rem' },
-    { id: 'contact', header: 'Liên hệ', cell: (c) => <ContactCell c={c} />, hideOnMobile: true },
+    { id: 'contact', header: 'Liên hệ', cell: (c) => <ContactCell c={c} />, hideOnMobile: true, width: '13rem' },
     { id: 'banquet', header: 'Nghi thức / tiệc VIP', cell: (c) => <BanquetCell c={c} />, hideOnMobile: true },
     ...(canAdmin
       ? [{

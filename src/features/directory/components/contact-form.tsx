@@ -81,7 +81,7 @@ export function ContactFormDialog({ contact, contacts, onClose }: { contact: Mas
           <TextInput name="organization" />
         </FormField>
         <FormField label="Số điện thoại liên hệ" name="phone">
-          <TextInput name="phone" type="tel" placeholder="09xx.xxx.xxx hoặc 024.xxxx.xxxx" />
+          <TextInput name="phone" type="tel" placeholder="09xx.xxx.xxx" />
         </FormField>
         <FormField label="Email" name="email">
           <TextInput name="email" type="email" placeholder="daibieu@domain.vn" />

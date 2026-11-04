@@ -73,44 +73,46 @@ export function CsvImportDialog({ contacts, onClose }: { contacts: ReadonlyArray
         </>
       }
     >
-      <Form form={form} onSubmit={() => undefined} className="space-y-4">
-        <Alert tone="info" action={<Button variant="secondary" icon="download" onClick={downloadTemplate}>Tải tệp mẫu</Button>}>
-          Dòng đầu là tiêu đề cột, cần có {'"Họ Và Tên" và "Cơ Quan / Doanh Nghiệp"'}. Các cột khác (Nhóm Đối Tượng, Chức Danh, Số Điện Thoại, Email, Địa Chỉ, Mã Số Thuế, Tiệc VIP, Ghi Chú) có thể bỏ. Tệp xuất từ CSDL nhập lại được. Mở tệp bằng Excel hoặc Notepad, chọn tất cả, sao chép rồi dán vào ô dưới.
-        </Alert>
-        <FormField label="Nội dung CSV" name="csv">
-          <Textarea name="csv" rows={6} placeholder={'Họ Và Tên,Cơ Quan / Doanh Nghiệp,Nhóm Đối Tượng\nTrần Văn Mẫu,Công ty Mẫu,Doanh nghiệp'} />
-        </FormField>
-        <div className="max-w-sm">
-          <FormField label="Nhóm khi dòng để trống nhóm" name="defaultGroup" hint="Áp dụng cho dòng không ghi nhóm hoặc tệp không có cột nhóm.">
-            <Select name="defaultGroup" options={GROUP_OPTIONS} />
+      <div className="space-y-4">
+        <Form form={form} onSubmit={() => undefined} className="space-y-4">
+          <Alert tone="info" action={<Button variant="secondary" icon="download" onClick={downloadTemplate}>Tải tệp mẫu</Button>}>
+            Dòng đầu là tiêu đề cột, cần có {'"Họ Và Tên" và "Cơ Quan / Doanh Nghiệp"'}. Các cột khác (Nhóm Đối Tượng, Chức Danh, Số Điện Thoại, Email, Địa Chỉ, Mã Số Thuế, Tiệc VIP, Ghi Chú) có thể bỏ. Tệp xuất từ CSDL nhập lại được. Mở tệp bằng Excel hoặc Notepad, chọn tất cả, sao chép rồi dán vào ô dưới.
+          </Alert>
+          <FormField label="Nội dung CSV" name="csv">
+            <Textarea name="csv" rows={6} placeholder={'Họ Và Tên,Cơ Quan / Doanh Nghiệp,Nhóm Đối Tượng\nTrần Văn Mẫu,Công ty Mẫu,Doanh nghiệp'} />
           </FormField>
-        </div>
-      </Form>
-
-      {preview?.error && <Alert tone="danger" title="Chưa đọc được tệp">{preview.error}</Alert>}
-      {preview && !preview.error && (
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <KpiCard label="Sẽ thêm mới" value={preview.counts.created} icon="plus" accent="emerald" caption={`trên ${preview.counts.total} dòng`} />
-            <KpiCard label="Đã có trong CSDL" value={preview.counts.duplicateExisting} icon="copy" accent="amber" caption="Bỏ qua, không ghi đè" />
-            <KpiCard label="Trùng trong tệp" value={preview.counts.duplicateInFile} icon="copy" accent="amber" caption="Chỉ nhập dòng đầu tiên" />
-            <KpiCard label="Dòng lỗi" value={preview.counts.invalid} icon="alert-triangle" accent="rose" caption="Không nhập, sửa rồi dán lại" />
+          <div className="max-w-sm">
+            <FormField label="Nhóm khi dòng để trống nhóm" name="defaultGroup" hint="Áp dụng cho dòng không ghi nhóm hoặc tệp không có cột nhóm.">
+              <Select name="defaultGroup" options={GROUP_OPTIONS} />
+            </FormField>
           </div>
-          {preview.unknownColumns.length > 0 && (
-            <Alert tone="warning">Bỏ qua các cột chưa nhận ra: {preview.unknownColumns.join(', ')}.</Alert>
-          )}
-          <DataTable
-            rows={preview.rows.slice(0, SHOWN_ROWS)}
-            columns={columns}
-            rowKey={(r) => String(r.line)}
-            rowTone={(r) => (r.status === 'invalid' ? 'rose' : null)}
-            maxHeight="20rem"
-            stickyHeader
-            empty={{ icon: 'search', title: 'Chưa có dòng nào' }}
-          />
-          {preview.rows.length > SHOWN_ROWS && <p className="text-xs text-ink-muted">Hiển thị {SHOWN_ROWS} dòng đầu trong {preview.rows.length} dòng. Phần còn lại được xử lý như nhau khi nhập.</p>}
-        </div>
-      )}
+        </Form>
+
+        {preview?.error && <Alert tone="danger" title="Chưa đọc được tệp">{preview.error}</Alert>}
+        {preview && !preview.error && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <KpiCard label="Sẽ thêm mới" value={preview.counts.created} icon="plus" accent="emerald" caption={`trên ${preview.counts.total} dòng`} />
+              <KpiCard label="Đã có trong CSDL" value={preview.counts.duplicateExisting} icon="copy" accent="amber" caption="Bỏ qua, không ghi đè" />
+              <KpiCard label="Trùng trong tệp" value={preview.counts.duplicateInFile} icon="copy" accent="amber" caption="Chỉ nhập dòng đầu tiên" />
+              <KpiCard label="Dòng lỗi" value={preview.counts.invalid} icon="alert-triangle" accent="rose" caption="Không nhập, sửa rồi dán lại" />
+            </div>
+            {preview.unknownColumns.length > 0 && (
+              <Alert tone="warning">Bỏ qua các cột chưa nhận ra: {preview.unknownColumns.join(', ')}.</Alert>
+            )}
+            <DataTable
+              rows={preview.rows.slice(0, SHOWN_ROWS)}
+              columns={columns}
+              rowKey={(r) => String(r.line)}
+              rowTone={(r) => (r.status === 'invalid' ? 'rose' : null)}
+              maxHeight="20rem"
+              stickyHeader
+              empty={{ icon: 'search', title: 'Chưa có dòng nào' }}
+            />
+            {preview.rows.length > SHOWN_ROWS && <p className="text-xs text-ink-muted">Hiển thị {SHOWN_ROWS} dòng đầu trong {preview.rows.length} dòng. Phần còn lại được xử lý như nhau khi nhập.</p>}
+          </div>
+        )}
+      </div>
     </Dialog>
   );
 }
