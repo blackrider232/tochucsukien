@@ -339,6 +339,19 @@ describe('the undo of a cancel restores what the server kept, once', () => {
     expect(await h.undo(restorer, cancel.inverse)).toMatchObject({ ok: true });
   });
 
+  it('the token expires at the 15th minute exactly, and is good a millisecond before', async () => {
+    const at = await cancelled();
+    at.h.clock.now = '2026-12-15T02:15:00.000Z' as Instant;
+    const r = await at.h.undo(restorer, at.cancel.inverse);
+    expect(r).toMatchObject({ ok: false, kind: 'conflict' });
+    expect(r.ok ? '' : r.message).toContain('quá 15 phút');
+    expect(await at.h.checkins(at.eventId)).toEqual([]);
+
+    const before = await cancelled();
+    before.h.clock.now = '2026-12-15T02:14:59.999Z' as Instant;
+    expect(await before.h.undo(restorer, before.cancel.inverse)).toMatchObject({ ok: true });
+  });
+
   it('an expired token is refused', async () => {
     const { h, eventId, cancel } = await cancelled();
     h.clock.now = '2026-12-15T02:16:00.000Z' as Instant;

@@ -100,7 +100,7 @@ describe('scan dialog words what the check-in did (review MED-1)', () => {
     const declined = guest({ name: 'Người báo vắng', rsvpStatus: 'declined' });
     const { user, status } = await scanIn(declined, undefined);
     await user.click(await screen.findByRole('button', { name: 'Không check-in' }));
-    expect(await within(status()).findByText('Không check-in: Người báo vắng (đại biểu đã báo vắng)')).toBeInTheDocument();
+    expect((await within(status()).findByText('Không check-in: Người báo vắng (đại biểu đã báo vắng)')).closest('[data-tone]')).toHaveAttribute('data-tone', 'blue');
     expect(status().textContent).not.toMatch(/Đã xử lý|Đã check-in/);
     expect(dispatch).toHaveBeenCalledTimes(1);
   });
@@ -108,14 +108,15 @@ describe('scan dialog words what the check-in did (review MED-1)', () => {
   it('a check-in the server did not record is reported as an error', async () => {
     const g = guest({ name: 'Khách lỗi mạng' });
     const { status } = await scanIn(g, { ok: false, kind: 'unavailable', message: 'Mất kết nối máy chủ.' });
-    expect(await within(status()).findByText('Chưa check-in được: Khách lỗi mạng. Xem thông báo lỗi rồi thử lại.')).toBeInTheDocument();
+    const line = await within(status()).findByText('Chưa check-in được: Khách lỗi mạng. Xem thông báo lỗi rồi thử lại.');
+    expect(line.closest('[data-tone]')).toHaveAttribute('data-tone', 'red');
     expect(status().textContent).not.toMatch(/Đã xử lý/);
   });
 
   it('a recorded check-in says so', async () => {
     const g = guest({ name: 'Khách đúng giờ' });
     const { status } = await scanIn(g, { ok: true, value: { already: false, checkIn: { checkedInAt: AT } } });
-    expect(await within(status()).findByText('Đã check-in: Khách đúng giờ')).toBeInTheDocument();
+    expect((await within(status()).findByText('Đã check-in: Khách đúng giờ')).closest('[data-tone]')).toHaveAttribute('data-tone', 'emerald');
   });
 });
 

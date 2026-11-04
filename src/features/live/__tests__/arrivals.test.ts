@@ -37,6 +37,23 @@ describe('live.walkIn (decision 10)', () => {
     expect(h.audits().at(-1)).toMatchObject({ action: 'TIẾP NHẬN KHÁCH PHÁT SINH', summary: 'Khách phát sinh: Hoàng Văn Phát (Công ty Phát Sinh), ghế B-01, đã check-in, đã phát quà' });
   });
 
+  it('a walk-in pressed again reuses its own guest id only: not a listed guest with the same details, nor its own id with other details', async () => {
+    const { h, eventId } = await setup();
+    const listed = await h.addGuest(eventId, { name: 'Hoàng Văn Phát', organization: 'Công ty Phát Sinh' });
+    const samePerson = await h.run(desk, 'live.walkIn', walk(eventId, { guestId: listed.id }));
+    expect(samePerson).toMatchObject({ ok: false, kind: 'conflict' });
+    expect((await h.entry(eventId, listed.id)).checkedInAt).toBeNull();
+
+    const first = walk(eventId, {}, { name: 'Mai Văn Mới', organization: 'Công ty Mới' });
+    await h.ok(desk, 'live.walkIn', first);
+    const otherDetails = await h.run(desk, 'live.walkIn', { ...first, guest: { ...first.guest, name: 'Người Khác Hẳn' } });
+    expect(otherDetails).toMatchObject({ ok: false, kind: 'conflict' });
+    expect((await h.entry(eventId, first.guestId)).name).toBe('Mai Văn Mới');
+    // The same details with the same id are the retry: nothing new is made.
+    expect(await h.run(desk, 'live.walkIn', first)).toMatchObject({ ok: true });
+    expect((await h.roster(eventId)).filter((g) => g.name === 'Mai Văn Mới')).toHaveLength(1);
+  });
+
   it('without a seat choice the guest is checked in unseated', async () => {
     const { h, eventId } = await setup();
     const r = await h.ok(desk, 'live.walkIn', walk(eventId));
