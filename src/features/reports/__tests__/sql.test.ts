@@ -6,6 +6,11 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { PGlite } from '@electric-sql/pglite';
 import { beforeAll, describe, expect, it } from 'vitest';
+import type { IsoDate } from '@/core/brand';
+import { addCalendarDays, buildWorkCalendar, type Holiday } from '@/core/dates';
+import { DEPARTMENTS } from '@/core/vocab';
+import { workdaysToEvent } from '../domain/figures';
+import { signerTitle } from '../domain/report';
 
 const dir = join(process.cwd(), 'supabase', 'migrations');
 const db = new PGlite();
@@ -26,11 +31,18 @@ async function as<T>(user: string, aal: 'aal1' | 'aal2', fn: () => Promise<T>): 
     await db.exec(`reset role`);
   }
 }
-const insertReport = (date = '2020-01-01', issuedBy = ids.admin) =>
-  db.query<{ report_date: string; issued_by: string; issued_at: string }>(
-    `insert into public.sce_tcsk_daily_reports (event_id, report_date, workdays_to_event, progress_percent, issued_by, issued_at, figures)
-     values ('${eventId}', '${date}', 5, 29, '${issuedBy}', '2020-01-01T00:00:00Z', '{"progressPercent":29}') returning report_date::text, issued_by::text, issued_at::text`,
+type Stored = { report_date: string; issued_by: string; issued_at: string; event_name: string; event_date: string; signatory_title: string; workdays_to_event: number };
+/** What a PostgREST caller could send: a backdated, forged row. */
+const insertReport = (date = '2020-01-01', issuedBy = ids.admin, event = () => eventId) =>
+  db.query<Stored>(
+    `insert into public.sce_tcsk_daily_reports (event_id, report_date, workdays_to_event, progress_percent, issued_by, issued_at, figures, event_name, event_date, signatory_title)
+     values ('${event()}', '${date}', -99, 29, '${issuedBy}', '2020-01-01T00:00:00Z', '{"progressPercent":29}', 'Sự kiện bịa', '1999-01-01', 'GIÁM ĐỐC')
+     returning report_date::text, issued_by::text, issued_at::text, event_name, event_date::text, signatory_title, workdays_to_event`,
   );
+async function calendarInDb() {
+  const rows = await db.query<{ date: IsoDate; name: string; kind: Holiday['kind'] }>(`select holiday_date::text as date, name, kind from public.sce_tcsk_holidays`);
+  return buildWorkCalendar(rows.rows);
+}
 
 beforeAll(async () => {
   await db.exec(`
@@ -69,13 +81,16 @@ describe('sce_tcsk_daily_reports on Postgres', () => {
   });
 
   it('the head of another department cannot issue for this event', async () => {
-    await expect(as(ids.otherHead, 'aal1', () => insertReport())).rejects.toThrow(/row-level security/);
+    await expect(as(ids.otherHead, 'aal1', () => insertReport())).rejects.toThrow(/row-level security|forbidden/);
   });
 
-  it('the department head issues; the date, the time and the issuer are the server\'s, whatever the row says', async () => {
+  it('the department head issues; the date, the time, the issuer, the event, the signer title and T-n are the server\'s, whatever the row says', async () => {
     const r = await as(ids.head, 'aal1', () => insertReport('2020-01-01', ids.admin));
-    const today = await db.query<{ d: string }>(`select ((now() at time zone 'Asia/Ho_Chi_Minh')::date)::text as d`);
-    expect(r.rows[0]).toMatchObject({ report_date: today.rows[0]!.d, issued_by: ids.head });
+    const today = (await db.query<{ d: IsoDate }>(`select ((now() at time zone 'Asia/Ho_Chi_Minh')::date)::text as d`)).rows[0]!.d;
+    expect(r.rows[0]).toMatchObject({
+      report_date: today, issued_by: ids.head, event_name: 'HN XTĐT', event_date: '2026-12-15', signatory_title: 'TRƯỞNG PHÒNG XÚC TIẾN ĐẦU TƯ',
+      workdays_to_event: workdaysToEvent(await calendarInDb(), '2026-12-15' as IsoDate, today),
+    });
     expect(r.rows[0]!.issued_at.startsWith('2020')).toBe(false);
   });
 
@@ -95,6 +110,41 @@ describe('sce_tcsk_daily_reports on Postgres', () => {
     const own = await as(ids.staff, 'aal1', () => db.query(`select id from public.sce_tcsk_daily_reports`));
     const other = await as(ids.otherHead, 'aal1', () => db.query(`select id from public.sce_tcsk_daily_reports`));
     expect([own.rows.length, other.rows.length]).toEqual([1, 0]);
+  });
+});
+
+describe('what the issue trigger derives counts as the app does', () => {
+  const sqlWorkdays = async (t0: string, today: string) =>
+    (await db.query<{ n: number }>(`select tcsk.reports_workdays_to_event('${t0}', '${today}') as n`)).rows[0]!.n;
+
+  it('T-n by hand on the seeded holidays: T-5, a Sunday T0, the 30/04 and 01/05 holidays, event day and after', async () => {
+    expect(await sqlWorkdays('2026-12-15', '2026-12-08')).toBe(5);
+    expect(await sqlWorkdays('2026-12-13', '2026-12-11')).toBe(1);
+    expect(await sqlWorkdays('2026-12-13', '2026-12-12')).toBe(0);
+    expect(await sqlWorkdays('2026-05-05', '2026-04-28')).toBe(3);
+    expect(await sqlWorkdays('2026-12-15', '2026-12-15')).toBe(0);
+    expect(await sqlWorkdays('2026-04-28', '2026-05-05')).toBe(-3);
+  });
+
+  it('T-n equals workdaysToEvent for every day from 40 before to 5 after six T0s, a compensatory Saturday included', async () => {
+    await db.exec(`insert into public.sce_tcsk_holidays (holiday_date, name, kind) values ('2026-11-28', 'Làm bù', 'compensatory_workday') on conflict do nothing`);
+    const cal = await calendarInDb();
+    for (const t0 of ['2026-12-15', '2026-12-13', '2026-12-12', '2026-09-02', '2026-05-04', '2026-05-01'] as IsoDate[]) {
+      const rows = await db.query<{ today: IsoDate; n: number }>(
+        `select d::date::text as today, tcsk.reports_workdays_to_event('${t0}', d::date) as n from generate_series('${t0}'::date - 40, '${t0}'::date + 5, interval '1 day') d`,
+      );
+      expect(rows.rows.map((r) => r.n)).toEqual(rows.rows.map((r) => workdaysToEvent(cal, t0, r.today)));
+      expect(rows.rows[0]!.today).toBe(addCalendarDays(t0, -40));
+    }
+    await db.exec(`delete from public.sce_tcsk_holidays where holiday_date = '2026-11-28'`);
+  });
+
+  it('the signer title equals signerTitle for every department and a blank one', async () => {
+    const names = [...DEPARTMENTS.map((d) => d.name), '', 'Ban Tổ chức'];
+    for (const name of names) {
+      const r = await db.query<{ t: string }>(`select tcsk.reports_signer_title($1) as t`, [name]);
+      expect(r.rows[0]!.t).toBe(signerTitle(name));
+    }
   });
 });
 
