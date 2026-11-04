@@ -1,0 +1,68 @@
+{
+  "programs": [{ "id": "evt_prog_1", "name": "Bị bỏ qua vì events có dữ liệu", "eventDate": "2025-01-01", "groups": [] }],
+  "events": [
+    {
+      "id": "evt_1767000000000",
+      "name": "Hội nghị XTĐT Hà Nội - Hàn Quốc 2026",
+      "type": "hoi_nghi",
+      "eventDate": "2026-12-15",
+      "eventTime": "14:00",
+      "location": "Khách sạn Daewoo",
+      "department": "Phòng Xúc tiến đầu tư",
+      "leadPerson": "Trần Văn B",
+      "budget": "350.000.000",
+      "targetGuests": "200",
+      "status": "preparing",
+      "note": "Chỉ đạo: mời Đại sứ quán",
+      "created_at": "2026-10-01T03:00:00.000Z",
+      "updated_at": "2026-10-05T03:00:00.000Z",
+      "groups": [
+        {
+          "id": "grp_1_1767000000000",
+          "phase": "phase_prepare",
+          "name": "Nhóm 1: Khách mời & Lễ tân",
+          "leadPerson": "Trần Văn B",
+          "note": "",
+          "steps": [
+            {
+              "id": "step_1a", "name": "Lập danh sách khách mời", "requirement": "≥ 130%", "offsetDays": "20", "dayType": "calendar",
+              "targetPhase": "before", "calculatedDeadline": "2026-11-25", "completed": true, "completedAt": "2026-10-10T02:00:00.000Z",
+              "completedBy": "Nguyễn Thị C", "assignee": "Trần Văn B", "templateKey": "form_dskhach",
+              "subTasks": [{ "id": 1, "name": "VIP", "completed": true }, { "id": 1, "name": "Doanh nghiệp", "completed": false }, { "id": 3, "name": "" }],
+              "links": [
+                { "name": "Danh sách VIP.xlsx", "url": "https://drive.google.com/file/d/abc" },
+                { "name": "Độc hại", "url": "javascript:alert(document.cookie)" }
+              ]
+            },
+            {
+              "id": "step_1a", "name": "Bước trùng mã", "offsetDays": 3, "dayType": "workday", "targetPhase": "before",
+              "completed": true, "assignee": "", "templateKey": "x');alert(1);//", "subTasks": [], "links": []
+            }
+          ]
+        },
+        {
+          "id": "grp_x", "phase": "phase_unknown", "name": "Nhóm lạ", "steps": [
+            { "id": "step_dd", "name": "Trong ngày", "offsetDays": 5, "dayType": "calendar", "targetPhase": "dday", "completed": false }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "evt_1767000000000",
+      "name": "Hội chợ OCOP mùa thu (mã trùng)",
+      "type": "hoi_cho",
+      "eventDate": "2026-10-20",
+      "department": "Phòng Phát triển doanh nghiệp",
+      "budget": "khoảng 1 tỷ",
+      "groups": [{ "id": "grp_1_1767000000000", "phase": "phase_prepare", "name": "Nhóm 1", "steps": [{ "id": "step_1a", "name": "Bước", "offsetDays": 1 }] }]
+    },
+    {
+      "id": "evt_demo",
+      "name": "Hội nghị Xúc tiến Đầu tư và Giao thương Hà Nội - Tokyo 2026",
+      "eventDate": "2026-11-20",
+      "groups": []
+    },
+    { "id": "evt_nodate", "name": "Chương trình không ngày", "created_at": "2026-03-31T20:00:00.000Z", "department": "", "groups": [] },
+    { "id": "evt_bad", "name": "Không ngày, không ngày tạo", "groups": [] }
+  ]
+}
