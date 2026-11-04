@@ -38,7 +38,7 @@ describe('registry', () => {
 
   it('orders the sidebar like the legacy app', () => {
     expect(registry.navFor('main').map((n) => n.label)).toEqual(['Tiến độ', 'Biểu mẫu', 'Khách mời & Chỗ ngồi', 'Gian hàng Hội chợ', 'Tổ chức sự kiện', 'Báo cáo & Tổng kết']);
-    expect(registry.navFor('admin').map((n) => n.id)).toEqual(['admin', 'users', 'admin-templates', 'admin-halls', 'admin-guests']);
+    expect(registry.navFor('admin').map((n) => n.id)).toEqual(['admin', 'users', 'admin-templates', 'admin-halls', 'admin-guests', 'profile']);
   });
 
   it('collects sub-tabs other features attach under guests', () => {

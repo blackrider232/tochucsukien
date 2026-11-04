@@ -4,3 +4,5 @@
 
 export { requestContext, appContextValue, loadRequestContext, signOut } from './request-context';
 export { createAuthUser } from './admin';
+export { currentGate } from './session-gate';
+export { exchangeAuthLink } from './callback';

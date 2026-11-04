@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { featureManifests } from '@/features/registry';
-import { coreLegacyImporter } from '@/features/core/server/legacy';
+import { legacyImporter as coreLegacyImporter } from '@/features/core/server/legacy-importer';
 import { blobCoverage, formatReport, parseArgs } from './import-legacy';
 
 describe('import-legacy CLI', () => {

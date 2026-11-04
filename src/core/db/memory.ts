@@ -444,6 +444,11 @@ function rpcHandlers(store: Store, actor: Actor, rls: Rls): { readonly [K in key
         .slice(0, Math.min(Math.max(a.limit, 1), 201))
         .map(parseAuditRow);
     },
+    sce_tcsk_audit_facets: () => {
+      const rows = rls.hasPerm('core.audit.read') ? rowsOf(store, 'sce_tcsk_audit_logs') : [];
+      const distinct = (values: unknown[]) => [...new Set(values.filter((v): v is string => typeof v === 'string'))].sort();
+      return { actions: distinct(rows.map((r) => r.action)), entities: distinct(rows.map((r) => r.entity)) };
+    },
   };
 }
 

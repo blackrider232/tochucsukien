@@ -11,7 +11,7 @@ const RANGES = {
   badgeQuotaPercent: ['badge_quota_percent', 100, 200],
 } as const;
 
-export const coreLegacyImporter: LegacyImporter = {
+export const legacyImporter: LegacyImporter = {
   feature: 'core',
   dependsOn: [],
   plan(blob) {

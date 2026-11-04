@@ -173,10 +173,19 @@ language sql stable security invoker set search_path = '' as $$
    limit least(greatest(coalesce(lim, 50), 1), 201)
 $$;
 
+-- The distinct actions and entities for the viewer's filter lists.
+create or replace function public.sce_tcsk_audit_facets() returns jsonb
+language sql stable security invoker set search_path = '' as $$
+  select jsonb_build_object(
+    'actions', coalesce((select jsonb_agg(s.x order by s.x) from (select distinct a.action as x from public.sce_tcsk_audit_logs a) s), '[]'::jsonb),
+    'entities', coalesce((select jsonb_agg(s.x order by s.x) from (select distinct a.entity as x from public.sce_tcsk_audit_logs a where a.entity is not null) s), '[]'::jsonb))
+$$;
+
 do $$
 declare f text;
 begin
   foreach f in array array[
+    'public.sce_tcsk_audit_facets()',
     'public.sce_tcsk_update_settings(integer, jsonb)',
     'public.sce_tcsk_replace_holidays(integer, jsonb)',
     'public.sce_tcsk_update_profile_name(text)',

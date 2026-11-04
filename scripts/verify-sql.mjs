@@ -258,6 +258,9 @@ assert.equal((await auditRows(ids.leader, 'aal2', `filter_action => 'TẢI BẢN
 assert.ok((await auditRows(ids.leader, 'aal2', `filter_actor => 'bgd@'`)).rows.every((r) => r.actor_email === 'bgd@x.vn'), 'audit filters by actor');
 assert.equal((await auditRows(ids.leader, 'aal2', `filter_actor => '%'`)).rows.length, 0, 'a wildcard in the actor filter is literal');
 assert.equal((await auditRows(ids.xtdtLead, 'aal1', `lim => 10`)).rows.length, 0, 'dept_leader reads no audit rows');
+const facets = (await as(ids.leader, 'aal2', () => db.query(`select public.sce_tcsk_audit_facets() as f`))).rows[0].f;
+assert.ok(facets.actions.includes('KHÔI PHỤC SAO LƯU') && facets.entities.includes('backup'), 'audit facets list actions and entities');
+assert.deepEqual((await as(ids.xtdt, 'aal1', () => db.query(`select public.sce_tcsk_audit_facets() as f`))).rows[0].f, { actions: [], entities: [] }, 'a user gets no facets');
 await as(ids.admin, 'aal2', async () => {
   await assert.rejects(db.exec(`update public.sce_tcsk_audit_logs set summary = 'sửa'`), /permission denied/, 'admin cannot edit audit rows');
   await assert.rejects(db.exec(`delete from public.sce_tcsk_audit_logs`), /permission denied/, 'admin cannot delete audit rows');

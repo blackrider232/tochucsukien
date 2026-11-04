@@ -106,6 +106,8 @@ export interface RpcMap {
   sce_tcsk_backup_data: { args: { id: number }; result: unknown };
   /** Newest first, keyed on id: pass the last id of a page as beforeId for the next one. Dates are VN days. */
   sce_tcsk_list_audit: { args: AuditQuery; result: AuditLogRow[] };
+  /** Distinct actions and entities among the rows the caller may read, for filter lists. */
+  sce_tcsk_audit_facets: { args: Record<string, never>; result: { actions: string[]; entities: string[] } };
 }
 
 export interface BackupRow {

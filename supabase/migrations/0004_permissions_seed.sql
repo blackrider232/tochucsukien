@@ -33,6 +33,10 @@ insert into public.sce_tcsk_role_permissions (permission, role, grant_level, sco
   ('core.holidays.edit', 'leader', 'all', 'global', false),
   ('core.holidays.edit', 'dept_leader', 'none', 'global', false),
   ('core.holidays.edit', 'user', 'none', 'global', false),
+  ('core.profile.edit', 'admin', 'all', 'global', false),
+  ('core.profile.edit', 'leader', 'all', 'global', false),
+  ('core.profile.edit', 'dept_leader', 'all', 'global', false),
+  ('core.profile.edit', 'user', 'all', 'global', false),
   ('progress.read', 'admin', 'all', 'event', false),
   ('progress.read', 'leader', 'all', 'event', false),
   ('progress.read', 'dept_leader', 'department', 'event', false),
@@ -145,4 +149,4 @@ on conflict (permission, role) do update set
   grant_level = excluded.grant_level, scope = excluded.scope, requires_aal2 = excluded.requires_aal2;
 
 delete from public.sce_tcsk_role_permissions
- where permission not in ('core.settings.edit', 'core.users.read', 'core.users.manage', 'core.backups.create', 'core.backups.restore', 'core.audit.read', 'core.holidays.edit', 'progress.read', 'progress.write', 'progress.create', 'progress.delete', 'templates.read', 'templates.admin', 'guests.read', 'guests.write', 'venue.seating.read', 'venue.seating.write', 'venue.booths.read', 'venue.booths.write', 'venue.halls.read', 'venue.halls.admin', 'directory.read', 'directory.admin', 'comms.read', 'comms.send', 'comms.rsvp.manage', 'comms.mailboxes.read', 'comms.mailboxes.admin', 'live.read', 'live.checkin', 'live.manage', 'reports.read', 'reports.write', 'reports.issue');
+ where permission not in ('core.settings.edit', 'core.users.read', 'core.users.manage', 'core.backups.create', 'core.backups.restore', 'core.audit.read', 'core.holidays.edit', 'core.profile.edit', 'progress.read', 'progress.write', 'progress.create', 'progress.delete', 'templates.read', 'templates.admin', 'guests.read', 'guests.write', 'venue.seating.read', 'venue.seating.write', 'venue.booths.read', 'venue.booths.write', 'venue.halls.read', 'venue.halls.admin', 'directory.read', 'directory.admin', 'comms.read', 'comms.send', 'comms.rsvp.manage', 'comms.mailboxes.read', 'comms.mailboxes.admin', 'live.read', 'live.checkin', 'live.manage', 'reports.read', 'reports.write', 'reports.issue');

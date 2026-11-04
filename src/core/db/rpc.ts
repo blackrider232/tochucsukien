@@ -67,6 +67,8 @@ export function parseAuditRow(row: unknown): AuditLogRow {
   };
 }
 
+const auditFacets = z.object({ actions: z.array(z.string()).default([]), entities: z.array(z.string()).default([]) });
+
 const list = <T>(parse: (row: unknown) => T) => (d: unknown): T[] => (Array.isArray(d) ? d.map(parse) : []);
 
 export const RPC_ALLOWLIST: { readonly [K in keyof RpcMap]: RpcSpec<K> } = {
@@ -99,4 +101,5 @@ export const RPC_ALLOWLIST: { readonly [K in keyof RpcMap]: RpcSpec<K> } = {
     }),
     result: list(parseAuditRow),
   },
+  sce_tcsk_audit_facets: { args: () => ({}), result: (d) => auditFacets.parse(d ?? {}) },
 };

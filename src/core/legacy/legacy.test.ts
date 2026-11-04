@@ -16,7 +16,7 @@ import {
   type LegacyBlob,
   type LegacyImporter,
 } from '@/core/legacy';
-import { coreLegacyImporter } from '@/features/core/server/legacy';
+import { legacyImporter as coreLegacyImporter } from '@/features/core/server/legacy-importer';
 
 const fixture = normalizeBlob(JSON.parse(readFileSync(join(process.cwd(), 'scripts/__fixtures__/legacy-blob.json'), 'utf8')));
 
