@@ -1,0 +1,27 @@
+{
+  "events": [
+    { "id": "evt_real", "name": "Hội nghị XTĐT Hà Nội - Hàn Quốc 2026", "eventDate": "2026-12-15", "department": "Phòng Xúc tiến đầu tư", "targetGuests": 120 },
+    { "id": "evt_demo", "name": "Hội nghị Xúc tiến Đầu tư và Giao thương Hà Nội - Tokyo 2026", "eventDate": "2026-11-20" },
+    { "id": "evt_real", "name": "Sự kiện trùng mã", "eventDate": "2027-01-10" }
+  ],
+  "eventGuests": {
+    "evt_real": [
+      { "id": "gst_1767000000000_ab12", "name": "Lê Văn Một", "group": "SoNganh", "title": "Giám đốc", "organization": "Sở Ngoại vụ", "phone": "0912.000.001", "email": "MOT@hanoi.gov.vn", "sendMethod": "ems", "inviteStatus": "received", "rsvpStatus": "confirmed", "hasBanquet": true, "seatCode": "B-01", "notes": "Đón cửa A", "isCheckedIn": true, "checkInTime": "08:15:30", "hasGiftPackage": true, "checkInStaff": "Cán bộ X", "emailStatus": "sent", "emailSentAt": "2026-11-01T02:00:00.000Z" },
+      { "id": "gst_1767000000000_ab12", "name": "Trần Thị Hai", "group": "BanToChuc", "organization": "Ban tổ chức", "sendMethod": "Trực tiếp", "inviteStatus": "chưa nhận", "rsvpStatus": "maybe", "banquet": "confirmed", "assignedSeat": "C-09" },
+      { "id": "gst_vip_01", "name": "Trần Sỹ Thanh", "group": "VIP", "organization": "UBND TP Hà Nội", "seatCode": "A-04" },
+      { "id": "GF-abc-1", "name": "<img src=x onerror=alert(1)>", "organization": "=cmd|' /C calc'!A0", "email": "khong-hop-le", "rsvpStatus": "declined", "rsvpSource": "google_form", "rsvpRespondedAt": "15/11/2026 10:30:00", "substituteName": "Đi thay cho: Ông B", "seatCode": "A-05", "assignedSeat": "A-06", "emailStatus": "error", "emailError": "HTTP 401" },
+      { "id": "gst_sub", "name": "Phạm Bốn", "group": "DoanhNghiep", "organization": "Công ty Bốn", "phone": 912345678, "rsvpStatus": "substituted", "substituteName": "Vũ Năm - Phó Giám đốc", "sendMethod": "carrier pigeon" },
+      { "id": "gst_noname", "name": "  ", "organization": "Không tên" },
+      "không phải đối tượng"
+    ],
+    "evt_demo": [
+      { "id": "gst_dn_01", "name": "Trương Gia Bình", "group": "DoanhNghiep", "organization": "Tập đoàn FPT" }
+    ],
+    "evt_missing": [
+      { "id": "gst_lost", "name": "Không có sự kiện", "organization": "Đâu đó" }
+    ]
+  },
+  "eventSeating": {
+    "evt_real": { "B-01": "gst_1767000000000_ab12", "A-04": "gst_vip_01", "A-07": "GF-abc-1" }
+  }
+}
