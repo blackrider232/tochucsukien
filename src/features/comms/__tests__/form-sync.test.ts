@@ -1,0 +1,214 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Email, EventId } from '@/core/brand';
+import type { SyncReport } from '../server/form';
+import type { ResponseRow } from '../server/tables';
+import { admin, harness, xtdtUser } from './harness';
+
+const sheet = vi.hoisted(() => ({ text: '', result: null as null | { ok: false; message: string }, calls: [] as string[] }));
+vi.mock('../server/sheet-fetch', () => ({
+  fetchSheetCsv: async (url: string) => {
+    sheet.calls.push(url);
+    return sheet.result ?? { ok: true, text: sheet.text };
+  },
+}));
+
+const SHEET = 'https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789/edit#gid=0';
+const HEADER = 'Dấu thời gian,Họ và tên,Tên cơ quan,Email,Số điện thoại,Xác nhận tham dự,Anh/chị có dự tiệc chiêu đãi?,Họ tên người đi thay';
+const csv = (...lines: string[]) => [HEADER, ...lines].join('\r\n');
+
+beforeEach(() => {
+  sheet.text = '';
+  sheet.result = null;
+  sheet.calls = [];
+});
+
+async function setup(config: { autoAddNewGuests?: boolean } = {}) {
+  const h = harness();
+  const eventId = await h.createEvent();
+  await h.ok(xtdtUser, 'comms.saveForm', { eventId, version: null, config: { formUrl: 'https://forms.gle/abc', sheetUrl: SHEET, autoSync: false, autoAddNewGuests: config.autoAddNewGuests ?? false } } as never);
+  const sync = async () => (await h.ok(xtdtUser, 'comms.syncForm', { eventId })).value as Extract<SyncReport, { status: 'ok' }>;
+  const responses = () => (h.rows('sce_tcsk_rsvp_responses') as Array<Record<string, unknown>>).filter((r) => r.event_id === eventId);
+  return { h, eventId, sync, responses };
+}
+
+describe('comms.syncForm', () => {
+  it('applies a newer definite answer through guests.applyRsvp, matched by email', async () => {
+    const { h, eventId, sync } = await setup();
+    const g = await h.addGuest(eventId, { email: 'an@a.vn' as Email });
+    sheet.text = csv('04/11/2026 10:00:00,Nguyễn Văn An,Công ty A,AN@A.VN,,Có tham dự,Có,');
+    const report = await sync();
+    expect(report).toMatchObject({ rows: 1, fresh: 1, applied: 1, review: 0 });
+    expect(await h.guest(eventId, g.id)).toMatchObject({ rsvpStatus: 'confirmed', hasBanquet: true, rsvpSource: 'google_form', rsvpAt: '2026-11-04T03:00:00.000Z' });
+    expect(h.audits().map((a) => a.action)).toContain('CẬP NHẬT RSVP');
+  });
+
+  it('is idempotent: a second sync of the same sheet stores nothing new and changes no guest', async () => {
+    const { h, eventId, sync, responses } = await setup();
+    const g = await h.addGuest(eventId, { email: 'an@a.vn' as Email });
+    sheet.text = csv('04/11/2026 10:00:00,Nguyễn Văn An,Công ty A,an@a.vn,,Có,,');
+    await sync();
+    const before = { guest: await h.guest(eventId, g.id), responses: responses() };
+    const second = await sync();
+    expect(second).toMatchObject({ rows: 1, fresh: 0, applied: 0 });
+    expect({ guest: await h.guest(eventId, g.id), responses: responses() }).toEqual(before);
+  });
+
+  it('never overwrites a staff change made after the response (older answers are stale)', async () => {
+    const { h, eventId, sync, responses } = await setup();
+    const g = await h.addGuest(eventId, { email: 'an@a.vn' as Email });
+    // Staff declined at NOW (09:00 Hà Nội); the form answer is from 08:00.
+    await h.ok(xtdtUser, 'guests.update', { eventId, id: g.id, version: g.version, patch: { rsvpStatus: 'declined' } });
+    sheet.text = csv('04/11/2026 08:00:00,Nguyễn Văn An,Công ty A,an@a.vn,,Có,Có,');
+    const report = await sync();
+    expect(report).toMatchObject({ applied: 0, stale: 1 });
+    expect((await h.guest(eventId, g.id)).rsvpStatus).toBe('declined');
+    expect(responses()[0]).toMatchObject({ apply_status: 'stale', match: 'email' });
+  });
+
+  it('leaves RSVP and banquet untouched when the sheet has no such column', async () => {
+    const { h, eventId, sync, responses } = await setup();
+    const g = await h.addGuest(eventId, { email: 'an@a.vn' as Email, hasBanquet: true });
+    sheet.text = ['Dấu thời gian,Họ và tên,Email', '04/11/2026 10:00:00,Nguyễn Văn An,an@a.vn'].join('\n');
+    expect(await sync()).toMatchObject({ applied: 0, noAnswer: 1 });
+    expect(await h.guest(eventId, g.id)).toMatchObject({ rsvpStatus: 'pending', hasBanquet: true, rsvpSource: 'manual' });
+    expect(responses()[0]).toMatchObject({ apply_status: 'no_answer', rsvp: null, has_banquet: null });
+  });
+
+  it('keeps banquet when only RSVP is answered', async () => {
+    const { h, eventId, sync } = await setup();
+    const g = await h.addGuest(eventId, { email: 'an@a.vn' as Email, hasBanquet: true });
+    sheet.text = ['Dấu thời gian,Email,Xác nhận tham dự', '04/11/2026 10:00:00,an@a.vn,Có'].join('\n');
+    await sync();
+    expect(await h.guest(eventId, g.id)).toMatchObject({ rsvpStatus: 'confirmed', hasBanquet: true });
+  });
+
+  it('parks an ambiguous match for review and changes neither namesake', async () => {
+    const { h, eventId, sync, responses } = await setup();
+    const a = await h.addGuest(eventId, { name: 'Lê Cường', organization: 'Công ty C' });
+    const b = await h.addGuest(eventId, { name: 'Lê Cường', organization: 'Công ty D' });
+    sheet.text = csv('04/11/2026 10:00:00,Lê Cường,Công ty Z,,,Có,,');
+    expect(await sync()).toMatchObject({ applied: 0, review: 1 });
+    expect((await h.guest(eventId, a.id)).rsvpStatus).toBe('pending');
+    expect((await h.guest(eventId, b.id)).rsvpStatus).toBe('pending');
+    expect(responses()[0]).toMatchObject({ match: 'ambiguous', apply_status: 'pending' });
+    expect(new Set(responses()[0]!.candidate_guest_ids as string[])).toEqual(new Set([a.id, b.id]));
+  });
+
+  it('creates no guest when auto-add is off; with it on, adds the newcomer once, flagged, pending invite', async () => {
+    const off = await setup({ autoAddNewGuests: false });
+    sheet.text = csv('04/11/2026 10:00:00,Khách Mới,Công ty Mới,moi@x.vn,0912345678,Có,Không,');
+    expect(await off.sync()).toMatchObject({ created: 0, review: 1 });
+    expect(await off.h.roster(off.eventId)).toHaveLength(0);
+
+    const on = await setup({ autoAddNewGuests: true });
+    sheet.text = csv('04/11/2026 10:00:00,Khách Mới,Công ty Mới,moi@x.vn,0912345678,Có,Không,', '04/11/2026 10:05:00,Khách Mới,Công ty Mới,moi@x.vn,0912345678,Có,Có,');
+    const report = await on.sync();
+    const roster = await on.h.roster(on.eventId);
+    expect(roster).toHaveLength(1);
+    expect(roster[0]).toMatchObject({ name: 'Khách Mới', inviteStatus: 'pending', rsvpStatus: 'confirmed', rsvpSource: 'google_form', email: 'moi@x.vn', phone: '0912345678' });
+    expect(roster[0]!.notes).toContain('Tự đăng ký qua Google Form');
+    // The second answer of the same newcomer is matched to the guest the first one created, and is newer, so it wins.
+    expect(report).toMatchObject({ created: 1, applied: 1 });
+    expect(roster[0]!.hasBanquet).toBe(true);
+  });
+
+  it('applies the later of two answers by the same guest last', async () => {
+    const { h, eventId, sync } = await setup();
+    const g = await h.addGuest(eventId, { email: 'an@a.vn' as Email });
+    sheet.text = csv('05/11/2026 10:00:00,Nguyễn Văn An,Công ty A,an@a.vn,,Không tham dự,,', '04/11/2026 10:00:00,Nguyễn Văn An,Công ty A,an@a.vn,,Có,,');
+    expect(await sync()).toMatchObject({ applied: 2 });
+    expect((await h.guest(eventId, g.id)).rsvpStatus).toBe('declined');
+  });
+
+  it('keeps a response with an unreadable time for review and never applies it on its own', async () => {
+    const { h, eventId, sync, responses } = await setup();
+    const g = await h.addGuest(eventId, { email: 'an@a.vn' as Email });
+    sheet.text = csv('hôm qua,Nguyễn Văn An,Công ty A,an@a.vn,,Có,,');
+    expect(await sync()).toMatchObject({ applied: 0, review: 1 });
+    expect((await h.guest(eventId, g.id)).rsvpStatus).toBe('pending');
+    expect(responses()[0]).toMatchObject({ apply_status: 'no_time', match: 'email', matched_guest_id: g.id });
+  });
+
+  it('stores form answers as data: an XSS payload is kept verbatim, never interpreted', async () => {
+    const { eventId, sync, responses } = await setup({ autoAddNewGuests: true });
+    const payload = '<img src=x onerror=alert(1)>';
+    sheet.text = csv(`04/11/2026 10:00:00,"${payload}",Công ty,,0912000111,Có,,`);
+    await sync();
+    expect(responses()[0]).toMatchObject({ name: payload });
+    expect((responses()[0]!.raw as Record<string, string>)['Họ và tên']).toBe(payload);
+    expect(eventId).toBeTruthy();
+  });
+
+  it('records a failed fetch on the form and in a truthful audit, touching no guest', async () => {
+    const { h, eventId } = await setup();
+    await h.addGuest(eventId, { email: 'an@a.vn' as Email });
+    sheet.result = { ok: false, message: 'Không đọc được Google Sheet.' };
+    const r = await h.ok(xtdtUser, 'comms.syncForm', { eventId });
+    expect(r.value).toEqual({ status: 'error', message: 'Không đọc được Google Sheet.' });
+    const form = (h.rows('sce_tcsk_rsvp_forms') as Array<Record<string, unknown>>).find((f) => f.event_id === eventId)!;
+    expect(form).toMatchObject({ last_sync_error: 'Không đọc được Google Sheet.', last_sync_at: null });
+    expect(h.audits().at(-1)).toMatchObject({ action: 'ĐỒNG BỘ GOOGLE FORM', summary: 'Đồng bộ Google Form thất bại: Không đọc được Google Sheet.' });
+    expect(h.audits().some((a) => a.action === 'CẬP NHẬT RSVP')).toBe(false);
+  });
+
+  it('refuses to sync without a sheet link and refuses a non-sheet link at save', async () => {
+    const h = harness();
+    const eventId = await h.createEvent();
+    expect(await h.run(xtdtUser, 'comms.syncForm', { eventId })).toMatchObject({ ok: false, kind: 'invalid' });
+    const bad = await h.run(xtdtUser, 'comms.saveForm', { eventId, version: null, config: { formUrl: null, sheetUrl: 'https://evil.com/spreadsheets/d/x', autoSync: false, autoAddNewGuests: false } } as never);
+    expect(bad).toMatchObject({ ok: false, kind: 'invalid' });
+    expect(sheet.calls).toEqual([]);
+  });
+});
+
+describe('comms.resolveResponse', () => {
+  async function ambiguous() {
+    const s = await setup();
+    const a = await s.h.addGuest(s.eventId, { name: 'Lê Cường', organization: 'Công ty C' });
+    await s.h.addGuest(s.eventId, { name: 'Lê Cường', organization: 'Công ty D' });
+    sheet.text = csv('04/11/2026 10:00:00,Lê Cường,Công ty Z,,,Có,,');
+    await s.sync();
+    const row = s.responses()[0]!;
+    return { ...s, a, row: { id: row.id as ResponseRow['id'], version: row.version as ResponseRow['version'] } };
+  }
+
+  it('matches to the guest staff chose and applies the answer', async () => {
+    const { h, eventId, a, row, responses } = await ambiguous();
+    const r = await h.ok(xtdtUser, 'comms.resolveResponse', { eventId, id: row.id, version: row.version, action: { kind: 'match', guestId: a.id } });
+    expect(r.value).toEqual({ applyStatus: 'applied' });
+    expect((await h.guest(eventId, a.id)).rsvpStatus).toBe('confirmed');
+    expect(responses()[0]).toMatchObject({ match: 'manual', matched_guest_id: a.id });
+  });
+
+  it('dismiss and its undo through the same command', async () => {
+    const { h, eventId, row, responses } = await ambiguous();
+    const r = await h.ok(xtdtUser, 'comms.resolveResponse', { eventId, id: row.id, version: row.version, action: { kind: 'dismiss' } });
+    expect(responses()[0]).toMatchObject({ apply_status: 'dismissed' });
+    expect((await h.undo(xtdtUser, r.inverse)).ok).toBe(true);
+    expect(responses()[0]).toMatchObject({ apply_status: 'pending' });
+  });
+
+  it('refuses a stale version before touching any guest', async () => {
+    const { h, eventId, a, row } = await ambiguous();
+    const r = await h.run(xtdtUser, 'comms.resolveResponse', { eventId, id: row.id, version: (row.version + 1) as never, action: { kind: 'match', guestId: a.id } });
+    expect(r).toMatchObject({ ok: false, kind: 'conflict' });
+    expect((await h.guest(eventId, a.id)).rsvpStatus).toBe('pending');
+  });
+
+  it('refuses a response of another event', async () => {
+    const { h, row, a } = await ambiguous();
+    const other = await h.createEvent();
+    const r = await h.run(admin, 'comms.resolveResponse', { eventId: other as EventId, id: row.id, version: row.version, action: { kind: 'match', guestId: a.id } });
+    expect(r).toMatchObject({ ok: false, kind: 'not_found' });
+  });
+
+  it('"create" adds the newcomer once and refuses a duplicate identity', async () => {
+    const s = await setup();
+    sheet.text = csv('04/11/2026 10:00:00,Khách Mới,Công ty Mới,moi@x.vn,,Có,,');
+    await s.sync();
+    const row = s.responses()[0]!;
+    await s.h.ok(xtdtUser, 'comms.resolveResponse', { eventId: s.eventId, id: row.id as never, version: row.version as never, action: { kind: 'create' } });
+    expect(await s.h.roster(s.eventId)).toHaveLength(1);
+    expect(s.responses()[0]).toMatchObject({ match: 'created', apply_status: 'applied' });
+  });
+});
