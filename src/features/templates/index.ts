@@ -4,7 +4,7 @@
 
 export type * from './contract';
 export { renderTemplate } from './domain/merge-tags';
-export { resolveTemplateKey, templateHref, templatePrintHref } from './domain/key-mapping';
+export { resolveTemplateKey, templateHref, templatePrintHref, templateKeyOptions } from './domain/key-mapping';
 export { TemplateStudio, type StudioProps } from './components/template-studio';
 export { PrintTemplate } from './components/print-template';
 export { AdminTemplates, type AdminTemplatesProps } from './components/admin-templates';

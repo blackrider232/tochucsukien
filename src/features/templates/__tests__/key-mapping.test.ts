@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { EventId, TemplateId } from '@/core/brand';
 import { BUILTIN_IDS } from '../domain/builtin-templates';
-import { resolveTemplateKey, STEP_TEMPLATE_KEYS, templateHref, templatePrintHref } from '../domain/key-mapping';
+import { resolveTemplateKey, STEP_TEMPLATE_KEYS, templateHref, templateKeyOptions, templatePrintHref } from '../domain/key-mapping';
 
 /** Every templateKey the standard SCE process (hội nghị and hội chợ) puts on a step, read from progress's generated table. */
 function standardStepKeys(): string[] {
@@ -80,5 +80,14 @@ describe('links', () => {
   });
   it('encodes the id', () => {
     expect(templateHref('a b&c' as TemplateId, null)).toBe('/templates?t=a+b%26c');
+  });
+});
+
+describe('templateKeyOptions', () => {
+  it('lists the 23 built-ins, each one resolving to itself', () => {
+    const options = templateKeyOptions();
+    expect(options).toHaveLength(23);
+    for (const o of options) expect(resolveTemplateKey(o.value)).toBe(o.value);
+    expect(options[0]!.label).toBe('KH-UBND: Kế hoạch tổ chức chương trình sự kiện (UBND Thành phố Hà Nội)');
   });
 });

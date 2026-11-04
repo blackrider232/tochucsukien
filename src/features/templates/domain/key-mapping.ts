@@ -6,7 +6,7 @@
 import type { EventId, TemplateId } from '@/core/brand';
 import { parseUuid } from '@/core/brand';
 import type { BuiltinId } from './builtin-templates';
-import { isBuiltinId } from './builtin-templates';
+import { BUILTIN_TEMPLATES, isBuiltinId } from './builtin-templates';
 
 export interface StepKeyEntry {
   /** null: no form fits this step; the UI says "Chưa gắn biểu mẫu" instead of opening another one. */
@@ -83,3 +83,7 @@ export function templatePrintHref(id: TemplateId, eventId: EventId | null): stri
   if (eventId) q.set('event', eventId);
   return `/templates/print?${q}`;
 }
+
+/** The built-in forms a step can be attached to, for a Select in the step dialog instead of free text (m3 B08). */
+export const templateKeyOptions = (): ReadonlyArray<{ value: string; label: string }> =>
+  BUILTIN_TEMPLATES.map((t) => ({ value: t.id, label: t.code ? `${t.code}: ${t.title}` : t.title }));
