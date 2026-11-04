@@ -1,6 +1,6 @@
-// Test double behind the same Db interface. Rows are stored in their column
-// shape (snake_case, as PostgREST returns them) and go through the production
-// mapping. RLS is emulated from permissionMatrix() plus the register_table
+// Test double behind the same Db interface, and the store of the dev memory
+// runtime. Rows are stored in their column shape (snake_case, as PostgREST
+// returns them) and go through the production mapping. RLS is emulated from permissionMatrix() plus the register_table
 // policies parsed from supabase/migrations, so a module's new table is covered
 // as soon as its migration exists. Two memoryDb calls on the same seed object
 // share one database, so a test can act as two users.
@@ -25,7 +25,9 @@ interface Store {
   seq: number;
 }
 
-const stores = new WeakMap<object, Store>();
+// On globalThis so the dev memory runtime (src/core/dev) keeps its data across a hot reload of this module.
+const STORES = Symbol.for('sce.memoryDb.stores');
+const stores: WeakMap<object, Store> = ((globalThis as { [STORES]?: WeakMap<object, Store> })[STORES] ??= new WeakMap());
 let catalog: ReadonlyMap<string, CatalogTable> | null = null;
 
 function loadCatalog(): ReadonlyMap<string, CatalogTable> {
