@@ -16,6 +16,7 @@ import { listEvents, readEvent, readEventPlan } from '@/features/progress/server
 import { decodeFigures } from '../domain/figures';
 import { reportsScreen } from '../server/screen-data';
 
+vi.mock('next/dist/compiled/server-only', () => ({}));
 vi.mock('next/headers', () => ({ cookies: async () => ({ get: () => undefined, delete: () => undefined }) }));
 
 const NOW = '2026-12-08T01:00:00.000Z' as Instant;
