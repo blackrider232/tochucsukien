@@ -17,7 +17,10 @@ import { fromAddress, fromGuest, fromManual, invitationMessage, senderChoice, ty
 import { TransportError, type SendFailure } from '../domain/dispatcher';
 import { emailTemplate } from '../domain/email-templates';
 import { fakeTransport, type GmailTransport } from '../domain/transport';
+import { createCommands } from '../server/commands';
 import { cronSystemContext } from '../server/cron';
+import { DEV_SHEET_URL, DEV_SHEETS } from '../server/dev-sheets';
+import { fakeSheetSource } from '../server/sheet-source';
 import { deliveryLogData, formScreenData, invitationScreenData } from '../server/screen-data';
 import { formsTable } from '../server/tables';
 
@@ -225,6 +228,30 @@ describe('comms in the dev memory runtime, end to end', () => {
     const taken = await s.send(s.devGmail, [a], { takeOver: true });
     expect(taken.sent.map((x) => x.recipient.email)).toEqual([a.email]);
     expect((await s.audits()).some((x) => x.action === 'BẮT ĐẦU GỬI THƯ' && x.summary.includes('tiếp quản 1 người'))).toBe(true);
+  });
+
+  it('an answer with both a yes and a no word never declines a confirmed guest or frees the seat', async () => {
+    const s = await scenario();
+    await s.run('comms.syncForm', { eventId: s.eventId });
+    const guestE = async () => (await readRoster(s.ctx, s.eventId)).find((g) => g.email === 'thu.nghiem.e@example.com')!;
+    const before = await guestE();
+    expect(before).toMatchObject({ rsvpStatus: 'confirmed' });
+    const sheets = fakeSheetSource(DEV_SHEETS);
+    const comms = commandLookup({ ...featureServers, comms: { commands: createCommands({ sheets }) } });
+    const phrases = [
+      'Tôi xác nhận tham dự, không ăn tiệc',
+      'Xin xác nhận sẽ tham dự cùng Ban Giám đốc',
+      'Tôi sẽ tham dự, không có gì thay đổi',
+      'Em xác nhận tham dự, không cử người đi thay',
+      'Có, nhưng không tham dự được',
+      'Ban Giám đốc',
+    ];
+    for (const [i, answer] of phrases.entries()) {
+      sheets.set(DEV_SHEET_URL, `${DEV_SHEETS[DEV_SHEET_URL]}\r\n04/11/2026 1${i}:00:00,Doanh nhân Thử Nghiệm E,Công ty Thử Nghiệm Một,thu.nghiem.e@example.com,,"${answer}",Không,`);
+      const r = await runCommand(s.ctx, comms, 'comms.syncForm', { eventId: s.eventId });
+      expect(r).toMatchObject({ ok: true });
+      expect(await guestE(), answer).toMatchObject({ rsvpStatus: before.rsvpStatus, substituteName: before.substituteName, seatCode: before.seatCode });
+    }
   });
 
   it('a send outside the dev runtime refuses the fake transport’s results', async () => {
