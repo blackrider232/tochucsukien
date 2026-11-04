@@ -196,6 +196,8 @@ const holidays2028 = () => db.query(`select holiday_date::text as d, name, kind 
 await as(ids.leader, 'aal2', () => db.query(`select public.sce_tcsk_replace_holidays(2028, ${year2028})`));
 const once = (await holidays2028()).rows;
 await as(ids.leader, 'aal2', () => db.query(`select public.sce_tcsk_replace_holidays(2028, ${year2028})`));
+const replaced = await as(ids.leader, 'aal2', () => db.query(`select public.sce_tcsk_replace_holidays(2028, ${year2028}) as prev`));
+assert.deepEqual(replaced.rows[0].prev.map((h) => h.date), ['2028-01-01', '2028-01-26', '2028-01-29'], 'replace returns the rows it replaced');
 assert.deepEqual((await holidays2028()).rows, once, 'replacing a year twice with the same list converges');
 assert.equal(once.length, 3, 'the fixed-date 2028 rows are replaced by the given list');
 assert.equal((await db.query(`select count(*)::int as n from public.sce_tcsk_holidays where holiday_date between '2027-01-01' and '2027-12-31'`)).rows[0].n, 4, 'other years are untouched');

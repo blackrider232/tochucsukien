@@ -49,14 +49,15 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------------------
--- Holidays: replace one calendar year in one statement-level transaction.
--- Running it twice with the same list leaves the same rows (core Q12).
+-- Holidays: replace one calendar year in one statement-level transaction and
+-- return the rows it replaced, so the command can audit the difference and
+-- offer undo. Running it twice with the same list leaves the same rows (core Q12).
 -- ---------------------------------------------------------------------------
-create or replace function public.sce_tcsk_replace_holidays(year integer, holidays jsonb) returns integer
+create or replace function public.sce_tcsk_replace_holidays(year integer, holidays jsonb) returns jsonb
 language plpgsql security invoker set search_path = '' as $$
 declare
   first_day date;
-  n integer;
+  previous jsonb;
 begin
   if not tcsk.has_perm('core.holidays.edit') then
     raise exception 'forbidden' using errcode = '42501';
@@ -78,13 +79,16 @@ begin
     raise exception 'holiday_outside_year' using errcode = '22023';
   end if;
 
+  select coalesce(jsonb_agg(jsonb_build_object('date', d.holiday_date, 'name', d.name, 'kind', d.kind) order by d.holiday_date), '[]')
+    into previous
+    from public.sce_tcsk_holidays d
+   where d.holiday_date >= first_day and d.holiday_date < (first_day + interval '1 year')::date;
   delete from public.sce_tcsk_holidays d
    where d.holiday_date >= first_day and d.holiday_date < (first_day + interval '1 year')::date;
   insert into public.sce_tcsk_holidays (holiday_date, name, kind, updated_by)
   select (h ->> 'date')::date, left(trim(h ->> 'name'), 120), coalesce(h ->> 'kind', 'holiday'), auth.uid()
     from jsonb_array_elements(holidays) h;
-  get diagnostics n = row_count;
-  return n;
+  return previous;
 end $$;
 
 -- ---------------------------------------------------------------------------

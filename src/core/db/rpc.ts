@@ -3,7 +3,7 @@
 
 import { z } from 'zod';
 import type { EventId, Instant } from '@/core/brand';
-import { parseProfileRow } from '@/core/auth/profile';
+import { parseHolidayRows, parseProfileRow } from '@/core/auth/profile';
 import { parseInstant } from '@/core/dates';
 import { parseSettingsRow, type SettingsPatch } from '@/core/settings';
 import type { AuditLogRow, BackupRow, RpcMap } from './index';
@@ -86,7 +86,7 @@ export const RPC_ALLOWLIST: { readonly [K in keyof RpcMap]: RpcSpec<K> } = {
   },
   sce_tcsk_replace_holidays: {
     args: (a) => ({ year: a.year, holidays: a.holidays.map((h) => ({ date: h.date, name: h.name, kind: h.kind })) }),
-    result: (d) => Number(d),
+    result: (d) => parseHolidayRows(Array.isArray(d) ? d.map((h: { date?: unknown; name?: unknown; kind?: unknown }) => ({ holiday_date: h.date, name: h.name, kind: h.kind })) : []),
   },
   sce_tcsk_update_profile_name: { args: (a) => ({ new_fullname: a.fullname }), result: parseProfileRow },
   sce_tcsk_list_profiles: { args: () => ({}), result: list(parseProfileRow) },

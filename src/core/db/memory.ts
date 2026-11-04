@@ -11,7 +11,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { newId, type Instant } from '@/core/brand';
 import type { Actor } from '@/core/auth';
-import { parseProfileRow } from '@/core/auth/profile';
+import { parseHolidayRows, parseProfileRow } from '@/core/auth/profile';
 import { todayVN } from '@/core/dates';
 import { parseSettingsRow } from '@/core/settings';
 import { aalOk, grantOf, permissionMatrix, type Permission } from '@/core/permissions';
@@ -395,10 +395,11 @@ function rpcHandlers(store: Store, actor: Actor, rls: Rls): { readonly [K in key
       if (a.holidays.some((h) => !inYear(h.date) || !h.name.trim())) throw new DbError('constraint', { constraint: 'holiday_outside_year' });
       if (new Set(a.holidays.map((h) => h.date)).size !== a.holidays.length) throw new DbError('constraint', { constraint: 'sce_tcsk_holidays_pkey' });
       const at = new Date().toISOString();
+      const previous = parseHolidayRows(rowsOf(store, 'sce_tcsk_holidays').filter((h) => inYear(h.holiday_date)));
       const kept = rowsOf(store, 'sce_tcsk_holidays').filter((h) => !inYear(h.holiday_date));
       const added = a.holidays.map((h) => ({ holiday_date: h.date, name: h.name.trim().slice(0, 120), kind: h.kind, updated_at: at, updated_by: actor.profile.id }));
       store.tables.set('sce_tcsk_holidays', [...kept, ...added].sort((x, y) => String(x.holiday_date).localeCompare(String(y.holiday_date))));
-      return added.length;
+      return previous;
     },
     sce_tcsk_update_profile_name: (a) => {
       if (actor.profile.status !== 'active') throw new DbError('forbidden');
