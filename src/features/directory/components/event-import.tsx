@@ -104,7 +104,7 @@ export function BatchImportDialog({
     { id: 'banquet', header: 'Tiệc', hideOnMobile: true, cell: (c) => <BanquetCell c={c} /> },
     {
       id: 'status', header: 'Trạng thái',
-      cell: (c) => (existing === null ? <span className="text-xs text-ink-muted">Đang kiểm tra…</span> : existing.has(c.id) ? <Badge tone="amber">Đã có trong sự kiện</Badge> : <Badge tone="emerald">Chưa thêm</Badge>),
+      cell: (c) => (existing === null ? <span className="text-xs text-ink-muted">{failed ? 'Chưa kiểm tra được' : 'Đang kiểm tra…'}</span> : existing.has(c.id) ? <Badge tone="amber">Đã có trong sự kiện</Badge> : <Badge tone="emerald">Chưa thêm</Badge>),
     },
   ];
 
@@ -136,7 +136,7 @@ export function BatchImportDialog({
         <>
           <p className="mr-auto text-sm text-ink-2" aria-live="polite">Đã chọn: <strong>{selected.size}</strong> đối tượng</p>
           <Button variant="secondary" onClick={onClose}>Hủy</Button>
-          <Button icon="download" loading={busy} disabled={selected.size === 0 || tooMany || existing === null} onClick={() => void submit()}>Nhập đại biểu đã chọn</Button>
+          <Button icon="download" loading={busy} disabled={selected.size === 0 || tooMany || (existing === null && !failed)} onClick={() => void submit()}>Nhập đại biểu đã chọn</Button>
         </>
       }
     >

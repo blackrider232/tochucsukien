@@ -128,6 +128,22 @@ describe('a large import or bulk delete goes in chunks, each its own command wit
   });
 });
 
+describe('the copy into an event when the match check fails', () => {
+  it('still lets the admin copy, since the copy itself skips who is already there', async () => {
+    const user = userEvent.setup();
+    dispatch.mockImplementation(async (id: string) =>
+      id === 'directory.eventMatches' ? { ok: false, kind: 'unavailable', message: 'Không kết nối được máy chủ. Vui lòng thử lại.' } : { ok: true, value: { added: 1, updated: 0, skipped: 0, missing: 0 } },
+    );
+    const c = contact();
+    renderUi(withAppContext(<BatchImportDialog eventId={EVENT} contacts={[c]} initialSelected={[c.id]} onClose={() => undefined} />));
+    expect(await screen.findByText(/Chưa kiểm tra được đại biểu nào đã có trong sự kiện/)).toBeInTheDocument();
+    const submit = screen.getByRole('button', { name: 'Nhập đại biểu đã chọn' });
+    expect(submit).toBeEnabled();
+    await user.click(submit);
+    await waitFor(() => expect(dispatch).toHaveBeenCalledWith('directory.importToEvent', { eventId: EVENT, ids: [c.id], onExisting: 'skip' }));
+  });
+});
+
 describe('read-only and admin views (m4c B8)', () => {
   it('a reader sees the list, search, export and the copy, but no add, edit, delete, import or reset', () => {
     renderUi(withAppContext(<DirectoryScreen contacts={[contact()]} canAdmin={false} events={[]} />));
