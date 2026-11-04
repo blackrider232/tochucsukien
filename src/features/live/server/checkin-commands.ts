@@ -191,6 +191,8 @@ export const restoreCheckIn: Spec<'live.restoreCheckIn'> = {
     const tokens = ctx.db.table(undoTokensTable);
     const token = await tokens.get(tokenId);
     if (!token || token.eventId !== eventId || token.guestId !== guestId || token.consumedAt) throw new CommandError('conflict', NO_UNDO);
+    // The database lets only the writer of a token consume it, so another desk cannot burn the owner's undo.
+    if (token.createdBy !== ctx.actor.profile.id) throw new CommandError('conflict', 'Chỉ người đã hủy check-in mới hoàn tác được thao tác này.');
     if (Date.parse(token.expiresAt) <= Date.parse(ctx.now)) {
       await tokens.remove(token.id, { expectedVersion: token.version }).catch(() => undefined);
       throw new CommandError('conflict', `Đã quá ${UNDO_MINUTES} phút nên không hoàn tác được. Check-in lại cho ${guest.name} nếu đại biểu vẫn có mặt.`);

@@ -11,6 +11,8 @@
 --   * an undo token matches the check-in it copies to the millisecond: the app
 --     reads instants to the millisecond, so a check-in written directly with
 --     microseconds could otherwise never be cancelled.
+--   * an undo token is consumed only by the user who wrote it (the desk that
+--     cancelled), so another desk cannot burn it with a no-op UPDATE.
 -- Idempotent: create or replace, drop trigger if exists.
 
 create or replace function tcsk.live_undo_token_guard() returns trigger
@@ -42,6 +44,9 @@ begin
   end if;
   if old.expires_at <= now() then
     raise exception 'the undo token has expired' using errcode = '42501';
+  end if;
+  if old.created_by is distinct from auth.uid() then
+    raise exception 'an undo token is consumed only by its creator' using errcode = '42501';
   end if;
   if (new.event_id, new.guest_id, new.checked_in_at, new.checked_in_by, new.desk, new.gift_given_at, new.declined_confirmed, new.expires_at)
      is distinct from (old.event_id, old.guest_id, old.checked_in_at, old.checked_in_by, old.desk, old.gift_given_at, old.declined_confirmed, old.expires_at) then

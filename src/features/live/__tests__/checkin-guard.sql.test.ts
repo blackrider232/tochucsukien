@@ -112,7 +112,7 @@ describe('a desk user writing check-ins directly', () => {
       expect(await checkinOf(target)).toBeUndefined();
     }
     expect(await checkinOf(came)).toMatchObject({ checked_in_by: B, desk: 'Bàn 4' });
-    await asB(copyAsToken(came));
+    await asA(copyAsToken(came));
     await expect(asA(`update public.sce_tcsk_checkin_undo_tokens set guest_id = '${absent}' where guest_id = '${came}'`)).rejects.toThrow(/only consumed/);
   });
 
@@ -247,6 +247,21 @@ describe('an undo token is held to what it copies and to one use', () => {
     await asB(`delete from public.sce_tcsk_checkin_undo_tokens where id = '${first}'`);
     await expect(asA(`insert into public.sce_tcsk_checkin_undo_tokens (event_id, guest_id, checked_in_at, checked_in_by, expires_at)
       values ('${eventId}', '${g}', now(), '${B}', now() + interval '15 minutes')`)).rejects.toMatchObject({ code: '42501' });
+  });
+
+  it('is consumed only by the desk that cancelled: another desk cannot burn it, not even with a no-op update', async () => {
+    const g = await addGuest('Dương Văn Giữ');
+    await asB(`insert into public.sce_tcsk_checkins (event_id, guest_id, checked_in_at, checked_in_by, desk) values ('${eventId}', '${g}', now(), '${B}', 'Bàn 3')`);
+    const token = (await asB(copyAsToken(g))).rows[0]!.id as string;
+    await asB(`delete from public.sce_tcsk_checkins where guest_id = '${g}'`);
+    const live = async () => (await q(`select consumed_at, consumed_by from public.sce_tcsk_checkin_undo_tokens where id = '${token}'`)).rows[0];
+    for (const set of [`consumed_at = now()`, `desk = desk`, `version = version`]) {
+      await expect(asA(`update public.sce_tcsk_checkin_undo_tokens set ${set} where id = '${token}'`), set).rejects.toThrow(/creator/);
+    }
+    expect(await live()).toEqual({ consumed_at: null, consumed_by: null });
+    await asB(`update public.sce_tcsk_checkin_undo_tokens set consumed_at = now() where id = '${token}'`);
+    await asB(restoreSql(g, {}));
+    expect(await checkinOf(g)).toMatchObject({ checked_in_by: B, desk: 'Bàn 3' });
   });
 
   it('restores only what the token holds: a different time, actor, desk or gift is refused', async () => {

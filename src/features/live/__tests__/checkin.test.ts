@@ -219,6 +219,7 @@ describe('the undo of a cancel restores what the server kept, once', () => {
   const GIFT_AT = '2026-12-15T00:50:00.000Z' as Instant;
   const CANCEL_AT = '2026-12-15T02:00:00.000Z' as Instant;
   const restorer = testActor('user', XTDT);
+  const secondDesk = testActor('user', XTDT);
 
   async function cancelled() {
     const s = await setup();
@@ -275,7 +276,6 @@ describe('the undo of a cancel restores what the server kept, once', () => {
 
   describe('two desks cancel the same check-in at once', () => {
     const TOKENS = 'sce_tcsk_checkin_undo_tokens';
-    const secondDesk = testActor('user', XTDT);
     async function checkedIn() {
       const s = await setup();
       await s.h.ok(desk, 'live.checkIn', { eventId: s.eventId, guestId: s.guest.id, desk: 'Bàn 2' });
@@ -326,6 +326,17 @@ describe('the undo of a cancel restores what the server kept, once', () => {
       expect(await h.runWith(restorer, refusing, 'live.cancelCheckIn', { eventId, guestId: guest.id })).toMatchObject({ ok: false, kind: 'forbidden' });
       expect(await h.checkins(eventId)).toHaveLength(1);
     });
+  });
+
+  it('is used only by the desk that cancelled: another desk is refused and the token stays for the owner', async () => {
+    const { h, eventId, cancel } = await cancelled();
+    h.clock.now = '2026-12-15T02:05:00.000Z' as Instant;
+    const r = await h.undo(secondDesk, cancel.inverse);
+    expect(r).toMatchObject({ ok: false, kind: 'conflict' });
+    expect(r.ok ? '' : r.message).toContain('Chỉ người đã hủy');
+    expect(await h.checkins(eventId)).toEqual([]);
+    expect(h.rows('sce_tcsk_checkin_undo_tokens')).toHaveLength(1);
+    expect(await h.undo(restorer, cancel.inverse)).toMatchObject({ ok: true });
   });
 
   it('an expired token is refused', async () => {

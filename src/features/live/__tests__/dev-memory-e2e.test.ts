@@ -79,7 +79,9 @@ describe('dev memory: check in, cancel, undo through the token', () => {
     at(60);
     const cancel = await ok('dept_leader:XTDT', 'live.cancelCheckIn', { eventId, guestId: guest.id });
     at(65);
-    expect(await undo(desk, cancel.inverse)).toMatchObject({ ok: true });
+    // The token belongs to the desk that cancelled: another desk cannot use or burn it.
+    expect(await undo(desk, cancel.inverse)).toMatchObject({ ok: false, kind: 'conflict' });
+    expect(await undo('dept_leader:XTDT', cancel.inverse)).toMatchObject({ ok: true });
     const restored = await guestNamed(eventId, guest.name);
     expect(restored).toMatchObject({ checkedInAt: c.value.checkIn.checkedInAt, giftGivenAt: new Date(T0.getTime() + 5 * 60_000).toISOString() });
     const { readCheckIns } = await import('../server/reads');
