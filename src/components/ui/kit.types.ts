@@ -22,8 +22,8 @@ export type IconName =
   | 'undo' | 'redo' | 'moon' | 'sun' | 'plus' | 'pencil' | 'trash' | 'search' | 'x' | 'check' | 'qr-code'
   | 'mail' | 'file-spreadsheet' | 'file-text' | 'alert-triangle' | 'clock' | 'lock' | 'unlock' | 'shield'
   | 'log-out' | 'chevron-down' | 'chevron-right' | 'copy' | 'external-link' | 'upload' | 'map' | 'armchair' | 'menu'
-  // Legacy emoji meanings: ⭐ star, 🏛 landmark, 🌐 globe, 💼 briefcase, 📰 newspaper, 📍 map-pin, 🚨 siren,
-  // 🔴/🟢/🟡 circle-x / circle-check / alert-triangle. Plus the controls the kit itself needs.
+  // The legacy emoji meanings: VIP star, Sở ngành landmark, Quốc tế globe, Doanh nghiệp briefcase, Báo chí newspaper,
+  // venue map-pin, emergency siren, red/green/yellow status circle-x / circle-check / alert-triangle. Then kit controls.
   | 'star' | 'landmark' | 'globe' | 'briefcase' | 'newspaper' | 'map-pin' | 'siren' | 'info' | 'circle-x'
   | 'circle-check' | 'filter' | 'ellipsis' | 'arrow-left' | 'arrow-left-right' | 'calendar' | 'phone' | 'eye'
   | 'refresh' | 'list-check' | 'paperclip' | 'layers';
