@@ -54,10 +54,14 @@ declare module '@/core/commands' {
       },
       { campaignId: CampaignId; claimed: ReadonlyArray<Email>; alreadySent: ReadonlyArray<Email>; inFlight: ReadonlyArray<Email>; ownInFlight: ReadonlyArray<Email>; unclear: ReadonlyArray<Email> }
     >;
-    /** Outcomes of real sends, recorded as Gmail answered them, each on the claim this run holds. */
+    /**
+     * Outcomes of real sends, recorded as Gmail answered them, each on the claim this run holds. `next` is the run's
+     * next message, marked as being sent in the same write (comms.markSending's work); `nextHeld` says whether it was,
+     * null when it was not asked or could not be told.
+     */
     'comms.recordDeliveries': Sig<
-      { eventId: EventId; campaignId: CampaignId; runToken: RunToken; senderEmail: Email; subject: string; results: ReadonlyArray<DeliveryResult> },
-      { recorded: number; notInvited: number }
+      { eventId: EventId; campaignId: CampaignId; runToken: RunToken; senderEmail: Email; subject: string; results: ReadonlyArray<DeliveryResult>; next?: Email | null },
+      { recorded: number; notInvited: number; nextHeld: boolean | null }
     >;
     /** After a check of Gmail's Sent folder: messages whose answer was lost did not go, and may be sent again. */
     'comms.markNotSent': Sig<{ eventId: EventId; campaignId: CampaignId; emails: ReadonlyArray<Email> }, { marked: number }>;

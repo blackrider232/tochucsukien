@@ -144,18 +144,18 @@ export function InvitationsPage({ data }: { data: InvitationScreenData }) {
             takeOver: r.takeOver,
             recipients: chunk.map((x) => ({ guestId: x.guestId, email: x.email, recipientName: x.name })),
           })) ?? null,
-        async record(campaignId, runToken, o) {
+        async record(campaignId, runToken, o, next) {
           const result = o.kind === 'sent'
             ? { guestId: o.recipient.guestId, email: o.recipient.email, recipientName: o.recipient.name, status: 'sent' as const, providerMessageId: o.messageId, error: null }
             : { guestId: o.recipient.guestId, email: o.recipient.email, recipientName: o.recipient.name, status: o.kind === 'unknown' ? ('unknown' as const) : ('error' as const), providerMessageId: null, error: o.failure.message.slice(0, 500) };
-          const saved = await run('comms.recordDeliveries', { eventId: data.event.id, campaignId, runToken, senderEmail: ctx.from.email, subject: subjectOf(o.recipient), results: [result] });
+          const saved = await run('comms.recordDeliveries', { eventId: data.event.id, campaignId, runToken, senderEmail: ctx.from.email, subject: subjectOf(o.recipient), results: [result], next });
           if (!saved) return false;
           addLog(
             o.kind === 'sent' ? 'success' : 'error',
             o.kind === 'sent' ? `Đã gửi: ${o.recipient.name || o.recipient.email} <${o.recipient.email}>` : o.kind === 'unknown' ? `Không rõ đã gửi: ${o.recipient.email}: ${o.failure.message}` : `Lỗi: ${o.recipient.email}: ${o.failure.message}`,
           );
           if (saved.notInvited > 0) addLog('error', `Chưa cập nhật được trạng thái giấy mời của ${o.recipient.name || o.recipient.email}; hãy cập nhật ở danh sách khách mời.`);
-          return true;
+          return { nextHeld: saved.nextHeld };
         },
         async release(campaignId, runToken, emails) {
           await run('comms.releaseDeliveries', { eventId: data.event.id, campaignId, runToken, emails });

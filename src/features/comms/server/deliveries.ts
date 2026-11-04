@@ -183,10 +183,11 @@ export const recordDeliveries: CommandSpec<InputOf<'comms.recordDeliveries'>, Ou
       senderEmail: requiredEmailSchema,
       subject: z.string().trim().max(500),
       results: z.array(deliveryResultSchema).min(1).max(MAX_DELIVERY_BATCH),
+      next: requiredEmailSchema.nullable().optional(),
     }),
   ),
   authorize: send,
-  async run(ctx, { eventId, campaignId, runToken, senderEmail, subject, results }) {
+  async run(ctx, { eventId, campaignId, runToken, senderEmail, subject, results, next }) {
     const claim = claimHash(runToken);
     // The fake transport exists for the dev memory runtime; its ids are refused anywhere else.
     if (!devMemoryEnabled() && results.some((r) => r.providerMessageId?.startsWith(DEV_FAKE_ID_PREFIX))) {
@@ -254,15 +255,18 @@ export const recordDeliveries: CommandSpec<InputOf<'comms.recordDeliveries'>, Ou
         notInvited = invited.length;
       }
     }
+    // The record stands whatever the mark of the next message answers; a mark that failed is the browser's to retry.
+    const nextHeld = next ? await markHeld(ctx, eventId, campaignId, runToken, next).then((m) => m.held, () => null) : null;
     const parts = [
       `${sent} thư đã gửi`,
       `${failed} thư lỗi`,
       ...(unknown ? [`${unknown} thư không rõ đã gửi hay chưa (mất kết nối khi chờ Gmail trả lời), cần kiểm tra mục Đã gửi của Gmail`] : []),
       ...(kept ? [`${kept} kết quả bỏ qua vì đã gửi thành công trước đó`] : []),
       ...(notInvited ? [`chưa cập nhật được trạng thái giấy mời của ${notInvited} khách, cần cập nhật thủ công`] : []),
+      ...(nextHeld === true ? [`bắt đầu gửi thư tiếp theo tới ${next}`] : nextHeld === false ? [`thư tiếp theo tới ${next} không còn do phiên gửi này giữ chỗ`] : []),
     ];
     return {
-      value: { recorded: sent + failed + unknown, notInvited },
+      value: { recorded: sent + failed + unknown, notInvited, nextHeld },
       audit: audit('GỬI THƯ MỜI', `Gửi thư "${subject}" từ ${senderEmail}: ${parts.join(', ')}`, eventId, 'email_campaign', campaignId),
     };
   },
@@ -336,29 +340,42 @@ export const renewClaims: CommandSpec<InputOf<'comms.renewClaims'>, OutputOf<'co
 };
 
 /**
- * Marks this run's claim of one address 'sending', just before the message is handed to Gmail, so a run that dies
- * after Gmail took it never leaves a claim another run would send again. Declared a query so the pipeline writes no
- * audit row: the mark is transient, once per message, and the message's record (or "Không rõ đã gửi") follows it.
- * A row per mark doubled a campaign's audit log. The permission, the token and the database guard apply as to a write.
+ * Marks this run's claim of one address 'sending' (when it holds it), so a run that dies after Gmail took the message
+ * never leaves a claim another run would send again. A lost claim is an answer, not a failure: the run stops as
+ * claim_lost, which a failure could not be told apart from.
+ */
+async function markHeld(ctx: CommandContext, eventId: EventId, campaignId: CampaignId, runToken: RunToken, email: Email): Promise<{ held: boolean; subject: string }> {
+  const d = (await byEmail(ctx, eventId, campaignId)).get(email);
+  if (!d || !heldBy(d, claimHash(runToken))) return { held: false, subject: d?.subject ?? '' };
+  if (d.status === 'queued') {
+    try {
+      await ctx.db.table(deliveriesTable).update(d.id, { status: 'sending', claimProof: runToken }, { expectedVersion: d.version });
+    } catch (e) {
+      // Taken over or recorded between the read and the mark.
+      if (e instanceof DbError && e.kind === 'conflict') return { held: false, subject: d.subject };
+      throw e;
+    }
+  }
+  return { held: true, subject: d.subject };
+}
+
+/**
+ * The mark before a message goes to Gmail, for the run's first message and whenever the record before it could not
+ * mark it; every other mark rides on the previous message's record (recordDeliveries `next`), so a message costs one
+ * write and one audit row.
  */
 export const markSending: CommandSpec<InputOf<'comms.markSending'>, OutputOf<'comms.markSending'>> = {
-  kind: 'query',
+  kind: 'mutation',
   input: asSchema(z.object({ eventId: eventIdSchema, campaignId: campaignIdSchema, runToken: runTokenSchema, email: requiredEmailSchema })),
   authorize: send,
   async run(ctx, { eventId, campaignId, runToken, email }) {
-    const d = (await byEmail(ctx, eventId, campaignId)).get(email);
-    // A lost claim is an answer, not a failure: the run stops as claim_lost, which a failure could not tell apart.
-    if (!d || !heldBy(d, claimHash(runToken))) return { value: { held: false }, audit: null };
-    if (d.status === 'queued') {
-      try {
-        await ctx.db.table(deliveriesTable).update(d.id, { status: 'sending', claimProof: runToken }, { expectedVersion: d.version });
-      } catch (e) {
-        // Taken over or recorded between the read and the mark.
-        if (e instanceof DbError && e.kind === 'conflict') return { value: { held: false }, audit: null };
-        throw e;
-      }
-    }
-    return { value: { held: true }, audit: null };
+    const { held, subject } = await markHeld(ctx, eventId, campaignId, runToken, email);
+    return {
+      value: { held },
+      audit: held
+        ? audit('ĐANG GỬI THƯ', `Bắt đầu gửi thư "${subject}" tới ${email}`, eventId, 'email_campaign', campaignId)
+        : audit('ĐANG GỬI THƯ', `Không gửi thư tới ${email}: phiên gửi này không còn giữ chỗ (đã có kết quả, hoặc một phiên khác đã tiếp quản)`, eventId, 'email_campaign', campaignId),
+    };
   },
 };
 

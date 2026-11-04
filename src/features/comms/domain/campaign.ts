@@ -46,8 +46,8 @@ export interface RunClaim {
 export interface CampaignApi {
   /** comms.startCampaign for one chunk; null when it failed (the caller has shown why). */
   claim(chunk: ReadonlyArray<Recipient>, run: RunClaim): Promise<ClaimResult | null>;
-  /** comms.recordDeliveries for one outcome; false when it failed. */
-  record(campaignId: CampaignId, token: RunToken, outcome: DispatchOutcome<Recipient>): Promise<boolean>;
+  /** comms.recordDeliveries for one outcome, marking `next` as being sent; false when it failed. */
+  record(campaignId: CampaignId, token: RunToken, outcome: DispatchOutcome<Recipient>, next: Email | null): Promise<false | { nextHeld: boolean | null }>;
   /** comms.releaseDeliveries; a failure leaves the rows "Đang gửi" in the log and is not fatal. */
   release(campaignId: CampaignId, token: RunToken, emails: ReadonlyArray<Email>): Promise<void>;
   /** comms.renewClaims: the addresses this run still holds, or null when the renewal failed (or held nothing). */
@@ -102,6 +102,9 @@ export async function runCampaign(
   const toSend = o.recipients.filter((r) => claimed.has(r.email));
   const now = o.now ?? Date.now;
   let renewedAt = now();
+  /** Marked as being sent already, by markSending or by the record of the message before. */
+  const marked = new Set<string>();
+  const nextAfter = (email: string) => toSend[toSend.findIndex((r) => r.email === email) + 1]?.email ?? null;
   const report = await dispatch({
     ...o,
     recipients: toSend,
@@ -113,13 +116,20 @@ export async function runCampaign(
       }
       if (now() - renewedAt >= CLAIM_STALE_MS) throw new TransportError({ kind: 'claim_stale', message: 'Không gia hạn được giữ chỗ người nhận.' });
       // Marked before Gmail is asked: a run that dies past this point leaves no claim another run would send again.
-      const marked = await o.api.markSending(id, token, r.email).catch(() => null);
-      if (marked === false) throw new TransportError({ kind: 'claim_lost', message: 'Một phiên gửi khác đã tiếp quản những người nhận còn lại.' });
-      if (marked === null) throw new TransportError({ kind: 'not_marked', message: 'Không đánh dấu được thư là đang gửi.' });
+      if (!marked.has(r.email)) {
+        const held = await o.api.markSending(id, token, r.email).catch(() => null);
+        if (held === false) throw new TransportError({ kind: 'claim_lost', message: 'Một phiên gửi khác đã tiếp quản những người nhận còn lại.' });
+        if (held === null) throw new TransportError({ kind: 'not_marked', message: 'Không đánh dấu được thư là đang gửi.' });
+        marked.add(r.email);
+      }
       return o.send(r);
     },
     async record(outcome) {
-      if (!(await o.api.record(id, token, outcome))) throw new Error('record');
+      // After a sent message the run goes on, so its record marks the next one; a failure may stop the run.
+      const next = outcome.kind === 'sent' ? nextAfter(outcome.recipient.email) : null;
+      const saved = await o.api.record(id, token, outcome, next);
+      if (!saved) throw new Error('record');
+      if (next && saved.nextHeld) marked.add(next);
     },
   });
   await release(id, report.skipped.map((s) => s.recipient.email));

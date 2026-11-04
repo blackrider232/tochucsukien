@@ -432,17 +432,34 @@ describe('a send whose answer was lost', () => {
 });
 
 describe('comms.markSending', () => {
-  it('marks this run’s claim without an audit row of its own: the record that follows, or "Không rõ", tells the story', async () => {
+  it('is a write like any other: one audit row, also when the run no longer holds the claim', async () => {
     const h = harness();
     const eventId = await h.createEvent();
     const { campaignId } = await start(h, eventId, [to('a@x.vn')]);
     const audits = h.audits().length;
     expect(await marking(h, eventId, campaignId, 'a@x.vn')).toMatchObject({ ok: true, value: { held: true } });
     expect(deliveries(h)).toEqual([['a@x.vn', 'sending']]);
-    // Marked again on a retry of the same message: nothing changes.
-    expect(await marking(h, eventId, campaignId, 'a@x.vn')).toMatchObject({ ok: true, value: { held: true } });
+    expect(h.audits().slice(audits)).toEqual([expect.objectContaining({ action: 'ĐANG GỬI THƯ', summary: 'Bắt đầu gửi thư "Giấy mời {ho_ten}" tới a@x.vn' })]);
     expect(await marking(h, eventId, campaignId, 'a@x.vn', TAB_B)).toMatchObject({ ok: true, value: { held: false } });
-    expect(h.audits()).toHaveLength(audits);
+    expect(h.audits().at(-1)).toMatchObject({ action: 'ĐANG GỬI THƯ', summary: expect.stringContaining('Không gửi thư tới a@x.vn: phiên gửi này không còn giữ chỗ') });
+    expect(deliveries(h)).toEqual([['a@x.vn', 'sending']]);
+  });
+
+  it('a record marks the run’s next message as being sent, in its own audit row', async () => {
+    const h = harness();
+    const eventId = await h.createEvent();
+    const { campaignId } = await start(h, eventId, [to('a@x.vn'), to('b@x.vn')]);
+    await marking(h, eventId, campaignId, 'a@x.vn');
+    const audits = h.audits().length;
+    const r = await h.ok(xtdtUser, 'comms.recordDeliveries', { eventId, campaignId, runToken: TAB_A, senderEmail: SENDER, subject: 'Giấy mời', results: [sent('a@x.vn')], next: 'b@x.vn' as Email });
+    expect(r.value).toEqual({ recorded: 1, notInvited: 0, nextHeld: true });
+    expect(deliveries(h)).toEqual([['a@x.vn', 'sent'], ['b@x.vn', 'sending']]);
+    expect(h.audits().slice(audits)).toEqual([expect.objectContaining({ action: 'GỬI THƯ MỜI', summary: expect.stringContaining('bắt đầu gửi thư tiếp theo tới b@x.vn') })]);
+    // Another run's claim is not this run's to mark: the record stands and says so.
+    expect((await start(h, eventId, [to('c@x.vn')], colleague, MESSAGE, TAB_B)).claimed).toEqual(['c@x.vn']);
+    const lost = await h.ok(xtdtUser, 'comms.recordDeliveries', { eventId, campaignId, runToken: TAB_A, senderEmail: SENDER, subject: 'Giấy mời', results: [sent('b@x.vn')], next: 'c@x.vn' as Email });
+    expect(lost.value).toEqual({ recorded: 1, notInvited: 0, nextHeld: false });
+    expect(deliveries(h)).toEqual([['a@x.vn', 'sent'], ['b@x.vn', 'sent'], ['c@x.vn', 'queued']]);
   });
 });
 
@@ -587,6 +604,10 @@ describe('audit rows of commands that write more than once', () => {
         input: { eventId, senderEmail: SENDER, ...MESSAGE, attachQr: false, runToken: TAB_A, takeOver: false, recipients: [to('a@x.vn')] },
         after: [['a@x.vn', 'queued']],
       })],
+      ['comms.markSending', async (h, eventId) => {
+        const { campaignId } = await start(h, eventId, [to('a@x.vn')]);
+        return { input: { eventId, campaignId, runToken: TAB_A, email: 'a@x.vn' }, after: [['a@x.vn', 'sending']] };
+      }],
       ['comms.recordDeliveries', async (h, eventId) => {
         const g = await h.addGuest(eventId, { email: 'a@x.vn' as Email });
         const { campaignId } = await start(h, eventId, [to('a@x.vn', g.id), to('b@x.vn')]);

@@ -14,9 +14,9 @@ function fakeApi() {
       for (const r of chunk) held.add(r.email);
       return { campaignId: CAMPAIGN, claimed: chunk.map((r) => r.email), alreadySent: [], inFlight: [], ownInFlight: [], unclear: [] };
     }),
-    record: vi.fn<CampaignApi['record']>(async (_c, _t, o) => {
+    record: vi.fn<CampaignApi['record']>(async (_c, _t, o, next) => {
       held.delete(o.recipient.email);
-      return true;
+      return { nextHeld: next ? held.has(next) : null };
     }),
     release: vi.fn<CampaignApi['release']>(async () => undefined),
     renew: vi.fn<CampaignApi['renew']>(async () => [...held] as Email[]),
@@ -161,13 +161,27 @@ describe('runCampaign marks each message as being sent before Gmail is asked', (
       return true;
     });
     const sent: string[] = [];
-    const report = await go({ ...api, record: async (_c, _t, o) => (order.push(`record ${o.recipient.email}`), true) }, sent);
+    const report = await go({ ...api, record: async (_c, _t, o, next) => (order.push(`record ${o.recipient.email}, mark ${next ?? '-'}`), { nextHeld: next ? true : null }) }, sent);
     expect(report.sent).toHaveLength(3);
-    expect(order).toEqual(['mark p0@x.vn', 'record p0@x.vn', 'mark p1@x.vn', 'record p1@x.vn', 'mark p2@x.vn', 'record p2@x.vn']);
+    // The first message is marked on its own; each record marks the next, so a message costs one command.
+    expect(order).toEqual(['mark p0@x.vn', 'record p0@x.vn, mark p1@x.vn', 'record p1@x.vn, mark p2@x.vn', 'record p2@x.vn, mark -']);
+  });
+
+  it('a next address the record could not mark is marked on its own; one the run lost stops it', async () => {
+    const { api, held } = fakeApi();
+    api.record.mockImplementationOnce(async (_c, _t, o) => (held.delete(o.recipient.email), { nextHeld: null }));
+    api.record.mockImplementationOnce(async (_c, _t, o) => (held.delete(o.recipient.email), held.clear(), { nextHeld: false }));
+    const sent: string[] = [];
+    const report = await go(api, sent);
+    expect(sent).toEqual(['p0@x.vn', 'p1@x.vn']);
+    expect(api.markSending.mock.calls.map((c) => c[2])).toEqual(['p0@x.vn', 'p1@x.vn', 'p2@x.vn']);
+    expect(report).toMatchObject({ stoppedBy: 'claim_lost' });
   });
 
   it('a claim no longer held stops the run before Gmail is asked', async () => {
     const { api, held } = fakeApi();
+    // The record could not mark the next message, so the run marks it itself.
+    api.record.mockImplementation(async (_c, _t, o) => (held.delete(o.recipient.email), { nextHeld: null }));
     api.markSending.mockImplementation(async (_c, _t, email) => email !== 'p1@x.vn' && held.has(email));
     const sent: string[] = [];
     const report = await go(api, sent);
@@ -178,6 +192,7 @@ describe('runCampaign marks each message as being sent before Gmail is asked', (
 
   it('a mark that fails (network) stops the run unsent and frees the rest', async () => {
     const { api } = fakeApi();
+    api.record.mockResolvedValue({ nextHeld: null });
     api.markSending.mockResolvedValueOnce(true).mockResolvedValueOnce(null);
     const sent: string[] = [];
     const report = await go(api, sent);

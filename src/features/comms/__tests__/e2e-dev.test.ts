@@ -75,13 +75,13 @@ async function scenario() {
         eventId, senderEmail: mctx.from.email, subject: compose.subject, body: compose.body, attachQr: compose.attachQr, runToken: r.token, takeOver: r.takeOver,
         recipients: chunk.map((x) => ({ guestId: x.guestId, email: x.email, recipientName: x.name })),
       }),
-    async record(campaignId, runToken, o) {
+    async record(campaignId, runToken, o, next) {
       if (recordFails.has(o.recipient.email)) return false;
       const result = o.kind === 'sent'
         ? { guestId: o.recipient.guestId, email: o.recipient.email, recipientName: o.recipient.name, status: 'sent' as const, providerMessageId: o.messageId, error: null }
         : { guestId: o.recipient.guestId, email: o.recipient.email, recipientName: o.recipient.name, status: o.kind === 'unknown' ? ('unknown' as const) : ('error' as const), providerMessageId: null, error: o.failure.message };
-      const r = await runCommand(at(), lookup, 'comms.recordDeliveries', { eventId, campaignId, runToken, senderEmail: mctx.from.email, subject: invitationMessage(o.recipient, compose, mctx, null).subject, results: [result] });
-      return r.ok;
+      const r = await runCommand(at(), lookup, 'comms.recordDeliveries', { eventId, campaignId, runToken, senderEmail: mctx.from.email, subject: invitationMessage(o.recipient, compose, mctx, null).subject, results: [result], next });
+      return r.ok && { nextHeld: (r.value as OutputOf<'comms.recordDeliveries'>).nextHeld };
     },
     async release(campaignId, runToken, emails) {
       await run('comms.releaseDeliveries', { eventId, campaignId, runToken, emails });
@@ -331,9 +331,10 @@ describe('comms in the dev memory runtime, end to end', () => {
     expect(report.sent).toHaveLength(10);
     const rows = (await s.audits()).slice(before);
     const count = (action: string) => rows.filter((a) => a.action === action).length;
-    expect({ start: count('BẮT ĐẦU GỬI THƯ'), records: count('GỬI THƯ MỜI'), marks: count('ĐANG GỬI THƯ') }).toEqual({ start: 1, records: 10, marks: 0 });
+    // The first message is marked on its own; every record marks the next one, and the retry marks nothing again.
+    expect({ start: count('BẮT ĐẦU GỬI THƯ'), records: count('GỬI THƯ MỜI'), marks: count('ĐANG GỬI THƯ') }).toEqual({ start: 1, records: 10, marks: 1 });
     // Besides those, only guests' own rows for the two invitations it marked.
-    expect(rows.length - 11).toBeLessThanOrEqual(2);
+    expect(rows.length - 12).toBeLessThanOrEqual(2);
   });
 
   it('a rate limit whose retry falls due for a renewal goes on: the message being sent is still this run’s', async () => {
