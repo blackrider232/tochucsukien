@@ -150,7 +150,7 @@ export function DailyTab({ data }: { data: ReportsScreenData }) {
           <IssueForm data={data} />
         ) : (
           <div className="space-y-3">
-            <Alert tone="info" title="Chỉ Trưởng phòng trở lên phát hành báo cáo">Bạn có thể xem bản in trước với số liệu hiện tại.</Alert>
+            <Alert tone="info" title="Chỉ Trưởng phòng chủ trì sự kiện trở lên phát hành báo cáo">Bạn có thể xem bản in trước với số liệu hiện tại.</Alert>
             <PrintLink href={printHref(data.event.id)} label="Xem bản in trước" />
           </div>
         )}

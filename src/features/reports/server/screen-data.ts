@@ -11,6 +11,7 @@ import { dailyReportState, dashboardFigures, encodeFigures, workdaysToEvent } fr
 import { previewReport, signerTitle, type IssuedReport } from '../domain/report';
 import type { GroupProgress, ReportsScreenData } from '../domain/screen';
 import { readClippings, readDailyReport, readDailyReports, readPackages, readPressReleases } from './reads';
+import { issueScope } from './command-kit';
 import { missingSources, sourcesOf } from './upstream';
 
 export async function reportsScreen(ctx: RequestContext, event: SceEvent): Promise<ReportsScreenData> {
@@ -44,7 +45,7 @@ export async function reportsScreen(ctx: RequestContext, event: SceEvent): Promi
     reports,
     issuedToday: reports.find((r) => r.reportDate === today) ?? null,
     signatoryTitle: signerTitle(event.department),
-    can: { write: can(ctx.actor, 'reports.write', scope), issue: can(ctx.actor, 'reports.issue', scope) },
+    can: { write: can(ctx.actor, 'reports.write', scope), issue: can(ctx.actor, 'reports.issue', issueScope(event)) },
   };
 }
 

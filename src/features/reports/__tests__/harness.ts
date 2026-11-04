@@ -63,13 +63,13 @@ export function harness(opts: { now?: Instant } = {}) {
     return run(actor, inverse.command, inverse.input as never);
   };
 
-  const createEvent = async (o: { department?: DepartmentName; eventDate?: string; targetGuests?: number } = {}) => {
+  const createEvent = async (o: { department?: DepartmentName; supportingDepartments?: ReadonlyArray<DepartmentName>; eventDate?: string; targetGuests?: number } = {}) => {
     const id = newId<'Event'>();
     await ok(admin, 'progress.createEvent', {
       id,
       draft: {
         name: 'Hội nghị Xúc tiến Đầu tư 2026', type: 'hoi_nghi', eventDate: (o.eventDate ?? '2026-12-15') as IsoDate, eventTime: '08:30' as HHmm, location: 'Hà Nội',
-        department: o.department ?? XTDT, supportingDepartments: [], leadPerson: '', budget: null, targetGuests: o.targetGuests ?? 10, note: '', applyStandardTemplate: false,
+        department: o.department ?? XTDT, supportingDepartments: o.supportingDepartments ?? [], leadPerson: '', budget: null, targetGuests: o.targetGuests ?? 10, note: '', applyStandardTemplate: false,
       },
     });
     return id;

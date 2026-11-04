@@ -3,7 +3,9 @@ import { newId, type EventId, type Version } from '@/core/brand';
 import type { CommandId, InputOf } from '@/core/commands';
 import { can } from '@/core/permissions';
 import { testActor } from '@/core/testing/actors';
-import { admin, harness, ISSUE, outsider, staff } from './harness';
+import { readEvent } from '@/features/progress/server';
+import { reportsScreen } from '../server/screen-data';
+import { admin, harness, head, ISSUE, outsider, staff } from './harness';
 
 const V1 = 1 as Version;
 const clip = { outlet: 'Báo A', title: 'Tin A', publishedOn: '2026-12-01', mediaType: 'Báo điện tử', url: null, author: '' } as never;
@@ -61,6 +63,37 @@ describe('every reports command refuses another department, and writes nothing',
   });
 });
 
+describe('issuing is the lead department\'s: its head signs (decision 17)', () => {
+  async function supported() {
+    const h = harness();
+    const eventId = await h.createEvent({ supportingDepartments: [outsider.profile.department!] });
+    return { h, eventId };
+  }
+  const issueInput = (eventId: EventId) => ({ eventId, id: newId<'DailyReport'>(), draft: ISSUE });
+
+  it('the head of a supporting department is refused, through RLS and by the command itself, and nothing is written', async () => {
+    const { h, eventId } = await supported();
+    const before = snapshot(h);
+    expect(await h.run(outsider, 'reports.issueDailyReport', issueInput(eventId))).toMatchObject({ ok: false, kind: 'forbidden' });
+    expect(await h.runWithoutRls(outsider, 'reports.issueDailyReport', issueInput(eventId))).toMatchObject({ ok: false, kind: 'forbidden' });
+    expect(snapshot(h)).toBe(before);
+  });
+
+  it('the supporting department still edits the event\'s clippings; the lead department head issues', async () => {
+    const { h, eventId } = await supported();
+    expect((await h.run(outsider, 'reports.createClipping', { eventId, id: newId<'MediaClipping'>(), draft: clip })).ok).toBe(true);
+    expect((await h.run(head, 'reports.issueDailyReport', issueInput(eventId))).ok).toBe(true);
+  });
+
+  it('the screen offers the issue form to the lead department head only', async () => {
+    const { h, eventId } = await supported();
+    const event = (await readEvent(h.ctx(admin), eventId))!;
+    expect((await reportsScreen(h.ctx(outsider), event)).can).toEqual({ write: true, issue: false });
+    expect((await reportsScreen(h.ctx(head), event)).can).toEqual({ write: true, issue: true });
+    expect((await reportsScreen(h.ctx(staff), event)).can).toEqual({ write: true, issue: false });
+  });
+});
+
 describe('the matrix (design RBAC table, decision 17)', () => {
   const scope = { departments: ['Phòng Xúc tiến đầu tư' as const] };
   it.each([
@@ -93,7 +126,7 @@ describe('the permission each command checks and audits under', () => {
   // what the pipeline checks and what sce_tcsk_audit_command re-checks in SQL, so it is pinned here.
   it('edits are reports.write, issuing is reports.issue, all on the event', async () => {
     const { commands } = await import('../server/commands');
-    const perms = Object.fromEntries(Object.entries(commands).map(([verb, spec]) => [verb, 'event' in spec.authorize ? spec.authorize.perm : 'not event-scoped']));
+    const perms = Object.fromEntries(Object.entries(commands).map(([verb, spec]) => [verb, spec.authorize.perm]));
     expect(perms).toEqual({
       createClipping: 'reports.write', updateClipping: 'reports.write', deleteClipping: 'reports.write',
       createPackage: 'reports.write', updatePackage: 'reports.write', deletePackage: 'reports.write',

@@ -124,7 +124,7 @@ describe('issuing from the daily tab', () => {
   it('a chuyên viên gets the preview link and no issue form', () => {
     show(data({ can: { write: true, issue: false } }), 'daily');
     expect(screen.queryByRole('button', { name: 'Phát hành báo cáo' })).toBeNull();
-    expect(screen.getByText('Chỉ Trưởng phòng trở lên phát hành báo cáo')).toBeInTheDocument();
+    expect(screen.getByText('Chỉ Trưởng phòng chủ trì sự kiện trở lên phát hành báo cáo')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Xem bản in trước/ })).toHaveAttribute('href', `/events/${EVENT_ID}/reports/print`);
   });
 

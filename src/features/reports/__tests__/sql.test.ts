@@ -19,8 +19,12 @@ const ids = {
   staff: '00000000-0000-0000-0000-0000000000b1',
   head: '00000000-0000-0000-0000-0000000000e1',
   otherHead: '00000000-0000-0000-0000-0000000000e2',
+  lockedHead: '00000000-0000-0000-0000-0000000000e3',
+  pendingHead: '00000000-0000-0000-0000-0000000000e4',
 };
 let eventId = '';
+/** Led by XTĐT, with PTDN supporting. */
+let supportedId = '';
 
 async function as<T>(user: string, aal: 'aal1' | 'aal2', fn: () => Promise<T>): Promise<T> {
   await db.exec(`set role authenticated`);
@@ -64,15 +68,25 @@ beforeAll(async () => {
       ('${ids.admin}', 'admin@x.vn', '{}'),
       ('${ids.staff}', 'cv.xtdt@x.vn', '{"department":"Phòng Xúc tiến đầu tư"}'),
       ('${ids.head}', 'tp.xtdt@x.vn', '{"department":"Phòng Xúc tiến đầu tư"}'),
-      ('${ids.otherHead}', 'tp.ptdn@x.vn', '{"department":"Phòng Phát triển doanh nghiệp"}');
+      ('${ids.otherHead}', 'tp.ptdn@x.vn', '{"department":"Phòng Phát triển doanh nghiệp"}'),
+      ('${ids.lockedHead}', 'khoa.xtdt@x.vn', '{"department":"Phòng Xúc tiến đầu tư"}'),
+      ('${ids.pendingHead}', 'cho.xtdt@x.vn', '{"department":"Phòng Xúc tiến đầu tư"}');
   `);
   await db.query(`select tcsk.bootstrap_first_admin('admin@x.vn')`);
   await db.exec(`update public.sce_tcsk_profiles set status = 'active' where id <> '${ids.admin}'`);
-  await db.exec(`update public.sce_tcsk_profiles set role = 'dept_leader' where id in ('${ids.head}', '${ids.otherHead}')`);
+  await db.exec(`update public.sce_tcsk_profiles set role = 'dept_leader' where id in ('${ids.head}', '${ids.otherHead}', '${ids.lockedHead}', '${ids.pendingHead}')`);
+  await db.exec(`update public.sce_tcsk_profiles set status = 'locked' where id = '${ids.lockedHead}'`);
+  await db.exec(`update public.sce_tcsk_profiles set status = 'pending' where id = '${ids.pendingHead}'`);
   const ev = await as(ids.staff, 'aal1', () =>
     db.query<{ id: string }>(`insert into public.sce_tcsk_events (name, type, event_date, department) values ('HN XTĐT', 'hoi_nghi', '2026-12-15', 'Phòng Xúc tiến đầu tư') returning id`),
   );
   eventId = ev.rows[0]!.id;
+  const supported = await as(ids.staff, 'aal1', () =>
+    db.query<{ id: string }>(
+      `insert into public.sce_tcsk_events (name, type, event_date, department, supporting_departments) values ('HN phối hợp', 'hoi_nghi', '2026-12-13', 'Phòng Xúc tiến đầu tư', '{"Phòng Phát triển doanh nghiệp"}') returning id`,
+    ),
+  );
+  supportedId = supported.rows[0]!.id;
 }, 60_000);
 
 describe('sce_tcsk_daily_reports on Postgres', () => {
@@ -110,6 +124,27 @@ describe('sce_tcsk_daily_reports on Postgres', () => {
     const own = await as(ids.staff, 'aal1', () => db.query(`select id from public.sce_tcsk_daily_reports`));
     const other = await as(ids.otherHead, 'aal1', () => db.query(`select id from public.sce_tcsk_daily_reports`));
     expect([own.rows.length, other.rows.length]).toEqual([1, 0]);
+  });
+});
+
+describe('only the lead department issues (decision 17)', () => {
+  const forSupported = () => supportedId;
+
+  it('the head of a supporting department cannot issue, though the department edits the event\'s clippings', async () => {
+    await expect(as(ids.otherHead, 'aal1', () => insertReport(undefined, undefined, forSupported))).rejects.toThrow(/row-level security|forbidden/);
+    await as(ids.otherHead, 'aal1', () =>
+      db.exec(`insert into public.sce_tcsk_media_clippings (event_id, outlet, title, published_on, media_type) values ('${supportedId}', 'A', 'B', '2026-12-01', 'Báo in')`),
+    );
+  });
+
+  it('a locked or a pending department head of the lead department cannot issue', async () => {
+    await expect(as(ids.lockedHead, 'aal1', () => insertReport(undefined, undefined, forSupported))).rejects.toThrow(/row-level security|forbidden/);
+    await expect(as(ids.pendingHead, 'aal1', () => insertReport(undefined, undefined, forSupported))).rejects.toThrow(/row-level security|forbidden/);
+  });
+
+  it('the lead department head issues it, signed with the lead department\'s title', async () => {
+    const r = await as(ids.head, 'aal1', () => insertReport(undefined, undefined, forSupported));
+    expect(r.rows[0]).toMatchObject({ event_name: 'HN phối hợp', signatory_title: 'TRƯỞNG PHÒNG XÚC TIẾN ĐẦU TƯ' });
   });
 });
 
