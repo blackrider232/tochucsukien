@@ -84,6 +84,41 @@ describe('seat monitor', () => {
   });
 });
 
+describe('scan dialog words what the check-in did (review MED-1)', () => {
+  async function scanIn(g: RosterEntry, checkIn: unknown) {
+    dispatch.mockReset();
+    dispatch.mockImplementation(async (id: string) => (id === 'live.scan' ? { ok: true, value: { kind: 'ok', guest: g } } : checkIn));
+    const { user } = show(data([g]), 'checkin');
+    await user.click(screen.getByRole('button', { name: 'Quét mã QR check-in' }));
+    const dialog = await screen.findByRole('dialog', { name: /Quét mã QR check-in/ });
+    await user.type(within(dialog).getByLabelText(/Hoặc nhập/), 'K7Q2ZX');
+    await user.click(within(dialog).getByRole('button', { name: 'Check-in' }));
+    return { user, dialog, status: () => dialog.querySelector<HTMLElement>('[aria-live="polite"]')! };
+  }
+
+  it('a declined guest the staff chose not to check in is not reported as done', async () => {
+    const declined = guest({ name: 'Người báo vắng', rsvpStatus: 'declined' });
+    const { user, status } = await scanIn(declined, undefined);
+    await user.click(await screen.findByRole('button', { name: 'Không check-in' }));
+    expect(await within(status()).findByText('Không check-in: Người báo vắng (đại biểu đã báo vắng)')).toBeInTheDocument();
+    expect(status().textContent).not.toMatch(/Đã xử lý|Đã check-in/);
+    expect(dispatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('a check-in the server did not record is reported as an error', async () => {
+    const g = guest({ name: 'Khách lỗi mạng' });
+    const { status } = await scanIn(g, { ok: false, kind: 'unavailable', message: 'Mất kết nối máy chủ.' });
+    expect(await within(status()).findByText('Chưa check-in được: Khách lỗi mạng. Xem thông báo lỗi rồi thử lại.')).toBeInTheDocument();
+    expect(status().textContent).not.toMatch(/Đã xử lý/);
+  });
+
+  it('a recorded check-in says so', async () => {
+    const g = guest({ name: 'Khách đúng giờ' });
+    const { status } = await scanIn(g, { ok: true, value: { already: false, checkIn: { checkedInAt: AT } } });
+    expect(await within(status()).findByText('Đã check-in: Khách đúng giờ')).toBeInTheDocument();
+  });
+});
+
 describe('check-in desk', () => {
   it('asks the decision-7 question before checking in a declined guest, and sends nothing when refused', async () => {
     dispatch.mockReset();

@@ -18,10 +18,14 @@ import { formatAt, seatLabel } from '../domain/desk';
 type Arrived = Pick<RosterEntry, 'name' | 'group' | 'title' | 'organization' | 'seatCode'>;
 type Arrival = { guest: Arrived; at: Instant };
 
+/** What a check-in attempt really did. A server refusal and a failed request both read as 'failed': useCommand does not say which. */
+export type CheckInDone = 'checked_in' | 'already' | 'skipped_by_staff' | 'failed';
+export type ScanDone = { outcome: ScanOutcome; checkIn: CheckInDone | null };
+
 export interface DeskActions {
-  checkIn(g: RosterEntry): Promise<void>;
-  /** Resolves what was scanned or typed, checks in on a single match and says what happened; returns the outcome. */
-  scan(raw: string): Promise<ScanOutcome | null>;
+  checkIn(g: RosterEntry): Promise<CheckInDone>;
+  /** Resolves what was scanned or typed, checks in on a single match and says what happened. */
+  scan(raw: string): Promise<ScanDone | null>;
   cancel(g: RosterEntry): Promise<void>;
   setGift(g: RosterEntry, given: boolean): Promise<void>;
   /** Feedback for a guest who just arrived by another path (walk-in, substitute). */
@@ -61,12 +65,13 @@ export function DeskProvider({ eventId, hall, children }: { eventId: EventId; ha
     else toast.success(`Check-in: ${guest.name}${guest.seatCode ? ` (ghế ${guest.seatCode})` : ''}`);
   }, [beep, feedbackOn, toast]);
 
-  const already = useCallback((g: RosterEntry, at: Instant) => {
+  const already = useCallback((g: RosterEntry, at: Instant): CheckInDone => {
     fail();
     toast.warning(`${g.name} đã check-in lúc ${formatAt(at, nowInstant())}. Không thay đổi.`);
+    return 'already';
   }, [fail, toast]);
 
-  const checkIn = useCallback(async (g: RosterEntry) => {
+  const checkIn = useCallback(async (g: RosterEntry): Promise<CheckInDone> => {
     if (g.checkedInAt) return already(g, g.checkedInAt);
     let command: 'live.checkIn' | 'live.checkInDeclined' = 'live.checkIn';
     if (g.rsvpStatus === 'declined') {
@@ -77,16 +82,20 @@ export function DeskProvider({ eventId, hall, children }: { eventId: EventId; ha
         cancelLabel: 'Không check-in',
         tone: 'warning',
       });
-      if (!ok) return;
+      if (!ok) return 'skipped_by_staff';
       command = 'live.checkInDeclined';
     }
     const r = await run(command, { eventId, guestId: g.id, desk: null });
-    if (!r) return fail();
-    if (r.already) already(g, r.checkIn.checkedInAt!);
-    else arrived(g, r.checkIn.checkedInAt!);
+    if (!r) {
+      fail();
+      return 'failed';
+    }
+    if (r.already) return already(g, r.checkIn.checkedInAt!);
+    arrived(g, r.checkIn.checkedInAt!);
+    return 'checked_in';
   }, [already, arrived, dialogs, eventId, fail, run]);
 
-  const scan = useCallback(async (raw: string): Promise<ScanOutcome | null> => {
+  const scan = useCallback(async (raw: string): Promise<ScanDone | null> => {
     const code = raw.trim();
     if (!code) return null;
     const outcome = await run('live.scan', { eventId, raw: code }, { undoable: false });
@@ -96,8 +105,7 @@ export function DeskProvider({ eventId, hall, children }: { eventId: EventId; ha
     }
     switch (outcome.kind) {
       case 'ok':
-        await checkIn(outcome.guest);
-        break;
+        return { outcome, checkIn: await checkIn(outcome.guest) };
       case 'already':
         already(outcome.guest, outcome.at);
         break;
@@ -114,7 +122,7 @@ export function DeskProvider({ eventId, hall, children }: { eventId: EventId; ha
         toast.error(`Không tìm thấy đại biểu khớp với mã quét: "${code}"`);
         break;
     }
-    return outcome;
+    return { outcome, checkIn: null };
   }, [already, checkIn, eventId, fail, run, toast]);
 
   const cancel = useCallback(async (g: RosterEntry) => {
