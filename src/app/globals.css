@@ -1,7 +1,8 @@
 @import "tailwindcss";
 
-/* Dark mode is a data attribute on <html>, set before first paint by the boot script in src/core/prefs. */
-@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+/* Dark mode is a data attribute on <html>, set before first paint by the boot script in src/core/prefs.
+   The nearest data-theme wins, so a light subtree inside a dark page (the /dev/kit gallery) stays light. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *):not(:where([data-theme="dark"] [data-theme="light"], [data-theme="dark"] [data-theme="light"] *)));
 
 /* ---------------------------------------------------------------------------
    Design tokens. One palette: brand blue, slate neutrals, 11 tones (below).
@@ -48,7 +49,8 @@
   }
 }
 
-:root {
+:root,
+[data-theme="light"] {
   color-scheme: light;
   --app: #f1f5f9;
   --surface: #ffffff;
@@ -133,7 +135,7 @@
   --tone-solid: var(--t700);
   --tone-on-solid: #ffffff;
 }
-[data-theme="dark"] [data-tone],
+[data-theme="dark"] [data-tone]:not([data-theme="dark"] [data-theme="light"] [data-tone]),
 [data-theme="dark"][data-tone] {
   --tone-bg: color-mix(in oklab, var(--t400) 16%, transparent);
   --tone-fg: var(--t200);
