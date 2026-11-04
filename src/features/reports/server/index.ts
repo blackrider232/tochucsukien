@@ -6,4 +6,4 @@ export { readClippings, readPackages, readPressReleases, readDailyReports, readD
 export { reportsScreen, printableReport } from './screen-data';
 export { commands } from './commands';
 export { devSeed } from './dev-seed';
-export const legacyImporter = null;
+export { legacyImporter } from './legacy-importer';

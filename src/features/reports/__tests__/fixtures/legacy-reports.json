@@ -1,0 +1,31 @@
+{
+  "events": [
+    { "id": "evt_real", "name": "Hội nghị XTĐT Hà Nội - Hàn Quốc 2026", "eventDate": "2026-12-15", "eventTime": "08:30", "department": "Phòng Xúc tiến đầu tư", "targetGuests": 120 },
+    { "id": "evt_demo", "name": "Hội nghị Xúc tiến Đầu tư và Giao thương Hà Nội - Tokyo 2026", "eventDate": "2026-11-20" }
+  ],
+  "eventMediaClippings": {
+    "evt_real": [
+      { "id": "media_1730000000001", "outlet": "Báo Hà Nội Mới", "title": "Hà Nội đón nhà đầu tư Hàn Quốc", "date": "2026-12-01", "type": "Báo điện tử", "url": "https://hanoimoi.vn/a", "author": "Phóng viên thường trú" },
+      { "id": "media_1730000000002", "outlet": "VTV", "title": "Phóng sự <b>XSS</b>", "date": "", "type": "Tạp chí", "url": "javascript:alert(1)" },
+      { "id": "media_1730000000003", "outlet": "", "title": "Không có cơ quan" },
+      { "id": "media_01", "outlet": "Báo Hà Nội Mới", "title": "Tin mẫu", "date": "2026-10-24", "type": "Báo in & Điện tử", "url": "" }
+    ],
+    "evt_demo": [{ "id": "media_x", "outlet": "A", "title": "B", "date": "2026-10-24", "type": "Báo in" }],
+    "evt_gone": [{ "id": "media_y", "outlet": "A", "title": "B", "date": "2026-10-24", "type": "Báo in" }]
+  },
+  "eventBiddingPackages": {
+    "evt_real": [
+      { "id": "bid_1730000000001", "code": "tb-2026-001", "dept": "Phòng Xúc tiến đầu tư", "name": "Thuê hội trường", "budget": 220000000, "winningPrice": 215000000, "contractor": "Đang thương thảo", "status": "Đang thực hiện hợp đồng" },
+      { "id": "bid_1730000000002", "code": "TB-2026-001", "dept": "Phòng Không Tồn Tại", "name": "Âm thanh", "budget": "160.000.000", "winningPrice": 0, "contractor": "Công ty A", "status": "Xong rồi" },
+      { "id": "bid_1730000000003", "code": "", "name": "Không mã", "budget": 1 },
+      { "id": "bid_02", "code": "TB-2026-002", "dept": "Phòng Xúc tiến đầu tư", "name": "Mẫu", "budget": 160000000, "winningPrice": 152500000, "contractor": "X", "status": "Đang nghiệm thu thanh lý" }
+    ]
+  },
+  "dailyReports": {
+    "evt_real": [
+      { "id": "rpt_t10", "countdownLabel": "T-10", "date": "2026-10-21", "progressPercent": 70, "keyHighlight": "Mẫu", "signatory": "Nguyễn Hoàng Long (Giám đốc SCE)" },
+      { "id": "daily_1", "countdownLabel": "T-5", "date": "2026-12-08", "progressPercent": 140, "keyHighlight": "Đã chốt kịch bản", "signatory": "Trần Văn Bình", "urgentNotice": "Chờ địa điểm" },
+      { "id": "daily_2", "countdownLabel": "T-5", "date": "2026-12-08", "progressPercent": 80, "keyHighlight": "Trùng ngày", "signatory": "B" }
+    ]
+  }
+}

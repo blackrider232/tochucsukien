@@ -18,7 +18,7 @@ export function DashboardTab({ data }: { data: ReportsScreenData }) {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <KpiCard label="Tiến độ tổng thể" value={`${f.progressPercent}%`} icon="list-check" accent="blue" caption={`${f.stepsDone}/${f.stepsTotal} bước hoàn thành`} />
           <KpiCard label="Định mức mời" value={f.guestQuota > 0 ? `${Math.round((f.guestsInvited / f.guestQuota) * 100)}%` : '0%'} icon="users" accent="emerald" caption={`${f.guestsInvited}/${f.guestQuota} thư mời`} />
-          <KpiCard label="Tiết kiệm ngân sách" value={formatPercent2(f.biddingSavingsPercent)} icon="file-spreadsheet" accent="indigo" caption={`${f.packagesAwarded}/${f.packages} gói đã có giá trúng thầu (nhập tay)`} />
+          <KpiCard label="Tiết kiệm ngân sách" value={f.biddingSavingsPercent !== null && f.biddingSavingsPercent < 0 ? `Vượt ${formatPercent2(-f.biddingSavingsPercent)}` : formatPercent2(f.biddingSavingsPercent)} icon="file-spreadsheet" accent="indigo" caption={`${f.packagesAwarded}/${f.packages} gói đã có giá trúng thầu (nhập tay)`} />
           <KpiCard label="Độ phủ truyền thông" value={`${f.clippings} bài`} icon="newspaper" accent="amber" caption="Báo chí và truyền hình" />
           <KpiCard label="Gian hàng đã chốt" value={f.boothsConfirmed} ofTotal={f.boothsTotal} icon="store" accent="purple" caption={f.boothsTotal === 0 ? 'Sự kiện chưa có gian hàng' : `Đang thẩm định: ${f.boothsReviewing}`} />
         </div>
