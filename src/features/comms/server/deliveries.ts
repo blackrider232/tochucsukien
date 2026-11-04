@@ -8,11 +8,14 @@
 // address that already received this message, or that another run holds, is
 // refused, so nobody gets the same message twice. Another run means another
 // token: a second tab or a reload of the same officer is one too, and may
-// only take over the claims explicitly. Just before handing a message to
-// Gmail the run marks its claim 'sending' (markSending). A run that dies there
-// leaves the row 'sending', which nobody claims again: once the lease runs
-// out (or the officer takes the run over), it becomes 'unknown' for a person
-// to check the Sent folder. Each outcome then completes its claim
+// only take over the claims explicitly. A row keeps only the token's hash
+// (claimHash); a write that acts for the run carries the token as proof,
+// which the database checks (202611041410_comms_delivery_guard.sql), so an
+// officer writing to the table directly cannot act for another run either.
+// Just before handing a message to Gmail the run marks its claim 'sending'
+// (markSending). A run that dies there leaves the row 'sending', which nobody
+// claims again: once the lease runs out (or the officer takes the run over),
+// it becomes 'unknown' for a person to check the Sent folder. Each outcome then completes its claim
 // (recordDeliveries), only from the run that holds it: 'sent' only with
 // Gmail's message id, 'error' with Gmail's reason, and a later failure never
 // erases a success. Claims a stopped run did not use are released.
@@ -29,12 +32,21 @@ import { campaignIdSchema, deliveryResultSchema, eventIdSchema, guestIdSchema, M
 import { DEV_FAKE_ID_PREFIX } from '../domain/transport';
 import { asSchema, audit, auditPartial } from './command-kit';
 import { readCampaign } from './reads';
-import { campaignsTable, deliveriesTable, type DeliveryRow } from './tables';
+import { campaignsTable, deliveriesTable, type ClaimHash, type DeliveryRow } from './tables';
 
 export const MAX_DELIVERY_BATCH = 50;
 export { CLAIM_LEASE_MS, CLAIM_SKEW_MS };
 
 const send = { perm: 'comms.send', event: (i: { eventId: EventId }) => i.eventId } as const;
+
+/**
+ * What a row keeps of the run's token: the first 128 bits of its sha256, as a uuid, so that reading a row does not
+ * reveal the token. The database computes the same to check claim_proof (202611041410_comms_delivery_guard.sql).
+ */
+export function claimHash(runToken: RunToken): ClaimHash {
+  const hex = createHash('sha256').update(runToken.toLowerCase(), 'utf8').digest('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}` as ClaimHash;
+}
 
 /** The campaign of one message: same event, same subject and body templates, same id. Formatted as a v5 uuid. */
 export function campaignIdFor(eventId: EventId, subject: string, body: string): CampaignId {
@@ -50,8 +62,8 @@ const byEmail = async (ctx: CommandContext, eventId: EventId, campaignId: Campai
 
 /** updated_at is the database's clock, ctx.now the app server's: the skew margin keeps a live claim from ending early. */
 const leaseExpired = (ctx: CommandContext, d: DeliveryRow) => Date.parse(ctx.now) - Date.parse(d.updatedAt) >= CLAIM_LEASE_MS + CLAIM_SKEW_MS;
-/** Held by the run `runToken` names: claimed, or being sent. */
-const heldBy = (d: DeliveryRow, runToken: RunToken) => (d.status === 'queued' || d.status === 'sending') && d.claimToken === runToken;
+/** Held by the run whose token hashes to `claim`: claimed, or being sent. */
+const heldBy = (d: DeliveryRow, claim: ClaimHash) => (d.status === 'queued' || d.status === 'sending') && d.claimToken === claim;
 const IN_FLIGHT_LOST = 'Phiên gửi đã dừng khi đang gửi thư này, nên chưa rõ thư đã đi hay chưa. Kiểm tra mục Đã gửi của Gmail.';
 
 const recipientSchema = z.object({ guestId: guestIdSchema.nullable(), email: requiredEmailSchema, recipientName: z.string().trim().max(300) });
@@ -73,6 +85,7 @@ export const startCampaign: CommandSpec<InputOf<'comms.startCampaign'>, OutputOf
   authorize: send,
   async run(ctx, { eventId, senderEmail, subject, body, attachQr, runToken, takeOver, recipients }) {
     const campaignId = campaignIdFor(eventId, subject, body);
+    const claim = claimHash(runToken);
     const existing = await byEmail(ctx, eventId, campaignId);
     // Kept for "Gửi lại thư lỗi"; written before any claim, so a claim never lacks its message, and taken out again
     // when no claim follows, so a failed call leaves nothing behind.
@@ -82,7 +95,8 @@ export const startCampaign: CommandSpec<InputOf<'comms.startCampaign'>, OutputOf
     if (!kept) {
       const row = await ctx.db.table(campaignsTable).insert({ id: campaignId, eventId, ...message });
       undoMessage = () => ctx.db.table(campaignsTable).remove(row.id, { expectedVersion: row.version });
-    } else if (kept.attachQr !== attachQr) {
+    } else if (kept.attachQr !== attachQr && ![...existing.values()].some((d) => d.status === 'sending' || d.status === 'sent' || d.status === 'unknown')) {
+      // The QR choice follows the latest compose only until a message of the campaign went out.
       const row = await ctx.db.table(campaignsTable).update(kept.id, { attachQr }, { expectedVersion: kept.version });
       undoMessage = async () => void (await ctx.db.table(campaignsTable).update(row.id, { attachQr: kept.attachQr }, { expectedVersion: row.version }));
     }
@@ -100,7 +114,7 @@ export const startCampaign: CommandSpec<InputOf<'comms.startCampaign'>, OutputOf
         seen.add(r.email);
         const before = existing.get(r.email);
         const mine = before?.updatedBy === ctx.actor.profile.id;
-        const heldElsewhere = (before?.status === 'queued' || before?.status === 'sending') && before.claimToken !== runToken && !leaseExpired(ctx, before);
+        const heldElsewhere = (before?.status === 'queued' || before?.status === 'sending') && before.claimToken !== claim && !leaseExpired(ctx, before);
         if (before?.status === 'sent') alreadySent.push(r.email);
         else if (before?.status === 'unknown') unclear.push(r.email);
         else if (heldElsewhere && !(takeOver && mine)) (mine ? ownInFlight : inFlight).push(r.email);
@@ -115,7 +129,7 @@ export const startCampaign: CommandSpec<InputOf<'comms.startCampaign'>, OutputOf
             else throw e;
           }
         } else {
-          const row = { guestId: r.guestId, recipientName: r.recipientName, subject, senderEmail, status: 'queued' as const, claimToken: runToken, sentAt: null, error: null, providerMessageId: null, imported: false };
+          const row = { guestId: r.guestId, recipientName: r.recipientName, subject, senderEmail, status: 'queued' as const, claimToken: claim, claimProof: runToken, sentAt: null, error: null, providerMessageId: null, imported: false };
           try {
             if (before) await ctx.db.table(deliveriesTable).update(before.id, row, { expectedVersion: before.version });
             else await ctx.db.table(deliveriesTable).insert({ ...row, eventId, campaignId, email: r.email });
@@ -166,6 +180,7 @@ export const recordDeliveries: CommandSpec<InputOf<'comms.recordDeliveries'>, Ou
   ),
   authorize: send,
   async run(ctx, { eventId, campaignId, runToken, senderEmail, subject, results }) {
+    const claim = claimHash(runToken);
     // The fake transport exists for the dev memory runtime; its ids are refused anywhere else.
     if (!devMemoryEnabled() && results.some((r) => r.providerMessageId?.startsWith(DEV_FAKE_ID_PREFIX))) {
       throw new CommandError('invalid', 'Kết quả gửi thử nghiệm không được ghi vào nhật ký thật.');
@@ -175,10 +190,10 @@ export const recordDeliveries: CommandSpec<InputOf<'comms.recordDeliveries'>, Ou
     if (unclaimed) throw new CommandError('conflict', `Thư tới ${unclaimed.email} chưa được giữ chỗ trong đợt gửi này. Hãy bắt đầu lại đợt gửi.`);
     // This run's own row: held (claimed or being sent), already holding this very result (an answer lost on the way
     // back), or turned unknown after the run lost touch, which Gmail's message id settles.
-    const recorded = (r: (typeof results)[number], d: DeliveryRow) => d.claimToken === runToken && d.status === r.status;
+    const recorded = (r: (typeof results)[number], d: DeliveryRow) => d.claimToken === claim && d.status === r.status;
     const notHeld = results.find((r) => {
       const d = existing.get(r.email)!;
-      return d.status !== 'sent' && !heldBy(d, runToken) && !recorded(r, d) && !(d.status === 'unknown' && d.claimToken === runToken && r.status === 'sent');
+      return d.status !== 'sent' && !heldBy(d, claim) && !recorded(r, d) && !(d.status === 'unknown' && d.claimToken === claim && r.status === 'sent');
     });
     if (notHeld) throw new CommandError('conflict', `Thư tới ${notHeld.email} không còn do phiên gửi này giữ chỗ (đã có kết quả, hoặc một phiên khác đã tiếp quản). Kiểm tra Nhật ký gửi trước khi gửi tiếp.`);
 
@@ -205,6 +220,7 @@ export const recordDeliveries: CommandSpec<InputOf<'comms.recordDeliveries'>, Ou
           error: r.error,
           providerMessageId: r.providerMessageId,
           imported: false,
+          claimProof: runToken,
         };
         await ctx.db.table(deliveriesTable).update(before.id, row, { expectedVersion: before.version });
         if (r.status === 'sent') {
@@ -281,11 +297,12 @@ export const renewClaims: CommandSpec<InputOf<'comms.renewClaims'>, OutputOf<'co
   input: asSchema(z.object({ eventId: eventIdSchema, campaignId: campaignIdSchema, runToken: runTokenSchema })),
   authorize: send,
   async run(ctx, { eventId, campaignId, runToken }) {
+    const claim = claimHash(runToken);
     const held: Email[] = [];
     for (const d of (await byEmail(ctx, eventId, campaignId)).values()) {
-      if (d.status !== 'queued' || d.claimToken !== runToken) continue;
+      if (d.status !== 'queued' || d.claimToken !== claim) continue;
       try {
-        await ctx.db.table(deliveriesTable).update(d.id, { claimToken: runToken }, { expectedVersion: d.version });
+        await ctx.db.table(deliveriesTable).update(d.id, { claimProof: runToken }, { expectedVersion: d.version });
         held.push(d.email);
       } catch (e) {
         // Recorded or taken over since the read: no longer this run's.
@@ -306,8 +323,8 @@ export const markSending: CommandSpec<InputOf<'comms.markSending'>, OutputOf<'co
   authorize: send,
   async run(ctx, { eventId, campaignId, runToken, email }) {
     const d = (await byEmail(ctx, eventId, campaignId)).get(email);
-    if (!d || !heldBy(d, runToken)) throw new CommandError('conflict', `Thư tới ${email} không còn do phiên gửi này giữ chỗ (đã có kết quả, hoặc một phiên khác đã tiếp quản). Kiểm tra Nhật ký gửi trước khi gửi tiếp.`);
-    if (d.status === 'queued') await ctx.db.table(deliveriesTable).update(d.id, { status: 'sending' }, { expectedVersion: d.version });
+    if (!d || !heldBy(d, claimHash(runToken))) throw new CommandError('conflict', `Thư tới ${email} không còn do phiên gửi này giữ chỗ (đã có kết quả, hoặc một phiên khác đã tiếp quản). Kiểm tra Nhật ký gửi trước khi gửi tiếp.`);
+    if (d.status === 'queued') await ctx.db.table(deliveriesTable).update(d.id, { status: 'sending', claimProof: runToken }, { expectedVersion: d.version });
     return { value: null, audit: audit('ĐANG GỬI THƯ', `Bắt đầu gửi thư "${d.subject}" tới ${email}`, eventId, 'email_campaign', campaignId) };
   },
 };
@@ -326,7 +343,7 @@ export const releaseDeliveries: CommandSpec<InputOf<'comms.releaseDeliveries'>, 
     try {
       for (const email of new Set(emails)) {
         const d = existing.get(email);
-        if (!d || !heldBy(d, runToken)) continue;
+        if (!d || !heldBy(d, claimHash(runToken))) continue;
         await ctx.db.table(deliveriesTable).remove(d.id, { expectedVersion: d.version });
         released += 1;
       }

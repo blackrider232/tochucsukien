@@ -139,6 +139,9 @@ export const responsesTable = defineTable<ResponseRow>({
   }),
 });
 
+/** A run token's hash, as a delivery row keeps it (claimHash in deliveries.ts). */
+export type ClaimHash = string & { readonly __brand: 'ClaimHash' };
+
 /** unknown: Gmail's answer to the send was lost; the message may have gone, so nothing sends it again on its own. */
 export type DeliveryStatus = 'sent' | 'error' | 'unknown';
 export interface DeliveryRow extends BaseRow {
@@ -155,8 +158,13 @@ export interface DeliveryRow extends BaseRow {
    * Gmail, or is about to; if the run dies there, the row becomes 'unknown' (202611041400_comms_delivery_sending_status.sql).
    */
   status: DeliveryStatus | 'queued' | 'sending';
-  /** The run that claimed the row last (202611041300_comms_delivery_claim_token.sql). */
-  claimToken: RunToken | null;
+  /** The run that claimed the row last, as claimHash of its token (202611041300 and 202611041410 migrations). */
+  claimToken: ClaimHash | null;
+  /**
+   * Write-only: the run's own token, on a write that acts for the run that holds the claim. The database checks it
+   * against claimToken and never stores it (memoryDb keeps it; nothing reads it).
+   */
+  claimProof: RunToken | null;
   sentAt: Instant | null;
   error: string | null;
   providerMessageId: string | null;
@@ -178,7 +186,8 @@ export const deliveriesTable = defineTable<DeliveryRow>({
     subject: z.string(),
     senderEmail: z.string(),
     status: z.enum(['queued', 'sending', 'sent', 'error', 'unknown']),
-    claimToken: z.string().nullable().transform((v) => v as RunToken | null),
+    claimToken: z.string().nullable().transform((v) => v as ClaimHash | null),
+    claimProof: z.string().nullable().transform((v) => v as RunToken | null),
     sentAt: instant.nullable(),
     error: z.string().nullable(),
     providerMessageId: z.string().nullable(),
