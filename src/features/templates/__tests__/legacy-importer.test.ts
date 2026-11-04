@@ -5,13 +5,15 @@ import type { Instant, Version } from '@/core/brand';
 import { buildWorkCalendar } from '@/core/dates';
 import { memoryDb } from '@/core/db';
 import { deterministicIds, normalizeBlob, type ImportContext, type LegacyBlob } from '@/core/legacy';
-import { builtinDraft } from '../domain/catalog';
+import { builtinDraft, resolveCatalog } from '../domain/catalog';
+import { renderTemplate } from '../domain/merge-tags';
 import { overrideRowId } from '../server/ids';
 import { legacyImporter } from '../server/legacy-importer';
+import { dropDuplicatedNgay } from '../server/legacy-content';
 import { listTemplates } from '../server/reads';
-import { NOW, SETTINGS } from './fixtures';
+import { mergeCtx, NOW, SETTINGS } from './fixtures';
 import { admin } from './harness';
-import { fixedLegacyTemplates, loadLegacyTemplates } from './legacy-templates';
+import { fixedLegacyTemplates, LEGACY_FIXES, loadLegacyTemplates } from './legacy-templates';
 
 const extras = JSON.parse(readFileSync(join(import.meta.dirname, 'fixtures', 'legacy-extras.json'), 'utf8')) as Record<string, Record<string, unknown>>;
 const ctx: ImportContext = { ids: deterministicIds, calendar: buildWorkCalendar([]), includeDemo: false };
@@ -92,5 +94,50 @@ describe('templates legacy importer', () => {
     const rows = rowsOf(blobOf(everything));
     expect(rows.map((r) => r.legacy_id)).toEqual(['form_custom_1767225600000']);
     expect(builtinDraft('form_kh_ubnd')).not.toBeNull();
+  });
+});
+
+describe('imported content and the B13 date tag', () => {
+  const DATE_FIX = LEGACY_FIXES.find((f) => f.bug === 'B13')!;
+  const usingTag = loadLegacyTemplates().filter((t) => t.content.includes(DATE_FIX.from));
+  const plainText = (html: string) => new DOMParser().parseFromString(html, 'text/html').body.textContent ?? '';
+  /** A legacy admin edit: the original content with a visible change to the title, imported, then rendered with an event. */
+  const importedAndRendered = (id: string, edit: (content: string) => string = (c) => c) => {
+    const original = loadLegacyTemplates().find((t) => t.id === id)!;
+    const rows = rowsOf(blobOf([{ ...original, title: `${original.title} (Admin sửa)`, content: edit(original.content) }]));
+    expect(rows, id).toHaveLength(1);
+    const stamped = { version: 1 as Version, templateKey: id, baseBuiltinKey: id, level: original.group, code: original.code, title: String(rows[0]!.title), kind: original.type, description: original.description, contentHtml: String(rows[0]!.content_html), updatedAt: NOW };
+    const imported = resolveCatalog([stamped as never]).find((t) => t.id === id)!;
+    return { imported, text: plainText(renderTemplate(imported, mergeCtx())) };
+  };
+
+  it('finds the three templates whose legacy text put "ngày" before the tag', () => {
+    expect(usingTag.map((t) => t.id)).toEqual(['form_kh_sce_chitiet', 'form_thongcao_baochi', 'form_baocao_tiendo_hangngay']);
+  });
+
+  it.each(usingTag.map((t) => t.id))('prints one "ngày" before the date in an edited %s', (id) => {
+    const { text } = importedAndRendered(id);
+    expect(text).toContain('ngày 04 tháng 11 năm 2026');
+    expect(text).not.toMatch(/ngày\s+ngày/i);
+  });
+
+  it('prints the date once for every other edited built-in too', () => {
+    for (const t of loadLegacyTemplates()) expect(importedAndRendered(t.id).text, t.id).not.toMatch(/ngày\s+ngày/i);
+  });
+
+  it('also fixes the spellings an editor produces: capital, non-breaking space, extra spaces', () => {
+    for (const before of ['Ngày {{NGAY_HOM_NAY}}', 'ngày&nbsp;{{NGAY_HOM_NAY}}', 'ngày   {{ NGAY_HOM_NAY }}']) {
+      const { text } = importedAndRendered('form_thu_camon', (c) => `${c}<p>Lập ${before}.</p>`);
+      expect(text, before).toContain('Lập ngày 04 tháng 11 năm 2026.');
+    }
+  });
+
+  it('leaves a "ngày" that is not in front of the tag alone', () => {
+    const { text } = importedAndRendered('form_thu_camon', (c) => `${c}<p>Ngày mai, hôm nay {{NGAY_HOM_NAY}}; ngày làm việc.</p>`);
+    expect(text).toContain('Ngày mai, hôm nay ngày 04 tháng 11 năm 2026; ngày làm việc.');
+  });
+
+  it('applies the same replacement as the fix listed for the built-ins, on every legacy template', () => {
+    for (const t of loadLegacyTemplates()) expect(dropDuplicatedNgay(t.content), t.id).toBe(t.content.split(DATE_FIX.from).join(DATE_FIX.to));
   });
 });
