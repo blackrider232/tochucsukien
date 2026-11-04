@@ -9,6 +9,7 @@ import { ContactPickerDialog, ContactSuggest } from '../components/contact-sugge
 import { DirectoryScreen } from '../components/directory-screen';
 import { BatchImportDialog } from '../components/event-import';
 import { CsvImportDialog } from '../components/csv-import-dialog';
+import { ResetDialog } from '../components/reset-dialog';
 
 const dispatch = vi.hoisted(() => vi.fn());
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }), usePathname: () => '/' }));
@@ -141,6 +142,22 @@ describe('the copy into an event when the match check fails', () => {
     expect(submit).toBeEnabled();
     await user.click(submit);
     await waitFor(() => expect(dispatch).toHaveBeenCalledWith('directory.importToEvent', { eventId: EVENT, ids: [c.id], onExisting: 'skip' }));
+  });
+});
+
+describe('the reset dialog checks the phrase before it sends anything', () => {
+  it('refuses a wrong phrase in the dialog, then sends the typed phrase for the command to check again', async () => {
+    const user = userEvent.setup();
+    dispatch.mockResolvedValue({ ok: true, value: { deleted: 3, backupId: 7 } });
+    renderUi(withAppContext(<ResetDialog count={3} onClose={() => undefined} />));
+    const input = screen.getByRole('textbox', { name: /Gõ "xóa toàn bộ" để xác nhận/ });
+    await user.type(input, 'xóa toàn');
+    await user.click(screen.getByRole('button', { name: 'Xóa toàn bộ' }));
+    expect(await screen.findByText('Gõ đúng cụm từ "xóa toàn bộ"')).toBeInTheDocument();
+    expect(dispatch).not.toHaveBeenCalled();
+    await user.type(input, ' BO');
+    await user.click(screen.getByRole('button', { name: 'Xóa toàn bộ' }));
+    await waitFor(() => expect(dispatch).toHaveBeenCalledWith('directory.resetAll', { phrase: 'xóa toàn BO' }));
   });
 });
 
