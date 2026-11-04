@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { describe, expect, it } from 'vitest';
 import { newId, type EventId, type GuestId, type Instant, type UserId, type Version } from '@/core/brand';
-import { encodeCheckinPayload } from '@/core/checkin-code';
+import { encodeCheckinPayload, legacyScanKey } from '@/core/checkin-code';
+import { matchScan } from '../contract';
 import { defineTable, memoryDb, type EventScopedRow } from '@/core/db';
 import { deterministicIds } from '@/core/legacy';
 import { admin, desk, harness } from './harness';
@@ -102,5 +103,16 @@ describe('live.scan: every matchScan outcome against the live roster (m5 BUG-06,
     const before = h.audits().length;
     await scan(encodeCheckinPayload(eventId, an.id));
     expect(h.audits()).toHaveLength(before);
+  });
+});
+
+describe('matchScan on a legacy badge (review LOW-3)', () => {
+  const eventId = newId<'Event'>();
+  const guestId = newId<'Guest'>();
+  const badge = { kind: 'legacy', legacyEventId: 'evt_here', legacyGuestId: 'gst_7' } as const;
+
+  it('answers other_event when the legacy guest id is known only under another legacy event, not_found when unknown', () => {
+    expect(matchScan(badge, eventId, [], new Map([[legacyScanKey('evt_there', 'gst_7'), guestId]]))).toEqual({ kind: 'other_event', eventName: null });
+    expect(matchScan(badge, eventId, [], new Map([[legacyScanKey('evt_there', 'gst_8'), guestId]]))).toEqual({ kind: 'not_found' });
   });
 });
