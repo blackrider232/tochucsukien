@@ -360,4 +360,18 @@ const internal = await db.query(`select p.oid::regprocedure::text as f from pg_c
   where n.nspname = 'tcsk' and p.proname in ('take_snapshot', 'holidays_of', 'holiday_diff', 'role_label', 'bootstrap_first_admin') and has_function_privilege('authenticated', p.oid, 'execute') order by 1`);
 assert.deepEqual(internal.rows.map((r) => r.f), [], 'authenticated executes no internal helper of the audited functions');
 
+// Holidays carry the list the editor saw (202611041200_core_holidays_guard.sql).
+const year2031 = async () => (await db.query(`select holiday_date::text as date, name, kind from public.sce_tcsk_holidays where holiday_date between '2031-01-01' and '2031-12-31' order by 1`)).rows;
+const seen2031 = JSON.stringify(await year2031());
+const stale2031 = `'[{"date":"2031-01-23","name":"Tết Nguyên đán","kind":"holiday"},{"date":"2031-02-01","name":"Làm bù Tết","kind":"compensatory_workday"}]'`;
+const auditsBeforeStale = await auditCount();
+const staleSave = await as(ids.leader, 'aal2', () => db.query(`select public.sce_tcsk_replace_holidays(2031, '[]', ${stale2031}) as prev`));
+assert.equal(staleSave.rows[0].prev, null, 'a save from a list that changed since is refused');
+assert.equal(JSON.stringify(await year2031()), seen2031, 'a refused save leaves the year as it was');
+assert.equal(await auditCount(), auditsBeforeStale, 'a refused save writes no audit row');
+const freshSave = await as(ids.leader, 'aal2', () => db.query(`select public.sce_tcsk_replace_holidays(2031, '[]', '[{"name":"  Tết Nguyên đán ","date":"2031-01-23"}]') as prev`));
+assert.deepEqual(freshSave.rows[0].prev, [{ date: '2031-01-23', name: 'Tết Nguyên đán', kind: 'holiday' }], 'the list as the editor saw it matches whatever its order, spacing or default kind');
+assert.deepEqual(await year2031(), [], 'and the save goes through');
+await as(ids.leader, 'aal2', () => assert.rejects(db.query(`select public.sce_tcsk_replace_holidays(2031, '[]')`), /does not exist/, 'the unguarded two-argument replace is gone'));
+
 console.log('all RLS and function checks passed');

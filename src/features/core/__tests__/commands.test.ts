@@ -15,9 +15,15 @@ import { actors, adminAal1, createAuthUser, day, harness, locked, NEW_USER_ID, N
 const { admin, admin2, leader, xtdtLeader, xtdtUser, ptdnUser } = actors;
 const v1 = 1 as Version;
 
+const seededHolidays2027 = [
+  { date: day('2027-01-01'), name: 'Tết Dương lịch', kind: 'holiday' as const },
+  { date: day('2027-04-30'), name: 'Ngày Giải phóng miền Nam', kind: 'holiday' as const },
+];
+
 const inputs: { [K in CommandId as K extends `core.${string}` ? K : never]: InputOf<K> } = {
   'core.settings.update': { version: v1, patch: { guestQuotaPercent: 150 } },
-  'core.holidays.replaceYear': { year: 2027, holidays: [{ date: day('2027-02-06'), name: 'Tết Nguyên đán', kind: 'holiday' }] },
+  'core.holidays.replaceYear': { year: 2029, holidays: [{ date: day('2029-02-13'), name: 'Tết Nguyên đán', kind: 'holiday' }] },
+  'core.holidays.saveYear': { year: 2027, expected: seededHolidays2027, holidays: [{ date: day('2027-02-06'), name: 'Tết Nguyên đán', kind: 'holiday' }] },
   'core.users.create': { email: 'moi@sce.vn' as Email, password: 'matkhau123', fullname: 'Mới', department: XTDT, role: 'user' },
   'core.users.setRole': { id: xtdtUser.profile.id, role: 'admin' },
   'core.users.setDepartment': { id: xtdtUser.profile.id, department: 'Phòng Tư vấn doanh nghiệp' },
@@ -33,6 +39,7 @@ const inputs: { [K in CommandId as K extends `core.${string}` ? K : never]: Inpu
 const denied: { [K in keyof typeof inputs]: ReadonlyArray<[string, Actor]> } = {
   'core.settings.update': [['dept_leader', xtdtLeader], ['user', xtdtUser], ['admin at aal1', adminAal1]],
   'core.holidays.replaceYear': [['dept_leader', xtdtLeader], ['user', xtdtUser], ['admin at aal1', adminAal1]],
+  'core.holidays.saveYear': [['dept_leader', xtdtLeader], ['user', xtdtUser], ['admin at aal1', adminAal1]],
   'core.users.create': [['leader', leader], ['dept_leader', xtdtLeader], ['user', xtdtUser]],
   'core.users.setRole': [['leader', leader], ['dept_leader', xtdtLeader], ['user', xtdtUser], ['admin at aal1', adminAal1]],
   'core.users.setDepartment': [['leader', leader], ['dept_leader', xtdtLeader], ['user', xtdtUser]],
@@ -143,29 +150,59 @@ describe('core.settings.update', () => {
   });
 });
 
-describe('core.holidays.replaceYear', () => {
+describe('core.holidays.saveYear', () => {
   const tet = { date: day('2027-02-06'), name: 'Tết Nguyên đán', kind: 'holiday' as const };
   const lamBu = { date: day('2027-02-20'), name: 'Làm bù Tết', kind: 'compensatory_workday' as const };
+  const STALE = 'Ngày nghỉ năm 2027 vừa được người khác thay đổi. Đang tải lại danh sách mới…';
 
   it('replaces one year, converges when repeated, and leaves other years alone', async () => {
     const h = harness();
     const list = [{ date: day('2027-01-01'), name: 'Tết Dương lịch', kind: 'holiday' as const }, tet, lamBu];
-    const first = await h.ok(leader, 'core.holidays.replaceYear', { year: 2027, holidays: list });
+    const first = await h.ok(leader, 'core.holidays.saveYear', { year: 2027, expected: seededHolidays2027, holidays: list });
     expect(h.holidays(2027)).toEqual(list);
     expect(h.audits().at(-1)).toMatchObject({ action: 'CẬP NHẬT NGÀY NGHỈ LỄ', summary: 'Năm 2027: thêm 06/02/2027 Tết Nguyên đán, 20/02/2027 Làm bù Tết (ngày làm bù); bỏ 30/04/2027 Ngày Giải phóng miền Nam' });
-    await h.ok(leader, 'core.holidays.replaceYear', { year: 2027, holidays: list });
+    await h.ok(leader, 'core.holidays.saveYear', { year: 2027, expected: list, holidays: list });
     expect(h.holidays(2027)).toEqual(list);
     expect(h.audits().at(-1)?.summary).toBe('Năm 2027: không thay đổi');
     expect(h.holidays(2028)).toEqual([{ date: '2028-01-01', name: 'Tết Dương lịch', kind: 'holiday' }]);
     expect((await h.undo(leader, first.inverse)).ok).toBe(true);
-    expect(h.holidays(2027).map((x) => x.name)).toEqual(['Tết Dương lịch', 'Ngày Giải phóng miền Nam']);
+    expect(h.holidays(2027)).toEqual(seededHolidays2027);
+  });
+
+  it('refuses a save made from a list someone else has changed since', async () => {
+    const h = harness();
+    await h.ok(admin, 'core.holidays.saveYear', { year: 2027, expected: seededHolidays2027, holidays: [...seededHolidays2027, tet] });
+    const audits = h.audits().length;
+    const stale = await h.run(leader, 'core.holidays.saveYear', { year: 2027, expected: seededHolidays2027, holidays: [...seededHolidays2027, lamBu] });
+    expect(stale).toEqual({ ok: false, kind: 'conflict', message: STALE });
+    expect(h.holidays(2027)).toEqual([seededHolidays2027[0], tet, seededHolidays2027[1]]);
+    expect(h.audits()).toHaveLength(audits);
+  });
+
+  it('refuses to undo over an edit someone made after it', async () => {
+    const h = harness();
+    const mine = await h.ok(admin, 'core.holidays.saveYear', { year: 2027, expected: seededHolidays2027, holidays: [...seededHolidays2027, tet] });
+    const theirs = [...seededHolidays2027, tet, lamBu];
+    await h.ok(leader, 'core.holidays.saveYear', { year: 2027, expected: [...seededHolidays2027, tet], holidays: theirs });
+    expect(await h.undo(admin, mine.inverse)).toEqual({ ok: false, kind: 'conflict', message: STALE });
+    expect(h.holidays(2027)).toEqual([seededHolidays2027[0], tet, lamBu, seededHolidays2027[1]].sort((a, b) => a.date.localeCompare(b.date)));
   });
 
   it('refuses a date outside the year and a date listed twice', async () => {
     const h = harness();
-    const r = await h.run(admin, 'core.holidays.replaceYear', { year: 2027, holidays: [tet, { ...tet, name: 'Trùng' }, { date: day('2028-01-02'), name: 'Sai năm', kind: 'holiday' }] });
+    const r = await h.run(admin, 'core.holidays.saveYear', { year: 2027, expected: seededHolidays2027, holidays: [tet, { ...tet, name: 'Trùng' }, { date: day('2028-01-02'), name: 'Sai năm', kind: 'holiday' }] });
     expect(r).toMatchObject({ ok: false, kind: 'invalid', fieldErrors: { 'holidays.1.date': 'Ngày này đã có trong danh sách', 'holidays.2.date': 'Ngày phải thuộc năm 2027' } });
     expect(h.holidays(2027)).toHaveLength(2);
+  });
+});
+
+describe('core.holidays.replaceYear', () => {
+  it('fills a year that has no rows yet, and refuses a year that has some, which only saveYear may change', async () => {
+    const h = harness();
+    await h.ok(leader, 'core.holidays.replaceYear', inputs['core.holidays.replaceYear']);
+    expect(h.holidays(2029)).toEqual(inputs['core.holidays.replaceYear'].holidays);
+    expect(await h.run(leader, 'core.holidays.replaceYear', { year: 2027, holidays: [] })).toMatchObject({ ok: false, kind: 'conflict' });
+    expect(h.holidays(2027)).toEqual(seededHolidays2027);
   });
 });
 
@@ -257,7 +294,7 @@ describe('core.backups.*', () => {
     const created = await h.ok(leader, 'core.backups.create', { note: 'Trước khi sửa' });
     expect(created.value).toMatchObject({ kind: 'manual', format: 2, note: 'Trước khi sửa', createdByEmail: leader.profile.email });
     await h.ok(admin, 'core.settings.update', { version: v1, patch: { guestQuotaPercent: 170 } });
-    await h.ok(admin, 'core.holidays.replaceYear', { year: 2027, holidays: [] });
+    await h.ok(admin, 'core.holidays.saveYear', { year: 2027, expected: seededHolidays2027, holidays: [] });
 
     expect(await h.run(leader, 'core.backups.restore', { id: created.value.id })).toMatchObject({ ok: false, kind: 'forbidden' });
     await h.ok(admin, 'core.backups.restore', { id: created.value.id });
