@@ -21,17 +21,32 @@ export type IconName =
   | 'user-cog' | 'layout-template' | 'building' | 'contact' | 'bell' | 'printer' | 'cloud' | 'download'
   | 'undo' | 'redo' | 'moon' | 'sun' | 'plus' | 'pencil' | 'trash' | 'search' | 'x' | 'check' | 'qr-code'
   | 'mail' | 'file-spreadsheet' | 'file-text' | 'alert-triangle' | 'clock' | 'lock' | 'unlock' | 'shield'
-  | 'log-out' | 'chevron-down' | 'chevron-right' | 'copy' | 'external-link' | 'upload' | 'map' | 'armchair' | 'menu';
+  | 'log-out' | 'chevron-down' | 'chevron-right' | 'copy' | 'external-link' | 'upload' | 'map' | 'armchair' | 'menu'
+  // Legacy emoji meanings: ⭐ star, 🏛 landmark, 🌐 globe, 💼 briefcase, 📰 newspaper, 📍 map-pin, 🚨 siren,
+  // 🔴/🟢/🟡 circle-x / circle-check / alert-triangle. Plus the controls the kit itself needs.
+  | 'star' | 'landmark' | 'globe' | 'briefcase' | 'newspaper' | 'map-pin' | 'siren' | 'info' | 'circle-x'
+  | 'circle-check' | 'filter' | 'ellipsis' | 'arrow-left' | 'arrow-left-right' | 'calendar' | 'phone' | 'eye'
+  | 'refresh' | 'list-check' | 'paperclip' | 'layers';
 
 // ---------- actions ----------
+// Three colour vocabularies, on purpose: `accent` is a module colour (Accent), `tone` is a status colour (Tone, from
+// core/vocab), and ConfirmOptions.tone names the intent of a confirm button.
 export interface ButtonProps {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
-  accent?: Accent;
+  /** Confirm tones only, on a primary button. A module colour never paints a button. */
+  accent?: Extract<Accent, 'emerald' | 'amber'>;
   icon?: IconName;
+  /** Spinner, aria-disabled and cursor-progress at full opacity, so "saving" never looks like "not allowed". */
   loading?: boolean;
   disabled?: boolean;
   type?: 'button' | 'submit';
   onClick?: () => void;
+  /** Renders a link with the same look. Navigation is a link, never a button with router.push. */
+  href?: string;
+  /** With href: opens a new tab and tells screen readers so. */
+  newTab?: boolean;
+  /** A toggle button: sets aria-pressed. */
+  pressed?: boolean;
   children: ReactNode;
 }
 export interface IconButtonProps {
@@ -41,6 +56,7 @@ export interface IconButtonProps {
   onClick?: () => void;
   href?: string;
   disabled?: boolean;
+  /** Status colour of the glyph (red for delete, emerald for approve). Every Tone is styled. */
   tone?: Tone;
 }
 
@@ -124,6 +140,8 @@ export interface LinkTabsProps {
   items: ReadonlyArray<TabItem & { href: string }>;
   activeId: string;
   variant?: 'pill' | 'underline';
+  /** Name of the nav landmark; defaults to 'Phân mục'. Give each tab bar on a page its own name. */
+  label?: string;
 }
 export interface TabsProps {
   items: ReadonlyArray<TabItem>;

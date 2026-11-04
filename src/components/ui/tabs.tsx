@@ -46,9 +46,9 @@ function TabContent({ item, active }: { item: TabItem; active: boolean }) {
 }
 
 /** Each tab is a link, so the state survives a reload and can be shared. */
-export function LinkTabs({ items, activeId, variant = 'pill' }: LinkTabsProps) {
+export function LinkTabs({ items, activeId, variant = 'pill', label = 'Phân mục' }: LinkTabsProps) {
   return (
-    <nav aria-label="Phân mục">
+    <nav aria-label={label}>
       <ul className={LIST[variant]}>
         {items.map((item) => {
           const active = item.id === activeId;

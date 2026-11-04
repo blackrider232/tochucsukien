@@ -1,8 +1,10 @@
 import {
-  AlertTriangle, Armchair, Bell, Building, CalendarCheck, ChartLine, Check, ChevronDown, ChevronRight, Clock,
-  Cloud, Contact, Copy, Download, ExternalLink, FileSignature, FileSpreadsheet, FileText, LayoutTemplate,
-  Lock, LogOut, Mail, Map as MapIcon, Menu, Moon, Pencil, Plus, Printer, QrCode as QrIcon, Redo2, Search, Settings,
-  Shield, Smartphone, Store, Sun, Trash2, Undo2, Unlock, Upload, UserCog, Users, X,
+  AlertTriangle, Armchair, ArrowLeft, ArrowLeftRight, Bell, Briefcase, Building, Calendar, CalendarCheck, ChartLine, Check,
+  ChevronDown, ChevronRight, CircleCheck, CircleX, Clock, Cloud, Contact, Copy, Download, Ellipsis, ExternalLink, Eye,
+  FileSignature, FileSpreadsheet, FileText, Filter, Globe, Info, Landmark, Layers, LayoutTemplate, ListChecks, LoaderCircle,
+  Lock, LogOut, Mail, Map as MapIcon, MapPin, Menu, Moon, Newspaper, Paperclip, Pencil, Phone, Plus, Printer,
+  QrCode as QrIcon, Redo2, RefreshCw, Search, Settings, Shield, Siren, Smartphone, Star, Store, Sun, Trash2, Undo2, Unlock,
+  Upload, UserCog, Users, X,
   type LucideIcon,
 } from 'lucide-react';
 import type { IconName } from './kit.types';
@@ -51,6 +53,27 @@ const ICONS: Readonly<Record<IconName, LucideIcon>> = {
   map: MapIcon,
   armchair: Armchair,
   menu: Menu,
+  star: Star,
+  landmark: Landmark,
+  globe: Globe,
+  briefcase: Briefcase,
+  newspaper: Newspaper,
+  'map-pin': MapPin,
+  siren: Siren,
+  info: Info,
+  'circle-x': CircleX,
+  'circle-check': CircleCheck,
+  filter: Filter,
+  ellipsis: Ellipsis,
+  'arrow-left': ArrowLeft,
+  'arrow-left-right': ArrowLeftRight,
+  calendar: Calendar,
+  phone: Phone,
+  eye: Eye,
+  refresh: RefreshCw,
+  'list-check': ListChecks,
+  paperclip: Paperclip,
+  layers: Layers,
 };
 
 export const ICON_NAMES = Object.keys(ICONS) as ReadonlyArray<IconName>;
@@ -59,4 +82,9 @@ export const ICON_NAMES = Object.keys(ICONS) as ReadonlyArray<IconName>;
 export function Icon({ name, size = 16, className }: { name: IconName; size?: number; className?: string }) {
   const Cmp = ICONS[name];
   return <Cmp aria-hidden="true" focusable="false" width={size} height={size} className={className} />;
+}
+
+/** The busy indicator of Button and DataTable. Decorative: the control says what is loading. */
+export function Spinner({ size = 16 }: { size?: number }) {
+  return <LoaderCircle aria-hidden="true" focusable="false" width={size} height={size} className="animate-spin" />;
 }

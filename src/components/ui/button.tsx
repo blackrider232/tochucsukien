@@ -1,61 +1,81 @@
 'use client';
 
 import Link from 'next/link';
-import { Loader2 } from 'lucide-react';
 import type { ButtonProps, IconButtonProps } from './kit.types';
 import { cn } from './cn';
-import { Icon } from './icons';
+import { Icon, Spinner } from './icons';
 
 const base =
-  'inline-flex min-h-touch shrink-0 items-center justify-center gap-2 rounded-control px-4 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50';
+  'inline-flex min-h-touch shrink-0 items-center justify-center gap-2 rounded-control px-4 text-sm font-semibold transition-colors active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50 disabled:active:translate-y-0 aria-busy:cursor-progress';
 
 const VARIANT = {
-  primary: 'bg-primary text-on-primary hover:bg-primary-hover',
-  secondary: 'border border-line-strong bg-surface text-ink hover:bg-surface-3',
-  ghost: 'text-ink-2 hover:bg-surface-3',
-  danger: 'bg-red-700 text-white hover:bg-red-800 dark:bg-red-600 dark:hover:bg-red-500',
+  primary: 'bg-primary text-on-primary hover:bg-primary-hover active:bg-primary-hover',
+  secondary: 'border border-control-border bg-surface text-ink hover:bg-surface-3 active:bg-surface-3',
+  ghost: 'text-ink-2 hover:bg-surface-3 active:bg-surface-3',
+  danger: 'bg-danger text-on-primary hover:bg-danger-hover active:bg-danger-hover',
 } as const;
 
-const ACCENT_PRIMARY = 'bg-(--tone-solid) text-(--tone-on-solid) hover:opacity-90';
+// The 700 step with white text in both themes: a confirm tone stays solid, never a pastel glow on dark.
+const ACCENT_PRIMARY = 'bg-(--t700) text-on-primary hover:bg-(--t800) active:bg-(--t800)';
 
-export function Button({ variant = 'primary', accent, icon, loading, disabled, type = 'button', onClick, children }: ButtonProps) {
+export function buttonClass(variant: NonNullable<ButtonProps['variant']>, accent?: ButtonProps['accent']): string {
+  return cn(base, accent && variant === 'primary' ? ACCENT_PRIMARY : VARIANT[variant]);
+}
+
+export function Button({ variant = 'primary', accent, icon, loading, disabled, type = 'button', onClick, href, newTab, pressed, children }: ButtonProps) {
+  const cls = buttonClass(variant, accent);
+  const body = (
+    <>
+      {loading ? <Spinner /> : icon ? <Icon name={icon} /> : null}
+      {children}
+    </>
+  );
+  if (href && !disabled) {
+    if (newTab) {
+      return (
+        <a href={href} target="_blank" rel="noopener noreferrer" data-tone={accent} className={cls}>
+          {body}
+          {' '}
+          <span className="sr-only">(mở tab mới)</span>
+        </a>
+      );
+    }
+    return <Link href={href} data-tone={accent} className={cls}>{body}</Link>;
+  }
   return (
     <button
       type={type}
-      onClick={onClick}
-      disabled={disabled || loading}
+      onClick={(e) => {
+        if (loading) e.preventDefault();
+        else onClick?.();
+      }}
+      disabled={disabled}
+      aria-disabled={loading || undefined}
       aria-busy={loading || undefined}
+      aria-pressed={pressed}
       data-tone={accent}
-      className={cn(base, accent && variant === 'primary' ? ACCENT_PRIMARY : VARIANT[variant])}
+      className={cls}
     >
-      {loading ? <Loader2 aria-hidden="true" width={16} height={16} className="animate-spin" /> : icon ? <Icon name={icon} /> : null}
-      {children}
+      {body}
     </button>
   );
 }
 
-const TONE_ICON: Record<string, string> = {
-  red: 'text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/40',
-  rose: 'text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/40',
-  emerald: 'text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950/40',
-  amber: 'text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-950/40',
-};
+const ICON_BASE =
+  'inline-flex size-touch shrink-0 items-center justify-center rounded-control transition-colors active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50';
 
-/** Icon-only: `label` is the accessible name and the tooltip. */
+/** Icon-only: `label` is the accessible name and the tooltip. A tone colours the glyph and its hover tint. */
 export function IconButton({ icon, label, onClick, href, disabled, tone }: IconButtonProps) {
-  const cls = cn(
-    'inline-flex size-touch shrink-0 items-center justify-center rounded-control transition-colors disabled:cursor-not-allowed disabled:opacity-50',
-    (tone && TONE_ICON[tone]) ?? 'text-ink-muted hover:bg-surface-3 hover:text-ink',
-  );
+  const cls = cn(ICON_BASE, tone ? 'text-(--tone-fg) hover:bg-(--tone-bg) active:bg-(--tone-bg)' : 'text-ink-muted hover:bg-surface-3 hover:text-ink active:bg-surface-3');
   if (href && !disabled) {
     return (
-      <Link href={href} aria-label={label} title={label} className={cls}>
+      <Link href={href} aria-label={label} title={label} data-tone={tone} className={cls}>
         <Icon name={icon} size={18} />
       </Link>
     );
   }
   return (
-    <button type="button" aria-label={label} title={label} onClick={onClick} disabled={disabled} className={cls}>
+    <button type="button" aria-label={label} title={label} onClick={onClick} disabled={disabled} data-tone={tone} className={cls}>
       <Icon name={icon} size={18} />
     </button>
   );

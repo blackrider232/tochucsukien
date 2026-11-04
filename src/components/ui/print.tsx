@@ -4,7 +4,7 @@ import type { Nd30HeaderProps, PrintLinkProps, PrintPageProps, SignatureBlockPro
 import { formatNd30Date } from '@/core/dates';
 import { orgIdentity } from '@/core/settings';
 import { useSettings } from '@/core/auth';
-import { Icon } from './icons';
+import { Button } from './button';
 
 const PAPER = {
   A4: { portrait: ['210mm', '297mm'], landscape: ['297mm', '210mm'] },
@@ -111,16 +111,5 @@ export function SignatureBlock({ left, right, recipients }: SignatureBlockProps)
 
 /** Opens a (print) route in a new tab. The route prints itself; this never prints the app shell. */
 export function PrintLink({ href, label = 'In' }: PrintLinkProps) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label={`${label} (mở tab mới)`}
-      className="inline-flex min-h-touch shrink-0 items-center justify-center gap-2 rounded-control border border-line-strong bg-surface px-4 text-sm font-semibold text-ink hover:bg-surface-3"
-    >
-      <Icon name="printer" />
-      {label}
-    </a>
-  );
+  return <Button href={href} newTab variant="secondary" icon="printer">{label}</Button>;
 }

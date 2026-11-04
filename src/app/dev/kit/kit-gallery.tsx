@@ -131,7 +131,7 @@ function Specimens() {
         <div className="flex flex-wrap items-center gap-2">
           <Button>Primary</Button><Button variant="secondary">Secondary</Button><Button variant="ghost">Ghost</Button><Button variant="danger" icon="trash">Danger</Button>
           <Button loading>Đang lưu</Button><Button disabled>Vô hiệu</Button>
-          {ACCENTS.map((a) => <Button key={a} accent={a}>{a}</Button>)}
+          <Button accent="emerald">emerald</Button><Button accent="amber">amber</Button>
         </div>
       </Spec>
       <Spec kit="IconButton" title="IconButton">

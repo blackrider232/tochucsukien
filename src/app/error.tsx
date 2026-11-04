@@ -1,9 +1,7 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { EmptyState } from '@/components/ui/empty-state';
+import { Button, EmptyState } from '@/components/ui';
 
 export default function ErrorPage({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
@@ -20,9 +18,7 @@ export default function ErrorPage({ error, reset }: { error: Error & { digest?: 
           action={
             <div className="flex flex-wrap justify-center gap-2">
               <Button onClick={reset}>Thử lại</Button>
-              <Link href="/" className="inline-flex min-h-touch items-center rounded-control border border-line-strong px-4 text-sm font-semibold text-ink hover:bg-surface-3">
-                Về trang chủ
-              </Link>
+              <Button href="/" variant="secondary">Về trang chủ</Button>
             </div>
           }
         />
