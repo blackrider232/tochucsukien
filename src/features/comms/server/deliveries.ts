@@ -90,6 +90,11 @@ export const startCampaign: CommandSpec<InputOf<'comms.startCampaign'>, OutputOf
     // Kept for "Gửi lại thư lỗi"; written before any claim, so a claim never lacks its message, and taken out again
     // when no claim follows, so a failed call leaves nothing behind.
     const kept = await readCampaign(ctx, eventId, campaignId);
+    // The id names the message; a row written to the table directly could keep another one under it, which
+    // "Gửi lại thư lỗi" would then send as this campaign.
+    if (kept && campaignIdFor(eventId, kept.subjectTemplate, kept.bodyTemplate) !== campaignId) {
+      throw new CommandError('conflict', 'Nội dung thư đã lưu của đợt gửi này không khớp với thư đang soạn. Vui lòng báo quản trị viên kiểm tra trước khi gửi.');
+    }
     const message = { subjectTemplate: subject, bodyTemplate: body, attachQr };
     let undoMessage = async () => {};
     if (!kept) {

@@ -3,6 +3,7 @@ import { newId, type CampaignId, type Email, type EventId, type GuestId, type In
 import { testActor, XTDT } from '@/core/testing/actors';
 import { campaignIdFor, CLAIM_LEASE_MS, CLAIM_SKEW_MS } from '../server/deliveries';
 import { deliveryLogData, invitationScreenData } from '../server/screen-data';
+import { campaignsTable } from '../server/tables';
 import type { CommandId } from '@/core/commands';
 import { MESSAGES } from '@/core/commands/pipeline';
 import { DbError, type AuditWriter, type Db } from '@/core/db';
@@ -51,6 +52,18 @@ describe('comms.startCampaign', () => {
     expect(r).toEqual({ campaignId: campaignIdFor(eventId, MESSAGE.subject, MESSAGE.body), claimed: ['a@x.vn', 'b@x.vn'], alreadySent: [], inFlight: [], ownInFlight: [], unclear: [] });
     expect(deliveries(h)).toEqual([['a@x.vn', 'queued'], ['b@x.vn', 'queued']]);
     expect(h.audits().at(-1)).toMatchObject({ action: 'BẮT ĐẦU GỬI THƯ', summary: `Bắt đầu đợt gửi "${MESSAGE.subject}" từ btc@x.vn: giữ chỗ 2 người nhận` });
+  });
+
+  it('refuses a campaign row whose stored message is not the one its id was made from, and claims nothing', async () => {
+    const h = harness();
+    const eventId = await h.createEvent();
+    // An officer writing to the table directly stores another message under this message's id.
+    await h.ctx(xtdtUser).db.table(campaignsTable).insert({ id: campaignIdFor(eventId, MESSAGE.subject, MESSAGE.body), eventId, subjectTemplate: MESSAGE.subject, bodyTemplate: '<p>Thư khác</p>', attachQr: false });
+    const audits = h.audits().length;
+    const r = await h.run(xtdtUser, 'comms.startCampaign', { eventId, senderEmail: SENDER, ...MESSAGE, attachQr: false, runToken: TAB_A, takeOver: false, recipients: [to('a@x.vn')] });
+    expect(r).toMatchObject({ ok: false, kind: 'conflict', message: expect.stringContaining('Nội dung thư đã lưu của đợt gửi này không khớp') });
+    expect(deliveries(h)).toEqual([]);
+    expect(h.audits()).toHaveLength(audits);
   });
 
   it('the same message is the same campaign; another subject or body, or another event, is a new one', async () => {
