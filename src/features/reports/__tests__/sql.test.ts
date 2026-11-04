@@ -149,6 +149,51 @@ describe('only the lead department issues (decision 17)', () => {
   });
 });
 
+describe('the issue trigger and the soft-deleted event', () => {
+  it('a soft-deleted event takes no new report, from the lead department head or from an admin, who still sees the event', async () => {
+    const ev = await as(ids.staff, 'aal1', () =>
+      db.query<{ id: string }>(`insert into public.sce_tcsk_events (name, type, event_date, department) values ('HN đã xoá', 'hoi_nghi', '2026-12-20', 'Phòng Xúc tiến đầu tư') returning id`),
+    );
+    const id = ev.rows[0]!.id;
+    await db.exec(`select set_config('request.jwt.claim.sub', '', false), set_config('request.jwt.claims', '{}', false)`);
+    await db.exec(`update public.sce_tcsk_events set deleted_at = now() where id = '${id}'`);
+    await expect(as(ids.head, 'aal1', () => insertReport(undefined, undefined, () => id))).rejects.toThrow(/row-level security|forbidden/);
+    // The admin reads soft-deleted events, so only the insert rule refuses this one.
+    await expect(as(ids.admin, 'aal2', () => insertReport(undefined, undefined, () => id))).rejects.toThrow(/row-level security/);
+    await db.exec(`update public.sce_tcsk_events set deleted_at = null where id = '${id}'`);
+    const ok = await as(ids.head, 'aal1', () => insertReport(undefined, undefined, () => id));
+    expect(ok.rows).toHaveLength(1);
+  });
+});
+
+describe('the issue trigger stamps the Hà Nội day, whatever the hour the suite runs at', () => {
+  const vnDay = async (instant: string) => (await db.query<{ d: string }>(`select tcsk.reports_vn_day('${instant}'::timestamptz)::text as d`)).rows[0]!.d;
+  const stub = (day: string) => db.exec(`create or replace function tcsk.reports_vn_day(ts timestamptz) returns date language sql immutable set search_path = '' as $$ select '${day}'::date $$`);
+
+  it('the helper turns an instant into the day in Asia/Ho_Chi_Minh, across the 17:00 UTC boundary', async () => {
+    expect(await vnDay('2026-12-14T16:59:59Z')).toBe('2026-12-14');
+    expect(await vnDay('2026-12-14T17:00:00Z')).toBe('2026-12-15');
+    expect(await vnDay('2026-12-31T17:00:00Z')).toBe('2027-01-01');
+    expect(await vnDay('2026-12-15T00:00:00Z')).toBe('2026-12-15');
+  });
+
+  it('the stored report date is the helper\'s day, not a day the trigger works out itself (a UTC trigger fails this at any hour)', async () => {
+    const ev = await as(ids.staff, 'aal1', () =>
+      db.query<{ id: string }>(`insert into public.sce_tcsk_events (name, type, event_date, department) values ('HN múi giờ', 'hoi_nghi', '2026-12-22', 'Phòng Xúc tiến đầu tư') returning id`),
+    );
+    const real = readFileSync(join(dir, readdirSync(dir).find((f) => f.endsWith('_reports_vn_day.sql'))!), 'utf8');
+    await stub('2031-03-04');
+    try {
+      const r = await as(ids.head, 'aal1', () => insertReport(undefined, undefined, () => ev.rows[0]!.id));
+      expect(r.rows[0]!.report_date).toBe('2031-03-04');
+      expect(r.rows[0]!.workdays_to_event).toBe(workdaysToEvent(await calendarInDb(), '2026-12-22' as IsoDate, '2031-03-04' as IsoDate));
+    } finally {
+      await db.exec(real);
+    }
+    expect(await vnDay('2026-12-14T17:00:00Z')).toBe('2026-12-15');
+  });
+});
+
 describe('what the issue trigger derives counts as the app does', () => {
   const sqlWorkdays = async (t0: string, today: string) =>
     (await db.query<{ n: number }>(`select tcsk.reports_workdays_to_event('${t0}', '${today}') as n`)).rows[0]!.n;
