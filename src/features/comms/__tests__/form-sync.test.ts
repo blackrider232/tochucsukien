@@ -114,6 +114,20 @@ describe('comms.syncForm', () => {
     expect(roster[0]!.hasBanquet).toBe(true);
   });
 
+  it.each([
+    ['Sở Tài chính Hà Nội', 'SoNganh'],
+    ['So Ke hoach va Dau tu', 'SoNganh'],
+    ['Ủy ban nhân dân quận Hoàn Kiếm', 'SoNganh'],
+    ['UBND phường Tràng Tiền', 'SoNganh'],
+    ['Công ty TNHH Sở Hữu Trí Tuệ', 'DoanhNghiep'],
+    ['Công ty Cổ phần Ban Mai', 'DoanhNghiep'],
+  ])('auto-add files "%s" under %s', async (organization, group) => {
+    const { h, eventId, sync } = await setup({ autoAddNewGuests: true });
+    sheet.text = csv(`04/11/2026 10:00:00,Khách Mới,${organization},moi@x.vn,,Có,,`);
+    await sync();
+    expect((await h.roster(eventId))[0]).toMatchObject({ organization, group });
+  });
+
   it('a sync that stops part-way keeps what it applied, audits it, fails, and the next sync finishes the rest', async () => {
     const { h, eventId, sync, responses } = await setup({ autoAddNewGuests: true });
     const g = await h.addGuest(eventId, { email: 'an@a.vn' as Email });

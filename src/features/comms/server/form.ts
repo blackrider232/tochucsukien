@@ -11,7 +11,7 @@ import { CommandError, type CommandContext, type CommandSpec, type InputOf, type
 import { DbError, type DraftOf } from '@/core/db';
 import { normalizePhone } from '@/core/text';
 import { readRoster, type GuestDraft, type RosterEntry } from '@/features/guests/server';
-import { canIdentify, detectColumns } from '../domain/columns';
+import { canIdentify, detectColumns, hasPhrase, words } from '../domain/columns';
 import { CsvError, parseCsv } from '../domain/csv';
 import { buildMatchIndex, matchResponse, type MatchIndex } from '../domain/matching';
 import { parseColumnMap, parseResponseRow } from '../domain/responses';
@@ -122,6 +122,12 @@ async function applyToGuest(ctx: CommandContext, row: ResponseRow, guestId: Gues
 
 const clip = (s: string, max: number) => s.trim().slice(0, max);
 
+/** A Sở is named "Sở …"; anywhere else "sở"/"số" is too common a word. Folded, so it reads typed-without-diacritics too. */
+const isGovernment = (organization: string) => {
+  const w = words(organization);
+  return w.startsWith(' so ') || ['ubnd', 'uy ban', 'hdnd'].some((p) => hasPhrase(w, p));
+};
+
 /** A guest made from a response nobody matched (auto-add on): pending invite, the answers as given, flagged in notes. */
 function draftFromResponse(r: ResponseRow): GuestDraft {
   const digits = normalizePhone(r.phone);
@@ -130,7 +136,7 @@ function draftFromResponse(r: ResponseRow): GuestDraft {
   const notes = ['Tự đăng ký qua Google Form', r.notes, phoneOk ? '' : `SĐT trong phản hồi: ${r.phone}`].filter(Boolean).join(' | ');
   return {
     name: clip(r.name, 200),
-    group: /\b(sở|ubnd|ủy ban)\b/i.test(r.organization) ? 'SoNganh' : 'DoanhNghiep',
+    group: isGovernment(r.organization) ? 'SoNganh' : 'DoanhNghiep',
     title: clip(r.title, 300),
     organization: clip(r.organization, 300) || 'Đăng ký trực tuyến',
     phone: phoneOk ? clip(r.phone, 40) : '',
