@@ -9,3 +9,5 @@ export { boothKpis, BOOTH_STATUS, SUBSIDY } from './domain/booths';
 export { AdminHalls } from './components/admin-halls';
 export { SeatingView } from './components/seating-view';
 export { PrintSeating } from './components/print-seating';
+export { BoothsView, type BoothTab } from './components/booths-view';
+export { PrintBooths } from './components/print-booths';
