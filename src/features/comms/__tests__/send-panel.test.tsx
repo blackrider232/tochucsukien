@@ -27,6 +27,15 @@ describe('SendPanel', () => {
     expect(h.onTakeOver).toHaveBeenCalledOnce();
   });
 
+  it('a run with failures and an unsent tail offers both: retry the failed, resume the rest', async () => {
+    const h = handlers();
+    const { user } = renderUi(withAppContext(panel(report({ failed: [{ recipient: person('loi@x.vn'), failure: { kind: 'invalid', message: 'x' } }], skipped: [{ recipient: person('b@x.vn'), reason: 'auth' }], stoppedBy: 'auth' }), h)));
+    await user.click(screen.getByRole('button', { name: 'Gửi lại thư lỗi' }));
+    await user.click(screen.getByRole('button', { name: 'Gửi tiếp phần chưa gửi' }));
+    expect(h.onRetryFailed).toHaveBeenCalledOnce();
+    expect(h.onResumeSkipped).toHaveBeenCalledOnce();
+  });
+
   it('shows no take-over when nothing is held elsewhere', () => {
     renderUi(withAppContext(panel(report({ inFlight: [person('a@x.vn')] }))));
     expect(screen.queryByRole('button', { name: 'Tiếp quản phiên gửi' })).toBeNull();

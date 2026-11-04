@@ -73,10 +73,11 @@ export function SendPanel(props: {
                 : `Hoàn tất: ${report.sent.length} thành công, ${report.failed.length} lỗi${report.skipped.length ? `, ${report.skipped.length} chưa gửi` : ''}${report.alreadySent.length ? `, ${report.alreadySent.length} đã nhận thư này nên không gửi lại` : ''}${report.inFlight.length ? `, ${report.inFlight.length} đang được gửi ở phiên khác` : ''}.`
             }
             action={
-              report.failed.length > 0 ? (
-                <Button variant="secondary" icon="refresh" onClick={props.onRetryFailed}>Gửi lại thư lỗi</Button>
-              ) : report.skipped.length > 0 ? (
-                <Button variant="secondary" icon="refresh" onClick={props.onResumeSkipped}>Gửi tiếp phần chưa gửi</Button>
+              report.failed.length > 0 || report.skipped.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {report.failed.length > 0 && <Button variant="secondary" icon="refresh" onClick={props.onRetryFailed}>Gửi lại thư lỗi</Button>}
+                  {report.skipped.length > 0 && <Button variant="secondary" icon="refresh" onClick={props.onResumeSkipped}>Gửi tiếp phần chưa gửi</Button>}
+                </div>
               ) : undefined
             }
           >
