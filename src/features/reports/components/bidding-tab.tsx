@@ -6,12 +6,12 @@
 
 import { useState } from 'react';
 import { Alert, Button, DataTable, Dialog, Form, FormField, MoneyInput, RowMenu, SectionCard, Select, StatusBadge, TextInput, downloadXlsx, useDialogs, useZodForm, xlsxSheet, type Column } from '@/components/ui';
-import { newId, type EventId, type Vnd } from '@/core/brand';
+import { newId, type EventId } from '@/core/brand';
 import { useCommand } from '@/core/commands';
 import { fileDateStamp } from '@/core/dates';
 import { fileNameStem, formatVnd } from '@/core/text';
 import type { BiddingPackage } from '../contract';
-import { biddingTotals, formatPercent2, savingsPercent } from '../domain/figures';
+import { biddingTotals, biddingTotalsSentence, formatPercent2, savingsLabel, savingsPercent } from '../domain/figures';
 import { BIDDING_DEPARTMENTS, BIDDING_STATUS, BIDDING_STATUSES, nextPackageCode, packageFields, type PackageDraft } from '../domain/schemas';
 import type { ReportsScreenData } from '../domain/screen';
 
@@ -22,6 +22,12 @@ function Saving({ p }: { p: BiddingPackage }) {
   return rate >= 0
     ? <span className="text-sm font-semibold tabular-nums text-success-ink">{formatPercent2(rate)}</span>
     : <span className="text-sm font-semibold tabular-nums text-danger-ink">Vượt {formatPercent2(-rate)}</span>;
+}
+
+function exportedSaving(p: BiddingPackage): string {
+  if (p.winningPrice === null) return 'Chưa có giá trúng';
+  const rate = savingsPercent(p.budget, p.winningPrice);
+  return rate === null ? 'Chưa có' : savingsLabel(rate);
 }
 
 export function BiddingTab({ data }: { data: ReportsScreenData }) {
@@ -47,12 +53,12 @@ export function BiddingTab({ data }: { data: ReportsScreenData }) {
           { header: 'Phòng phụ trách', width: 30, value: (p) => p.department },
           { header: 'Dự toán (đồng)', width: 18, value: (p) => p.budget },
           { header: 'Giá trúng thầu (đồng)', width: 20, value: (p) => p.winningPrice },
-          { header: 'Tiết kiệm (%)', width: 14, value: (p) => (p.winningPrice === null ? null : savingsPercent(p.budget, p.winningPrice)) },
+          { header: 'Tiết kiệm / vượt dự toán', width: 22, value: (p) => exportedSaving(p) },
           { header: 'Nhà thầu', width: 36, value: (p) => p.contractor ?? 'Chưa chọn' },
           { header: 'Tiến độ hợp đồng', width: 26, value: (p) => p.status },
         ],
         rows: packages,
-        footer: { lines: [`Tổng dự toán: ${formatVnd(totals.budget)}. Đã có giá trúng thầu: ${totals.awarded} gói, ${formatVnd(totals.winning)} trên dự toán ${formatVnd(totals.awardedBudget)}, tiết kiệm ${formatPercent2(totals.savingsPercent)}.`] },
+        footer: { lines: [biddingTotalsSentence(totals)] },
         autoFilter: true,
         freezeHeader: true,
       }),
@@ -109,9 +115,7 @@ export function BiddingTab({ data }: { data: ReportsScreenData }) {
         />
         {packages.length > 0 && (
           <Alert tone={totals.savingsPercent !== null && totals.savingsPercent < 0 ? 'warning' : 'info'} title="Tổng hợp">
-            Tổng dự toán {formatVnd(totals.budget)} ({totals.packages} gói). {totals.awarded > 0
-              ? `${totals.awarded} gói đã có giá trúng thầu: ${formatVnd(totals.winning)} trên dự toán ${formatVnd(totals.awardedBudget)}, ${totals.savings >= 0 ? `tiết kiệm ${formatVnd(totals.savings)} (${formatPercent2(totals.savingsPercent)})` : `vượt dự toán ${formatVnd(-totals.savings as Vnd)} (${formatPercent2(-(totals.savingsPercent ?? 0))})`}.`
-              : 'Chưa có gói nào có giá trúng thầu.'}
+            {biddingTotalsSentence(totals)}
           </Alert>
         )}
       </div>

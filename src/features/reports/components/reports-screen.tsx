@@ -8,7 +8,7 @@ import { Alert, KpiCard, useSettings } from '@/components/ui';
 import { formatCountdown, formatVNTime } from '@/core/dates';
 import { formatVnd } from '@/core/text';
 import type { Tone } from '@/core/vocab';
-import { formatPercent2, milestoneLabel, type DailyReportState } from '../domain/figures';
+import { milestoneLabel, savingsLabel, type DailyReportState } from '../domain/figures';
 import type { ReportsScreenData } from '../domain/screen';
 import { BiddingTab } from './bidding-tab';
 import { DailyTab } from './daily-tab';
@@ -60,7 +60,7 @@ export function ReportsScreen({ data, tab }: { data: ReportsScreenData; tab: Rep
           />
           <KpiCard
             label="Gói thầu (nhập tay)" value={f.packages} icon="file-spreadsheet" accent="indigo"
-            badge={f.biddingSavingsPercent === null ? undefined : { text: f.biddingSavingsPercent >= 0 ? `Tiết kiệm ${formatPercent2(f.biddingSavingsPercent)}` : `Vượt ${formatPercent2(-f.biddingSavingsPercent)}`, tone: f.biddingSavingsPercent >= 0 ? 'emerald' : 'rose' }}
+            badge={f.biddingSavingsPercent === null ? undefined : { text: savingsLabel(f.biddingSavingsPercent), tone: f.biddingSavingsPercent >= 0 ? 'emerald' : 'rose' }}
             caption={f.packagesAwarded > 0
               ? `${f.packagesAwarded}/${f.packages} gói có giá trúng: ${formatVnd(f.biddingWinning, { compact: true })} trên dự toán ${formatVnd(f.biddingAwardedBudget, { compact: true })}`
               : `Tổng dự toán ${formatVnd(f.biddingBudget, { compact: true })} • Chưa có giá trúng thầu`}

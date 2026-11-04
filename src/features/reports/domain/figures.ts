@@ -6,6 +6,7 @@
 import type { IsoDate, Vnd } from '@/core/brand';
 import { addCalendarDays, calendarDaysBetween, workdaysBetween, type WorkCalendar } from '@/core/dates';
 import type { SystemSettings } from '@/core/settings';
+import { formatVnd } from '@/core/text';
 import { guestKpis, quotaProgress, type RosterEntry } from '@/features/guests';
 import { eventProgress, type EventPlan, type SceEvent } from '@/features/progress';
 import { boothKpis, type Booth } from '@/features/venue';
@@ -123,6 +124,20 @@ export function formatPercent2(value: number | null): string {
   if (value === null) return 'Chưa có';
   const [int, frac] = Math.abs(value).toFixed(2).split('.');
   return `${value < 0 ? '-' : ''}${int},${frac}%`;
+}
+
+/** 'Tiết kiệm 3,33%' or 'Vượt 4,19%': the one wording of a signed saving (BUG-35). */
+export function savingsLabel(rate: number): string {
+  return rate >= 0 ? `Tiết kiệm ${formatPercent2(rate)}` : `Vượt ${formatPercent2(-rate)}`;
+}
+
+/** The bidding totals in one sentence, for the bidding tab and its export. */
+export function biddingTotalsSentence(t: BiddingTotals): string {
+  const head = `Tổng dự toán ${formatVnd(t.budget)} (${t.packages} gói).`;
+  if (t.awarded === 0) return `${head} Chưa có gói nào có giá trúng thầu.`;
+  const rate = t.savingsPercent === null ? '' : ` (${formatPercent2(Math.abs(t.savingsPercent))})`;
+  const result = t.savings >= 0 ? `tiết kiệm ${formatVnd(t.savings)}${rate}` : `vượt dự toán ${formatVnd(-t.savings as Vnd)}${rate}`;
+  return `${head} ${t.awarded} gói đã có giá trúng thầu: ${formatVnd(t.winning)} trên dự toán ${formatVnd(t.awardedBudget)}, ${result}.`;
 }
 
 /**
