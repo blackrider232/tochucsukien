@@ -10,6 +10,7 @@ import type { MasterContact } from '../contract';
 import { serializeCsv } from '../domain/csv';
 import { CONTACT_CSV_COLUMNS } from '../domain/csv-import';
 import { chunkBySize, jsonBytes, sendInChunks } from '../domain/chunks';
+import { SAMPLE_CONTACTS } from '../domain/sample-contacts';
 import { draftOf } from '../domain/schemas';
 import { buildIndex, groupCounts, rankContacts } from '../domain/search';
 import { BanquetCell, ContactCell, GroupBadge, NameCell, OrgCell } from './cells';
@@ -89,7 +90,7 @@ export function DirectoryScreen({ contacts, canAdmin, events }: DirectoryScreenP
   const loadSample = async () => {
     const ok = await dialogs.confirm({
       title: 'Nạp dữ liệu mẫu (giả)?',
-      text: 'Thêm 8 đối tượng giả (tên có chữ "giả" hoặc "mẫu") để xem thử giao diện. Không có người thật. Đối tượng đã có được giữ nguyên. Có thể hoàn tác ngay.',
+      text: `Thêm ${SAMPLE_CONTACTS.length} đối tượng giả (tên có chữ "giả" hoặc "mẫu") để xem thử giao diện. Không có người thật. Đối tượng đã có được giữ nguyên. Có thể hoàn tác ngay.`,
       confirmLabel: 'Nạp dữ liệu mẫu',
       tone: 'primary',
     });

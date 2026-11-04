@@ -10,6 +10,7 @@ import { DirectoryScreen } from '../components/directory-screen';
 import { BatchImportDialog } from '../components/event-import';
 import { CsvImportDialog } from '../components/csv-import-dialog';
 import { ResetDialog } from '../components/reset-dialog';
+import { SAMPLE_CONTACTS } from '../domain/sample-contacts';
 
 const dispatch = vi.hoisted(() => vi.fn());
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }), usePathname: () => '/' }));
@@ -171,6 +172,13 @@ describe('read-only and admin views (m4c B8)', () => {
   it('an admin sees them all', () => {
     renderUi(withAppContext(<DirectoryScreen contacts={[contact()]} canAdmin events={[]} />));
     for (const label of [/Thêm đối tượng mới/, /Nhập từ CSV/, /Sửa Nguyễn Văn An/, /Thao tác khác với CSDL/]) expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
+  });
+  it('the sample-data confirm says how many samples it adds, from the sample list itself (m4c B38)', async () => {
+    const user = userEvent.setup();
+    renderUi(withAppContext(<DirectoryScreen contacts={[contact()]} canAdmin events={[]} />));
+    await user.click(screen.getByRole('button', { name: 'Thao tác khác với CSDL' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Nạp dữ liệu mẫu (giả)' }));
+    expect(await screen.findByText(new RegExp(`^Thêm ${SAMPLE_CONTACTS.length} đối tượng giả`))).toBeInTheDocument();
   });
   it('an empty directory says so and offers no demo data on its own (decision 13)', () => {
     renderUi(withAppContext(<DirectoryScreen contacts={[]} canAdmin events={[]} />));
