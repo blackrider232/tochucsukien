@@ -86,6 +86,20 @@ describe('headline numbers', () => {
     expect(screen.getByText(/Xong: 1\/3 • Quá hạn: 1 • Chưa xong: 2/)).toBeInTheDocument();
   });
 
+  it('the bidding card compares the winning prices with the dự toán of the same awarded packages (M3)', () => {
+    const mixed = dashboardFigures(
+      { plan: plan([]), roster: [], booths: [], packages: [pkg(200_000_000, 198_000_000), pkg(40_000_000, null)], clippings: 0 }, withHolidays, SETTINGS, TODAY,
+    );
+    const { unmount } = show(data({ figures: mixed }), 'daily');
+    expect(screen.getByText('Tiết kiệm 1,00%')).toBeInTheDocument();
+    expect(screen.getByText('1/2 gói có giá trúng: 198 tr trên dự toán 200 tr')).toBeInTheDocument();
+    expect(screen.queryByText(/240 tr/)).toBeNull();
+    unmount();
+    const none = dashboardFigures({ plan: plan([]), roster: [], booths: [], packages: [pkg(40_000_000, null)], clippings: 0 }, withHolidays, SETTINGS, TODAY);
+    show(data({ figures: none }), 'daily');
+    expect(screen.getByText('Tổng dự toán 40 tr • Chưa có giá trúng thầu')).toBeInTheDocument();
+  });
+
   it('an upstream that is not ready reads "chưa sẵn sàng", never zero', () => {
     show(data({ figures: null, missing: ['Khách mời'] }), 'daily');
     expect(screen.getByText('Số liệu tổng hợp chưa sẵn sàng')).toBeInTheDocument();
