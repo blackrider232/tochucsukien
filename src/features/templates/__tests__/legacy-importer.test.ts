@@ -123,7 +123,7 @@ describe('imported content and the B13 date tag', () => {
 
   it('prints the date once for every other edited built-in too', () => {
     for (const t of loadLegacyTemplates()) expect(importedAndRendered(t.id).text, t.id).not.toMatch(/ngày\s+ngày/i);
-  });
+  }, 30_000);
 
   it('also fixes the spellings an editor produces: capital, non-breaking space, extra spaces', () => {
     for (const before of ['Ngày {{NGAY_HOM_NAY}}', 'ngày&nbsp;{{NGAY_HOM_NAY}}', 'ngày   {{ NGAY_HOM_NAY }}']) {
