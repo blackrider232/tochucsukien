@@ -25,6 +25,8 @@ export interface DashboardFigures extends ReportFigures {
   stepsDone: number;
   dueSoonSteps: number;
   guestTarget: number;
+  /** The settings' quota percent the figures were computed under, so a snapshot keeps its own rule. */
+  guestQuotaPercent: number;
   guestsDeclined: number;
   boothsReviewing: number;
   packages: number;
@@ -94,6 +96,7 @@ function detailedFigures({ plan, roster, booths, packages }: FigureInput, cal: W
     stepsDone: progress.done,
     dueSoonSteps: progress.dueSoon,
     guestTarget: plan.event.targetGuests,
+    guestQuotaPercent: s.guestQuotaPercent,
     guestsDeclined: guests.declined,
     boothsReviewing: boothCounts.reviewing,
     packages: bidding.packages,
@@ -166,7 +169,7 @@ export function workdaysToEvent(cal: WorkCalendar, eventDate: IsoDate, today: Is
 // An issued report stores its figures as a flat jsonb of numbers: booleans as 0/1, a missing rate as an absent key.
 const NUMBER_KEYS = [
   'progressPercent', 'overdueSteps', 'guestsInvited', 'guestsAttending', 'guestQuota', 'boothsConfirmed', 'boothsTotal', 'biddingBudget', 'biddingWinning',
-  'stepsTotal', 'stepsDone', 'dueSoonSteps', 'guestTarget', 'guestsDeclined', 'boothsReviewing', 'packages', 'packagesAwarded', 'biddingAwardedBudget', 'clippings',
+  'stepsTotal', 'stepsDone', 'dueSoonSteps', 'guestTarget', 'guestQuotaPercent', 'guestsDeclined', 'boothsReviewing', 'packages', 'packagesAwarded', 'biddingAwardedBudget', 'clippings',
 ] as const satisfies ReadonlyArray<keyof DashboardFigures>;
 
 export function encodeFigures(f: DashboardFigures): Readonly<Record<string, number>> {

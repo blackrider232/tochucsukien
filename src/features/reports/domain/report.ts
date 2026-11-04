@@ -60,15 +60,16 @@ export interface DailyReportDocument {
 const money = (v: number) => formatVnd(v as Vnd);
 
 function guestLines(f: DashboardFigures): string[] {
+  const attending = `- Đại biểu xác nhận tham dự (gồm người đi thay): ${f.guestsAttending}; báo vắng: ${f.guestsDeclined}.`;
+  if (f.guestTarget <= 0) return [`- Số thư mời đã lập: ${f.guestsInvited}; sự kiện chưa đặt số đại biểu dự kiến nên chưa có định mức thư mời.`, attending];
   const share = f.guestQuota > 0 ? Math.round((f.guestsInvited / f.guestQuota) * 100) : 0;
-  const quotaRule = `định mức ${f.guestQuota} thư mời, tức ${f.guestTarget > 0 ? Math.round((f.guestQuota / f.guestTarget) * 100) : 0}% của ${f.guestTarget} đại biểu dự kiến`;
+  // A snapshot from before guestQuotaPercent was frozen decodes it as 0: name no percent rather than a wrong one.
+  const percent = f.guestQuotaPercent > 0 ? `, tức ${f.guestQuotaPercent}%` : '';
+  const quotaRule = `định mức ${f.guestQuota} thư mời${percent} của ${f.guestTarget} đại biểu dự kiến`;
   const outcome = f.quotaReached
     ? `đạt ${share}% định mức, đã đủ định mức`
     : `đạt ${share}% định mức, còn thiếu ${f.guestQuota - f.guestsInvited} thư mời`;
-  return [
-    `- Số thư mời đã lập: ${f.guestsInvited} (${quotaRule}); ${outcome}.`,
-    `- Đại biểu xác nhận tham dự (gồm người đi thay): ${f.guestsAttending}; báo vắng: ${f.guestsDeclined}.`,
-  ];
+  return [`- Số thư mời đã lập: ${f.guestsInvited} (${quotaRule}); ${outcome}.`, attending];
 }
 
 function boothAndBiddingLines(f: DashboardFigures): string[] {

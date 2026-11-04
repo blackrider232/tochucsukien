@@ -189,6 +189,21 @@ describe('the NĐ30 document (BUG-07/08/16/17/19)', () => {
     expect(doc.sections[1]!.paragraphs[0]).toBe('- Số thư mời đã lập: 9 (định mức 13 thư mời, tức 130% của 10 đại biểu dự kiến); đạt 69% định mức, còn thiếu 4 thư mời.');
   });
 
+  it('names the quota percent the report was issued under, not quota ÷ target (L9)', () => {
+    const seven = dashboardFigures({ plan: plan([], { targetGuests: 7 }), roster: guests(10), booths: [], packages: [], clippings: 0 }, withHolidays, SETTINGS, TODAY);
+    const line = (f: typeof seven) => dailyReportDocument({ ...report, figures: encodeFigures(f) }, org).sections[1]!.paragraphs[0];
+    // ceil(7 × 130%) = 10; 10 / 7 would print 143%.
+    expect(line(seven)).toBe('- Số thư mời đã lập: 10 (định mức 10 thư mời, tức 130% của 7 đại biểu dự kiến); đạt 100% định mức, đã đủ định mức.');
+    const atHundredFifty = dashboardFigures({ plan: plan([], { targetGuests: 10 }), roster: guests(3), booths: [], packages: [], clippings: 0 }, withHolidays, { ...SETTINGS, guestQuotaPercent: 150 }, TODAY);
+    expect(line(atHundredFifty)).toBe('- Số thư mời đã lập: 3 (định mức 15 thư mời, tức 150% của 10 đại biểu dự kiến); đạt 20% định mức, còn thiếu 12 thư mời.');
+  });
+
+  it('an event without a target has no quota to reach (L9)', () => {
+    const none = dashboardFigures({ plan: plan([], { targetGuests: 0 }), roster: guests(3), booths: [], packages: [], clippings: 0 }, withHolidays, SETTINGS, TODAY);
+    const doc = dailyReportDocument({ ...report, figures: encodeFigures(none) }, org);
+    expect(doc.sections[1]!.paragraphs[0]).toBe('- Số thư mời đã lập: 3; sự kiện chưa đặt số đại biểu dự kiến nên chưa có định mức thư mời.');
+  });
+
   it('the sheet and the Word file set the body in Times New Roman at the same 14 pt (L8)', () => {
     const { container } = renderUi(withAppContext(<PrintDailyReport report={report} preview={false} />));
     expect([...container.querySelectorAll('style')].map((el) => el.textContent).join('\n')).toMatch(/\.nd30-report \{ font-family: "Times New Roman", Times, serif; font-size: 14pt;/);

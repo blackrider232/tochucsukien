@@ -35,7 +35,7 @@ async function seeded() {
 
 const EXPECTED = {
   progressPercent: 29, overdueSteps: 2, dueSoonSteps: 1, stepsDone: 2, stepsTotal: 7, guestsInvited: 14, guestsAttending: 10, guestsDeclined: 1, guestQuota: 13,
-  guestTarget: 10, quotaReached: true, boothsConfirmed: 2, boothsReviewing: 1, boothsTotal: 3, packages: 4, packagesAwarded: 3, biddingBudget: 515_000_000,
+  guestTarget: 10, guestQuotaPercent: 130, quotaReached: true, boothsConfirmed: 2, boothsReviewing: 1, boothsTotal: 3, packages: 4, packagesAwarded: 3, biddingBudget: 515_000_000,
   biddingAwardedBudget: 465_000_000, biddingWinning: 449_500_000, biddingSavingsPercent: 3.33, clippings: 1,
 };
 
