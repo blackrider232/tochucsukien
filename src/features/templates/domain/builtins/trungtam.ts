@@ -233,10 +233,10 @@ export const TRUNGTAM_TEMPLATES: ReadonlyArray<BuiltinTemplate> = [
             {{TEN_SU_KIEN}}
         </p>
         <ul style="list-style-type: none; padding-left: 20px; line-height: 2;">
-            <li>⏰ <strong>Thời gian:</strong> {{GIO_KHAI_MAC}}, ngày <strong>{{NGAY_TO_CHUC}}</strong></li>
-            <li>📍 <strong>Địa điểm:</strong> {{DIA_DIEM}}</li>
-            <li>👔 <strong>Trang phục:</strong> Trang phục công sở lịch sự / Complet</li>
-            <li>⭐ <strong>Đón tiếp VIP:</strong> Ban Tổ chức bố trí Lễ tân đón tiếp Quý đại biểu tại Phòng Khánh tiết VIP trước 30 phút</li>
+            <li><strong>Thời gian:</strong> {{GIO_KHAI_MAC}}, ngày <strong>{{NGAY_TO_CHUC}}</strong></li>
+            <li><strong>Địa điểm:</strong> {{DIA_DIEM}}</li>
+            <li><strong>Trang phục:</strong> Trang phục công sở lịch sự / Complet</li>
+            <li><strong>Đón tiếp VIP:</strong> Ban Tổ chức bố trí Lễ tân đón tiếp Quý đại biểu tại Phòng Khánh tiết VIP trước 30 phút</li>
         </ul>
     </div>
 

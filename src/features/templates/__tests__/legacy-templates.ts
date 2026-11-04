@@ -61,6 +61,10 @@ export const LEGACY_FIXES: ReadonlyArray<LegacyFix> = [
   { bug: 'B37', id: 'form_baocao_tiendo_hangngay', field: 'content', from: 'SỞ TÀI CHÍNH HÀ NỘI - TRUNG TÂM XÚC TIẾN SCE', to: '{{CO_QUAN_CHU_QUAN}} - {{TEN_CO_QUAN}}', count: 1, why: LETTERHEAD },
   { bug: 'B37', id: 'form_the_xe_vip', field: 'content', from: 'UBND THÀNH PHỐ HÀ NỘI - TRUNG TÂM XÚC TIẾN SCE', to: 'UBND THÀNH PHỐ HÀ NỘI - {{TEN_CO_QUAN}}', count: 1, why: LETTERHEAD },
   { bug: 'B37', id: 'form_thongcao_baochi', field: 'content', from: 'ỦY BAN NHÂN DÂN THÀNH PHỐ HÀ NỘI - SỞ TÀI CHÍNH', to: 'ỦY BAN NHÂN DÂN THÀNH PHỐ HÀ NỘI - {{CO_QUAN_CHU_QUAN}}', count: 1, why: LETTERHEAD },
+  { bug: 'UI-5', id: 'form_giaymoi_vip', field: 'content', from: '<li>⏰ <strong>', to: '<li><strong>', count: 1, why: 'Biểu tượng cảm xúc không thuộc văn bản hành chính và bị cấm trong mã nguồn (quy tắc UI 5).' },
+  { bug: 'UI-5', id: 'form_giaymoi_vip', field: 'content', from: '<li>📍 <strong>', to: '<li><strong>', count: 1, why: 'Biểu tượng cảm xúc không thuộc văn bản hành chính và bị cấm trong mã nguồn (quy tắc UI 5).' },
+  { bug: 'UI-5', id: 'form_giaymoi_vip', field: 'content', from: '<li>👔 <strong>', to: '<li><strong>', count: 1, why: 'Biểu tượng cảm xúc không thuộc văn bản hành chính và bị cấm trong mã nguồn (quy tắc UI 5).' },
+  { bug: 'UI-5', id: 'form_giaymoi_vip', field: 'content', from: '<li>⭐ <strong>', to: '<li><strong>', count: 1, why: 'Biểu tượng cảm xúc không thuộc văn bản hành chính và bị cấm trong mã nguồn (quy tắc UI 5).' },
 ];
 
 function applyFix(templates: LegacyTemplate[], fix: LegacyFix): void {

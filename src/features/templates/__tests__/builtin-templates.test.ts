@@ -64,6 +64,10 @@ describe('the 23 built-in templates against legacy/index.html', () => {
     expect(tagNamesIn(all)).not.toContain('DINH_MUC_MOI_130');
   });
 
+  it('has no emoji in any template (UI rule 5, check-ui)', () => {
+    expect(BUILTIN_TEMPLATES.map((t) => t.title + t.description + t.content).join('\n')).not.toMatch(/\p{Extended_Pictographic}/u);
+  });
+
   it('survives the sanitizer with every element and all of its text', () => {
     for (const t of BUILTIN_TEMPLATES) {
       const clean = new DOMParser().parseFromString(sanitizeRichHtml(t.content), 'text/html');
