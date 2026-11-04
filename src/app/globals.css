@@ -23,6 +23,12 @@
   --text-2xs: 0.6875rem;
   --text-2xs--line-height: 1rem;
 
+  /* Print documents keep their own type scale (sizes unchanged from the first kit; NĐ 30 sizes are not verified). */
+  --text-print-lg: 15px;
+  --text-print-base: 14px;
+  --text-print-sm: 13px;
+  --text-print-xs: 12px;
+
   --radius-control: 0.625rem;
   --radius-card: 0.875rem;
   --radius-modal: 1rem;
@@ -61,9 +67,17 @@
   --ink: #0f172a;
   --ink-2: #334155;
   --ink-muted: #475569;
+  --control-border: #64748b;
   --primary: #1d4ed8;
   --primary-hover: #1e40af;
   --on-primary: #ffffff;
+  --link: #1d4ed8;
+  --selected: #edf1fc;
+  --danger: #b91c1c;
+  --danger-hover: #991b1b;
+  --danger-ink: #b91c1c;
+  --success-ink: #047857;
+  --warning-ink: #92400e;
   --focus: #2563eb;
   --overlay: rgb(15 23 42 / 0.55);
   --sidebar: #0f172a;
@@ -72,7 +86,14 @@
   --sidebar-muted: #94a3b8;
   --sidebar-hover: rgb(255 255 255 / 0.06);
   --sidebar-active: #1d4ed8;
+  --paper: #ffffff;
+  --paper-ink: #000000;
   --touch: 2.5rem;
+}
+
+/* Fingers and gloves at the venue: 44 px targets on touch screens (WCAG 2.5.5). */
+@media (pointer: coarse) {
+  :root { --touch: 2.75rem; }
 }
 
 [data-theme="dark"] {
@@ -86,9 +107,17 @@
   --ink: #f1f5f9;
   --ink-2: #cbd5e1;
   --ink-muted: #94a3b8;
+  --control-border: #64748b;
   --primary: #2563eb;
-  --primary-hover: #3b82f6;
+  --primary-hover: #1d4ed8;
   --on-primary: #ffffff;
+  --link: #93c5fd;
+  --selected: #1f3154;
+  --danger: #dc2626;
+  --danger-hover: #b91c1c;
+  --danger-ink: #fca5a5;
+  --success-ink: #6ee7b7;
+  --warning-ink: #fcd34d;
   --focus: #93c5fd;
   --overlay: rgb(2 6 23 / 0.7);
   --sidebar: #020617;
@@ -109,9 +138,19 @@
   --color-ink: var(--ink);
   --color-ink-2: var(--ink-2);
   --color-ink-muted: var(--ink-muted);
+  --color-control-border: var(--control-border);
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
   --color-on-primary: var(--on-primary);
+  --color-link: var(--link);
+  --color-selected: var(--selected);
+  --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
+  --color-danger-ink: var(--danger-ink);
+  --color-success-ink: var(--success-ink);
+  --color-warning-ink: var(--warning-ink);
+  --color-paper: var(--paper);
+  --color-paper-ink: var(--paper-ink);
   --color-focus: var(--focus);
   --color-overlay: var(--overlay);
   --color-sidebar: var(--sidebar);
