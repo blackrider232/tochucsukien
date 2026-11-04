@@ -5,4 +5,5 @@ export type * from '../contract';
 export { listMailboxes, readForm, listResponses, listDeliveries } from './reads';
 export { commands } from './commands';
 export { handleCronSync, cronSystemContext } from './cron';
-export const legacyImporter = null;
+export { legacyImporter } from './legacy-importer';
+export { devSeed } from './dev-seed';
