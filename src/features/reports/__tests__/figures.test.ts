@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildWorkCalendar } from '@/core/dates';
+import { addCalendarDays, addWorkdays, buildWorkCalendar } from '@/core/dates';
 import { biddingTotals, dailyReportState, dashboardFigures, decodeFigures, encodeFigures, formatPercent2, milestoneLabel, reportFigures, savingsPercent, workdaysToEvent } from '../domain/figures';
 import { nextPackageCode } from '../domain/schemas';
 import { booth, d, event, guest, guests, HOLIDAYS, pkg, plan, SETTINGS, step, weekendsOnly, withHolidays } from './fixtures';
@@ -120,16 +120,41 @@ describe('T-10 daily report state on the holiday calendar (BUG-03/04, decision 1
   it('Quốc khánh 02/09 on the eve of T0: Mon 31/08 to Thu 03/09 is T-2', () => {
     expect(state('2026-08-31', '2026-09-03')).toMatchObject({ kind: 'active', workdays: 2 });
   });
-  it('a weekend today counts from Monday: Sat 12/12 and Fri 11/12 are both T-2 before Tue 15/12', () => {
-    expect(state('2026-12-12', '2026-12-15')).toMatchObject({ workdays: 2 });
+  it('a non-working today reads as the next working day: Sat 12/12 is T-1 like Mon 14/12, Fri 11/12 is T-2 before Tue 15/12', () => {
+    expect(state('2026-12-12', '2026-12-15')).toMatchObject({ workdays: 1 });
+    expect(state('2026-12-14', '2026-12-15')).toMatchObject({ workdays: 1 });
     expect(state('2026-12-11', '2026-12-15')).toMatchObject({ workdays: 2 });
   });
   it('a compensatory working Saturday counts', () => {
     const cal = buildWorkCalendar([...HOLIDAYS, { date: d('2026-12-12'), name: 'Làm bù', kind: 'compensatory_workday' }]);
     expect(state('2026-12-11', '2026-12-15', cal)).toMatchObject({ workdays: 3 });
   });
-  it('an event on a Sunday two days away is in the window with no working day left', () => {
-    expect(state('2026-12-11', '2026-12-13')).toEqual({ kind: 'active', workdays: 0, calendarDays: 2 });
+  it('an event on Sunday 13/12: Fri 11/12 is T-1, where progress puts the T-1 deadline; Sat 12/12 has no working day left', () => {
+    expect(state('2026-12-11', '2026-12-13')).toEqual({ kind: 'active', workdays: 1, calendarDays: 2 });
+    expect(state('2026-12-12', '2026-12-13')).toEqual({ kind: 'active', workdays: 0, calendarDays: 1 });
+    expect(state('2026-12-10', '2026-12-13')).toMatchObject({ workdays: 2 });
+  });
+  it('an event on Saturday 12/12: Fri 11/12 is T-1, Thu 10/12 is T-2', () => {
+    expect(state('2026-12-11', '2026-12-12')).toMatchObject({ workdays: 1 });
+    expect(state('2026-12-10', '2026-12-12')).toMatchObject({ workdays: 2 });
+  });
+  it('an event on the Quốc khánh holiday Wed 02/09: Tue 01/09 is T-1, Mon 31/08 is T-2', () => {
+    expect(state('2026-09-01', '2026-09-02')).toMatchObject({ workdays: 1 });
+    expect(state('2026-08-31', '2026-09-02')).toMatchObject({ workdays: 2 });
+  });
+  it('on every working day before T0, T-n is the day progress gives the T-n deadline (addWorkdays(T0, -n))', () => {
+    for (const t0 of ['2026-12-15', '2026-12-13', '2026-12-12', '2026-09-02', '2026-05-04', '2026-05-01']) {
+      for (let back = 1; back <= 40; back++) {
+        const today = addCalendarDays(d(t0), -back);
+        if (!withHolidays.isWorkday(today)) continue;
+        expect(addWorkdays(withHolidays, d(t0), -workdaysToEvent(withHolidays, d(t0), today))).toBe(today);
+      }
+    }
+  });
+  it('the window opens at T-10 by the same count, whatever day T0 falls on', () => {
+    // T0 Sun 13/12: [Mon 30/11, Sun 13/12) holds 10 working days, [Fri 27/11, ...) 11.
+    expect(state('2026-11-30', '2026-12-13')).toMatchObject({ kind: 'active', workdays: 10 });
+    expect(state('2026-11-27', '2026-12-13')).toMatchObject({ kind: 'not_yet', workdays: 11 });
   });
   it('event day and after', () => {
     expect(state('2026-12-15', '2026-12-15')).toEqual({ kind: 'event_day' });

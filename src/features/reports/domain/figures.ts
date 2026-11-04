@@ -4,10 +4,10 @@
 // report cannot disagree with the screen that owns the number.
 
 import type { IsoDate, Vnd } from '@/core/brand';
-import { calendarDaysBetween, workdaysBetween, type WorkCalendar } from '@/core/dates';
+import { addCalendarDays, calendarDaysBetween, workdaysBetween, type WorkCalendar } from '@/core/dates';
 import type { SystemSettings } from '@/core/settings';
 import { guestKpis, quotaProgress, type RosterEntry } from '@/features/guests';
-import { eventProgress, isInDailyReportWindow, type EventPlan, type SceEvent } from '@/features/progress';
+import { eventProgress, type EventPlan, type SceEvent } from '@/features/progress';
 import { boothKpis, type Booth } from '@/features/venue';
 import type * as C from '../contract';
 import type { BiddingPackage, ReportFigures } from '../contract';
@@ -124,8 +124,8 @@ export function formatPercent2(value: number | null): string {
 
 /**
  * Where the event stands against the daily-report rule (m6 §3.2): active from
- * the settings' threshold of working days before T0 until the eve. The window
- * itself is progress's rule, so the bell and this screen always agree.
+ * the settings' threshold of working days before T0 until the eve, counted as
+ * the milestone counts them, so the state and its T-n label cannot disagree.
  */
 export type DailyReportState =
   | { kind: 'not_yet'; workdays: number; calendarDays: number }
@@ -137,8 +137,8 @@ export function dailyReportState(cal: WorkCalendar, event: SceEvent, today: IsoD
   const calendarDays = calendarDaysBetween(today, event.eventDate);
   if (calendarDays === 0) return { kind: 'event_day' };
   if (calendarDays < 0) return { kind: 'past', calendarDays: -calendarDays };
-  const workdays = workdaysBetween(cal, today, event.eventDate);
-  return { kind: isInDailyReportWindow(cal, event, today, s) ? 'active' : 'not_yet', workdays, calendarDays };
+  const workdays = workdaysToEvent(cal, event.eventDate, today);
+  return { kind: workdays <= s.dailyReportThresholdDays ? 'active' : 'not_yet', workdays, calendarDays };
 }
 
 /** 'T-3' (working days), 'T0', 'T+2' (calendar days after). */
@@ -153,9 +153,14 @@ export function milestoneLabel(state: DailyReportState): string {
   }
 }
 
-/** Signed working days from today to T0, as the issued report stores it. */
+/**
+ * Signed working days in [today, T0): the n of "T-n". On a working day it is
+ * the n for which progress puts a T-n deadline on today (addWorkdays(T0, -n)),
+ * whatever day T0 falls on; a weekend or holiday reads as the next working day.
+ * The issue trigger (tcsk.reports_workdays_to_event) counts the same way.
+ */
 export function workdaysToEvent(cal: WorkCalendar, eventDate: IsoDate, today: IsoDate): number {
-  return workdaysBetween(cal, today, eventDate);
+  return workdaysBetween(cal, addCalendarDays(today, -1), addCalendarDays(eventDate, -1));
 }
 
 // An issued report stores its figures as a flat jsonb of numbers: booleans as 0/1, a missing rate as an absent key.
