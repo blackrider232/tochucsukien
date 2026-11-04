@@ -52,16 +52,16 @@ export interface EventImportPlan {
   items: { contact: MasterContact; draft: GuestDraft }[];
   /** Selected contacts the event has no guest for. */
   fresh: MasterContact[];
-  /** Selected contacts that are already a guest of the event (same identity key). */
+  /** Selected contacts that are already a guest of the event (a guest linked to them, or with the same identity key). */
   existing: MasterContact[];
   /** Selected contacts that are the same person as an earlier one of the selection. */
   repeated: MasterContact[];
 }
 
 /**
- * What a copy into an event will do, by the rule guests.upsertMany applies: two records are the same person exactly when
- * their guestIdentityKey is equal. `existingIds` are the selected contacts the event already has a guest for
- * (existingContactIds), found once by the caller.
+ * What a copy into an event will do, by the rule guests.upsertMany applies: a contact the event already has a guest for
+ * (`existingIds`, from existingContactIds, found once by the caller) is skipped, and two selected contacts are the same
+ * person exactly when their guestIdentityKey is equal.
  */
 export function planEventImport(selection: ReadonlyArray<MasterContact>, existingIds: ReadonlySet<ContactId>): EventImportPlan {
   const plan: EventImportPlan = { items: [], fresh: [], existing: [], repeated: [] };
@@ -80,8 +80,15 @@ export function planEventImport(selection: ReadonlyArray<MasterContact>, existin
   return plan;
 }
 
-/** The contacts that are already a guest of the event: one fold per guest and per contact, then set lookups. */
-export function existingContactIds(contacts: ReadonlyArray<MasterContact>, guests: ReadonlyArray<Pick<GuestDraft, 'name' | 'organization' | 'email' | 'phone'>>): Set<ContactId> {
+/**
+ * The contacts that are already a guest of the event: a guest linked to the contact, or one with its identity key, as
+ * guests.upsertMany matches them (m4c B27). One fold per guest and per contact, then set lookups.
+ */
+export function existingContactIds(
+  contacts: ReadonlyArray<MasterContact>,
+  guests: ReadonlyArray<Pick<GuestDraft, 'name' | 'organization' | 'email' | 'phone' | 'masterContactId'>>,
+): Set<ContactId> {
   const rosterKeys = new Set(guests.map(guestIdentityKey));
-  return new Set(contacts.filter((c) => rosterKeys.has(guestIdentityKey(c))).map((c) => c.id));
+  const linked = new Set(guests.map((g) => g.masterContactId));
+  return new Set(contacts.filter((c) => linked.has(c.id) || rosterKeys.has(guestIdentityKey(c))).map((c) => c.id));
 }

@@ -117,6 +117,28 @@ describe('directory.eventMatches and the preview plan agree with what the copy t
     expect((await h.ok(staff, 'directory.eventMatches', { eventId })).value.existingIds).toEqual([a.id]);
   });
 
+  it('counts a guest linked to the contact as existing even after the contact changed its identity (m4c B27)', async () => {
+    const { h, eventId } = await setup();
+    const b = await h.addContact({ name: 'Lê Văn B', organization: 'Sở C', phone: '0912.000.111' });
+    expect((await h.ok(staff, 'directory.importToEvent', { eventId, ...importIds([b.id]) })).value.added).toBe(1);
+    const edited = await h.ok(admin, 'directory.update', { id: b.id, version: b.version, patch: { email: 'b@c.vn' as Email } });
+    expect((await h.ok(staff, 'directory.eventMatches', { eventId })).value.existingIds).toEqual([b.id]);
+    const again = await h.ok(staff, 'directory.importToEvent', { eventId, ...importIds([edited.value.id]) });
+    expect(again.value).toEqual({ added: 0, updated: 0, skipped: 1, missing: 0 });
+    const guests = await h.roster(eventId);
+    expect(guests.map((g) => [g.name, g.masterContactId])).toEqual([['Lê Văn B', b.id]]);
+  });
+
+  it('fills the new email into the linked guest when asked to fill blanks', async () => {
+    const { h, eventId } = await setup();
+    const b = await h.addContact({ name: 'Lê Văn B', organization: 'Sở C', phone: '0912.000.111' });
+    await h.ok(staff, 'directory.importToEvent', { eventId, ...importIds([b.id]) });
+    await h.ok(admin, 'directory.update', { id: b.id, version: b.version, patch: { email: 'b@c.vn' as Email } });
+    const again = await h.ok(staff, 'directory.importToEvent', { eventId, ...importIds([b.id], 'fill_blanks') });
+    expect(again.value).toEqual({ added: 0, updated: 1, skipped: 0, missing: 0 });
+    expect((await h.roster(eventId)).map((g) => g.email)).toEqual(['b@c.vn']);
+  });
+
   it('plan counts equal the result of the copy, over random selections', async () => {
     let seed = 20261104;
     const rand = (n: number) => ((seed = (seed * 1664525 + 1013904223) % 4294967296) % n);
