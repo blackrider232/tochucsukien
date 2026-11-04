@@ -62,7 +62,15 @@ export default defineConfig([
   ...nextCoreWebVitals,
   ...nextTypescript,
   {
-    files: ['**/*.{ts,tsx,mts,mjs}'],
+    rules: {
+      // Stubs keep their final signatures with throwing bodies; unused parameters are expected until implemented.
+      '@typescript-eslint/no-unused-vars': ['warn', { args: 'none' }],
+      // CommandMap and PermissionMap are empty on purpose: features fill them by declaration merging.
+      '@typescript-eslint/no-empty-object-type': ['error', { allowInterfaces: 'always' }],
+    },
+  },
+  {
+    files: ['src/**/*.{ts,tsx}', 'scripts/**/*.{ts,mjs}'],
     rules: {
       'no-restricted-imports': importRule({ supabase: true, ownKey: null }),
       'no-restricted-syntax': syntaxRule(),
