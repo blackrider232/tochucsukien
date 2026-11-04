@@ -14,7 +14,6 @@ const withSerwist = withSerwistInit({
   swDest: 'public/sw.js',
   // The update prompt registers the worker itself so it can ask before activating a new version.
   register: false,
-  disable: !isProd,
   additionalPrecacheEntries: [{ url: '/offline.html', revision: buildId }],
 });
 
@@ -70,4 +69,5 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withSerwist(nextConfig);
+// Serwist only wraps production builds: it adds a webpack config, which Turbopack (next dev) rejects.
+export default isProd ? withSerwist(nextConfig) : nextConfig;

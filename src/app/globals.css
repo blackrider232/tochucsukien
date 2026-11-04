@@ -154,7 +154,7 @@
 [data-tone="sky"] { --t50: var(--color-sky-50); --t200: var(--color-sky-200); --t400: var(--color-sky-400); --t700: var(--color-sky-700); --t800: var(--color-sky-800); }
 
 /* ---------------------------------------------------------------------------
-   Base. Zoom stays enabled (no maximum-scale), nothing is select-none, and
+   Base. Zoom stays enabled, text stays selectable, and
    there is exactly one focus ring.
    --------------------------------------------------------------------------- */
 html {

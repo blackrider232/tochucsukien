@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   },
 };
 
-// No maximum-scale or user-scalable: pinch zoom stays available (m2 BUG-36).
+// The viewport sets no scale limits, so pinch zoom stays available (m2 BUG-36).
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
