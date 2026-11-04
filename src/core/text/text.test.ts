@@ -113,6 +113,15 @@ describe('sanitizeRichHtml', () => {
     expect(styleOf(sanitizeRichHtml(`<p style="${style}">x</p>`))).toBe(style);
   });
 
+  it.each([
+    ['a CSS escape', 'color:red; background:u\\72l(https://evil/x.png); font-weight:bold'],
+    ['a comment', 'color:red;/* x */font-weight:bold'],
+    ['an at-rule', 'color:red; @import "https://evil/x.css"; font-weight:bold'],
+    ['!important', 'color:red !important; font-weight:bold'],
+  ])('a style with %s is dropped whole, its allowed declarations too', (_label, style) => {
+    expect(sanitizeRichHtml(`<span style="${style}">x</span>`)).toBe('<span>x</span>');
+  });
+
   it('keeps the allowed declarations of a style it has to cut', () => {
     expect(sanitizeRichHtml('<p style="color: red; position: fixed; font-weight: bold">x</p>')).toBe('<p style="color:red;font-weight:bold">x</p>');
   });
