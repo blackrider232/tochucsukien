@@ -15,9 +15,8 @@ PROJECT_KNOWLEDGE.md
 /mcp/
 /.agents/
 
-# Database Schemas & DDL (Đã triển khai trực tiếp trên Supabase)
+# Database Schemas & DDL: migrations are now tracked (supabase/migrations, docs/architecture/sql)
 /code/database/
-*.sql
 
 # Local Development Scripts & Testing Tools (Chỉ chạy trên máy tính)
 /code/test_suite.py
