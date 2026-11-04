@@ -335,7 +335,8 @@ export const markSending: CommandSpec<InputOf<'comms.markSending'>, OutputOf<'co
 
 /**
  * Frees the claims of addresses a stopped run never handed to Gmail. Only this run's 'queued' or 'sending' rows go (the
- * run knows which messages it never sent); a result already recorded stays.
+ * run knows which messages it never sent); a result already recorded stays. A 'sending' row is put back to 'queued'
+ * before it is deleted (202611041480_comms_delivery_delete_guard.sql).
  */
 export const releaseDeliveries: CommandSpec<InputOf<'comms.releaseDeliveries'>, OutputOf<'comms.releaseDeliveries'>> = {
   kind: 'mutation',
@@ -348,7 +349,9 @@ export const releaseDeliveries: CommandSpec<InputOf<'comms.releaseDeliveries'>, 
       for (const email of new Set(emails)) {
         const d = existing.get(email);
         if (!d || !heldBy(d, claimHash(runToken))) continue;
-        await ctx.db.table(deliveriesTable).remove(d.id, { expectedVersion: d.version });
+        // The database deletes only a claim: a message marked as being sent goes back to one first, with the token.
+        const claim = d.status === 'sending' ? await ctx.db.table(deliveriesTable).update(d.id, { status: 'queued', claimProof: runToken }, { expectedVersion: d.version }) : d;
+        await ctx.db.table(deliveriesTable).remove(claim.id, { expectedVersion: claim.version });
         released += 1;
       }
     } catch (e) {

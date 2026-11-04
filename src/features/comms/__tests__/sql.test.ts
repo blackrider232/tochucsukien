@@ -180,6 +180,29 @@ describe('the no-double-send rules on Postgres, for an officer writing to the ta
     expect((await as(COLLEAGUE, () => db.query(`delete from public.sce_tcsk_email_deliveries where id = '${theirs}' returning id`))).rows).toHaveLength(1);
   });
 
+  it('a message being sent is never deleted, lapsed or not, by its officer or a colleague; it only becomes unknown', async () => {
+    const id = await claim('g14@x.vn');
+    await update(OFFICER, id, `status = 'sending', claim_proof = '${RUN}'`);
+    const remove = (user: string) => as(user, () => db.query(`delete from public.sce_tcsk_email_deliveries where id = '${id}' returning id`));
+    expect((await remove(OFFICER)).rows).toEqual([]);
+    await age(id, 40);
+    expect((await remove(COLLEAGUE)).rows).toEqual([]);
+    expect((await remove(OFFICER)).rows).toEqual([]);
+    // So the same address cannot be claimed afresh, and mailed again, after a delete.
+    await expect(as(COLLEAGUE, () => delivery(', claim_token', `'g14@x.vn', 'queued', ${hashOf(OTHER_RUN)}`))).rejects.toThrow(/duplicate key|unique/);
+    expect(await row(id)).toMatchObject({ status: 'sending' });
+  });
+
+  it('only the run that holds a message being sent puts it back to a claim (it never reached Gmail), then frees it', async () => {
+    const id = await claim('g15@x.vn');
+    await update(OFFICER, id, `status = 'sending', claim_proof = '${RUN}'`);
+    await expect(update(OFFICER, id, `status = 'queued'`)).rejects.toThrow(/not this run/);
+    await expect(update(COLLEAGUE, id, `status = 'queued', claim_proof = '${OTHER_RUN}'`)).rejects.toThrow(/not this run/);
+    await update(OFFICER, id, `status = 'queued', claim_proof = '${RUN}'`);
+    expect(await row(id)).toMatchObject({ status: 'queued', claim_proof: null });
+    expect((await as(OFFICER, () => db.query(`delete from public.sce_tcsk_email_deliveries where id = '${id}' returning id`))).rows).toHaveLength(1);
+  });
+
   it('a campaign’s message never changes; its QR choice changes, and it is deleted, only until a message of it went out', async () => {
     const campaign = '0b0e0b0e-0000-5000-8000-0000000000c1';
     const write = (user: string, sql: string) => as(user, () => db.query<{ id: string }>(sql));

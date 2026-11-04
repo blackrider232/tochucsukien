@@ -407,6 +407,25 @@ describe('comms.releaseDeliveries', () => {
     expect(deliveries(h)).toEqual([['a@x.vn', 'sent'], ['c@x.vn', 'queued'], ['d@x.vn', 'queued']]);
     expect(h.audits().at(-1)).toMatchObject({ action: 'DỪNG GỬI THƯ', summary: 'Bỏ giữ chỗ 1 thư chưa gửi của đợt gửi' });
   });
+
+  it('a message marked as being sent that never reached Gmail goes back to a claim, then is freed, as Postgres allows', async () => {
+    const h = harness();
+    const eventId = await h.createEvent();
+    const { campaignId } = await start(h, eventId, [to('a@x.vn'), to('b@x.vn')]);
+    expect(await marking(h, eventId, campaignId, 'a@x.vn')).toMatchObject({ ok: true });
+    // 202611041480: Postgres refuses to delete a 'sending' row; memoryDb does not emulate the guard.
+    const postgresDeletes = (db: Db): Db => ({
+      rpc: db.rpc.bind(db),
+      table(def) {
+        const t = db.table(def);
+        if (def.name !== 'sce_tcsk_email_deliveries') return t;
+        return { ...t, remove: async (id, o) => ((await t.get(id) as { status?: string } | null)?.status === 'sending' ? Promise.reject(new DbError('forbidden')) : t.remove(id, o)) };
+      },
+    });
+    const r = await h.runWith(postgresDeletes, xtdtUser, 'comms.releaseDeliveries', { eventId, campaignId, runToken: TAB_A, emails: ['a@x.vn', 'b@x.vn'] as Email[] });
+    expect(r).toMatchObject({ ok: true, value: { released: 2 } });
+    expect(deliveries(h)).toEqual([]);
+  });
 });
 
 describe('comms.renewClaims', () => {
