@@ -149,7 +149,7 @@ function CameraScanner({ onCode }: { onCode: (raw: string) => void }) {
       <video ref={video} muted playsInline aria-label="Hình ảnh camera đang quét mã" hidden={!live} className="aspect-video w-full rounded-control bg-surface-3 object-cover" />
       {live ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm text-ink-2">{state === 'starting' ? 'Đang mở camera…' : 'Đưa mã QR trên thẻ đại biểu vào khung hình.'}</p>
+          <p className="text-sm text-ink-2">{state === 'starting' ? 'Đang mở camera. Nếu trình duyệt hỏi, chọn Cho phép dùng camera.' : 'Đưa mã QR trên thẻ đại biểu vào khung hình.'}</p>
           <Button variant="secondary" icon="x" onClick={() => { stop(); setState('idle'); }}>Tắt camera</Button>
         </div>
       ) : (

@@ -79,17 +79,17 @@ export function CheckinDesk({ data }: { data: LiveScreenData }) {
       id: 'org', header: 'Chức danh & cơ quan', hideOnMobile: true, sortValue: (g) => foldVi(g.organization), width: '15rem',
       cell: (g) => <div className="text-sm"><p className="font-medium text-ink-2">{g.title || 'Đại biểu'}</p><p className="text-ink-muted">{g.organization}</p></div>,
     },
-    { id: 'group', header: 'Nhóm khách', hideOnMobile: true, cell: (g) => <StatusBadge registry={GUEST_GROUPS} value={g.group} size="sm" /> },
-    { id: 'seat', header: 'Vị trí ghế', hideOnMobile: true, align: 'center', sortValue: (g) => g.seatCode ?? '~', cell: (g) => (g.seatCode ? <span className="font-mono text-sm font-semibold text-ink">{g.seatCode}</span> : <span className="text-sm italic text-ink-muted">Chưa xếp</span>) },
-    { id: 'banquet', header: 'Suất tiệc', hideOnMobile: true, align: 'center', cell: (g) => (g.hasBanquet ? <Badge tone="amber">Có</Badge> : <span className="text-sm text-ink-muted">Không</span>) },
-    { id: 'gift', header: 'Túi quà & tài liệu', hideOnMobile: true, align: 'center', cell: (g) => (g.giftGivenAt ? <Badge tone="blue" icon="check">Đã phát</Badge> : <span className="text-sm text-ink-muted">Chưa phát</span>) },
+    { id: 'group', header: 'Nhóm khách', hideOnMobile: true, width: '8.5rem', cell: (g) => <StatusBadge registry={GUEST_GROUPS} value={g.group} size="sm" /> },
+    { id: 'seat', header: 'Vị trí ghế', hideOnMobile: true, align: 'center', width: '6rem', sortValue: (g) => g.seatCode ?? '~', cell: (g) => (g.seatCode ? <span className="font-mono text-sm font-semibold text-ink">{g.seatCode}</span> : <span className="text-sm italic text-ink-muted">Chưa xếp</span>) },
+    { id: 'banquet', header: 'Suất tiệc', hideOnMobile: true, align: 'center', width: '5.5rem', cell: (g) => (g.hasBanquet ? <Badge tone="amber">Có</Badge> : <span className="text-sm text-ink-muted">Không</span>) },
+    { id: 'gift', header: 'Túi quà & tài liệu', hideOnMobile: true, align: 'center', width: '7rem', cell: (g) => (g.giftGivenAt ? <Badge tone="blue" icon="check">Đã phát</Badge> : <span className="text-sm text-ink-muted">Chưa phát</span>) },
     {
-      id: 'time', header: 'Giờ check-in', hideOnMobile: true, sortValue: (g) => g.checkedInAt ?? '~',
+      id: 'time', header: 'Giờ check-in', hideOnMobile: true, width: '6.5rem', sortValue: (g) => g.checkedInAt ?? '~',
       cell: (g) => (g.checkedInAt ? <span className="inline-flex items-center gap-1 text-sm font-semibold text-success-ink"><Icon name="clock" size={14} />{formatAt(g.checkedInAt, now)}</span> : <span className="text-sm italic text-ink-muted">Chưa đến</span>),
     },
     ...(can.checkIn
       ? [{
-          id: 'action', header: 'Thao tác', align: 'right' as const,
+          id: 'action', header: 'Thao tác', align: 'right' as const, width: '10rem',
           cell: (g: RosterEntry) => (
             <div className="flex items-center justify-end gap-1">
               {g.checkedInAt
