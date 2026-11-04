@@ -20,6 +20,18 @@ export interface CronDeps {
 }
 
 const digest = (s: string) => createHash('sha256').update(s, 'utf8').digest();
+const MIN_SECRET = 16;
+
+/** Only the dev memory runtime has an actor the cron may act as; see cronSystemContext. */
+const hasSystemIdentity = () => devMemoryEnabled();
+
+/**
+ * Whether a scheduled call of the route would sync anything: a system identity and a valid CRON_SECRET. The Form
+ * screen promises a server sync only then (an external scheduler still has to call the route).
+ */
+export function serverSyncReady(secret: string | undefined = process.env.CRON_SECRET): boolean {
+  return hasSystemIdentity() && (secret?.trim().length ?? 0) >= MIN_SECRET;
+}
 
 /** Equal-length digests, so the comparison takes the same time whatever the input. */
 export function bearerMatches(header: string | null, secret: string): boolean {
@@ -31,7 +43,7 @@ const json = (status: number, body: unknown) => Response.json(body, { status, he
 
 export async function handleCronSync(request: Request, deps: CronDeps): Promise<Response> {
   const secret = deps.secret?.trim();
-  if (!secret || secret.length < 16) return json(503, { error: 'CRON_SECRET chưa được cấu hình (tối thiểu 16 ký tự).' });
+  if (!secret || secret.length < MIN_SECRET) return json(503, { error: 'CRON_SECRET chưa được cấu hình (tối thiểu 16 ký tự).' });
   if (!bearerMatches(request.headers.get('authorization'), secret)) return json(401, { error: 'unauthorized' });
   const ctx = await deps.systemContext();
   if (!ctx) return json(503, { error: 'Chưa có tài khoản hệ thống để chạy đồng bộ tự động.' });
@@ -49,7 +61,7 @@ export async function handleCronSync(request: Request, deps: CronDeps): Promise<
  * import script holds the service role), so it answers null and the route says so; see contract change request 1.
  */
 export async function cronSystemContext(): Promise<RequestContext | null> {
-  if (!devMemoryEnabled()) return null;
+  if (!hasSystemIdentity()) return null;
   const { devContext } = await import('@/core/dev/runtime');
   const dev = await devContext({ role: 'admin', department: null });
   if (!dev.ok) return null;

@@ -10,7 +10,7 @@ import { FORM_FIELDS, FORM_FIELD_LABELS, type ColumnMap, type FormField as Field
 import { formConfigSchema } from '../domain/schemas';
 import type { FormView } from '../domain/screen';
 
-export function FormConfigCard({ eventId, form, canManage }: { eventId: EventId; form: FormView | null; canManage: boolean }) {
+export function FormConfigCard({ eventId, form, canManage, serverSync }: { eventId: EventId; form: FormView | null; canManage: boolean; serverSync: boolean }) {
   const run = useCommand();
   const toast = useToast();
   const f = useZodForm(formConfigSchema, {
@@ -54,7 +54,16 @@ export function FormConfigCard({ eventId, form, canManage }: { eventId: EventId;
           <TextInput name="sheetUrl" type="url" placeholder="https://docs.google.com/spreadsheets/d/.../edit#gid=0" />
         </FormField>
         <div className="space-y-1">
-          <Checkbox name="autoSync" label="Tự động kiểm tra mỗi 5 phút" description="Máy chủ đồng bộ theo lịch, kể cả khi không ai mở phần mềm." />
+          {serverSync ? (
+            <Checkbox name="autoSync" label="Tự động kiểm tra mỗi 5 phút" description="Máy chủ đồng bộ theo lịch, kể cả khi không ai mở phần mềm." />
+          ) : (
+            <Checkbox
+              name="autoSync"
+              disabled
+              label="Tự động kiểm tra mỗi 5 phút (chưa hoạt động)"
+              description='Máy chủ chưa có tài khoản hệ thống để đồng bộ theo lịch, nên hiện không có gì tự đồng bộ. Bấm "Đồng bộ ngay" để cập nhật phản hồi. Lựa chọn đã lưu được giữ cho khi tính năng hoạt động.'
+            />
+          )}
           <Checkbox name="autoAddNewGuests" label="Tự nạp khách mới từ Form" description="Người đăng ký chưa có trong danh sách được thêm làm khách mời (ghi chú: Tự đăng ký qua Google Form). Tắt: phản hồi chờ xem lại." />
         </div>
         {canManage && <Button type="submit" variant="secondary" icon="check" loading={f.formState.isSubmitting}>Lưu cấu hình</Button>}

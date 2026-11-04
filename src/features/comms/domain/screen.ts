@@ -113,6 +113,8 @@ export interface FormScreenData {
   /** For placing a response by hand. */
   guests: ReadonlyArray<{ id: GuestId; name: string; organization: string; email: Email | null; phone: string }>;
   canManage: boolean;
+  /** A scheduled server sync can run (a system identity and CRON_SECRET); until then auto sync is labelled as not working. */
+  serverSync: boolean;
 }
 
 export interface MailboxesScreenData {

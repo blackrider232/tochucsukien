@@ -5,6 +5,6 @@ export type * from '../contract';
 export { listMailboxes, readForm, listResponses, listDeliveries } from './reads';
 export { commands } from './commands';
 export { invitationScreenData, deliveryLogData, formScreenData } from './screen-data';
-export { handleCronSync, cronSystemContext } from './cron';
+export { handleCronSync, cronSystemContext, serverSyncReady } from './cron';
 export { legacyImporter } from './legacy-importer';
 export { devSeed } from './dev-seed';

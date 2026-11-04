@@ -10,7 +10,8 @@ import { MailboxesAdmin } from '../components/mailboxes-admin';
 import type { FormScreenData, InvitationScreenData, ResponseView } from '../domain/screen';
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }), usePathname: () => '/' }));
-vi.mock('@/core/commands/dispatch', () => ({ dispatch: vi.fn() }));
+const dispatched = vi.hoisted(() => vi.fn(async (..._: unknown[]) => ({ ok: true, value: null })));
+vi.mock('@/core/commands/dispatch', () => ({ dispatch: dispatched }));
 
 const XSS = '<img src=x onerror="window.__pwned=1">';
 const event = { id: '0b0e0b0e-0000-4000-8000-000000000001' as EventId, name: 'Hội nghị 2026', eventDate: '2026-12-15' as IsoDate, eventTime: '08:30' as HHmm, location: 'Hà Nội', targetGuests: 100 };
@@ -77,6 +78,7 @@ describe('comms screens render untrusted text as text', () => {
       responses: [response(), response({ id: 'r2' as RsvpResponseId, applyStatus: 'applied', match: 'email', matchedGuest: { id: 'g1' as GuestId, name: XSS } })],
       guests: [{ id: 'g1' as GuestId, name: XSS, organization: 'A', email: null, phone: '' }],
       canManage: true,
+      serverSync: false,
     };
     const { container, user } = renderUi(withAppContext(<FormPage data={data} />));
     noInjection(container);
@@ -85,6 +87,37 @@ describe('comms screens render untrusted text as text', () => {
     await user.click(within(review).getAllByRole('button', { name: /Thao tác với phản hồi/ })[0]!);
     expect(screen.getByRole('menuitem', { name: 'Ghép với khách mời…' })).toBeInTheDocument();
     noInjection(container);
+  });
+
+  it.each([
+    [false, true, 'Tự động kiểm tra mỗi 5 phút (chưa hoạt động)', 'Tự động: chưa hoạt động'],
+    [true, false, 'Tự động kiểm tra mỗi 5 phút', 'Tự động mỗi 5 phút'],
+  ])('the auto sync switch promises a server sync only when one runs (configured: %s)', (serverSync, disabled, label, badge) => {
+    const data: FormScreenData = {
+      event,
+      form: { formUrl: null, sheetCsvUrl: 'https://docs.google.com/spreadsheets/d/x/export?format=csv' as never, autoSync: true, autoAddNewGuests: false, columnMap: null, detectedMap: {}, sheetHeaders: [], lastSyncAt: null, lastAttemptAt: null, lastSyncError: null, version: 1 as Version },
+      responses: [],
+      guests: [],
+      canManage: true,
+      serverSync,
+    };
+    renderUi(withAppContext(<FormPage data={data} />));
+    const box = screen.getByRole('checkbox', { name: new RegExp(`^${label.replace(/[()]/g, '\\$&')}`) });
+    expect(box).toHaveProperty('disabled', disabled);
+    expect(screen.getByText(badge)).toBeInTheDocument();
+    expect(screen.queryByText(/kể cả khi không ai mở phần mềm/) !== null).toBe(serverSync);
+  });
+
+  it('saving the form while auto sync is not working keeps the saved choice', async () => {
+    dispatched.mockClear();
+    const data: FormScreenData = {
+      event,
+      form: { formUrl: null, sheetCsvUrl: null, autoSync: true, autoAddNewGuests: false, columnMap: null, detectedMap: {}, sheetHeaders: [], lastSyncAt: null, lastAttemptAt: null, lastSyncError: null, version: 3 as Version },
+      responses: [], guests: [], canManage: true, serverSync: false,
+    };
+    const { user } = renderUi(withAppContext(<FormPage data={data} />));
+    await user.click(screen.getByRole('button', { name: 'Lưu cấu hình' }));
+    await vi.waitFor(() => expect(dispatched).toHaveBeenCalledWith('comms.saveForm', expect.objectContaining({ config: expect.objectContaining({ autoSync: true }) })));
   });
 
   it('the delivery log shows names and Gmail errors as text and marks imported rows', () => {

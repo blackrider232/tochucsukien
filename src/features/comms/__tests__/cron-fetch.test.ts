@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { EventId } from '@/core/brand';
-import { bearerMatches, handleCronSync } from '../server/cron';
+import { bearerMatches, handleCronSync, serverSyncReady } from '../server/cron';
 import { DEV_SHEET_URL } from '../server/dev-sheets';
 import { fetchSheetCsv, isAllowedHop } from '../server/sheet-fetch';
 import { defaultSheetSource, FAKE_UNKNOWN_SHEET } from '../server/sheet-source';
@@ -78,6 +78,21 @@ function fakeFetch(routes: Record<string, () => Response>) {
 }
 const csvResponse = (body: string) => () => new Response(body, { status: 200, headers: { 'content-type': 'text/csv; charset=utf-8' } });
 const redirect = (location: string) => () => new Response(null, { status: 307, headers: { location } });
+
+describe('serverSyncReady', () => {
+  afterEach(() => vi.unstubAllEnvs());
+  it('is false in production, which has no system identity yet, whatever the secret', () => {
+    vi.stubEnv('SCE_DEV_MEMORY', '');
+    expect(serverSyncReady(SECRET)).toBe(false);
+  });
+  it('needs a valid secret where the identity exists (dev memory)', () => {
+    vi.stubEnv('SCE_DEV_MEMORY', '1');
+    vi.stubEnv('NODE_ENV', 'development');
+    expect(serverSyncReady(SECRET)).toBe(true);
+    expect(serverSyncReady('short')).toBe(false);
+    expect(serverSyncReady(undefined)).toBe(false);
+  });
+});
 
 describe('fetchSheetCsv (no open proxy)', () => {
   it('reads the export through a redirect to Google’s content host', async () => {

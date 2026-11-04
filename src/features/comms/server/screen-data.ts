@@ -11,6 +11,7 @@ import { readEvent } from '@/features/progress/server';
 import { detectColumns } from '../domain/columns';
 import { parseColumnMap } from '../domain/responses';
 import type { DeliveryLogData, FormScreenData, InvitationScreenData, MailboxesScreenData, ScreenEvent } from '../domain/screen';
+import { serverSyncReady } from './cron';
 import { listDeliveries, listMailboxes, listResponses, readCampaign, readForm } from './reads';
 
 async function eventOf(ctx: RequestContext, eventId: EventId) {
@@ -93,6 +94,7 @@ export async function formScreenData(ctx: RequestContext, eventId: EventId): Pro
     })),
     guests: roster.map((g) => ({ id: g.id, name: g.name, organization: g.organization, email: g.email, phone: g.phone })),
     canManage: can(ctx.actor, 'comms.rsvp.manage', event.scope),
+    serverSync: serverSyncReady(),
   };
 }
 

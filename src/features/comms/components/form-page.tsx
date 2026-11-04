@@ -162,7 +162,7 @@ export function FormPage({ data }: { data: FormScreenData }) {
           {data.canManage && <Button icon="refresh" loading={syncing} disabled={!form?.sheetCsvUrl} onClick={() => void syncNow()}>Đồng bộ ngay</Button>}
           <span className="flex items-center gap-2">Trạng thái: <Badge tone={status.tone}>{status.label}</Badge></span>
           <span className="text-ink-2">{form?.lastSyncAt ? `Lần đồng bộ cuối: ${formatVNTime(form.lastSyncAt, { withDate: true })}` : 'Lần đồng bộ cuối: Chưa đồng bộ'}</span>
-          {form?.autoSync && <Badge tone="blue" icon="clock">Tự động mỗi 5 phút</Badge>}
+          {form?.autoSync && (data.serverSync ? <Badge tone="blue" icon="clock">Tự động mỗi 5 phút</Badge> : <Badge tone="slate" icon="clock">Tự động: chưa hoạt động</Badge>)}
         </div>
         {form?.lastSyncError && (
           <div className="mt-3">
@@ -177,7 +177,7 @@ export function FormPage({ data }: { data: FormScreenData }) {
         <KpiCard label="Đăng ký ăn tiệc" value={data.responses.filter((r) => r.hasBanquet === true).length} icon="star" accent="amber" />
       </div>
       <div className="grid gap-4 xl:grid-cols-2">
-        <FormConfigCard key={form?.version ?? 0} eventId={data.event.id} form={form} canManage={data.canManage} />
+        <FormConfigCard key={form?.version ?? 0} eventId={data.event.id} form={form} canManage={data.canManage} serverSync={data.serverSync} />
         {form && form.sheetHeaders.length > 0 && <ColumnMapCard key={`map-${form.version}`} eventId={data.event.id} form={form} canManage={data.canManage} />}
       </div>
       {review.length > 0 && (
