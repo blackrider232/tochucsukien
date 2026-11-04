@@ -101,7 +101,7 @@ const packageLabel = (d: PackageDraft) =>
 const NO_PACKAGE = 'Không tìm thấy gói thầu trong sự kiện này.';
 const packageInput = z.object({ eventId: eventIdSchema, id: packageIdSchema, draft: packageFields });
 
-/** One code per event, whatever its case or tone marks (BUG-33); the database index enforces the case rule too. */
+/** One code per event, whatever its case or tone marks (BUG-33); the database index folds the same way (tcsk.reports_code_key). */
 async function assertCodeFree(ctx: CommandContext, eventId: EventId, id: BiddingPackageId, code: string): Promise<void> {
   const key = foldVi(code.trim());
   const taken = (await ctx.db.table(packagesTable).list({ eventId })).find((p) => p.id !== id && foldVi(p.code.trim()) === key);

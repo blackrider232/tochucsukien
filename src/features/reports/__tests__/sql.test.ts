@@ -8,6 +8,7 @@ import { PGlite } from '@electric-sql/pglite';
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { IsoDate } from '@/core/brand';
 import { addCalendarDays, buildWorkCalendar, type Holiday } from '@/core/dates';
+import { foldVi } from '@/core/text';
 import { DEPARTMENTS } from '@/core/vocab';
 import { workdaysToEvent } from '../domain/figures';
 import { signerTitle } from '../domain/report';
@@ -193,6 +194,24 @@ describe('editable report tables on Postgres', () => {
         db.exec(`insert into public.sce_tcsk_bidding_packages (event_id, code, name, department, budget_vnd, status) values ('${eventId}', 'tb-1', 'Gói 2', 'Phòng Hành chính - Tổ chức', 100, 'Đang thẩm định hồ sơ')`),
       ),
     ).rejects.toThrow(/duplicate key/);
+  });
+
+  it('a package code is unique per event whatever its tone marks, as the command folds it (L11)', async () => {
+    const insert = (code: string) =>
+      as(ids.staff, 'aal1', () =>
+        db.exec(`insert into public.sce_tcsk_bidding_packages (event_id, code, name, department, budget_vnd, status) values ('${eventId}', '${code}', 'Gói', 'Phòng Hành chính - Tổ chức', 100, 'Đang thẩm định hồ sơ')`),
+      );
+    await insert('GÓI-ĐẦU-TƯ 1');
+    await expect(insert('goi-dau-tu  1')).rejects.toThrow(/duplicate key/);
+    await expect(insert(' Gói-Đầu-Tư 1 ')).rejects.toThrow(/duplicate key/);
+  });
+
+  it('the database folds a code exactly as foldVi does', async () => {
+    const codes = ['TB-2026-001', 'GÓI-ĐẦU-TƯ 1', 'Gói  thầu   ƯỚC', 'ẮẰẲẴẶẤẦẨẪẬ ÉÈẺẼẸẾỀỂỄỆ ÍÌỈĨỊ ÓÒỎÕỌỐỒỔỖỘỚỜỞỠỢ ÚÙỦŨỤỨỪỬỮỰ ÝỲỶỸỴ Đđ', 'Gói\u0301 NFD'.normalize('NFD')];
+    for (const code of codes) {
+      const r = await db.query<{ k: string }>(`select tcsk.reports_code_key($1) as k`, [code]);
+      expect(r.rows[0]!.k).toBe(foldVi(code));
+    }
   });
 
   it('refuses a status or a clipping type outside the contract, and a javascript: link', async () => {
