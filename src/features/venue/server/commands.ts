@@ -1,8 +1,9 @@
 // Every write of the venue feature. Each mutation audits and, where a reverse
 // exists, returns the inverse its undo runs. Seats change only through
-// writeSeatChanges(): each change names the occupant the client saw, so a seat
-// edited by someone else in the meantime is a conflict, never a silent eviction
-// (m4b BUG-06, BUG-09, BUG-17).
+// checkSeatChanges() then commitSeatChanges(): each change names the occupant
+// the client saw, so a seat edited by someone else after the check is a
+// conflict, never an eviction (m4b BUG-06, BUG-09, BUG-17). Undo payloads
+// travel through the client, so an undo is checked like any other write.
 
 import { z } from 'zod';
 import { newId, type BoothId, type BoothShiftId, type EventId, type GuestId, type HallTemplateId, type SeatCode, type Version } from '@/core/brand';
@@ -22,6 +23,7 @@ import { boothShiftsTable, boothsTable, eventHallsTable, hallTemplatesTable, sea
 import { requireRoster } from './upstream';
 
 type HallState = { templateId: HallTemplateId | null; zones: ReadonlyArray<HallZone> };
+type Placed = { seatCode: SeatCode; guestId: GuestId };
 
 declare module '@/core/commands' {
   interface CommandMap {
@@ -31,7 +33,7 @@ declare module '@/core/commands' {
     'venue.releaseOrphans': Sig<{ eventId: EventId }, null>;
     'venue.setEventHall': Sig<{ eventId: EventId; version: Version | null; templateId: HallTemplateId; seats: SeatPolicy }, EventHall>;
     'venue.updateEventZones': Sig<{ eventId: EventId; version: Version; zones: ReadonlyArray<HallZone>; releaseOrphans: boolean }, EventHall>;
-    'venue.restoreEventHall': Sig<{ eventId: EventId; version: Version | null; hall: HallState | null; release: ReadonlyArray<SeatCode>; add: ReadonlyArray<{ seatCode: SeatCode; guestId: GuestId }> }, EventHall | null>;
+    'venue.restoreEventHall': Sig<{ eventId: EventId; version: Version | null; hall: HallState | null; release: ReadonlyArray<Placed>; add: ReadonlyArray<Placed> }, EventHall | null>;
     'venue.createHallTemplate': Sig<{ id: HallTemplateId; draft: HallTemplateDraft }, HallTemplate>;
     'venue.updateHallTemplate': Sig<{ id: HallTemplateId; version: Version; draft: HallTemplateDraft }, HallTemplate>;
     'venue.deleteHallTemplate': Sig<{ id: HallTemplateId; version: Version }, null>;
@@ -294,26 +296,43 @@ const releaseOrphans: Spec<'venue.releaseOrphans'> = {
 
 // ---------- the event's hall ----------
 
-/** Writes hall and seats in one place for setEventHall, updateEventZones and their undo; returns the undo of what it did. */
-async function writeHall(ctx: CommandContext, eventId: EventId, version: Version | null, hall: HallState | null, release: ReadonlyArray<SeatCode>, add: ReadonlyArray<{ seatCode: SeatCode; guestId: GuestId }>) {
+/** One change per seat: who `release` takes off it and who `add` puts on it. */
+function hallSeatChanges(release: ReadonlyArray<Placed>, add: ReadonlyArray<Placed>): SeatChange[] {
+  for (const list of [release, add]) if (new Set(list.map((s) => s.seatCode)).size !== list.length) throw new CommandError('invalid', 'Một ghế được chỉ định hai lần.');
+  const bySeat = new Map<SeatCode, SeatChange>(release.map((r) => [r.seatCode, { seatCode: r.seatCode, from: r.guestId, to: null }]));
+  for (const a of add) bySeat.set(a.seatCode, { seatCode: a.seatCode, from: bySeat.get(a.seatCode)?.from ?? null, to: a.guestId });
+  return [...bySeat.values()];
+}
+
+const stateOf = (row: EventHallRow): HallState => ({ templateId: row.templateId, zones: row.zones });
+
+/** Makes the event's hall `state` (none when null), starting from `row`, the hall as it is now. */
+async function putHall(ctx: CommandContext, eventId: EventId, row: EventHallRow | null, state: HallState | null, id: string = newId()): Promise<EventHallRow | null> {
+  const table = ctx.db.table(eventHallsTable);
+  if (state && row) return table.update(row.id, { templateId: state.templateId, zones: [...state.zones] }, { expectedVersion: row.version });
+  if (state) return table.insert({ id, eventId, templateId: state.templateId, zones: [...state.zones] });
+  if (row) await table.remove(row.id, { expectedVersion: row.version });
+  return null;
+}
+
+/**
+ * Writes hall and seats for setEventHall, updateEventZones and their undo, and returns the undo of what it did. Every
+ * seat is checked against the new hall before anything is written: `release` must still hold its guest, and `add`
+ * follows the rules of any seat write. When the seat write fails, the hall is put back, so nothing is half applied.
+ */
+async function writeHall(ctx: CommandContext, eventId: EventId, version: Version | null, hall: HallState | null, release: ReadonlyArray<Placed>, add: ReadonlyArray<Placed>) {
   const before = await hallRow(ctx, eventId);
   if ((before?.version ?? null) !== version) throw new CommandError('conflict', 'Cấu hình hội trường vừa được người khác thay đổi. Đang tải lại…');
-  const current = await seatsOf(ctx, eventId);
-  const released = current.filter((s) => release.includes(s.seatCode));
-  let after: EventHallRow | null = null;
-  if (hall && before) after = await ctx.db.table(eventHallsTable).update(before.id, { templateId: hall.templateId, zones: [...hall.zones] }, { expectedVersion: before.version });
-  else if (hall) after = await ctx.db.table(eventHallsTable).insert({ id: newId(), eventId, templateId: hall.templateId, zones: [...hall.zones] });
-  else if (before) await ctx.db.table(eventHallsTable).remove(before.id, { expectedVersion: before.version });
-  if (released.length > 0) await ctx.db.table(seatsTable).removeWhere({ eventId, id: released.map((s) => s.id) });
-  if (add.length > 0) await ctx.db.table(seatsTable).insertMany(add.map((s) => ({ id: newId(), eventId, seatCode: s.seatCode, guestId: s.guestId })));
-  const undo: InputOf<'venue.restoreEventHall'> = {
-    eventId,
-    version: after?.version ?? null,
-    hall: before ? { templateId: before.templateId, zones: before.zones } : null,
-    release: add.map((s) => s.seatCode),
-    add: released.map((s) => ({ seatCode: s.seatCode, guestId: s.guestId })),
-  };
-  return { after, released, undo };
+  const checked = await checkSeatChanges(ctx, eventId, hall ?? { zones: [] }, hallSeatChanges(release, add));
+  const after = await putHall(ctx, eventId, before, hall);
+  try {
+    await commitSeatChanges(ctx, eventId, checked);
+  } catch (e) {
+    await putHall(ctx, eventId, after, before && stateOf(before), before?.id);
+    throw e;
+  }
+  const undo: InputOf<'venue.restoreEventHall'> = { eventId, version: after?.version ?? null, hall: before && stateOf(before), release: add, add: release };
+  return { after, undo };
 }
 
 const toHall = (row: EventHallRow): EventHall => ({ eventId: row.eventId, templateId: row.templateId, zones: row.zones, version: row.version });
@@ -334,9 +353,9 @@ const setEventHall: Spec<'venue.setEventHall'> = {
     const kept = policy === 'release' ? [] : before ? remapSeats(before.zones, template.zones, current).kept : current.filter((s) => zoneOfSeat(template, s.seatCode));
     const keptSame = kept.filter((k) => current.some((c) => c.guestId === k.guestId && c.seatCode === k.seatCode));
     const moved = kept.filter((k) => !keptSame.includes(k));
-    const release = current.filter((c) => !keptSame.some((k) => k.guestId === c.guestId)).map((c) => c.seatCode);
-    const { after, released, undo } = await writeHall(ctx, eventId, version, { templateId, zones: template.zones }, release, moved);
-    const lost = released.length - moved.length;
+    const release = current.filter((c) => !keptSame.some((k) => k.guestId === c.guestId)).map(({ seatCode, guestId }) => ({ seatCode, guestId }));
+    const { after, undo } = await writeHall(ctx, eventId, version, { templateId, zones: template.zones }, release, moved.map(({ seatCode, guestId }) => ({ seatCode, guestId })));
+    const lost = release.length - moved.length;
     return {
       value: toHall(after!),
       audit: audit('CẤU HÌNH HỘI TRƯỜNG', `Chuyển sang hội trường "${template.name}"${lost > 0 ? `, hủy xếp chỗ ${lost} đại biểu` : ''}`, eventId, 'event_hall', eventId),
@@ -364,7 +383,7 @@ const updateEventZones: Spec<'venue.updateEventZones'> = {
     if (orphans.length > 0 && !releaseOrphans) {
       throw new CommandError('conflict', `Giảm số ghế sẽ hủy xếp chỗ của ${orphans.length} đại biểu (${orphans.map((s) => s.seatCode).join(', ')}). Hãy xác nhận để tiếp tục.`);
     }
-    const { after, undo } = await writeHall(ctx, eventId, version, { templateId: before.templateId, zones }, orphans.map((s) => s.seatCode), []);
+    const { after, undo } = await writeHall(ctx, eventId, version, { templateId: before.templateId, zones }, orphans.map(({ seatCode, guestId }) => ({ seatCode, guestId })), []);
     return {
       value: toHall(after!),
       audit: audit('CẤU HÌNH HỘI TRƯỜNG', `Cấu hình phân khu: ${zones.map((z) => `${z.name} ${z.seatCount} ghế`).join('; ')}${orphans.length > 0 ? `; hủy xếp chỗ ${orphans.length} ghế` : ''}`, eventId, 'event_hall', eventId),
@@ -373,15 +392,17 @@ const updateEventZones: Spec<'venue.updateEventZones'> = {
   },
 };
 
-/** The undo of a hall change: puts back the hall (or none) and exactly the seats the change released or added. */
+/** The undo of a hall change: puts back the hall (or none) and the seats the change released or added, if they are still as it left them. */
+const placedSchema = z.object({ seatCode: seatCodeSchema, guestId: guestIdSchema });
+
 const restoreEventHall: Spec<'venue.restoreEventHall'> = {
   kind: 'mutation',
   input: asSchema(z.object({
     eventId: eventIdSchema,
     version: versionSchema.nullable(),
     hall: z.object({ templateId: hallTemplateIdSchema.nullable(), zones: zonesSchema }).nullable(),
-    release: z.array(seatCodeSchema).max(5000),
-    add: z.array(z.object({ seatCode: seatCodeSchema, guestId: guestIdSchema })).max(5000),
+    release: z.array(placedSchema).max(5000),
+    add: z.array(placedSchema).max(5000),
   })),
   authorize: seating,
   async run(ctx, { eventId, version, hall, release, add }) {

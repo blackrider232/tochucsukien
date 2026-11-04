@@ -171,6 +171,53 @@ describe('a seat batch raced by another writer (no transaction, review finding 2
   });
 });
 
+describe('undo of a hall change (venue.restoreEventHall, review findings 1 and 3)', () => {
+  it('refuses when a seat it would free now holds someone else, and leaves hall and seats unchanged', async () => {
+    const { h, eventId, g } = await setup();
+    const xHall = newId<'HallTemplate'>();
+    const ubndZones = (await h.hall(eventId))!.zones;
+    await h.ok(admin, 'venue.createHallTemplate', { id: xHall, draft: { name: 'Hội trường X', location: '', description: '', zones: ubndZones.map((z, i) => (i === 0 ? { ...z, key: 'X', prefix: 'X-' } : z)) } });
+    await h.ok(xtdtUser, 'venue.assignSeat', { eventId, guestId: g.vip1, seatCode: seat('A-03') });
+    const change = await h.ok(xtdtUser, 'venue.setEventHall', { eventId, version: (await h.hall(eventId))!.version, templateId: xHall, seats: 'remap' });
+    expect(await h.seats(eventId)).toEqual({ 'X-03': g.vip1 });
+    await h.ok(admin, 'venue.applySeats', { eventId, changes: [{ seatCode: seat('X-03'), from: g.vip1, to: g.so1 }] });
+    const hallBefore = await h.hall(eventId);
+
+    const undo = await h.undo(xtdtUser, change.inverse);
+    expect(undo).toMatchObject({ ok: false, kind: 'conflict', message: 'Ghế X-03 vừa được người khác thay đổi. Đang tải lại…' });
+    expect(await h.hall(eventId)).toEqual(hallBefore);
+    expect(await h.seats(eventId)).toEqual({ 'X-03': g.so1 });
+  });
+
+  it('a direct call cannot seat a declined guest, use a seat the hall lacks, give a guest two seats or evict anyone', async () => {
+    const { h, eventId, g } = await setup();
+    await h.ok(xtdtUser, 'venue.assignSeat', { eventId, guestId: g.vip1, seatCode: seat('A-01') });
+    const hall = (await h.hall(eventId))!;
+    const restore = (add: Array<{ seatCode: SeatCode; guestId: typeof g.vip1 }>) =>
+      h.run(xtdtUser, 'venue.restoreEventHall', { eventId, version: hall.version, hall: { templateId: hall.templateId, zones: hall.zones }, release: [], add });
+    expect(await restore([{ seatCode: seat('C-02'), guestId: g.declined }])).toMatchObject({ ok: false, kind: 'invalid', message: 'Vũ Báo Vắng đã báo vắng, không xếp chỗ.' });
+    expect(await restore([{ seatCode: seat('Q-99'), guestId: g.so1 }])).toMatchObject({ ok: false, kind: 'invalid', message: 'Ghế Q-99 không có trong sơ đồ hội trường.' });
+    expect(await restore([{ seatCode: seat('A-02'), guestId: g.vip1 }])).toMatchObject({ ok: false, kind: 'conflict' });
+    expect(await restore([{ seatCode: seat('A-01'), guestId: g.so1 }])).toMatchObject({ ok: false, kind: 'conflict' });
+    expect(await h.seats(eventId)).toEqual({ 'A-01': g.vip1 });
+    expect(await h.hall(eventId)).toEqual(hall);
+  });
+
+  it('undoing a zone shrink raced on its seat leaves the hall and the seats as they were', async () => {
+    const { h, eventId, g } = await setup();
+    await h.ok(xtdtUser, 'venue.assignSeat', { eventId, guestId: g.so1, seatCode: seat('B-18') });
+    const hall = (await h.hall(eventId))!;
+    const smaller = hall.zones.map((z): HallZone => (z.key === 'B' ? { ...z, seatCount: 10 } : z));
+    const shrink = await h.ok(xtdtUser, 'venue.updateEventZones', { eventId, version: hall.version, zones: smaller, releaseOrphans: true });
+    const rival = () => h.ok(admin, 'venue.assignSeat', { eventId, guestId: g.so1, seatCode: seat('C-01') });
+    const undo = shrink.inverse!;
+    const r = await h.runWith(xtdtUser, interleave('sce_tcsk_event_halls', 'update', rival), undo.command, undo.input as never);
+    expect(r).toMatchObject({ ok: false, kind: 'conflict' });
+    expect((await h.hall(eventId))!.zones.find((z) => z.key === 'B')!.seatCount).toBe(10);
+    expect(await h.seats(eventId)).toEqual({ 'C-01': g.so1 });
+  });
+});
+
 describe('venue.releaseGuestSeat (asked by guests on decline or delete)', () => {
   it('frees the seat, works without the roster, is a no-op without a seat, and undoes', async () => {
     const { h, eventId, g } = await setup();
