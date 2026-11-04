@@ -63,13 +63,57 @@ const RICH_ATTRS = [
   'style', 'class', 'align', 'valign', 'colspan', 'rowspan', 'width', 'height', 'border',
   'cellpadding', 'cellspacing', 'href', 'target', 'rel', 'title', 'color', 'face', 'size',
 ];
+// Inline CSS is an allowlist: text, box and table styling only, nothing that places, transforms or loads.
+const STYLE_PROPERTIES = new Set([
+  'color', 'background-color', 'background', 'font-family', 'font-size', 'font-style', 'font-weight', 'font-variant',
+  'line-height', 'letter-spacing', 'word-spacing', 'white-space', 'text-align', 'text-indent', 'text-transform',
+  'text-decoration', 'text-decoration-line', 'text-decoration-style', 'text-decoration-color', 'vertical-align',
+  'width', 'height', 'min-width', 'max-width', 'min-height', 'max-height', 'border-collapse', 'border-spacing',
+  'border-radius', 'list-style-type', 'page-break-before', 'page-break-after', 'page-break-inside',
+  'break-before', 'break-after', 'break-inside',
+]);
+const BOX_PROPERTY = /^(?:(?:margin|padding)(?:-(?:top|right|bottom|left))?|border(?:-(?:top|right|bottom|left))?(?:-(?:width|style|color))?)$/;
+// Colour functions are the only functions; any other `name(` (url, image-set, expression, var…) fails the charset.
+const COLOR_FUNCTION = /\b(?:rgba?|hsla?)\(\s*[\d.%\s,/]+\)/gi;
+const STYLE_VALUE = /^[a-z0-9#%.,\s'"-]+$/i;
+
+/** The declarations of `style` that pass, verbatim when all of them do; null when none does. */
+function safeStyle(style: string): string | null {
+  // Escapes, comments and at-rules can spell anything; such a style is dropped whole.
+  if (/[\\@<>{}!]|\/\*/.test(style)) return null;
+  const declarations = style.split(';').map((d) => d.trim()).filter(Boolean);
+  const kept = declarations.flatMap((d) => {
+    const colon = d.indexOf(':');
+    const property = d.slice(0, colon).trim().toLowerCase();
+    const value = d.slice(colon + 1).trim();
+    const allowed = colon > 0 && value !== '' && (STYLE_PROPERTIES.has(property) || BOX_PROPERTY.test(property))
+      && STYLE_VALUE.test(value.replace(COLOR_FUNCTION, '0'))
+      // A negative margin pulls the block over the content before it.
+      && !(property.startsWith('margin') && /-\s*\.?\d/.test(value));
+    return allowed ? [`${property}:${value}`] : [];
+  });
+  if (kept.length === 0) return null;
+  return kept.length === declarations.length ? style : kept.join(';');
+}
+
 let hooksInstalled = false;
 function installHooks(): void {
   if (hooksInstalled) return;
   hooksInstalled = true;
   DOMPurify.addHook('afterSanitizeAttributes', (node) => {
     const style = node.getAttribute?.('style');
-    if (style && /url\s*\(|expression\s*\(|@import/i.test(style)) node.removeAttribute('style');
+    if (style !== null && style !== undefined) {
+      const safe = safeStyle(style);
+      if (safe === null) node.removeAttribute('style');
+      else if (safe !== style) node.setAttribute('style', safe);
+    }
+    // The app's utility classes (fixed, inset-0, z-50…) would apply to rendered HTML; only template classes may.
+    const classes = node.getAttribute?.('class');
+    if (classes !== null && classes !== undefined) {
+      const own = classes.split(/\s+/).filter((c) => /^tpl-[a-z0-9-]+$/.test(c));
+      if (own.length === 0) node.removeAttribute('class');
+      else if (own.join(' ') !== classes) node.setAttribute('class', own.join(' '));
+    }
     if (node.tagName === 'A' && node.getAttribute('target')) node.setAttribute('rel', 'noopener noreferrer');
   });
 }

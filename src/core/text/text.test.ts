@@ -70,6 +70,59 @@ describe('sanitizeRichHtml', () => {
     expect(sanitizeRichHtml('<a href="https://sce.vn" target="_blank">x</a>')).toBe('<a href="https://sce.vn" target="_blank" rel="noopener noreferrer">x</a>');
   });
 
+  const styleOf = (out: string) => /style="([^"]*)"/.exec(out)?.[1] ?? null;
+
+  it.each([
+    ['a CSS escape inside url', 'background:u\\72l(https://evil/x.png)'],
+    ['a CSS escape of the whole function name', 'background:\\75\\72\\6c(https://evil/x.png)'],
+    ['upper-case URL', 'background:URL(https://evil/x.png)'],
+    ['a comment inside url', 'background:u/**/rl(https://evil/x.png)'],
+    ['an HTML entity inside url', 'background:&#117;rl(https://evil/x.png)'],
+    ['a named entity for the parenthesis', 'background:url&lpar;https://evil/x.png)'],
+    ['image-set', 'background-image:image-set("https://evil/x.png" 1x)'],
+    ['-webkit-image-set', 'background-image:-webkit-image-set(url(https://evil/x.png) 1x)'],
+    ['cross-fade', 'background-image:cross-fade(url(a.png), url(b.png), 50%)'],
+    ['expression', 'width:expression(alert(1))'],
+    ['a CSS escape inside expression', 'width:expr\\65ssion(alert(1))'],
+    ['@import', '@import "https://evil/x.css"'],
+    ['behavior', 'behavior:url(x.htc)'],
+    ['-moz-binding', '-moz-binding:url(https://evil/x.xml#x)'],
+    ['var()', 'color:var(--danger-ink)'],
+    ['content', 'content:"Đã xác thực"'],
+  ])('drops %s', (_label, style) => {
+    const out = sanitizeRichHtml(`<span style="${style}">x</span>`);
+    expect(out).toBe('<span>x</span>');
+  });
+
+  it.each([
+    ['a position:fixed overlay', 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;background-color:white'],
+    ['an upper-case overlay with spaces', 'POSITION : FIXED ; INSET: 0'],
+    ['a position:absolute overlay', 'position:absolute;top:-1px'],
+    ['an overlay with a CSS escape in the property name', 'posit\\69on:fixed;top:0'],
+    ['an overlay with a comment between property and value', 'position/**/:fixed;inset:0'],
+    ['an overlay with an entity in the property name', 'positi&#111;n:fixed;top:0'],
+    ['a transformed overlay', 'transform:translate(-50%,-50%) scale(40)'],
+    ['a block pulled over the text above it', 'margin-top:-400px;margin: -2px 0 0 -9999px'],
+  ])('%s loses every placing declaration', (_label, style) => {
+    const kept = styleOf(sanitizeRichHtml(`<div style="${style}">Đăng nhập lại</div>`));
+    expect(kept ?? '').not.toMatch(/position|fixed|absolute|inset|top|left|z-index|transform|-\d|\\|\/\*/i);
+  });
+
+  it('keeps the inline styles NĐ30 templates and the editor use, verbatim', () => {
+    const style = "font-family: 'Times New Roman', serif; line-height: 1.6; font-size: 14pt; color: rgb(30, 58, 138); background-color: #f1f5f9; padding: 6px; margin: 5px 0; text-indent: 30px; text-align: justify; border-collapse: collapse; vertical-align: top; text-transform: uppercase; width: 50%; border: 1px solid black;";
+    expect(styleOf(sanitizeRichHtml(`<p style="${style}">x</p>`))).toBe(style);
+  });
+
+  it('keeps the allowed declarations of a style it has to cut', () => {
+    expect(sanitizeRichHtml('<p style="color: red; position: fixed; font-weight: bold">x</p>')).toBe('<p style="color:red;font-weight:bold">x</p>');
+  });
+
+  it('keeps only its own template classes, since the app’s utility classes could place an overlay', () => {
+    expect(sanitizeRichHtml('<span class="tpl-blank">……</span>')).toBe('<span class="tpl-blank">……</span>');
+    expect(sanitizeRichHtml('<div class="fixed inset-0 z-50 bg-surface tpl-blank">x</div>')).toBe('<div class="tpl-blank">x</div>');
+    expect(sanitizeRichHtml('<div class="fixed inset-0 z-50">x</div>')).toBe('<div>x</div>');
+  });
+
   it('is idempotent and its output nests in html`` unescaped', () => {
     const once = sanitizeRichHtml('<p>Kính gửi <b>Ông A</b></p>');
     expect(sanitizeRichHtml(once)).toBe(once);
