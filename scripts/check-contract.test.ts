@@ -60,11 +60,11 @@ describe('each rule fails when broken', () => {
   it('nested route dirs resolve to the most specific owner, and foundation pages stay foundation-owned', () => {
     expect(broken((s) => s.pages.push('(app)/events', '(app)/events/[eventId]/guests/print', '(app)/go/[nav]', '(auth)/login', 'dev/kit'))).toEqual([]);
     expect(broken((s) => s.pages.push('(app)/dev/kit'))).toEqual(['app/(app)/dev/kit/page.tsx is not covered by any manifest route']);
-    expect(broken((s) => manifest(s, 'progress').routes.push('(app)/events/[eventId]'))).toEqual([]);
     expect(broken((s) => {
-      s.pages.push('(app)/events/[eventId]');
+      s.pages.splice(s.pages.indexOf('(app)/events/[eventId]'), 1);
       manifest(s, 'progress').routes.push('(app)/events/[eventId]');
-    })).toEqual(['app/(app)/events/[eventId]/page.tsx is foundation-owned but progress declares it']);
+    })).toEqual([]);
+    expect(broken((s) => manifest(s, 'progress').routes.push('(app)/events/[eventId]'))).toEqual(['app/(app)/events/[eventId]/page.tsx is foundation-owned but progress declares it']);
   });
 
   it('a permission key outside its feature prefix', () => {

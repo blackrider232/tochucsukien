@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { LinkTabs } from '@/components/ui/tabs';
 import { cn } from '@/components/ui/cn';
 import { useBoolPref } from '@/core/prefs';
@@ -19,6 +19,26 @@ export interface ShellSlots {
   headerActions: ReadonlyArray<ReactNode>;
 }
 
+interface EventChrome {
+  subTabs: ReactNode;
+  setEventName: (name: string | null) => void;
+}
+const EventChromeContext = createContext<EventChrome | null>(null);
+
+/**
+ * Rendered by the event layout under its header. It puts the event name in the top bar, so a phone keeps
+ * showing which event is open after the header scrolls away, and it places the active entry's sub-tabs here.
+ */
+export function EventSubTabs({ eventName }: { eventName: string }) {
+  const chrome = useContext(EventChromeContext);
+  const setEventName = chrome?.setEventName;
+  useEffect(() => {
+    setEventName?.(eventName);
+    return () => setEventName?.(null);
+  }, [setEventName, eventName]);
+  return chrome?.subTabs ?? null;
+}
+
 /**
  * The app frame: collapsible sidebar (drawer on phones), top bar, sub-tab bar, main region and the idle guard.
  * It knows nothing about features; every label, route and badge arrives through `model` and `slots`.
@@ -33,6 +53,16 @@ export function AppShell({ model, slots, children }: { model: ShellModel; slots:
   const current = activeNav(all, pathname);
   const sub = current && current.subTabs.length > 0 ? activeSubTab(current, pathname) : null;
   const eventId = eventIdFromPath(pathname);
+  const [eventName, setEventName] = useState<string | null>(null);
+
+  const subTabs = current && current.subTabs.length > 0 && (
+    <LinkTabs
+      variant="underline"
+      label={`Phân mục ${current.label}`}
+      activeId={sub?.id ?? ''}
+      items={current.subTabs.map((t) => ({ id: t.id, label: t.label, href: resolveHref(t.href, current.id, eventId) }))}
+    />
+  );
 
   const account = <AccountMenu user={model.user} collapsed={collapsed} formRef={signOutForm} />;
 
@@ -70,22 +100,14 @@ export function AppShell({ model, slots, children }: { model: ShellModel; slots:
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar
           title={current?.header.title ?? model.brand.title}
-          subtitle={current?.header.subtitle}
+          subtitle={(eventId && eventName) || current?.header.subtitle}
           badge={current ? slots.topBarBadges[current.id] : undefined}
           headerActions={slots.headerActions}
           onOpenMenu={() => setDrawerOpen(true)}
         />
-        {current && current.subTabs.length > 0 && (
-          <div data-shell className="border-b border-line bg-surface px-3 sm:px-5">
-            <LinkTabs
-              variant="underline"
-              activeId={sub?.id ?? ''}
-              items={current.subTabs.map((t) => ({ id: t.id, label: t.label, href: resolveHref(t.href, current.id, eventId) }))}
-            />
-          </div>
-        )}
+        {!eventId && subTabs && <div data-shell className="border-b border-line bg-surface px-3 sm:px-5">{subTabs}</div>}
         <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 p-3 outline-none sm:p-5">
-          {children}
+          <EventChromeContext.Provider value={{ subTabs: eventId ? subTabs : null, setEventName }}>{children}</EventChromeContext.Provider>
         </main>
       </div>
 

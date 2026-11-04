@@ -3,8 +3,8 @@ import { join, resolve } from 'node:path';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { prefStorage, renderUi } from '@/components/ui/__tests__/helpers';
-import { AppShell, type ShellSlots } from '../app-shell';
-import { EventSwitcher } from '../event-switcher';
+import { AppShell, EventSubTabs, type ShellSlots } from '../app-shell';
+import { EventSwitcher, switchHref } from '../event-switcher';
 import { IdleGuard } from '../idle-guard';
 import type { ShellModel } from '../nav-model';
 
@@ -66,11 +66,31 @@ describe('AppShell', () => {
   it('shows the header, sub-tabs, top-bar badge and header actions of the active entry', () => {
     mount();
     expect(screen.getByRole('heading', { level: 1, name: 'Khách mời & Chỗ ngồi' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Sơ đồ chỗ ngồi' })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('link', { name: 'Danh sách' })).toHaveAttribute('href', '/events/e1/guests');
     expect(screen.getByText('Báo cáo hôm nay')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Tạo sự kiện mới' })).toBeInTheDocument();
     expect(screen.getByRole('main')).toHaveTextContent('Nội dung trang');
+  });
+
+  it('on an event page puts the sub-tabs under the event header and the event name in the top bar', async () => {
+    renderUi(
+      <AppShell model={MODEL} slots={SLOTS}>
+        <h2>Tiêu đề sự kiện</h2>
+        <EventSubTabs eventName="Hội nghị XTĐT 2026" />
+      </AppShell>,
+    );
+    const tabs = screen.getByRole('navigation', { name: 'Phân mục Khách mời & Chỗ ngồi' });
+    expect(screen.getByRole('main')).toContainElement(tabs);
+    expect(screen.getByText('Tiêu đề sự kiện').compareDocumentPosition(tabs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getAllByRole('navigation', { name: /^Phân mục/ })).toHaveLength(1);
+    expect(within(tabs).getByRole('link', { name: 'Sơ đồ chỗ ngồi' })).toHaveAttribute('aria-current', 'page');
+    expect(within(tabs).getByRole('link', { name: 'Danh sách' })).toHaveAttribute('href', '/events/e1/guests');
+    await waitFor(() => expect(screen.getByRole('banner')).toHaveTextContent('Hội nghị XTĐT 2026'));
+  });
+
+  it('renders exactly one main and one h1', () => {
+    mount();
+    expect(screen.getAllByRole('main')).toHaveLength(1);
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   });
 
   it('sends event-scoped entries to /go/<nav> when no event is selected', () => {
@@ -164,14 +184,20 @@ describe('IdleGuard', () => {
 });
 
 describe('EventSwitcher', () => {
-  it('lists other events as links and closes on Escape', async () => {
-    const { user } = renderUi(<EventSwitcher current="Hội nghị XTĐT 2026" events={[{ id: 'e2', name: 'Hội chợ Thu 2026', dateLabel: '20/10/2026', href: '/events/e2/plan' }]} />);
-    const button = screen.getByRole('button', { name: /Hội nghị XTĐT 2026/ });
+  it('lists other events as links to the same area and closes on Escape', async () => {
+    nav.path = '/events/e1/seating';
+    const { user } = renderUi(<EventSwitcher current="Hội nghị XTĐT 2026" events={[{ id: 'e2', name: 'Hội chợ Thu 2026', dateLabel: '20/10/2026' }]} />);
+    const button = screen.getByRole('button', { name: /Đổi sự kiện.*đang xem Hội nghị XTĐT 2026/ });
     expect(button).toHaveAttribute('aria-expanded', 'false');
     await user.click(button);
-    expect(screen.getByRole('link', { name: /Hội chợ Thu 2026/ })).toHaveAttribute('href', '/events/e2/plan');
+    expect(screen.getByRole('link', { name: /Hội chợ Thu 2026/ })).toHaveAttribute('href', '/events/e2/seating');
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('link', { name: /Hội chợ Thu 2026/ })).not.toBeInTheDocument());
     expect(button).toHaveFocus();
+  });
+
+  it('keeps only the area segment and falls back to the plan', () => {
+    expect(switchHref('/events/e1/guests/g9/edit', 'e2')).toBe('/events/e2/guests');
+    expect(switchHref('/events/e1', 'e2')).toBe('/events/e2/plan');
   });
 });
