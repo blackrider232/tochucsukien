@@ -113,7 +113,8 @@ class SeatRace extends CommandError {
  * Writes checked changes without a transaction (the pipeline has none). Rows that cannot clash with this batch (a guest
  * new to the hall on an empty seat) go in before anything is deleted; the rest are deleted and then inserted. When a
  * write fails, the new rows are removed and the deleted ones put back. A deleted row whose seat or guest another
- * writer took meanwhile cannot come back: that loss is audited and named, never reported as success.
+ * writer took meanwhile cannot come back: that loss is audited and named, never reported as success. Every caller is
+ * authorized by `seating`, so the loss is audited under that permission, through the writer the pipeline uses.
  */
 async function commitSeatChanges(ctx: CommandContext, eventId: EventId, { changes, roster, current }: CheckedSeats): Promise<SeatRow[]> {
   const table = ctx.db.table(seatsTable);
@@ -141,7 +142,7 @@ async function commitSeatChanges(ctx: CommandContext, eventId: EventId, { change
       throw e;
     }
     const loss = lost.map((s) => `${nameOf(roster, s.guestId)} mất ghế ${s.seatCode}`).join('; ');
-    await ctx.db.rpc('sce_tcsk_write_audit', audit('XẾP CHỖ NGỒI', `Lưu xếp chỗ thất bại vì ghế bị thay đổi đồng thời; đã hoàn nguyên, riêng ${loss} (ghế đã có người khác)`, eventId, 'seating', eventId));
+    await ctx.db.rpc('sce_tcsk_audit_command', { perm: seating.perm, ...audit('XẾP CHỖ NGỒI', `Lưu xếp chỗ thất bại vì ghế bị thay đổi đồng thời; đã hoàn nguyên, riêng ${loss} (ghế đã có người khác)`, eventId, 'seating', eventId) });
     throw new CommandError('conflict', `Ghế vừa được người khác thay đổi trong lúc lưu. Đã hoàn nguyên, riêng ${loss} vì ghế đã có người khác ngồi; vui lòng xếp lại. Đang tải lại…`);
   }
 }
