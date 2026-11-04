@@ -3,8 +3,9 @@ import type { EventId, GuestId, SeatCode } from '@/core/brand';
 import type { EventHall, HallZone, SeatAssignment } from '../contract';
 import { DEFAULT_HALL_TEMPLATES } from '../domain/default-halls';
 import {
-  findFreeSeat, hallCapacity, isVipSeat, nextZone, orphanSeats, parseSeatCode, remapSeats, seatCodes, validateZones, zoneOccupancy, zoneOfSeat,
+  hallCapacity, isVipSeat, nextZone, orphanSeats, parseSeatCode, remapSeats, seatCodes, suggestSeat, validateZones, zoneOccupancy, zoneOfSeat,
 } from '../domain/halls';
+import { findFreeSeat } from '../index';
 import { zonesSchema } from '../domain/schemas';
 
 const E = 'e0000000-0000-4000-8000-000000000001' as EventId;
@@ -90,27 +91,58 @@ describe('zoneOfSeat, isVipSeat, orphanSeats', () => {
   });
 });
 
-describe('findFreeSeat (consumed by live walk-in, decision 10)', () => {
+describe('findFreeSeat (live walk-in and assignSeat auto, decision 10)', () => {
+  const hall = hallOf(zone('A', 2, { assignedGroup: 'VIP', vipZone: true }), zone('B', 2, { assignedGroup: 'SoNganh' }), zone('C', 2), zone('D', 2, { assignedGroup: 'BaoChi' }));
+  const taken = (...codes: string[]) => new Set(codes.map(code));
+
+  it('defaults to the first zone with a free seat that is not a VIP zone, whatever the group', () => {
+    expect(findFreeSeat(hall, taken(), 'DoanhNghiep')).toBe('B-01');
+    expect(findFreeSeat(hall, taken(), 'BaoChi')).toBe('B-01');
+    expect(findFreeSeat(hall, taken(), 'VIP')).toBe('B-01');
+    expect(findFreeSeat(hall, taken('B-01', 'B-02'), 'BaoChi')).toBe('C-01');
+  });
+
+  it('uses a VIP zone by default only for a VIP guest, once every other zone is full', () => {
+    const full = taken('B-01', 'B-02', 'C-01', 'C-02', 'D-01', 'D-02');
+    expect(findFreeSeat(hall, full, 'VIP')).toBe('A-01');
+    expect(findFreeSeat(hall, full, 'SoNganh')).toBeNull();
+  });
+
+  it("takes the zone staff picked, a VIP zone included, and answers null when that zone is full or unknown", () => {
+    expect(findFreeSeat(hall, taken(), 'SoNganh', 'D')).toBe('D-01');
+    expect(findFreeSeat(hall, taken(), 'DoanhNghiep', 'A')).toBe('A-01');
+    expect(isVipSeat(hall, code('A-01'))).toBe(true);
+    expect(findFreeSeat(hall, taken('D-01', 'D-02'), 'BaoChi', 'D')).toBeNull();
+    expect(findFreeSeat(hall, taken(), 'BaoChi', 'Q')).toBeNull();
+  });
+
+  it('reads the real event zones, not a hard-coded A12/B18/C24 layout (m5 BUG-19)', () => {
+    expect(findFreeSeat(ncc, new Set(seatCodes(ncc.zones[1]!)), 'DoanhNghiep')).toBe('C-01');
+    expect(findFreeSeat(ncc, new Set(seatCodes(ncc.zones[0]!).slice(0, 12)), 'VIP', 'A')).toBe('A-13');
+  });
+});
+
+describe("suggestSeat (the seating screen's 'Chưa xếp' shortcut, m4b §3.4)", () => {
   it('takes the group zone first, then a zone for everyone, then any zone, in hall order', () => {
     const hall = hallOf(zone('A', 2, { assignedGroup: 'VIP', vipZone: true }), zone('B', 2, { assignedGroup: 'SoNganh' }), zone('C', 2), zone('D', 2, { assignedGroup: 'BaoChi' }));
-    expect(findFreeSeat(hall, new Set(), 'SoNganh')).toBe('B-01');
-    expect(findFreeSeat(hall, new Set([code('B-01'), code('B-02')]), 'SoNganh')).toBe('C-01');
-    expect(findFreeSeat(hall, new Set([code('B-01'), code('B-02'), code('C-01'), code('C-02')]), 'SoNganh')).toBe('D-01');
-    expect(findFreeSeat(hall, new Set(), 'QuocTe')).toBe('C-01');
-    expect(findFreeSeat(hall, new Set(), 'VIP')).toBe('A-01');
+    expect(suggestSeat(hall, new Set(), 'SoNganh')).toBe('B-01');
+    expect(suggestSeat(hall, new Set([code('B-01'), code('B-02')]), 'SoNganh')).toBe('C-01');
+    expect(suggestSeat(hall, new Set([code('B-01'), code('B-02'), code('C-01'), code('C-02')]), 'SoNganh')).toBe('D-01');
+    expect(suggestSeat(hall, new Set(), 'QuocTe')).toBe('C-01');
+    expect(suggestSeat(hall, new Set(), 'VIP')).toBe('A-01');
   });
 
   it('never puts a non-VIP guest in a VIP zone, and answers null when nothing fits', () => {
     const hall = hallOf(zone('A', 2, { assignedGroup: 'VIP', vipZone: true }), zone('B', 1));
-    expect(findFreeSeat(hall, new Set([code('B-01')]), 'DoanhNghiep')).toBeNull();
-    expect(findFreeSeat(hall, new Set([code('A-01'), code('A-02')]), 'VIP')).toBe('B-01');
-    expect(findFreeSeat(hall, new Set([code('A-01'), code('A-02'), code('B-01')]), 'VIP')).toBeNull();
+    expect(suggestSeat(hall, new Set([code('B-01')]), 'DoanhNghiep')).toBeNull();
+    expect(suggestSeat(hall, new Set([code('A-01'), code('A-02')]), 'VIP')).toBe('B-01');
+    expect(suggestSeat(hall, new Set([code('A-01'), code('A-02'), code('B-01')]), 'VIP')).toBeNull();
   });
 
   it('reads the real event zones, not a hard-coded A12/B18/C24 layout (m5 BUG-19)', () => {
     const taken = new Set(seatCodes(ncc.zones[0]!).slice(0, 12));
-    expect(findFreeSeat(ncc, taken, 'VIP')).toBe('A-13');
-    expect(findFreeSeat(ncc, new Set(), 'DoanhNghiep')).toBe('D-01');
+    expect(suggestSeat(ncc, taken, 'VIP')).toBe('A-13');
+    expect(suggestSeat(ncc, new Set(), 'DoanhNghiep')).toBe('D-01');
   });
 });
 

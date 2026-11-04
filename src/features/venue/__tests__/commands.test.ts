@@ -83,10 +83,12 @@ describe('venue.assignSeat (asked by live)', () => {
     expect(await h.seats(eventId)).toEqual({ 'A-05': g.vip1 });
   });
 
-  it("'auto' uses findFreeSeat on the event's zones and keeps a seated guest's seat (m5 BUG-19)", async () => {
+  it("'auto' takes the first free seat outside the VIP zone (decision 10) and keeps a seated guest's seat (m5 BUG-19)", async () => {
     const { h, eventId, g } = await setup();
+    expect((await h.ok(xtdtUser, 'venue.assignSeat', { eventId, guestId: g.vip1, seatCode: 'auto' })).value?.seatCode).toBe('B-01');
+    await h.ok(xtdtUser, 'venue.releaseGuestSeat', { eventId, guestId: g.vip1 });
     expect((await h.ok(xtdtUser, 'venue.assignSeat', { eventId, guestId: g.so1, seatCode: 'auto' })).value?.seatCode).toBe('B-01');
-    expect((await h.ok(xtdtUser, 'venue.assignSeat', { eventId, guestId: g.dn1, seatCode: 'auto' })).value?.seatCode).toBe('C-01');
+    expect((await h.ok(xtdtUser, 'venue.assignSeat', { eventId, guestId: g.dn1, seatCode: 'auto' })).value?.seatCode).toBe('B-02');
     expect((await h.ok(xtdtUser, 'venue.assignSeat', { eventId, guestId: g.so1, seatCode: 'auto' })).value?.seatCode).toBe('B-01');
     expect(h.rows('sce_tcsk_seat_assignments')).toHaveLength(2);
   });

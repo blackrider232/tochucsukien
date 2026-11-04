@@ -99,18 +99,34 @@ export function vipEligible(zone: HallZone, group: GuestGroup): boolean {
   return !zone.vipZone || group === 'VIP';
 }
 
+const firstFree = (zones: ReadonlyArray<HallZone>, taken: ReadonlySet<SeatCode>) => {
+  for (const zone of zones) {
+    const free = seatCodes(zone).find((c) => !taken.has(c));
+    if (free) return free;
+  }
+  return null;
+};
+
 /**
- * The first free seat for a guest of `group` (m4b §3.4, m5 walk-in, decision 10): zones targeting the group, then
- * zones for everyone, then any zone; each tier in hall order, and a VIP zone only for a VIP guest.
+ * The seat for a walk-in (decision 10, m5 walk-in, assignSeat 'auto'). Staff pick the zone: `preferredZone` is a zone
+ * key, and its first free seat is the answer, a VIP zone included (the caller confirms that for a non-VIP guest with
+ * isVipSeat). Without one, the first zone in hall order with a free seat that is not a VIP zone; a VIP guest falls
+ * back to the VIP zones when every other zone is full.
  */
-export function findFreeSeat(hall: Pick<EventHall, 'zones'>, taken: ReadonlySet<SeatCode>, group: GuestGroup): SeatCode | null {
+export function findFreeSeat(hall: Pick<EventHall, 'zones'>, taken: ReadonlySet<SeatCode>, group: GuestGroup, preferredZone?: string): SeatCode | null {
+  if (preferredZone !== undefined) return firstFree(hall.zones.filter((z) => z.key === preferredZone), taken);
+  return firstFree(hall.zones.filter((z) => !z.vipZone), taken) ?? (group === 'VIP' ? firstFree(hall.zones.filter((z) => z.vipZone), taken) : null);
+}
+
+/**
+ * The seat the seating screen's "Chưa xếp" shortcut opens with the guest picked (m4b §3.4): zones targeting the group,
+ * then zones for everyone, then any zone; each tier in hall order, and a VIP zone only for a VIP guest.
+ */
+export function suggestSeat(hall: Pick<EventHall, 'zones'>, taken: ReadonlySet<SeatCode>, group: GuestGroup): SeatCode | null {
   const allowed = hall.zones.filter((z) => vipEligible(z, group));
-  const tiers = [allowed.filter((z) => z.assignedGroup === group), allowed.filter((z) => z.assignedGroup === 'all'), allowed];
-  for (const zones of tiers) {
-    for (const zone of zones) {
-      const free = seatCodes(zone).find((c) => !taken.has(c));
-      if (free) return free;
-    }
+  for (const zones of [allowed.filter((z) => z.assignedGroup === group), allowed.filter((z) => z.assignedGroup === 'all'), allowed]) {
+    const free = firstFree(zones, taken);
+    if (free) return free;
   }
   return null;
 }
