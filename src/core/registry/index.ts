@@ -9,6 +9,7 @@
 // a command id disagrees with the manifests.
 
 import type { EventId } from '@/core/brand';
+import { featureManifests } from '@/features/registry';
 import type { PermissionDef, Permission } from '@/core/permissions';
 import type { Accent, IconName, Component } from '@/components/ui/kit.types';
 
@@ -66,8 +67,9 @@ export interface FeatureManifest<F extends FeatureKey = FeatureKey> {
   /** Legacy appData keys whose import this feature implements. */
   legacyBlobKeys: ReadonlyArray<string>;
 }
+/** Identity at runtime; the type pins the permission keys to the feature. check:contract validates the rest. */
 export function defineFeature<F extends FeatureKey>(m: FeatureManifest<F>): FeatureManifest<F> {
-  throw new Error('not implemented');
+  return m;
 }
 
 /** Shared chrome a feature may fill without editing shell code. Server components unless noted. */
@@ -84,7 +86,7 @@ export interface FeatureSlots {
   eventActions?: ReadonlyArray<{ id: string; order: number; permission: Permission; render: Component<{ eventId: EventId }> }>;
 }
 export function defineSlots(feature: FeatureKey, slots: FeatureSlots): FeatureSlots {
-  throw new Error('not implemented');
+  return slots;
 }
 
 /** Derived views over the registry, used by the shell and the proxy. */
@@ -96,4 +98,68 @@ export interface Registry {
   legacyRedirect(tabId: string): Href | null;
   ownerOfTable(table: string): FeatureKey | null;
 }
-export declare const registry: Registry;
+/**
+ * URL path of an app-dir directory: route groups dropped, dynamic segments
+ * kept as written. '(app)/events/[eventId]/live' -> '/events/[eventId]/live'.
+ */
+export function urlPathOfDir(dir: string): string {
+  const segments = dir.split('/').filter((s) => s !== '' && !/^\(.*\)$/.test(s));
+  return `/${segments.join('/')}`;
+}
+
+/** Number of matched segments when `pathname` lies in the subtree of `pattern`, else -1. */
+export function routeMatchDepth(pattern: string, pathname: string): number {
+  const want = pattern.split('/').filter(Boolean);
+  const have = pathname.split('/').filter(Boolean);
+  if (have.length < want.length) return -1;
+  const ok = want.every((seg, i) => (/^\[.+\]$/.test(seg) ? true : seg === have[i]));
+  return ok ? want.length : -1;
+}
+
+/** The most specific route whose subtree contains the path; route dirs nest (events -> events/[eventId]/guests). */
+export function mostSpecificRoute<R extends { dir: string }>(routes: ReadonlyArray<R>, pathname: string): R | null {
+  let best: R | null = null;
+  let bestDepth = -1;
+  for (const r of routes) {
+    const depth = routeMatchDepth(urlPathOfDir(r.dir), pathname);
+    if (depth > bestDepth) {
+      best = r;
+      bestDepth = depth;
+    }
+  }
+  return best;
+}
+
+export function buildRegistry(manifests: ReadonlyArray<FeatureManifest>): Registry {
+  const nav = manifests.flatMap((m) => m.nav);
+  const subTabs = manifests.flatMap((m) => m.subTabs);
+  const routes = manifests.flatMap((m) => m.routes);
+  const byOrder = <T extends { order: number }>(a: T, b: T) => a.order - b.order;
+  return {
+    manifests,
+    navFor: (section) => nav.filter((n) => n.section === section).sort(byOrder),
+    subTabsOf: (navId) => subTabs.filter((t) => t.parentNav === navId).sort(byOrder),
+    routeFor: (pathname) => mostSpecificRoute(routes, pathname),
+    legacyRedirect: (tabId) => nav.find((n) => n.legacyTabIds.includes(tabId))?.href ?? null,
+    ownerOfTable: (table) => manifests.find((m) => m.tables.includes(table as `sce_tcsk_${string}`))?.key ?? null,
+  };
+}
+
+let built: Registry | null = null;
+// Manifests import defineFeature from this module, so the registry is built on
+// first use, after every manifest module has finished evaluating.
+function current(): Registry {
+  built ??= buildRegistry(featureManifests());
+  return built;
+}
+
+export const registry: Registry = {
+  get manifests() {
+    return current().manifests;
+  },
+  navFor: (section) => current().navFor(section),
+  subTabsOf: (navId) => current().subTabsOf(navId),
+  routeFor: (pathname) => current().routeFor(pathname),
+  legacyRedirect: (tabId) => current().legacyRedirect(tabId),
+  ownerOfTable: (table) => current().ownerOfTable(table),
+};
