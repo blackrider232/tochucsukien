@@ -185,6 +185,17 @@ describe('reports.issueDailyReport', () => {
     expect(await h.reports(eventId)).toHaveLength(1);
   });
 
+  it('a retry with the same id that lands days later still converges on the report it issued, whatever the day window', async () => {
+    const { h, eventId } = await seeded();
+    const id = newId<'DailyReport'>();
+    const first = await h.issue(head, eventId, ISSUE, id);
+    h.clock.now = '2026-12-10T02:00:00.000Z' as Instant;
+    const retry = await h.issue(head, eventId, ISSUE, id);
+    if (!first.ok) throw new Error(first.message);
+    expect(retry).toMatchObject({ ok: true, value: { already: true, report: { id, reportDate: '2026-12-08' } } });
+    expect(await h.reports(eventId)).toHaveLength(1);
+  });
+
   it('takes nothing but the narrative from the client: figures, date and issuer in the payload are ignored', async () => {
     const { h, eventId } = await seeded();
     const forged = { ...ISSUE, figures: { progressPercent: 100 }, reportDate: '2026-01-01', issuedBy: admin.profile.id, progressPercent: 100 } as never;

@@ -18,7 +18,7 @@ create or replace function tcsk.reports_code_key(code text) returns text
 language sql immutable set search_path = '' as $$
   select lower(btrim(regexp_replace(
     translate(regexp_replace(normalize(code, NFD), '[̀-ͯ]', '', 'g'), 'đĐ', 'dD'),
-    '[\t\n\v\f\r    -     　﻿]+', ' ', 'g'
+    '[\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]+', ' ', 'g'
   )))
 $$;
 

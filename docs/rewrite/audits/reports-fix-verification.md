@@ -44,3 +44,32 @@ I ran 23 mutations against the reports suites, excluding these probes. 17 were k
 - **Same id on another event returned as this event's report.** No test covers it.
 - **Trigger without its `forbidden` raise.** Effectively equivalent. RLS refuses the same rows, and the test accepts either message.
 - **Signer title `like 'phòng%'`.** Equivalent for every real department.
+
+## Resolved (reports-fixes2)
+
+Each fix was written test first, and the new test failed before it. Commits are `fix(reports): ...` on `t3/reports-fixes2`.
+
+| # | Finding | Fix | Test that failed before |
+| --- | --- | --- | --- |
+| 1 | HIGH. Restore failed once a daily report existed | `202611041440_reports_issue_restore.sql`: the trigger returns the row as stored while `sce.restoring` is on, as `tcsk.stamp` does. The other reports tables carry only `tcsk.stamp`, which already returns early. | `sql.test.ts` "core's backup and restore keep every reports table as it was": two reports of one event (one stamped, one legacy dated 30/11), packages and clippings, a backup and a restore as an aal2 admin, every row compared before and after. It failed with `forbidden`. |
+| 2 | MED. Agency names mis-cased | `agency-name.ts` is a table of 21 known org names (every name in the docs, legacy app, dev seed, settings defaults and orgIdentity, plus the verifier's examples). Any other name prints as stored, capitals kept. Proper-case settings (change request 3) remain the real fix. | `agency-name.test.ts`: every table entry, the older `UỶ` placement, spacing, NFD input, the fallback and the mixed-case case. The cases of the finding failed. |
+| 3 | MED. Print and Word disagreed outside the body | `ND30_PT` in `word.ts` (body 14, letterhead 13, signer 14, Nơi nhận 12, copies 11). Word writes it inline, the print page sets it over the kit's classes, and the dead `.nd30-small` wrapper is gone. | `rendering.test.tsx` "the same pt size on the sheet and in the Word file": it put the kit's px classes on the page and read computed sizes; the header read 9,75 pt against Word's 13. |
+| 4 | LOW. App clock ahead of the database at midnight | The race lookup spans yesterday, today and tomorrow. | `issue.test.ts` "an app clock already past midnight while the database still stamps the day before": it returned `constraint`. |
+| 5 | LOW. 40.000 đ over on 1 tỷ read "Tiết kiệm 0,00%" | `savingsPercent` returns ±0,001 for a difference below 0,005%, and `formatPercent2` prints it "<0,01%", so the label is "Vượt <0,01%" in the card, the dashboard, the print text, Word, the Excel cell and the totals sentence. | `figures.test.ts`, `rendering.test.tsx` (card, dashboard, document text) and `exports.test.tsx`: all read "Tiết kiệm 0,00%" or `-0`. |
+| 6 | LOW. DB fold kept a non-breaking space | `202611041460_reports_package_code_fold_spaces.sql`: NFD, then the exact set JavaScript's `\s` matches; the unique index is reindexed. | `sql.test.ts`: a 20-string corpus (NBSP, tabs, line breaks, U+2000s, U+3000, U+FEFF, zero-width, NFD, empty) compared with `foldVi`, and a duplicate-code insert with NBSP. Both failed. |
+
+### Survivors
+
+- **Trigger day in UTC.** `202611041450_reports_vn_day.sql` moves the day into `tcsk.reports_vn_day(timestamptz)`. The test checks it at fixed instants around 17:00 UTC and replaces it with a stub to show the stored date is the helper's, so the mutant fails at any hour. Killed.
+- **Insert rule without `e.deleted_at is null`.** A lead head cannot see a soft-deleted event, so the trigger refused it anyway and the rule never decided. An admin sees it, so the test inserts as an aal2 admin. Killed.
+- **Race path without `conflict`** and **same id on another event returned as this event's report.** `issue.test.ts` has one test each. Killed.
+- **Trigger without its `forbidden` raise** and **signer title `like 'phòng%'`** stay equivalent: RLS refuses the same rows and the test accepts either message, and no real department name differs between the two patterns.
+- Widening the race window to yesterday made the "retry by id" mutant survive, because the window then found a retry made a day later. A retry two days later is now tested.
+
+`mutation-pass.mjs` was brought up to the moved code and gained 14 mutants for the above: 59 mutants, 59 killed (a first run killed 56, the three others were a stale pattern, a stale pattern and the survivor just named).
+
+### Remaining risk
+
+- The race lookup returns the newest report of the three days when an insert fails with a `constraint` error that is not the day's key (for example a check). That would show yesterday's report as the answer. The case needs a failing check on a row the form already validated.
+- The reindex in `202611041460` fails if two codes of one event differ only by such a space. That is intended, and the duplicate must be fixed first.
+- The print sizes beat the kit's classes by selector specificity (`.nd30-report header` against a single class). The test simulates the kit's classes in jsdom. Paper output was not checked.
