@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useWatch } from 'react-hook-form';
-import { Button, Dialog, EmptyState, Form, FormField, IconButton, NumberInput, Select, TextInput, useDialogs, useZodForm } from '@/components/ui';
+import { Button, Checkbox, Dialog, EmptyState, Form, FormField, IconButton, NumberInput, Select, Textarea, TextInput, useDialogs, useZodForm } from '@/components/ui';
 import { useCalendar } from '@/core/auth';
 import { newId } from '@/core/brand';
 import { useCommand } from '@/core/commands';
@@ -10,7 +10,6 @@ import { formatVNDate } from '@/core/dates';
 import type { SceEvent, Step, TaskGroup } from '../contract';
 import { deadlineOf, offsetLabel } from '../domain/schedule';
 import { groupFields, groupNoteFields, linkFields, stepDraftSchema, subTaskFields, type GroupDraft, type StepDraft } from '../domain/schemas';
-import { CheckToggle, TextArea } from './fields';
 
 const PHASE_OPTIONS = [
   { value: 'before' as const, label: 'Trước sự kiện' },
@@ -54,7 +53,7 @@ export function StepDialog({ event, group, step, nextSort, onClose }: { event: S
           <FormField label="Tên Công Việc" name="name" required><TextInput name="name" /></FormField>
         </div>
         <div className="sm:col-span-2">
-          <FormField label="Yêu Cầu Tiêu Chuẩn Quy Trình SCE" name="requirement"><TextArea name="requirement" rows={3} /></FormField>
+          <FormField label="Yêu Cầu Tiêu Chuẩn Quy Trình SCE" name="requirement"><Textarea name="requirement" rows={3} /></FormField>
         </div>
         <FormField label="Giai Đoạn" name="targetPhase"><Select name="targetPhase" options={PHASE_OPTIONS} /></FormField>
         {phase !== 'dday' ? (
@@ -116,7 +115,7 @@ export function SubTasksDialog({ event, step, canWrite, onClose }: { event: SceE
           {step.subTasks.map((t) => (
             <li key={t.id} className="flex items-center gap-2">
               <div className="min-w-0 flex-1">
-                <CheckToggle checked={t.completed} strike label={t.name} disabled={!canWrite}
+                <Checkbox name={`subtask-${t.id}`} checked={t.completed} strike label={t.name} disabled={!canWrite}
                   onChange={(v) => void run('progress.setSubTaskDone', { ...target, subTaskId: t.id, done: v })} />
               </div>
               {canWrite && <IconButton icon="trash" tone="rose" label={`Xóa việc nhỏ "${t.name}"`} onClick={() => void remove(t.id, t.name)} />}
@@ -160,7 +159,7 @@ export function LinksDialog({ event, step, canWrite, onClose }: { event: SceEven
           {step.links.map((l) => (
             <li key={l.id} className="flex items-center gap-2 py-2">
               <div className="min-w-0 flex-1">
-                <a href={l.url} target="_blank" rel="noopener noreferrer" className="block truncate text-sm font-semibold text-primary underline-offset-2 hover:underline dark:text-blue-300">{l.name}</a>
+                <a href={l.url} target="_blank" rel="noopener noreferrer" className="block truncate text-sm font-semibold text-link underline-offset-2 hover:underline">{l.name}</a>
                 <p className="truncate text-xs text-ink-muted">{l.url}</p>
               </div>
               {canWrite && <IconButton icon="trash" tone="rose" label={`Xóa liên kết "${l.name}"`} onClick={() => void remove(l.id, l.name)} />}
@@ -182,7 +181,7 @@ export function NoteDialog({ event, group, onClose }: { event: SceEvent; group: 
     <Dialog open onClose={onClose} dirty={form.formState.isDirty} title="Ghi Chú Nhanh Nhóm Việc" subtitle={`${group.name} (${event.name})`} icon="pencil" accent="amber">
       <Form form={form} onSubmit={({ note }) => save(note, 'Đã lưu ghi chú nhóm')} className="grid gap-4">
         <FormField label="Nội Dung Ghi Chú Lưu Ý" name="note" required>
-          <TextArea name="note" rows={4} placeholder="Nhập các chỉ đạo gấp, số điện thoại đầu mối hoặc lưu ý kiểm tra..." />
+          <Textarea name="note" rows={4} placeholder="Nhập các chỉ đạo gấp, số điện thoại đầu mối hoặc lưu ý kiểm tra..." />
         </FormField>
         <div className="flex flex-wrap items-center gap-2">
           {group.note && <Button variant="danger" icon="trash" onClick={() => void save('', 'Đã xóa ghi chú nhóm')}>Xóa ghi chú</Button>}
@@ -215,7 +214,7 @@ export function GroupDialog({ event, group, phase, nextSort, onClose }: { event:
         <FormField label="Tên Nhóm Việc" name="name" required><TextInput name="name" placeholder="Ví dụ: Nhóm 7: Hậu cần bổ sung" /></FormField>
         <FormField label="Giai Đoạn" name="phase"><Select name="phase" options={GROUP_PHASE_OPTIONS} /></FormField>
         <FormField label="Phụ Trách Nhóm" name="leadPerson"><TextInput name="leadPerson" placeholder="Ví dụ: Đ/c phụ trách Hậu cần" /></FormField>
-        <FormField label="Ghi Chú" name="note"><TextArea name="note" /></FormField>
+        <FormField label="Ghi Chú" name="note"><Textarea name="note" /></FormField>
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onClose}>Hủy</Button>
           <Button type="submit" icon="check">Lưu Nhóm Việc</Button>

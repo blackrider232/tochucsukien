@@ -1,8 +1,7 @@
 import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
-import { Button, SectionCard } from '@/components/ui';
-import { controlClass } from '@/components/ui/filter-bar';
+import { Button, FormField, RadioGroup, SectionCard, Select } from '@/components/ui';
 import { DEFAULT_DEV_DEPARTMENT, DEV_ROLE_COOKIE, DEV_ROLE_LABELS, DEV_ROLES, choosesDepartment, devActor, devMemoryEnabled, parseDevRole } from '@/core/dev/mode';
 import { DEPARTMENTS } from '@/core/vocab';
 
@@ -15,32 +14,29 @@ export default async function DevRolePage() {
   const current = parseDevRole((await cookies()).get(DEV_ROLE_COOKIE)?.value);
   const department = choosesDepartment(current.role) ? current.department : DEFAULT_DEV_DEPARTMENT;
   return (
-    <main id="main" className="mx-auto flex max-w-2xl flex-col gap-4 p-6">
+    <main id="main-content" className="mx-auto flex max-w-2xl flex-col gap-4 p-6">
       <SectionCard title="Đổi vai trò" subtitle={`Đang đăng nhập: ${devActor(current).profile.fullname}`} icon="users" accent="purple">
         <form method="post" action="/dev/role/select" className="flex flex-col gap-4">
-          <fieldset className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
-            <legend className="mb-2 font-medium">Vai trò</legend>
-            {DEV_ROLES.map((role) => (
-              <label key={role} className="flex items-center gap-2">
-                <input type="radio" name="role" value={role} defaultChecked={role === current.role} />
-                {DEV_ROLE_LABELS[role]}
-              </label>
-            ))}
-          </fieldset>
-          <label className="flex flex-col gap-1 text-sm">
-            Phòng ban (Lãnh đạo Phòng, Chuyên viên, Chờ duyệt, Bị khóa)
-            <select name="department" className={controlClass} defaultValue={DEPARTMENTS.find((d) => d.name === department)?.code}>
-              {DEPARTMENTS.filter((d) => d.canChairEvents).map((d) => (
-                <option key={d.code} value={d.code}>{d.name}</option>
-              ))}
-            </select>
-          </label>
+          <RadioGroup
+            name="role"
+            label="Vai trò"
+            orientation="horizontal"
+            defaultValue={current.role}
+            options={DEV_ROLES.map((role) => ({ value: role, label: DEV_ROLE_LABELS[role] }))}
+          />
+          <FormField label="Phòng ban" name="department" hint="Dùng cho Lãnh đạo Phòng, Chuyên viên, Chờ duyệt và Bị khóa.">
+            <Select
+              name="department"
+              defaultValue={DEPARTMENTS.find((d) => d.name === department)?.code}
+              options={DEPARTMENTS.filter((d) => d.canChairEvents).map((d) => ({ value: d.code, label: d.name }))}
+            />
+          </FormField>
           <div>
             <Button type="submit">Đổi vai trò</Button>
           </div>
         </form>
       </SectionCard>
-      <SectionCard title="Dữ liệu dev" subtitle="Xoá toàn bộ dữ liệu trong bộ nhớ và chạy lại devSeed của các module" icon="trash" accent="rose">
+      <SectionCard title="Dữ liệu dev" subtitle="Xóa toàn bộ dữ liệu trong bộ nhớ và chạy lại devSeed của các module" icon="trash" accent="rose">
         <form method="post" action="/dev/reset">
           <Button type="submit" variant="danger">Đặt lại dữ liệu</Button>
         </form>

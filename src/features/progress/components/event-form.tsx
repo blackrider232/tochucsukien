@@ -2,7 +2,7 @@
 
 import { useWatch } from 'react-hook-form';
 import { z } from 'zod';
-import { Button, Checkbox, DateInput, Form, FormField, MoneyInput, NumberInput, Select, TextInput, TimeInput, useToast, useZodForm } from '@/components/ui';
+import { Button, Checkbox, DateInput, Form, FormField, MoneyInput, NumberInput, Select, Textarea, TextInput, TimeInput, useToast, useZodForm } from '@/components/ui';
 import { useAppContext, useCalendar } from '@/core/auth';
 import { newId, type EventId, type IsoDate, type Vnd } from '@/core/brand';
 import { useCommand } from '@/core/commands';
@@ -11,7 +11,6 @@ import { DEPARTMENTS, EVENT_TYPES, type DepartmentName } from '@/core/vocab';
 import type { EventDraft, SceEvent } from '../contract';
 import { templateStepCount } from '../domain/instantiate';
 import { CHAIR_DEPARTMENTS, eventFields } from '../domain/schemas';
-import { TextArea } from './fields';
 
 /** m2 §1.7: the actor's own department, else this one. */
 const DEFAULT_LEAD_DEPARTMENT: DepartmentName = 'Phòng Xúc tiến đầu tư';
@@ -136,7 +135,7 @@ export function EventForm({ event, departments, today, onDone, onCancel }: {
       )}
       <div className="sm:col-span-2">
         <FormField label="Ghi Chú Chung" name="note">
-          <TextArea name="note" placeholder="Lưu ý quan trọng từ Lãnh đạo hoặc Ban Giám đốc..." />
+          <Textarea name="note" placeholder="Lưu ý quan trọng từ Lãnh đạo hoặc Ban Giám đốc..." />
         </FormField>
       </div>
       <div className="flex flex-wrap justify-end gap-2 sm:col-span-2">

@@ -1,17 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { Badge, Button, EmptyState, Icon, IconButton, PrintLink, ProgressBar, StatusBadge } from '@/components/ui';
-import { cn } from '@/components/ui/cn';
+import { Badge, Button, Checkbox, EmptyState, Icon, IconButton, PrintLink, ProgressBar, StatusBadge, cn } from '@/components/ui';
 import { useCalendar, useSettings } from '@/core/auth';
 import type { EventId, GroupId } from '@/core/brand';
 import { calendarDaysBetween, formatVNDate } from '@/core/dates';
-import { departmentByName, EVENT_TYPES } from '@/core/vocab';
+import { departmentByName, EVENT_TYPES, type Tone } from '@/core/vocab';
 import { resolveTemplateKey, templateHref } from '@/features/templates';
 import type { SceEvent, Step } from '../contract';
 import { stepsByDeadline, type PlanGroup, type PlanSummary } from '../domain/dashboard';
 import { countdownBadge, deadlineOf, offsetLabel, stepState, stepStateBadge } from '../domain/schedule';
-import { CheckToggle } from './fields';
 import { usePlan } from './plan-context';
 
 export interface Expansion {
@@ -30,11 +28,11 @@ function templateLink(key: string, eventId: EventId): string | null {
   }
 }
 
-function cardTone(s: PlanSummary): string {
-  if (s.progress.overdue > 0) return 'border-amber-400 ring-1 ring-amber-400/60';
-  if (s.inDailyWindow) return 'border-rose-400 ring-1 ring-rose-400/60';
-  if (s.progress.percent === 100) return 'border-emerald-400';
-  return 'border-line';
+function cardTone(s: PlanSummary): Tone | undefined {
+  if (s.progress.overdue > 0) return 'amber';
+  if (s.inDailyWindow) return 'rose';
+  if (s.progress.percent === 100) return 'emerald';
+  return undefined;
 }
 
 export function EventCard({ summary, groups, expansion, standalone }: {
@@ -53,7 +51,7 @@ export function EventCard({ summary, groups, expansion, standalone }: {
   const bodyId = `event-body-${event.id}`;
 
   return (
-    <article id={`event-${event.id}`} tabIndex={-1} aria-label={event.name} className={cn('rounded-card border bg-surface shadow-card', cardTone(summary))}>
+    <article id={`event-${event.id}`} tabIndex={-1} aria-label={event.name} data-tone={cardTone(summary)} className={cn('rounded-card border bg-surface shadow-card', cardTone(summary) ? 'border-(--tone-solid)' : 'border-line')}>
       <div className="flex flex-wrap items-start gap-3 p-3 sm:p-4">
         <button
           type="button"
@@ -253,7 +251,7 @@ export function StepRow({ event, groupId, step }: { event: SceEvent; groupId: Gr
             <p className="text-xs font-semibold text-ink-muted">Việc nhỏ ({subDone}/{step.subTasks.length}):</p>
             <div className="grid gap-x-3 sm:grid-cols-2">
               {step.subTasks.map((t) => (
-                <CheckToggle key={t.id} checked={t.completed} strike label={t.name} disabled={!perms.write} onChange={(v) => void setSubTask(event.id, step.id, t.id, v)} />
+                <Checkbox key={t.id} name={`subtask-${t.id}`} checked={t.completed} strike label={t.name} disabled={!perms.write} onChange={(v) => void setSubTask(event.id, step.id, t.id, v)} />
               ))}
             </div>
           </div>
@@ -263,7 +261,7 @@ export function StepRow({ event, groupId, step }: { event: SceEvent; groupId: Gr
             {step.links.map((l) => (
               <li key={l.id}>
                 <a href={l.url} target="_blank" rel="noopener noreferrer" title={l.url}
-                  className="inline-flex max-w-56 items-center gap-1 rounded-full border border-line bg-surface-2 px-2.5 py-1 text-xs font-medium text-primary hover:bg-surface-3 dark:text-blue-300">
+                  className="inline-flex max-w-56 items-center gap-1 rounded-full border border-line bg-surface-2 px-2.5 py-1 text-xs font-medium text-link hover:bg-surface-3">
                   <span className="truncate">{l.name}</span>
                   <Icon name="external-link" size={12} className="shrink-0" />
                 </a>
@@ -273,7 +271,7 @@ export function StepRow({ event, groupId, step }: { event: SceEvent; groupId: Gr
         )}
         {step.templateKey && (
           href ? (
-            <Link href={href} className="inline-flex items-center gap-1 text-xs font-semibold text-purple-700 hover:underline dark:text-purple-300">
+            <Link href={href} className="inline-flex items-center gap-1 text-xs font-semibold text-link hover:underline">
               <Icon name="file-signature" size={14} /> Xem Biểu Mẫu: <code>{step.templateKey}</code>
             </Link>
           ) : (
@@ -283,10 +281,10 @@ export function StepRow({ event, groupId, step }: { event: SceEvent; groupId: Gr
       </div>
       <div className="flex shrink-0 flex-col gap-1 md:w-52">
         <div data-tone={done ? 'emerald' : 'slate'} className="rounded-control border border-(--tone-bd) bg-(--tone-bg) px-2">
-          <CheckToggle checked={done} disabled={!perms.write} label={done ? 'Đã Xong' : 'Chưa Xong'} onChange={(v) => void toggleStep(event.id, step, v)} />
+          <Checkbox name={`step-${step.id}`} checked={done} disabled={!perms.write} label={done ? 'Đã Xong' : 'Chưa Xong'} onChange={(v) => void toggleStep(event.id, step, v)} />
         </div>
         <p className="text-xs text-ink-muted">Phụ trách: <span className="text-ink-2">{step.assignee || 'Chuyên viên'}</span></p>
-        {done && step.completedBy && <p className="text-xs text-emerald-700 dark:text-emerald-300">Bởi: {step.completedBy}</p>}
+        {done && step.completedBy && <p className="text-xs text-success-ink">Bởi: {step.completedBy}</p>}
         <div className="flex flex-wrap">
           <IconButton icon="check" label={`Quản lý việc nhỏ (${step.subTasks.length})`} onClick={() => openSubTasks(event.id, step.id)} />
           <IconButton icon="file-text" label={`Đính kèm links/tài liệu (${step.links.length})`} onClick={() => openLinks(event.id, step.id)} />

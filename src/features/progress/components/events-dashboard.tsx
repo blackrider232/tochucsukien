@@ -111,7 +111,7 @@ function Dashboard({ initialPopup }: { initialPopup: KpiPopup | null }) {
         accent="blue"
         actions={
           <>
-            {canCreate && <Button icon="plus" onClick={() => router.push('/events/new')}>Tạo Sự Kiện</Button>}
+            {canCreate && <Button icon="plus" href="/events/new">Tạo Sự Kiện</Button>}
             <PrintLink href="/events/summary" label="In tổng hợp" />
             <Button variant="secondary" icon="file-spreadsheet" onClick={() => void exportXlsx()}>Xuất Excel</Button>
             <Button variant="secondary" icon="download" onClick={exportCsv}>CSV</Button>
@@ -150,7 +150,7 @@ function Dashboard({ initialPopup }: { initialPopup: KpiPopup | null }) {
             icon="calendar-check"
             title={summaries.length === 0 ? 'Chưa có sự kiện nào' : 'Không tìm thấy sự kiện nào'}
             text={summaries.length === 0 ? 'Bấm Tạo Sự Kiện Mới để bắt đầu lập kế hoạch.' : 'Vui lòng điều chỉnh lại từ khóa tìm kiếm hoặc bộ lọc.'}
-            action={summaries.length === 0 && canCreate ? <Button icon="plus" onClick={() => router.push('/events/new')}>Tạo Sự Kiện Mới</Button>
+            action={summaries.length === 0 && canCreate ? <Button icon="plus" href="/events/new">Tạo Sự Kiện Mới</Button>
               : filtered ? <Button variant="secondary" onClick={() => setFilter(NO_FILTER)}>Xóa bộ lọc</Button> : undefined}
           />
         </div>

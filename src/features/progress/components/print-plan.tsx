@@ -8,8 +8,8 @@ import type { EventPlan } from '../contract';
 import { sortSummaries, stepsByDeadline, summarize } from '../domain/dashboard';
 import { deadlineOf, offsetLabel } from '../domain/schedule';
 
-const th = 'border border-black px-1.5 py-1 text-left align-top font-bold';
-const td = 'border border-black px-1.5 py-1 align-top';
+const th = 'border border-paper-ink px-1.5 py-1 text-left align-top font-bold';
+const td = 'border border-paper-ink px-1.5 py-1 align-top';
 
 /** The A4 "Kế hoạch hậu cần & tiến độ thực hiện" of one event (m2 §4.3), agency lines from settings, today's date. */
 export function PrintPlan({ plan, today }: { plan: EventPlan; today: IsoDate }) {
@@ -18,16 +18,16 @@ export function PrintPlan({ plan, today }: { plan: EventPlan; today: IsoDate }) 
   return (
     <PrintPage size="A4" orientation="portrait" margins="nd30">
       <Nd30Header issuer="trung_tam" documentNumber="Số: ..... /KH-SCE-TCSK" date={today} />
-      <h1 className="mt-2 text-center text-[15px] font-bold uppercase">Kế hoạch hậu cần &amp; tiến độ thực hiện</h1>
+      <h1 className="mt-2 text-center text-print-lg font-bold uppercase">Kế hoạch hậu cần &amp; tiến độ thực hiện</h1>
       <p className="text-center font-bold">{event.name}</p>
-      <p className="mb-3 text-center text-[13px] italic">
+      <p className="mb-3 text-center text-print-sm italic">
         Ngày tổ chức: {formatVNDate(event.eventDate, { weekday: true })} ({event.eventTime}) • Địa điểm: {event.location || 'Tại Hội trường'}
       </p>
       {plan.groups.map((g) => (
         <section key={g.id} className="mb-3 break-inside-avoid-page">
           <h2 className="font-bold">{g.name} (Phụ trách: {g.leadPerson || 'Đội chuyên trách'})</h2>
-          {g.note && <p className="text-[13px] italic">Lưu ý: {g.note}</p>}
-          <table className="mt-1 w-full border-collapse text-[12px]">
+          {g.note && <p className="text-print-sm italic">Lưu ý: {g.note}</p>}
+          <table className="mt-1 w-full border-collapse text-print-xs">
             <thead>
               <tr>
                 <th className={`${th} w-8`}>STT</th>
@@ -69,9 +69,9 @@ export function PrintSummary({ plans, today }: { plans: ReadonlyArray<EventPlan>
   return (
     <PrintPage size="A4" orientation="landscape" margins="nd30">
       <Nd30Header issuer="trung_tam" documentNumber="Số: ..... /BC-SCE-TCSK" date={today} />
-      <h1 className="mt-2 text-center text-[15px] font-bold uppercase">Báo cáo tổng hợp tiến độ tổ chức sự kiện</h1>
-      <p className="mb-3 text-center text-[13px] italic">Tính đến ngày {formatVNDate(today)}</p>
-      <table className="w-full border-collapse text-[12px]">
+      <h1 className="mt-2 text-center text-print-lg font-bold uppercase">Báo cáo tổng hợp tiến độ tổ chức sự kiện</h1>
+      <p className="mb-3 text-center text-print-sm italic">Tính đến ngày {formatVNDate(today)}</p>
+      <table className="w-full border-collapse text-print-xs">
         <thead>
           <tr>
             {['STT', 'Tên sự kiện', 'Ngày tổ chức', 'Địa điểm', 'Phòng chủ trì', 'Tiến độ', 'Việc chậm', 'Thời gian'].map((h) => <th key={h} className={th}>{h}</th>)}
