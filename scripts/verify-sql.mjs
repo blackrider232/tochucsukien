@@ -1,13 +1,13 @@
 // Applies sql/*.sql twice on PGlite with a minimal Supabase stub (auth schema,
 // roles, realtime publication), then exercises RLS and the backup round trip.
-// Usage: PGLITE_MODULE=/abs/path/node_modules/@electric-sql/pglite/dist/index.js node scripts/verify-sql.mjs
+// Usage: pnpm verify:sql   (override the PGlite entry with PGLITE_MODULE=/abs/path/to/pglite/dist/index.js)
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 
 const { PGlite } = await import(process.env.PGLITE_MODULE ?? '@electric-sql/pglite');
-const sqlDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'sql');
+const sqlDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'supabase', 'migrations');
 const db = new PGlite();
 
 await db.exec(`
@@ -23,7 +23,7 @@ await db.exec(`
   create publication supabase_realtime;
 `);
 
-const files = readdirSync(sqlDir).filter((f) => /^\d{4}_.*\.sql$/.test(f)).sort();
+const files = readdirSync(sqlDir).filter((f) => /^\d{4,14}_.*\.sql$/.test(f)).sort();
 for (const pass of [1, 2]) {
   for (const f of files) {
     try {
