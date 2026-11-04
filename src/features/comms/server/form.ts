@@ -18,7 +18,7 @@ import { buildMatchIndex, matchResponse, type MatchIndex } from '../domain/match
 import { detectDateOrder, parseColumnMap, parseResponseRow } from '../domain/responses';
 import type { SyncReport } from '../domain/sync-report';
 import { columnMapSchema, eventIdSchema, formConfigSchema, guestIdSchema, responseIdSchema, versionSchema } from '../domain/schemas';
-import { asSchema, audit, auditPartial, failureReason, inverse } from './command-kit';
+import { asSchema, audit, failureReason, inverse } from './command-kit';
 import type { SheetSource } from './sheet-source';
 import { formsTable, responsesTable, type FormRow, type ResponseRow } from './tables';
 
@@ -271,12 +271,12 @@ export const syncFormWith = (sheets: SheetSource): CommandSpec<InputOf<'comms.sy
       // The new responses are stored and what was applied stays applied; the rest waits as pending for the next sync.
       if (inserted.length > 0 || t.applied + t.created + t.stale + t.noAnswer + t.review > 0) {
         const reason = failureReason(e);
-        await auditPartial(
-          ctx,
-          manage.perm,
+        throw new CommandError(
+          'conflict',
+          `Đồng bộ dừng giữa chừng: đã áp dụng ${t.applied} phản hồi và thêm ${t.created} khách mới. Bấm "Đồng bộ ngay" để xử lý phần còn lại.`,
+          undefined,
           audit('ĐỒNG BỘ GOOGLE FORM', `Đồng bộ Google Form dừng giữa chừng (${reason}): lưu ${inserted.length} phản hồi mới; áp dụng ${t.applied}, thêm khách mới ${t.created}; phần còn lại chờ lần đồng bộ sau`, eventId, 'rsvp_form', form.id),
         );
-        throw new CommandError('conflict', `Đồng bộ dừng giữa chừng: đã áp dụng ${t.applied} phản hồi và thêm ${t.created} khách mới. Bấm "Đồng bộ ngay" để xử lý phần còn lại.`);
       }
       throw e;
     }
@@ -368,8 +368,7 @@ export const resolveResponse: CommandSpec<InputOf<'comms.resolveResponse'>, Outp
       await applyToGuest(ctx, row, guestId, 'created', row.applyStatus === 'no_time' ? ctx.now : row.respondedAt, t);
       after = await ctx.db.table(responsesTable).get(id);
     } catch {
-      await auditPartial(ctx, manage.perm, audit('XỬ LÝ PHẢN HỒI FORM', `Thêm khách mời mới từ phản hồi Google Form của "${who}", nhưng chưa ghi được phản hồi là đã xử lý; lần đồng bộ sau sẽ ghép phản hồi với khách mới này`, eventId, 'rsvp_response', id));
-      throw new CommandError('conflict', `Đã thêm khách mời "${who}" nhưng chưa ghi được phản hồi là đã xử lý. Tải lại trang để xem.`);
+      throw new CommandError('conflict', `Đã thêm khách mời "${who}" nhưng chưa ghi được phản hồi là đã xử lý. Tải lại trang để xem.`, undefined, audit('XỬ LÝ PHẢN HỒI FORM', `Thêm khách mời mới từ phản hồi Google Form của "${who}", nhưng chưa ghi được phản hồi là đã xử lý; lần đồng bộ sau sẽ ghép phản hồi với khách mới này`, eventId, 'rsvp_response', id));
     }
     const outcome = t.applied ? '' : t.noAnswer ? ', chưa có câu trả lời rõ' : t.failures.length ? `, chưa áp dụng được câu trả lời: ${t.failures[0]}` : '';
     return {

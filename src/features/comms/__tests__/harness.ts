@@ -8,7 +8,7 @@ import { newId, type EventId, type GuestId, type Instant, type IsoDate, type Ver
 import type { CommandId, CommandResult, Inverse, InputOf, OutputOf } from '@/core/commands';
 import { commandLookup, runCommand } from '@/core/commands/pipeline';
 import { buildWorkCalendar } from '@/core/dates';
-import { DbError, memoryDb, type Db } from '@/core/db';
+import { DbError, memoryDb, type AuditWriter, type Db } from '@/core/db';
 import { inspectMemoryDb } from '@/core/db/memory';
 import { DEFAULT_SETTINGS } from '@/core/settings';
 import { testActor, XTDT } from '@/core/testing/actors';
@@ -31,7 +31,8 @@ export const admin = testActor('admin', null);
 
 /**
  * A Db that throws DbError(kind) on the write `when` picks (table name, operation, how many such writes came before),
- * so a test can stop a command after some of its writes stuck.
+ * so a test can stop a command after some of its writes stuck. The audit log's table is handed through unwrapped:
+ * the pipeline's memory writer finds the store by asking table() for it.
  */
 export function failingWrites(when: (table: string, op: 'insert' | 'insertMany' | 'update' | 'remove', nth: number) => boolean, kind: 'conflict' | 'unavailable' = 'unavailable') {
   const counts = new Map<string, number>();
@@ -39,6 +40,7 @@ export function failingWrites(when: (table: string, op: 'insert' | 'insertMany' 
     rpc: db.rpc.bind(db),
     table(def) {
       const t = db.table(def);
+      if (def.name === 'sce_tcsk_audit_logs') return t;
       const guard = <A extends unknown[], R>(op: 'insert' | 'insertMany' | 'update' | 'remove', f: (...a: A) => Promise<R>) => (...a: A): Promise<R> => {
         const key = `${def.name}.${op}`;
         const nth = counts.get(key) ?? 0;
@@ -60,10 +62,10 @@ export function harness(opts: { now?: Instant; sheets?: SheetSource } = {}) {
   const lookup = commandLookup({ comms: { commands: createCommands({ sheets }) }, guests: { commands: guestCommands }, progress: { commands: progressCommands } });
   const ctx = (actor: Actor): RequestContext => ({ actor, db: memoryDb(seed, actor), settings: SETTINGS, calendar: buildWorkCalendar([]), now: clock.now });
   const run = <K extends CommandId>(actor: Actor, id: K, input: InputOf<K>) => runCommand(ctx(actor), lookup, id, input) as Promise<CommandResult<OutputOf<K>>>;
+  /** As `actor`, through a Db wrapped by `wrap` (failingWrites) and, when given, a stand-in audit writer: for partial-failure paths. */
+  const runWith = <K extends CommandId>(wrap: (db: Db) => Db, actor: Actor, id: K, input: InputOf<K>, audit?: AuditWriter) =>
+    runCommand({ ...ctx(actor), db: wrap(memoryDb(seed, actor)) }, lookup, id, input, audit) as Promise<CommandResult<OutputOf<K>>>;
   /** As `actor`, on a Db that answers like an admin's: whatever is refused is refused by the command, not by emulated RLS. */
-  /** As `actor`, through a Db wrapped by `wrap` (failingWrites): for partial-failure paths. */
-  const runWith = <K extends CommandId>(wrap: (db: Db) => Db, actor: Actor, id: K, input: InputOf<K>) =>
-    runCommand({ ...ctx(actor), db: wrap(memoryDb(seed, actor)) }, lookup, id, input) as Promise<CommandResult<OutputOf<K>>>;
   const runWithoutRls = <K extends CommandId>(actor: Actor, id: K, input: InputOf<K>) =>
     runCommand({ ...ctx(actor), db: memoryDb(seed, admin) }, lookup, id, input) as Promise<CommandResult<OutputOf<K>>>;
   const ok = async <K extends CommandId>(actor: Actor, id: K, input: InputOf<K>) => {

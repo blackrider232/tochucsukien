@@ -24,6 +24,9 @@ import { fakeSheetSource } from '../server/sheet-source';
 import { deliveryLogData, formScreenData, invitationScreenData } from '../server/screen-data';
 import { formsTable } from '../server/tables';
 
+// The registry reaches core/auth/admin, which is server-only.
+vi.mock('next/dist/compiled/server-only', () => ({}));
+
 const lookup = commandLookup(featureServers);
 const network = vi.fn(async () => {
   throw new Error('no network in the dev scenario');

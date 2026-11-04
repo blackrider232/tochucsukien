@@ -30,7 +30,7 @@ import { devMemoryEnabled } from '@/core/dev/mode';
 import { CLAIM_LEASE_MS, CLAIM_SKEW_MS } from '../domain/campaign';
 import { campaignIdSchema, deliveryResultSchema, eventIdSchema, guestIdSchema, MAX_CLAIM_BATCH, requiredEmailSchema, runTokenSchema, type RunToken } from '../domain/schemas';
 import { DEV_FAKE_ID_PREFIX } from '../domain/transport';
-import { asSchema, audit, auditPartial } from './command-kit';
+import { asSchema, audit } from './command-kit';
 import { readCampaign } from './reads';
 import { campaignsTable, deliveriesTable, type ClaimHash, type DeliveryRow } from './tables';
 
@@ -144,11 +144,10 @@ export const startCampaign: CommandSpec<InputOf<'comms.startCampaign'>, OutputOf
       }
     } catch (e) {
       if (claimed.length > 0 || orphaned > 0) {
-        await auditPartial(ctx, send.perm, audit('BẮT ĐẦU GỬI THƯ', `Bắt đầu đợt gửi "${subject}" từ ${senderEmail}: đã giữ chỗ ${claimed.length} người nhận${orphaned ? `, chuyển ${orphaned} thư đang gửi dở sang "Không rõ đã gửi"` : ''} rồi dừng vì lỗi; các thư đã giữ chỗ chưa được gửi`, eventId, 'email_campaign', campaignId));
-        throw new CommandError('conflict', `Đã giữ chỗ ${claimed.length} người nhận nhưng không giữ được những người còn lại. Hãy bấm gửi lại sau ít phút.`);
+        throw new CommandError('conflict', `Đã giữ chỗ ${claimed.length} người nhận nhưng không giữ được những người còn lại. Hãy bấm gửi lại sau ít phút.`, undefined, audit('BẮT ĐẦU GỬI THƯ', `Bắt đầu đợt gửi "${subject}" từ ${senderEmail}: đã giữ chỗ ${claimed.length} người nhận${orphaned ? `, chuyển ${orphaned} thư đang gửi dở sang "Không rõ đã gửi"` : ''} rồi dừng vì lỗi; các thư đã giữ chỗ chưa được gửi`, eventId, 'email_campaign', campaignId));
       }
-      await undoMessage().catch(() => undefined);
-      throw e;
+      if (await undoMessage().then(() => true, () => false)) throw e;
+      throw new CommandError('conflict', 'Chưa giữ chỗ được người nhận nào. Hãy bấm gửi lại sau ít phút.', undefined, audit('BẮT ĐẦU GỬI THƯ', `Lưu nội dung thư "${subject}" nhưng không giữ chỗ được người nhận nào vì lỗi; chưa thư nào được gửi`, eventId, 'email_campaign', campaignId));
     }
     const parts = [
       `giữ chỗ ${claimed.length} người nhận`,
@@ -234,8 +233,7 @@ export const recordDeliveries: CommandSpec<InputOf<'comms.recordDeliveries'>, Ou
       }
     } catch (e) {
       if (sent + failed + unknown > 0) {
-        await auditPartial(ctx, send.perm, audit('GỬI THƯ MỜI', `Gửi thư "${subject}" từ ${senderEmail}: ghi được ${sent} thư đã gửi, ${failed} thư lỗi${unknown ? `, ${unknown} thư không rõ đã gửi hay chưa` : ''} rồi dừng vì lỗi; ${results.length - sent - failed - unknown - kept} kết quả chưa ghi`, eventId, 'email_campaign', campaignId));
-        throw new CommandError('conflict', `Chỉ ghi được ${sent + failed + unknown}/${results.length} kết quả gửi. Kiểm tra Nhật ký gửi trước khi gửi tiếp.`);
+        throw new CommandError('conflict', `Chỉ ghi được ${sent + failed + unknown}/${results.length} kết quả gửi. Kiểm tra Nhật ký gửi trước khi gửi tiếp.`, undefined, audit('GỬI THƯ MỜI', `Gửi thư "${subject}" từ ${senderEmail}: ghi được ${sent} thư đã gửi, ${failed} thư lỗi${unknown ? `, ${unknown} thư không rõ đã gửi hay chưa` : ''} rồi dừng vì lỗi; ${results.length - sent - failed - unknown - kept} kết quả chưa ghi`, eventId, 'email_campaign', campaignId));
       }
       throw e;
     }
@@ -282,8 +280,7 @@ export const markNotSent: CommandSpec<InputOf<'comms.markNotSent'>, OutputOf<'co
       }
     } catch (e) {
       if (marked > 0) {
-        await auditPartial(ctx, send.perm, audit('XÁC NHẬN THƯ CHƯA GỬI', `Xác nhận ${marked} thư không rõ kết quả là chưa gửi rồi dừng vì lỗi; các thư còn lại vẫn "Không rõ đã gửi"`, eventId, 'email_campaign', campaignId));
-        throw new CommandError('conflict', `Chỉ xác nhận được ${marked} thư là chưa gửi. Tải lại Nhật ký gửi.`);
+        throw new CommandError('conflict', `Chỉ xác nhận được ${marked} thư là chưa gửi. Tải lại Nhật ký gửi.`, undefined, audit('XÁC NHẬN THƯ CHƯA GỬI', `Xác nhận ${marked} thư không rõ kết quả là chưa gửi rồi dừng vì lỗi; các thư còn lại vẫn "Không rõ đã gửi"`, eventId, 'email_campaign', campaignId));
       }
       throw e;
     }
@@ -306,7 +303,9 @@ export const renewClaims: CommandSpec<InputOf<'comms.renewClaims'>, OutputOf<'co
         held.push(d.email);
       } catch (e) {
         // Recorded or taken over since the read: no longer this run's.
-        if (!(e instanceof DbError && e.kind === 'conflict')) throw e;
+        if (e instanceof DbError && e.kind === 'conflict') continue;
+        if (held.length === 0) throw e;
+        throw new CommandError('conflict', `Chỉ gia hạn được ${held.length} thư chưa gửi.`, undefined, audit('GIA HẠN GIỮ CHỖ', `Gia hạn giữ chỗ ${held.length} thư chưa gửi của đợt gửi đang chạy rồi dừng vì lỗi`, eventId, 'email_campaign', campaignId));
       }
     }
     // Nothing renewed is nothing to audit: every 5 minutes of a run that lost its claims would log an empty renewal.
@@ -351,8 +350,7 @@ export const releaseDeliveries: CommandSpec<InputOf<'comms.releaseDeliveries'>, 
       }
     } catch (e) {
       if (released > 0) {
-        await auditPartial(ctx, send.perm, audit('DỪNG GỬI THƯ', `Bỏ giữ chỗ ${released} thư chưa gửi rồi dừng vì lỗi; các thư còn lại vẫn hiện "Đang gửi" ở Nhật ký gửi`, eventId, 'email_campaign', campaignId));
-        throw new CommandError('conflict', `Chỉ bỏ giữ chỗ được ${released} thư chưa gửi.`);
+        throw new CommandError('conflict', `Chỉ bỏ giữ chỗ được ${released} thư chưa gửi.`, undefined, audit('DỪNG GỬI THƯ', `Bỏ giữ chỗ ${released} thư chưa gửi rồi dừng vì lỗi; các thư còn lại vẫn hiện "Đang gửi" ở Nhật ký gửi`, eventId, 'email_campaign', campaignId));
       }
       throw e;
     }
