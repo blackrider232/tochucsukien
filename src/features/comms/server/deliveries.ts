@@ -291,7 +291,7 @@ export const markNotSent: CommandSpec<InputOf<'comms.markNotSent'>, OutputOf<'co
   },
 };
 
-/** A live run's heartbeat: restarts the lease of every claim this run still holds, and names them. */
+/** A live run's heartbeat: restarts the lease of every claim this run still holds, and names them; fails when it holds none. */
 export const renewClaims: CommandSpec<InputOf<'comms.renewClaims'>, OutputOf<'comms.renewClaims'>> = {
   kind: 'mutation',
   input: asSchema(z.object({ eventId: eventIdSchema, campaignId: campaignIdSchema, runToken: runTokenSchema })),
@@ -309,6 +309,8 @@ export const renewClaims: CommandSpec<InputOf<'comms.renewClaims'>, OutputOf<'co
         if (!(e instanceof DbError && e.kind === 'conflict')) throw e;
       }
     }
+    // Nothing renewed is nothing to audit: every 5 minutes of a run that lost its claims would log an empty renewal.
+    if (held.length === 0) throw new CommandError('conflict', 'Phiên gửi này không còn giữ chỗ thư nào (đã có kết quả, hoặc một phiên khác đã tiếp quản).');
     return { value: { held }, audit: audit('GIA HẠN GIỮ CHỖ', `Gia hạn giữ chỗ ${held.length} thư chưa gửi của đợt gửi đang chạy`, eventId, 'email_campaign', campaignId) };
   },
 };

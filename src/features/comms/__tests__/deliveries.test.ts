@@ -411,6 +411,9 @@ describe('comms.renewClaims', () => {
     // Without a renewal the lease (and the clock-skew margin) runs out and the claim may be taken over.
     at(29 + (CLAIM_LEASE_MS + CLAIM_SKEW_MS) / 60_000);
     expect(await start(h, eventId, [to('b@x.vn')], colleague, MESSAGE, TAB_B)).toMatchObject({ claimed: ['b@x.vn'] });
-    expect((await h.ok(xtdtUser, 'comms.renewClaims', { eventId, campaignId, runToken: TAB_A })).value).toEqual({ held: [] });
+    // A renewal that holds nothing renews nothing: it fails and writes no audit row.
+    const audits = h.audits().length;
+    expect(await h.run(xtdtUser, 'comms.renewClaims', { eventId, campaignId, runToken: TAB_A })).toMatchObject({ ok: false, kind: 'conflict' });
+    expect(h.audits()).toHaveLength(audits);
   });
 });

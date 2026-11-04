@@ -36,6 +36,19 @@ describe('SendPanel', () => {
     expect(h.onResumeSkipped).toHaveBeenCalledOnce();
   });
 
+  it('a run that sent nothing because others hold every recipient is a warning that counts them, never a success', () => {
+    const held = Array.from({ length: 13 }, (_, i) => person(`p${i}@x.vn`));
+    renderUi(withAppContext(panel(report({ inFlight: held, ownInFlight: [person('own@x.vn')], unclear: [person('u@x.vn')] }))));
+    const alert = screen.getByText(/^Chưa gửi thư nào/).closest('[data-tone]')!;
+    expect(alert).toHaveAttribute('data-tone', 'amber');
+    expect(alert).toHaveTextContent('Chưa gửi thư nào: 13 người đang được gửi ở phiên khác, 1 người đang được gửi ở một phiên khác của bạn, 1 người chưa rõ đã nhận thư này hay chưa.');
+  });
+
+  it('a run that sent everything it held is a success', () => {
+    renderUi(withAppContext(panel(report({ sent: [{ recipient: person('a@x.vn'), messageId: 'm' }] }))));
+    expect(screen.getByText(/^Hoàn tất/).closest('[data-tone]')).toHaveAttribute('data-tone', 'emerald');
+  });
+
   it('shows no take-over when nothing is held elsewhere', () => {
     renderUi(withAppContext(panel(report({ inFlight: [person('a@x.vn')] }))));
     expect(screen.queryByRole('button', { name: 'Tiếp quản phiên gửi' })).toBeNull();

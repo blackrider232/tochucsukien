@@ -88,10 +88,11 @@ export function DeliveryLog({ data }: { data: DeliveryLogData }) {
           { id: 'log', label: 'Nhật ký gửi', href: `/events/${data.event.id}/invitations/log`, icon: 'list-check' },
         ]}
       />
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard label="Lượt gửi đã ghi" value={data.rows.length} icon="mail" accent="blue" />
         <KpiCard label="Gửi thành công" value={sent} icon="circle-check" accent="emerald" highlight />
         <KpiCard label="Lỗi gửi" value={failed} icon="circle-x" accent="rose" />
+        <KpiCard label="Chưa rõ kết quả" value={unclear} icon="alert-triangle" accent="amber" />
       </div>
       <SectionCard
         title="Nhật ký gửi thư"

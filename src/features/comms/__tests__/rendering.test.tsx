@@ -161,6 +161,7 @@ describe('comms screens render untrusted text as text', () => {
     const { user } = renderUi(withAppContext(<DeliveryLog data={{ event, canSend, campaigns: [{ id: 'c1' as CampaignId, label: 'Giấy mời {ho_ten}' }], rows: [row] }} />));
     expect(screen.getAllByText('Không rõ đã gửi').length).toBeGreaterThan(0);
     expect(screen.getByText('1 thư không rõ đã gửi hay chưa')).toBeInTheDocument();
+    expect(screen.getByText('Chưa rõ kết quả').parentElement).toHaveTextContent('Chưa rõ kết quả1');
     const button = screen.queryByRole('button', { name: 'Xác nhận chưa gửi' });
     if (!canSend) return expect(button).toBeNull();
     await user.click(button!);

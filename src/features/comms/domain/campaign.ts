@@ -50,7 +50,7 @@ export interface CampaignApi {
   record(campaignId: CampaignId, token: RunToken, outcome: DispatchOutcome<Recipient>): Promise<boolean>;
   /** comms.releaseDeliveries; a failure leaves the rows "Đang gửi" in the log and is not fatal. */
   release(campaignId: CampaignId, token: RunToken, emails: ReadonlyArray<Email>): Promise<void>;
-  /** comms.renewClaims: the addresses this run still holds, or null when the renewal failed. */
+  /** comms.renewClaims: the addresses this run still holds, or null when the renewal failed (or held nothing). */
   renew(campaignId: CampaignId, token: RunToken): Promise<ReadonlyArray<Email> | null>;
   /** comms.markSending: true when marked, false when this run no longer holds the claim, null when it failed. */
   markSending(campaignId: CampaignId, token: RunToken, email: Email): Promise<boolean | null>;

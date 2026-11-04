@@ -30,6 +30,21 @@ const STOP_REASON: Record<string, string> = {
   record: 'Đã thử ghi nhật ký gửi nhiều lần nhưng không được, nên đã dừng để tránh gửi trùng. Thư đã gửi mà chưa ghi sẽ hiện "Không rõ đã gửi" ở Nhật ký gửi sau 30 phút. Kiểm tra kết nối rồi gửi tiếp.',
 };
 
+/** Every recipient of the run counted once: what went, what failed, and what was not sent and why. */
+function resultTitle(r: CampaignReport): string {
+  const tried = r.sent.length + r.failed.length + r.unknown.length + r.unrecorded.length;
+  const parts = [
+    ...(tried ? [`${r.sent.length + r.unrecorded.length} thành công`, `${r.failed.length} lỗi`] : []),
+    ...(r.unknown.length ? [`${r.unknown.length} không rõ đã gửi chưa`] : []),
+    ...(r.skipped.length ? [`${r.skipped.length} chưa gửi`] : []),
+    ...(r.alreadySent.length ? [`${r.alreadySent.length} đã nhận thư này nên không gửi lại`] : []),
+    ...(r.inFlight.length ? [`${r.inFlight.length} người đang được gửi ở phiên khác`] : []),
+    ...(r.ownInFlight.length ? [`${r.ownInFlight.length} người đang được gửi ở một phiên khác của bạn`] : []),
+    ...(r.unclear.length ? [`${r.unclear.length} người chưa rõ đã nhận thư này hay chưa`] : []),
+  ];
+  return `${tried ? 'Hoàn tất' : 'Chưa gửi thư nào'}: ${parts.join(', ')}.`;
+}
+
 export function SendPanel(props: {
   run: RunState;
   log: ReadonlyArray<LogLine>;
@@ -69,12 +84,14 @@ export function SendPanel(props: {
         )}
         {report && (
           <Alert
-            tone={report.claimFailed || report.failed.length || report.unknown.length || report.unrecorded.length ? 'warning' : report.skipped.length ? 'info' : 'success'}
-            title={
-              report.claimFailed
-                ? 'Chưa gửi thư nào.'
-                : `Hoàn tất: ${report.sent.length} thành công, ${report.failed.length} lỗi${report.unknown.length ? `, ${report.unknown.length} không rõ đã gửi chưa` : ''}${report.skipped.length ? `, ${report.skipped.length} chưa gửi` : ''}${report.alreadySent.length ? `, ${report.alreadySent.length} đã nhận thư này nên không gửi lại` : ''}${report.inFlight.length ? `, ${report.inFlight.length} đang được gửi ở phiên khác` : ''}.`
+            tone={
+              report.claimFailed || report.failed.length || report.unknown.length || report.unrecorded.length || report.inFlight.length || report.ownInFlight.length || report.unclear.length
+                ? 'warning'
+                : report.skipped.length
+                  ? 'info'
+                  : 'success'
             }
+            title={report.claimFailed ? 'Chưa gửi thư nào.' : resultTitle(report)}
             action={
               report.failed.length > 0 || report.skipped.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
