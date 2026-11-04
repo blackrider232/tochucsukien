@@ -7,7 +7,7 @@ import { defineCommands, type Sig } from '@/core/commands';
 import type { SenderMailbox } from '../contract';
 import type { ColumnMap } from '../domain/columns';
 import type { DeliveryResult, FormConfig, MailboxDraft, RunToken } from '../domain/schemas';
-import { recordDeliveries, releaseDeliveries, startCampaign } from './deliveries';
+import { recordDeliveries, releaseDeliveries, renewClaims, startCampaign } from './deliveries';
 import type { SyncReport } from '../domain/sync-report';
 import { resolveResponse, saveColumnMap, saveForm, syncFormWith } from './form';
 import { deleteMailbox, restoreMailbox, saveMailbox } from './mailboxes';
@@ -53,6 +53,8 @@ declare module '@/core/commands' {
       { eventId: EventId; campaignId: CampaignId; runToken: RunToken; senderEmail: Email; subject: string; results: ReadonlyArray<DeliveryResult> },
       { recorded: number; notInvited: number }
     >;
+    /** A live run's heartbeat: keeps its claims from looking like a dead run's, and names those it still holds. */
+    'comms.renewClaims': Sig<{ eventId: EventId; campaignId: CampaignId; runToken: RunToken }, { held: ReadonlyArray<Email> }>;
     /** Frees the claims a stopped run did not use. */
     'comms.releaseDeliveries': Sig<{ eventId: EventId; campaignId: CampaignId; runToken: RunToken; emails: ReadonlyArray<Email> }, { released: number }>;
   }
@@ -74,6 +76,7 @@ export const createCommands = (deps: CommsDeps) =>
     resolveResponse,
     startCampaign,
     recordDeliveries,
+    renewClaims,
     releaseDeliveries,
   });
 

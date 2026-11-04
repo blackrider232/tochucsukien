@@ -5,7 +5,8 @@
 // before the next message goes, so a closed tab loses at most the message in
 // flight. No sleep after the last message.
 
-export type SendFailureKind = 'auth' | 'quota' | 'rate' | 'server' | 'network' | 'invalid' | 'too_large';
+/** claim_lost: the run no longer holds the next recipient's claim (another run took it over), so nothing more may go. */
+export type SendFailureKind = 'auth' | 'quota' | 'claim_lost' | 'rate' | 'server' | 'network' | 'invalid' | 'too_large';
 export interface SendFailure {
   kind: SendFailureKind;
   message: string;
@@ -18,7 +19,7 @@ export class TransportError extends Error {
   }
 }
 
-export type SkipReason = 'cancelled' | 'auth' | 'quota' | 'not_recorded';
+export type SkipReason = 'cancelled' | 'auth' | 'quota' | 'claim_lost' | 'not_recorded';
 export type DispatchOutcome<R> =
   | { kind: 'sent'; recipient: R; messageId: string }
   | { kind: 'failed'; recipient: R; failure: SendFailure; attempts: number };
@@ -49,7 +50,8 @@ export interface DispatchOptions<R> {
 
 export const SEND_SPACING_MS = 1200;
 const RETRYABLE: ReadonlySet<SendFailureKind> = new Set(['rate', 'server', 'network']);
-const STOPPING: ReadonlySet<SendFailureKind> = new Set(['auth', 'quota']);
+const STOPPING: ReadonlySet<SendFailureKind> = new Set(['auth', 'quota', 'claim_lost']);
+type Stop = 'auth' | 'quota' | 'claim_lost';
 
 function failureOf(e: unknown): SendFailure {
   if (e instanceof TransportError) return e.failure;
@@ -81,7 +83,7 @@ export async function dispatch<R>(o: DispatchOptions<R>): Promise<DispatchReport
     o.onProgress?.(i, o.recipients.length, recipient);
 
     let outcome: DispatchOutcome<R> | null = null;
-    let stop: 'auth' | 'quota' | 'cancelled' | null = null;
+    let stop: Stop | 'cancelled' | null = null;
     for (let attempt = 1; ; attempt += 1) {
       try {
         const { messageId } = await o.send(recipient);
@@ -90,7 +92,7 @@ export async function dispatch<R>(o: DispatchOptions<R>): Promise<DispatchReport
       } catch (e) {
         const failure = failureOf(e);
         if (STOPPING.has(failure.kind)) {
-          stop = failure.kind as 'auth' | 'quota';
+          stop = failure.kind as Stop;
           break;
         }
         if (!RETRYABLE.has(failure.kind) || attempt > maxRetries) {

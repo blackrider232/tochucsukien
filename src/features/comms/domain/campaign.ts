@@ -1,13 +1,20 @@
 // One run of a campaign, as the browser runs it: claim the addresses under
 // the run's token, send to the claimed ones through the dispatcher, record
 // each outcome on its claim, and release the claims the run did not use.
+// A long run renews its claims well inside the lease, so its unsent tail is
+// never taken for a dead run's; if they were taken anyway, it stops.
 // Pure: the commands and the transport are passed in, so tests run exactly
 // this with the fakes.
 
 import type { CampaignId, Email } from '@/core/brand';
 import type { Recipient } from './compose';
-import { dispatch, type DispatchOptions, type DispatchOutcome, type DispatchReport } from './dispatcher';
+import { dispatch, TransportError, type DispatchOptions, type DispatchOutcome, type DispatchReport } from './dispatcher';
 import { MAX_CLAIM_BATCH, type RunToken } from './schemas';
+
+/** A claim untouched this long belongs to a run that died, and any run may take it over. */
+export const CLAIM_LEASE_MS = 30 * 60_000;
+/** A live run renews its claims this often, before its next message. */
+export const CLAIM_RENEW_MS = 5 * 60_000;
 
 export interface ClaimResult {
   campaignId: CampaignId;
@@ -30,6 +37,8 @@ export interface CampaignApi {
   record(campaignId: CampaignId, token: RunToken, outcome: DispatchOutcome<Recipient>): Promise<boolean>;
   /** comms.releaseDeliveries; a failure leaves the rows "Đang gửi" in the log and is not fatal. */
   release(campaignId: CampaignId, token: RunToken, emails: ReadonlyArray<Email>): Promise<void>;
+  /** comms.renewClaims: the addresses this run still holds, or null when the renewal failed. */
+  renew(campaignId: CampaignId, token: RunToken): Promise<ReadonlyArray<Email> | null>;
 }
 
 export interface CampaignReport extends DispatchReport<Recipient> {
@@ -45,7 +54,7 @@ export interface CampaignReport extends DispatchReport<Recipient> {
 }
 
 export async function runCampaign(
-  o: { recipients: ReadonlyArray<Recipient>; api: CampaignApi; run: RunClaim } & Omit<DispatchOptions<Recipient>, 'recipients' | 'record'>,
+  o: { recipients: ReadonlyArray<Recipient>; api: CampaignApi; run: RunClaim; now?: () => number } & Omit<DispatchOptions<Recipient>, 'recipients' | 'record'>,
 ): Promise<CampaignReport> {
   const empty = { sent: [], failed: [], skipped: [], unrecorded: [], stoppedBy: null, alreadySent: [], inFlight: [], ownInFlight: [] };
   if (o.recipients.length === 0) return { ...empty, campaignId: null, claimFailed: false };
@@ -72,9 +81,22 @@ export async function runCampaign(
   }
   const id = campaignId!;
   const toSend = o.recipients.filter((r) => claimed.has(r.email));
+  const now = o.now ?? Date.now;
+  let renewedAt = now();
   const report = await dispatch({
     ...o,
     recipients: toSend,
+    async send(r) {
+      if (now() - renewedAt >= CLAIM_RENEW_MS) {
+        const held = await o.api.renew(id, token).catch(() => null);
+        // A failed renewal leaves the lease running; the next message tries again.
+        if (held) {
+          renewedAt = now();
+          if (!held.includes(r.email)) throw new TransportError({ kind: 'claim_lost', message: 'Một phiên gửi khác đã tiếp quản những người nhận còn lại.' });
+        }
+      }
+      return o.send(r);
+    },
     async record(outcome) {
       if (!(await o.api.record(id, token, outcome))) throw new Error('record');
     },

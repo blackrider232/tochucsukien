@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { newId, type CampaignId, type Email, type EventId, type GuestId, type Instant } from '@/core/brand';
 import { testActor, XTDT } from '@/core/testing/actors';
 import { campaignIdFor, CLAIM_LEASE_MS } from '../server/deliveries';
@@ -205,5 +205,34 @@ describe('comms.releaseDeliveries', () => {
     expect(r.value).toEqual({ released: 1 });
     expect(deliveries(h)).toEqual([['a@x.vn', 'sent'], ['c@x.vn', 'queued'], ['d@x.vn', 'queued']]);
     expect(h.audits().at(-1)).toMatchObject({ action: 'DỪNG GỬI THƯ', summary: 'Bỏ giữ chỗ 1 thư chưa gửi của đợt gửi' });
+  });
+});
+
+describe('comms.renewClaims', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('keeps a long run’s unsent tail: a colleague 31 minutes after the claim still cannot take it', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const t0 = Date.parse(NOW);
+    const h = harness();
+    const at = (min: number) => {
+      vi.setSystemTime(t0 + min * 60_000);
+      h.clock.now = new Date(t0 + min * 60_000).toISOString() as Instant;
+    };
+    at(0);
+    const eventId = await h.createEvent();
+    const { campaignId } = await start(h, eventId, [to('a@x.vn'), to('b@x.vn')]);
+    at(29);
+    await record(h, eventId, campaignId, [sent('a@x.vn')]);
+    const renewed = await h.ok(xtdtUser, 'comms.renewClaims', { eventId, campaignId, runToken: TAB_A });
+    expect(renewed.value).toEqual({ held: ['b@x.vn'] });
+    at(31);
+    expect(await start(h, eventId, [to('a@x.vn'), to('b@x.vn')], colleague, MESSAGE, TAB_B)).toMatchObject({ claimed: [], alreadySent: ['a@x.vn'], inFlight: ['b@x.vn'] });
+    // Without a renewal the lease runs out and the claim may be taken over.
+    at(60);
+    expect(await start(h, eventId, [to('b@x.vn')], colleague, MESSAGE, TAB_B)).toMatchObject({ claimed: ['b@x.vn'] });
+    expect((await h.ok(xtdtUser, 'comms.renewClaims', { eventId, campaignId, runToken: TAB_A })).value).toEqual({ held: [] });
   });
 });

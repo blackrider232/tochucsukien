@@ -29,6 +29,7 @@ const EVENT_COMMANDS = {
   resolveResponse: 'comms.rsvp.manage',
   startCampaign: 'comms.send',
   recordDeliveries: 'comms.send',
+  renewClaims: 'comms.send',
   releaseDeliveries: 'comms.send',
 } as const;
 
@@ -46,6 +47,7 @@ async function fixture() {
     resolveResponse: { eventId, id: response.id, version: response.version as Version, action: { kind: 'dismiss' } },
     startCampaign: { eventId, senderEmail: 'btc@x.vn' as Email, subject: 's', body: '<p>b</p>', runToken: RUN, takeOver: false, recipients: [{ guestId: null, email: 'b@x.vn', recipientName: '' }] },
     recordDeliveries: { eventId, campaignId: claim.campaignId, runToken: RUN, senderEmail: 'btc@x.vn' as Email, subject: 's', results: [{ guestId: null, email: 'a@x.vn', recipientName: '', status: 'error', providerMessageId: null, error: 'x' }] },
+    renewClaims: { eventId, campaignId: claim.campaignId, runToken: RUN },
     releaseDeliveries: { eventId, campaignId: claim.campaignId, runToken: RUN, emails: ['a@x.vn'] },
   };
   return { h, eventId, inputs };

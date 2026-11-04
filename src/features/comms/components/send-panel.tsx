@@ -23,6 +23,7 @@ const STOP_REASON: Record<string, string> = {
   cancelled: 'Đã dừng theo yêu cầu.',
   auth: 'Phiên đăng nhập Google hết hạn hoặc bị thu hồi. Đăng nhập lại rồi bấm "Gửi tiếp phần chưa gửi".',
   quota: 'Hòm thư đã hết hạn mức gửi trong ngày của Gmail. Gửi tiếp vào ngày mai.',
+  claim_lost: 'Một phiên gửi khác đã tiếp quản những người nhận còn lại, nên phiên này đã dừng để không gửi trùng. Xem Nhật ký gửi.',
   record: 'Không ghi được nhật ký gửi, nên đã dừng để tránh gửi trùng. Kiểm tra kết nối rồi gửi tiếp.',
 };
 

@@ -154,6 +154,7 @@ export function InvitationsPage({ data }: { data: InvitationScreenData }) {
         async release(campaignId, runToken, emails) {
           await run('comms.releaseDeliveries', { eventId: data.event.id, campaignId, runToken, emails });
         },
+        renew: async (campaignId, runToken) => (await run('comms.renewClaims', { eventId: data.event.id, campaignId, runToken }))?.held ?? null,
       },
       async send(r) {
         let message: MailMessage;

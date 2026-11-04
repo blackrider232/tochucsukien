@@ -7,7 +7,7 @@
 // after a crash; retry rules. Any network call fails the test.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { newId, type Email, type EventId } from '@/core/brand';
+import { newId, type Email, type EventId, type Instant } from '@/core/brand';
 import type { CommandId, InputOf, OutputOf } from '@/core/commands';
 import { commandLookup, runCommand } from '@/core/commands/pipeline';
 import { featureServers } from '@/features/registry-server';
@@ -81,6 +81,7 @@ async function scenario() {
     async release(campaignId, runToken, emails) {
       await run('comms.releaseDeliveries', { eventId, campaignId, runToken, emails });
     },
+    renew: async (campaignId, runToken) => (await run('comms.renewClaims', { eventId, campaignId, runToken })).held,
   });
   /** One press of "Bắt đầu gửi" (or of "Tiếp quản phiên gửi" with takeOver), in a tab of its own. */
   const send = (transport: GmailTransport, recipients: ReadonlyArray<Recipient>, o: { takeOver?: boolean; recordFails?: ReadonlySet<string> } = {}) =>
@@ -228,6 +229,38 @@ describe('comms in the dev memory runtime, end to end', () => {
     const taken = await s.send(s.devGmail, [a], { takeOver: true });
     expect(taken.sent.map((x) => x.recipient.email)).toEqual([a.email]);
     expect((await s.audits()).some((x) => x.action === 'BẮT ĐẦU GỬI THƯ' && x.summary.includes('tiếp quản 1 người'))).toBe(true);
+  });
+
+  it('a long run renews its claims, so a run started after the lease sends nothing of its unsent tail', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      const s = await scenario();
+      const extra = [1, 2].map((n) => fromManual({ email: `them.${n}@example.com` as Email, name: `Người Thêm ${n}`, organization: '' }));
+      const list = [...s.guests, ...extra];
+      let second: Awaited<ReturnType<typeof runCommand>> | null = null;
+      // Every message takes 12 minutes (rate limits, a slow network); the third one is where a second run starts.
+      const slow: GmailTransport = {
+        kind: s.devGmail.kind,
+        async send(m) {
+          vi.setSystemTime(Date.now() + 12 * 60_000);
+          if (m.to[0]!.email === list[2]!.email) {
+            second = await runCommand({ ...s.ctx, now: new Date().toISOString() as Instant }, lookup, 'comms.startCampaign', {
+              eventId: s.eventId, senderEmail: 'ban.to.chuc@example.com' as Email, subject: emailTemplate('invitation').subject, body: emailTemplate('invitation').html,
+              runToken: newId<'CampaignRun'>(), takeOver: false, recipients: list.map((r) => ({ guestId: r.guestId, email: r.email, recipientName: r.name })),
+            });
+          }
+          return s.devGmail.send(m);
+        },
+      };
+      const first = await s.send(slow, list);
+      expect(first.sent).toHaveLength(4);
+      // 36 minutes after the first claim, the second run finds the tail still held, renewed 12 minutes before.
+      expect(second).toMatchObject({ ok: true, value: { claimed: [] } });
+      expect(s.sentTo.sort()).toEqual(list.map((r) => r.email).sort());
+      expect((await s.audits()).filter((a) => a.action === 'GIA HẠN GIỮ CHỖ').length).toBeGreaterThan(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('an answer with both a yes and a no word never declines a confirmed guest or frees the seat', async () => {

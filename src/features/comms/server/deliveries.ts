@@ -20,14 +20,14 @@ import type { CampaignId, Email, EventId, GuestId, Instant } from '@/core/brand'
 import { CommandError, type CommandContext, type CommandSpec, type InputOf, type OutputOf } from '@/core/commands';
 import { DbError } from '@/core/db';
 import { devMemoryEnabled } from '@/core/dev/mode';
+import { CLAIM_LEASE_MS } from '../domain/campaign';
 import { campaignIdSchema, deliveryResultSchema, eventIdSchema, guestIdSchema, MAX_CLAIM_BATCH, requiredEmailSchema, runTokenSchema } from '../domain/schemas';
 import { DEV_FAKE_ID_PREFIX } from '../domain/transport';
 import { asSchema, audit, auditPartial } from './command-kit';
 import { deliveriesTable, type DeliveryRow } from './tables';
 
 export const MAX_DELIVERY_BATCH = 50;
-/** A claim made this recently is a run in progress; an older one is a run that died, and any run may take it over. */
-export const CLAIM_LEASE_MS = 30 * 60_000;
+export { CLAIM_LEASE_MS };
 
 const send = { perm: 'comms.send', event: (i: { eventId: EventId }) => i.eventId } as const;
 
@@ -198,6 +198,27 @@ export const recordDeliveries: CommandSpec<InputOf<'comms.recordDeliveries'>, Ou
       value: { recorded: sent + failed, notInvited },
       audit: audit('GỬI THƯ MỜI', `Gửi thư "${subject}" từ ${senderEmail}: ${parts.join(', ')}`, eventId, 'email_campaign', campaignId),
     };
+  },
+};
+
+/** A live run's heartbeat: restarts the lease of every claim this run still holds, and names them. */
+export const renewClaims: CommandSpec<InputOf<'comms.renewClaims'>, OutputOf<'comms.renewClaims'>> = {
+  kind: 'mutation',
+  input: asSchema(z.object({ eventId: eventIdSchema, campaignId: campaignIdSchema, runToken: runTokenSchema })),
+  authorize: send,
+  async run(ctx, { eventId, campaignId, runToken }) {
+    const held: Email[] = [];
+    for (const d of (await byEmail(ctx, eventId, campaignId)).values()) {
+      if (d.status !== 'queued' || d.claimToken !== runToken) continue;
+      try {
+        await ctx.db.table(deliveriesTable).update(d.id, { claimToken: runToken }, { expectedVersion: d.version });
+        held.push(d.email);
+      } catch (e) {
+        // Recorded or taken over since the read: no longer this run's.
+        if (!(e instanceof DbError && e.kind === 'conflict')) throw e;
+      }
+    }
+    return { value: { held }, audit: audit('GIA HẠN GIỮ CHỖ', `Gia hạn giữ chỗ ${held.length} thư chưa gửi của đợt gửi đang chạy`, eventId, 'email_campaign', campaignId) };
   },
 };
 
