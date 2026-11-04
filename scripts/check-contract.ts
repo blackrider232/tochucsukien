@@ -39,7 +39,7 @@ export interface ContractSnapshot {
 export const REQUIRED_FEATURE_FILES = ['manifest.ts', 'slots.tsx', 'index.ts', 'contract.ts', 'server/index.ts'] as const;
 
 /** Pages the foundation owns. Exact dirs, plus subtrees ending in '/**'. */
-export const FOUNDATION_PAGES: ReadonlyArray<string> = ['', '(app)', '(app)/go/**', '(app)/events/[eventId]', '(auth)/**', '(print)'];
+export const FOUNDATION_PAGES: ReadonlyArray<string> = ['', '(app)', '(app)/go/**', '(app)/events/[eventId]', '(auth)/**', '(print)', 'dev/**'];
 
 const FOUNDATION_MIGRATION = /^000\d_[a-z0-9_]+\.sql$/;
 const MODULE_MIGRATION = /^(\d{12})_([a-z]+)_[a-z0-9_]+\.sql$/;

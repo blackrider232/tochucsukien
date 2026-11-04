@@ -1,8 +1,11 @@
 'use client';
 
-import { Component, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { z } from 'zod';
-import type { SanitizedHtml } from '@/core/brand';
+import { CommandToasts } from '@/components/shell/command-toasts';
+import { AppContextProvider, type AppContextValue } from '@/core/auth';
+import type { Email, Instant, IsoDate, SanitizedHtml, UserId, Version } from '@/core/brand';
+import { DEFAULT_SETTINGS } from '@/core/settings';
 import type { EnumRegistry, Tone } from '@/core/vocab';
 import {
   Badge, Button, Checkbox, Combobox, DataTable, DateInput, Dialog, EmptyState, FilterBar, Form, FormField,
@@ -21,18 +24,21 @@ const STATUS = {
   declined: { label: 'Từ chối', short: 'Từ chối', tone: 'rose' },
 } as const satisfies EnumRegistry<'pending' | 'confirmed' | 'declined'>;
 
-const SETTINGS = {
-  agencyName: 'TRUNG TÂM XÚC TIẾN ĐẦU TƯ VÀ HỖ TRỢ DOANH NGHIỆP HÀ NỘI',
-  agencyShortName: 'SCE',
-  parentAgency: 'SỞ TÀI CHÍNH HÀ NỘI',
-  dailyReportThresholdDays: 10,
-  fieldPresenceHours: 2,
-  guestQuotaPercent: 130,
-  badgeQuotaPercent: 130,
-  googleClientId: null,
-  version: 1,
-} as never;
-const HOLIDAYS = [{ date: '2026-09-02', name: 'Quốc khánh', kind: 'holiday' }] as never;
+// The client mirror a signed-in page gets from the (app) layout, filled with fixtures so the gallery needs no session.
+const DEV_APP: AppContextValue = {
+  profile: {
+    id: '00000000-0000-4000-8000-000000000001' as UserId,
+    email: 'chuyenvien@sce.vn' as Email,
+    fullname: 'Nguyễn Văn An',
+    role: 'user',
+    department: 'Phòng Xúc tiến đầu tư',
+    status: 'active',
+    createdAt: '2026-01-01T00:00:00.000Z' as Instant,
+    updatedAt: '2026-01-01T00:00:00.000Z' as Instant,
+  },
+  settings: { ...DEFAULT_SETTINGS, version: 1 as Version },
+  holidays: [{ date: '2026-09-02' as IsoDate, name: 'Quốc khánh', kind: 'holiday' }],
+};
 
 interface Guest { id: string; name: string; org: string; seats: number; status: keyof typeof STATUS }
 const GUESTS: Guest[] = [
@@ -46,16 +52,6 @@ const COLUMNS: Column<Guest>[] = [
   { id: 'seats', header: 'Số ghế', cell: (g) => g.seats, sortValue: (g) => g.seats, align: 'right', width: '6rem' },
   { id: 'status', header: 'Trạng thái', cell: (g) => <StatusBadge registry={STATUS} value={g.status} size="sm" /> },
 ];
-
-class Guard extends Component<{ children: ReactNode; note: string }, { failed: boolean }> {
-  state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-  render() {
-    return this.state.failed ? <p role="note" className="text-sm text-ink-muted">{this.props.note}</p> : this.props.children;
-  }
-}
 
 function Spec({ kit, title, children }: { kit: string; title: string; children: ReactNode }) {
   return (
@@ -126,13 +122,8 @@ function Specimens() {
   const items = [{ id: 'a', label: 'Tất cả', count: 12 }, { id: 'b', label: 'Đã mời', icon: 'mail' as const }, { id: 'c', label: 'Từ chối' }];
   const shown = GUESTS.filter((g) => g.name.toLowerCase().includes(q.toLowerCase()));
 
-  const exportXlsx = async () => {
-    try {
-      await downloadXlsx('mau.xlsx', [xlsxSheet({ name: 'Khách mời', columns: [{ header: 'Họ tên', width: 24, value: (g: Guest) => g.name }], rows: GUESTS, freezeHeader: true })]);
-    } catch {
-      toast.error('Xuất Excel cần phần lõi (core/text) đã hoàn thiện.');
-    }
-  };
+  const exportXlsx = () =>
+    downloadXlsx('mau.xlsx', [xlsxSheet({ name: 'Khách mời', columns: [{ header: 'Họ tên', width: 24, value: (g: Guest) => g.name }], rows: GUESTS, freezeHeader: true })]);
 
   return (
     <div className="space-y-6">
@@ -212,9 +203,7 @@ function Specimens() {
           <PrintLink href="#" label="In kế hoạch" />
           <div className="overflow-x-auto">
             <PrintPage size="A5" orientation="portrait" margins="nd30">
-                <Guard note="Nd30Header cần orgIdentity và formatNd30Date của core.">
-                  <Nd30Header issuer="trung_tam" documentNumber="Số: 12/KH-SCE" date={'2026-11-04' as never} />
-                </Guard>
+                <Nd30Header issuer="trung_tam" documentNumber="Số: 12/KH-SCE" date={'2026-11-04' as IsoDate} />
                 <p className="text-center font-bold">KẾ HOẠCH TỔ CHỨC SỰ KIỆN</p>
                 <SignatureBlock left={{ title: 'Người lập' }} right={{ title: 'Giám đốc', name: 'Nguyễn Văn A' }} recipients={['Như trên', 'Lưu: VT']} />
             </PrintPage>
@@ -230,7 +219,7 @@ function Specimens() {
       <Spec kit="Files" title="Tải tệp">
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" icon="file-spreadsheet" onClick={exportXlsx}>downloadXlsx</Button>
-          <Button variant="secondary" icon="file-text" onClick={() => { try { downloadWordHtml({ fileName: 'mau', title: 'Mẫu', body: '<p>Nội dung</p>' as SanitizedHtml }); } catch { toast.error('Xuất Word cần core/text đã hoàn thiện.'); } }}>downloadWordHtml</Button>
+          <Button variant="secondary" icon="file-text" onClick={() => downloadWordHtml({ fileName: 'mau', title: 'Mẫu', body: '<p>Nội dung</p>' as SanitizedHtml })}>downloadWordHtml</Button>
           <Button variant="secondary" icon="download" onClick={() => downloadBlob(new Blob(['xin chào'], { type: 'text/plain' }), 'mau.txt')}>downloadBlob</Button>
         </div>
       </Spec>
@@ -240,19 +229,23 @@ function Specimens() {
 
 export function KitGallery() {
   return (
-    <div className="space-y-4">
-      <header>
-        <h1 className="text-xl font-bold text-ink">Thư viện giao diện</h1>
-        <p className="text-sm text-ink-muted">Mọi thành phần của bộ giao diện chung, giao diện sáng và tối cạnh nhau. Chỉ có ở môi trường phát triển.</p>
-      </header>
-      <div className="grid gap-4 2xl:grid-cols-2">
-        {(['light', 'dark'] as const).map((theme) => (
-          <div key={theme} data-theme={theme} className="min-w-0 rounded-card border border-line bg-app p-4 text-ink">
-            <p className="mb-3 text-xs font-bold uppercase tracking-wide text-ink-muted">Giao diện {theme === 'light' ? 'sáng' : 'tối'}</p>
-            <Specimens />
+    <AppContextProvider value={DEV_APP}>
+      <CommandToasts>
+        <main id="main-content" tabIndex={-1} className="mx-auto max-w-screen-2xl space-y-4 p-3 outline-none sm:p-5">
+          <header>
+            <h1 className="text-xl font-bold text-ink">Thư viện giao diện</h1>
+            <p className="text-sm text-ink-muted">Mọi thành phần của bộ giao diện chung, giao diện sáng và tối cạnh nhau. Chỉ có ở môi trường phát triển.</p>
+          </header>
+          <div className="grid gap-4 2xl:grid-cols-2">
+            {(['light', 'dark'] as const).map((theme) => (
+              <div key={theme} data-theme={theme} className="min-w-0 rounded-card border border-line bg-app p-4 text-ink">
+                <p className="mb-3 text-xs font-bold uppercase tracking-wide text-ink-muted">Giao diện {theme === 'light' ? 'sáng' : 'tối'}</p>
+                <Specimens />
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-    </div>
+        </main>
+      </CommandToasts>
+    </AppContextProvider>
   );
 }

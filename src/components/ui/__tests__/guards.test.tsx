@@ -38,9 +38,8 @@ describe('dev gallery', () => {
   it('is a 404 in production', async () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.doMock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_FOUND'); } }));
-    vi.doMock('@/app/(app)/dev/kit/kit-gallery', () => ({ KitGallery: () => null }));
-    vi.doMock('../../../app/(app)/dev/kit/kit-gallery', () => ({ KitGallery: () => null }));
-    const { default: KitPage } = await import('../../../app/(app)/dev/kit/page');
+    vi.doMock('../../../app/dev/kit/kit-gallery', () => ({ KitGallery: () => null }));
+    const { default: KitPage } = await import('../../../app/dev/kit/page');
     expect(() => KitPage()).toThrow('NEXT_NOT_FOUND');
   });
 });

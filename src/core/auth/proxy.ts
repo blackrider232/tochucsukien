@@ -11,8 +11,11 @@ import { GATE_PATHS, gateFor } from './gate';
 import type { Aal, Actor, Profile } from './index';
 import { parseProfileRow } from './profile';
 
-/** Reachable without a finished session. Sign-out too, so a pending or locked account can leave. */
-const PUBLIC_PREFIXES = ['/login', '/register', '/reset-password', '/auth/callback', '/auth/signout', '/pending', '/mfa', '/api/cron/', '/offline'];
+/**
+ * Reachable without a finished session. Sign-out too, so a pending or locked account can leave.
+ * /dev/kit renders fixtures only and is a 404 in production builds.
+ */
+const PUBLIC_PREFIXES = ['/login', '/register', '/reset-password', '/auth/callback', '/auth/signout', '/pending', '/mfa', '/api/cron/', '/offline', '/dev/kit'];
 /** Where a finished session is sent away from. */
 const SIGNED_IN_BOUNCE = new Set(['/login', '/register', '/pending']);
 const LANDING = '/events';
