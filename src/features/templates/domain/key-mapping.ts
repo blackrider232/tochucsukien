@@ -5,6 +5,7 @@
 
 import type { EventId, TemplateId } from '@/core/brand';
 import { parseUuid } from '@/core/brand';
+import type { DocumentTemplate } from '../contract';
 import type { BuiltinId } from './builtin-templates';
 import { BUILTIN_TEMPLATES, isBuiltinId } from './builtin-templates';
 
@@ -98,6 +99,21 @@ export function templatePrintHref(id: TemplateId | null, eventId: EventId | null
   return id === null ? null : `/templates/print?${templateQuery(id, eventId)}`;
 }
 
-/** The built-in forms a step can be attached to, for a Select in the step dialog instead of free text (m3 B08). */
-export const templateKeyOptions = (): ReadonlyArray<{ value: string; label: string }> =>
-  BUILTIN_TEMPLATES.map((t) => ({ value: t.id, label: t.code ? `${t.code}: ${t.title}` : t.title }));
+export interface TemplateKeyOption {
+  readonly value: string;
+  readonly label: string;
+  readonly group: typeof BUILTIN_GROUP | typeof CUSTOM_GROUP;
+}
+const BUILTIN_GROUP = 'Biểu mẫu chuẩn';
+const CUSTOM_GROUP = 'Tùy chỉnh';
+
+/**
+ * The forms a step can be attached to, for a Select in the step dialog instead of free text (m3 B08).
+ * With the readable catalog it also lists custom templates (value = their uuid), after the built-ins, in group "Tùy chỉnh";
+ * the label carries the group too because a flat Select does not show `group`.
+ */
+export const templateKeyOptions = (catalog: ReadonlyArray<Pick<DocumentTemplate, 'code' | 'title' | 'origin'> & { readonly id: string }> = BUILTIN_TEMPLATES.map((t) => ({ ...t, origin: 'builtin' as const }))): ReadonlyArray<TemplateKeyOption> =>
+  catalog.map((t): TemplateKeyOption => {
+    const name = t.code ? `${t.code}: ${t.title}` : t.title;
+    return t.origin === 'custom' ? { value: t.id, label: `${CUSTOM_GROUP}: ${name}`, group: CUSTOM_GROUP } : { value: t.id, label: name, group: BUILTIN_GROUP };
+  });
