@@ -4,6 +4,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
+import { DEV_ROLE_COOKIE, devActor, devMemoryEnabled, parseDevRole } from '@/core/dev/mode';
 import { can } from '@/core/permissions';
 import { registry, type Href } from '@/core/registry';
 import { supabaseEnv } from './env';
@@ -13,9 +14,9 @@ import { parseProfileRow } from './profile';
 
 /**
  * Reachable without a finished session. Sign-out too, so a pending or locked account can leave.
- * /dev/kit renders fixtures only and is a 404 in production builds.
+ * /dev/* (kit gallery, dev role switcher, dev reset) is a 404 in production builds.
  */
-const PUBLIC_PREFIXES = ['/login', '/register', '/reset-password', '/auth/callback', '/auth/signout', '/pending', '/mfa', '/api/cron/', '/offline', '/dev/kit'];
+const PUBLIC_PREFIXES = ['/login', '/register', '/reset-password', '/auth/callback', '/auth/signout', '/pending', '/mfa', '/api/cron/', '/offline', '/dev'];
 /** Where a finished session is sent away from. */
 const SIGNED_IN_BOUNCE = new Set(['/login', '/register', '/pending']);
 const LANDING = '/events';
@@ -51,7 +52,20 @@ export function decideProxy(pathname: string, search: URLSearchParams, session: 
   return { kind: 'next' };
 }
 
+function decided(request: NextRequest, decision: ProxyDecision, response: NextResponse): NextResponse {
+  if (decision.kind === 'next') return response;
+  const redirect = NextResponse.redirect(new URL(decision.to, request.url));
+  for (const cookie of response.cookies.getAll()) redirect.cookies.set(cookie);
+  return redirect;
+}
+
 export async function handleProxy(request: NextRequest): Promise<NextResponse> {
+  const { pathname, searchParams } = request.nextUrl;
+  if (devMemoryEnabled()) {
+    const actor = devActor(parseDevRole(request.cookies.get(DEV_ROLE_COOKIE)?.value));
+    return decided(request, decideProxy(pathname, searchParams, actor), NextResponse.next());
+  }
+
   const env = supabaseEnv();
   if (!env) return NextResponse.next();
 
@@ -77,9 +91,5 @@ export async function handleProxy(request: NextRequest): Promise<NextResponse> {
     session = { profile: row ? parseProfileRow(row) : null, aal: aal?.currentLevel === 'aal2' ? 'aal2' : 'aal1', hasVerifiedTotp: aal?.nextLevel === 'aal2' };
   }
 
-  const decision = decideProxy(request.nextUrl.pathname, request.nextUrl.searchParams, session);
-  if (decision.kind === 'next') return response;
-  const redirect = NextResponse.redirect(new URL(decision.to, request.url));
-  for (const cookie of response.cookies.getAll()) redirect.cookies.set(cookie);
-  return redirect;
+  return decided(request, decideProxy(pathname, searchParams, session), response);
 }
