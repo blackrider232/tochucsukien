@@ -40,6 +40,9 @@ const ids = {
   xtdt: '00000000-0000-0000-0000-0000000000b1',
   ptdn: '00000000-0000-0000-0000-0000000000b2',
   pending: '00000000-0000-0000-0000-0000000000c1',
+  xtdtLead: '00000000-0000-0000-0000-0000000000e1',
+  ptdnLead: '00000000-0000-0000-0000-0000000000e2',
+  leader: '00000000-0000-0000-0000-0000000000e3',
   backdoor: '00000000-0000-0000-0000-0000000000d1',
 };
 await db.exec(`
@@ -48,6 +51,9 @@ await db.exec(`
     ('${ids.xtdt}', 'a@x.vn', '{"department":"Phòng Xúc tiến đầu tư"}'),
     ('${ids.ptdn}', 'b@x.vn', '{"department":"Phòng Phát triển doanh nghiệp"}'),
     ('${ids.pending}', 'c@x.vn', '{}'),
+    ('${ids.xtdtLead}', 'tp.xtdt@x.vn', '{"department":"Phòng Xúc tiến đầu tư"}'),
+    ('${ids.ptdnLead}', 'tp.ptdn@x.vn', '{"department":"Phòng Phát triển doanh nghiệp"}'),
+    ('${ids.leader}', 'bgd@x.vn', '{"department":"Ban Giám đốc"}'),
     ('${ids.backdoor}', 'xadmin@gmail.com', '{"role":"admin"}');
 `);
 const prof = await db.query(`select email, role, status, department from public.sce_tcsk_profiles order by email`);
@@ -56,7 +62,7 @@ assert.equal(prof.rows.find((r) => r.email === 'a@x.vn').department, 'Phòng Xú
 
 const boot = await db.query(`select tcsk.bootstrap_first_admin('admin@x.vn') as r`);
 assert.equal(boot.rows[0].r, 'ok');
-await db.exec(`update public.sce_tcsk_profiles set status = 'active' where email in ('a@x.vn','b@x.vn')`);
+await db.exec(`update public.sce_tcsk_profiles set status = 'active' where email in ('a@x.vn','b@x.vn','tp.xtdt@x.vn','tp.ptdn@x.vn','bgd@x.vn')`);
 
 async function as(user, aal, fn) {
   await db.exec(`set role authenticated`);
@@ -131,5 +137,41 @@ await as(ids.admin, 'aal2', () => assert.rejects(db.query(`select public.sce_tcs
 await as(ids.xtdt, 'aal1', () => assert.rejects(db.query(`select public.sce_tcsk_set_profile_role('${ids.xtdt}', 'admin')`), /forbidden/, 'user cannot self-promote'));
 const audit = await as(ids.admin, 'aal2', () => db.query(`select action from public.sce_tcsk_audit_logs order by id`));
 assert.ok(audit.rows.some((r) => r.action === 'KHÔI PHỤC SAO LƯU'), 'restore audited');
+
+await as(ids.admin, 'aal2', () =>
+  db.exec(`select public.sce_tcsk_set_profile_role('${ids.xtdtLead}', 'dept_leader'), public.sce_tcsk_set_profile_role('${ids.ptdnLead}', 'dept_leader'), public.sce_tcsk_set_profile_role('${ids.leader}', 'leader')`),
+);
+const softId = (
+  await as(ids.xtdtLead, 'aal1', () =>
+    db.query(`insert into public.sce_tcsk_events (name, type, event_date, department, supporting_departments) values ('HN xóa thử', 'hoi_nghi', '2026-12-20', 'Phòng Xúc tiến đầu tư', '{"Phòng Phát triển doanh nghiệp"}') returning id`),
+  )
+).rows[0].id;
+await as(ids.xtdtLead, 'aal1', () => db.exec(`insert into public.sce_tcsk_guests (event_id, name, guest_group, organization) values ('${softId}', 'Trần Thị B', 'VIP', 'UBND')`));
+const visibleTo = async (user, aal, sql) => (await as(user, aal, () => db.query(sql))).rows.length;
+const softEvent = `select id from public.sce_tcsk_events where id = '${softId}'`;
+const softGuests = `select id from public.sce_tcsk_guests where event_id = '${softId}'`;
+
+const deleted = await as(ids.xtdtLead, 'aal1', () => db.query(`update public.sce_tcsk_events set deleted_at = now() where id = '${softId}' returning id`));
+assert.equal(deleted.rows.length, 1, 'dept_leader of the lead department soft-deletes its event');
+assert.equal(await visibleTo(ids.xtdtLead, 'aal1', softEvent), 1, 'dept_leader of the lead department sees its deleted event');
+assert.equal(await visibleTo(ids.leader, 'aal2', softEvent), 1, 'leader sees deleted events');
+assert.equal(await visibleTo(ids.admin, 'aal2', `select id from public.sce_tcsk_events`), 2, 'admin sees every event, deleted included');
+assert.equal(await visibleTo(ids.ptdnLead, 'aal1', softEvent), 0, 'dept_leader of a supporting department does not see the deleted event');
+assert.equal(await visibleTo(ids.xtdt, 'aal1', softEvent), 0, 'user of the lead department does not see the deleted event');
+assert.equal(await visibleTo(ids.xtdtLead, 'aal1', softGuests), 0, 'children of a deleted event stay hidden from its dept_leader');
+assert.equal(await visibleTo(ids.ptdn, 'aal1', softGuests), 0, 'children of a deleted event stay hidden from a supporting department');
+assert.equal(await visibleTo(ids.admin, 'aal2', softGuests), 1, 'admin still reads children of a deleted event');
+
+const purge = (user, aal) => as(user, aal, () => db.query(`delete from public.sce_tcsk_events where id = '${softId}' returning id`));
+assert.equal((await purge(ids.xtdtLead, 'aal1')).rows.length, 0, 'dept_leader cannot hard-purge');
+assert.equal((await purge(ids.leader, 'aal2')).rows.length, 0, 'leader cannot hard-purge');
+
+const restored = await as(ids.xtdtLead, 'aal1', () => db.query(`update public.sce_tcsk_events set deleted_at = null where id = '${softId}' returning deleted_at`));
+assert.deepEqual(restored.rows, [{ deleted_at: null }], 'dept_leader of the lead department restores its deleted event');
+assert.equal(await visibleTo(ids.ptdn, 'aal1', softGuests), 1, 'children are readable again after restore');
+
+await as(ids.xtdtLead, 'aal1', () => db.exec(`update public.sce_tcsk_events set deleted_at = now() where id = '${softId}'`));
+assert.equal((await purge(ids.admin, 'aal2')).rows.length, 1, 'admin hard-purges a deleted event');
+assert.equal(await visibleTo(ids.admin, 'aal2', softGuests), 0, 'hard purge cascades to children');
 
 console.log('all RLS and function checks passed');

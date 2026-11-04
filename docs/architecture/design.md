@@ -227,6 +227,7 @@ Worker to feature map. M2 owns `progress`. M3 owns `templates`. M4a owns `guests
    - `@/features/*/!(server)/**` from outside that feature;
    - `@supabase/*` outside `src/core/db` and `src/core/auth`;
    - `'use server'` outside `src/core/commands/dispatch.ts`;
+   - any `@/core/commands/*` path except `@/core/commands/pipeline` (tests), and, inside `@/core/commands` itself, any static import of dispatch, the registry or `next/headers`, because feature server code imports that entry at runtime;
    - `dangerouslySetInnerHTML` except with a `SanitizedHtml` value through the kit's `<RichHtml>`;
    - `localStorage` outside `src/core/prefs` (UI prefs only, cleared on sign-out);
    - `Date.prototype.toISOString().slice` and `new Date('YYYY-MM-DD')` patterns (use `core/dates`).
@@ -306,6 +307,8 @@ Worker to feature map. M2 owns `progress`. M3 owns `templates`. M4a owns `guests
 | pending or locked | Sees only `/pending`. RLS returns nothing (status check inside `tcsk.actor_role()`) | | | |
 
 Editing the event row itself (date, department, delete) is lead-department only. Supporting departments can work every event-scoped child table. Verified by `verify-sql.mjs` ("supporting department cannot edit the event row").
+
+A soft-deleted event is readable only by holders of `progress.delete` in scope (admin and leader all, dept_leader of the lead department), so they can undo the delete (`0006_core_soft_delete_visibility.sql`). The child rows of a soft-deleted event stay readable by admin only. Verified by `verify-sql.mjs` and mirrored by `memoryDb`.
 
 ## Table schema summary
 

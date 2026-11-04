@@ -108,13 +108,15 @@ class Rls {
     return this.canOnDepartments(perm, ev.department, ev.supporting_departments);
   }
 
-  /** Mirrors the policies of 0001/0002: events have their own, every registered table one shape. */
+  /** Mirrors the policies of 0001/0002/0006: events have their own, every registered table one shape. */
   allows(table: CatalogTable | undefined, op: 'read' | 'insert' | 'update_using' | 'update_check' | 'delete', row: Row): boolean {
     if (!table) return false;
     if (table.name === 'sce_tcsk_events') {
       switch (op) {
         case 'read':
-          return (!row.deleted_at || this.actor.profile.role === 'admin') && this.canOnDepartments('progress.read', row.department, row.supporting_departments);
+          return row.deleted_at
+            ? this.canOnDepartments('progress.delete', row.department, [])
+            : this.canOnDepartments('progress.read', row.department, row.supporting_departments);
         case 'insert':
           return !row.deleted_at && this.canOnDepartments('progress.create', row.department, []);
         case 'update_using':

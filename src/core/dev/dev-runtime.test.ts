@@ -4,6 +4,7 @@ import { z } from 'zod';
 import type { EventId, Instant, UserId, Version } from '@/core/brand';
 import { DbError, defineTable, type BaseRow } from '@/core/db';
 import type { FeatureKey } from '@/core/registry';
+import { eventsTable } from '@/core/testing/tables';
 import type { DevSeed } from './runtime';
 
 const seeds = vi.hoisted(() => ({ calls: [] as string[], extra: {} as Record<string, DevSeed> }));
@@ -118,6 +119,19 @@ describe('dev memory runtime', () => {
     expect(err).toBeInstanceOf(DbError);
     expect((err as DbError).kind).toBe('forbidden');
     await expect(db.rpc('sce_tcsk_create_backup', { note: 'x', kind: 'manual' })).rejects.toMatchObject({ kind: 'forbidden' });
+  });
+
+  it('lets the lead dept_leader see and restore an event it soft-deleted', async () => {
+    const { devActor, devIdentity } = await mode();
+    const { devDb } = await runtime();
+    const lead = await devDb(devActor(devIdentity('dept_leader', 'Phòng Xúc tiến đầu tư')));
+    const user = await devDb(devActor(devIdentity('user', 'Phòng Xúc tiến đầu tư')));
+    const event = (await lead.table(eventsTable).list()).find((e) => e.name === 'HN XTĐT')!;
+    const deleted = await lead.table(eventsTable).update(event.id, { deletedAt: '2026-11-04T01:00:00.000Z' }, { expectedVersion: event.version });
+    expect(await user.table(eventsTable).get(event.id)).toBeNull();
+    expect((await lead.table(eventsTable).get(event.id))?.deletedAt).toBe('2026-11-04T01:00:00.000Z');
+    await lead.table(eventsTable).update(event.id, { deletedAt: null }, { expectedVersion: deleted.version });
+    expect((await user.table(eventsTable).get(event.id))?.deletedAt).toBeNull();
   });
 
   it('keeps one database across a re-import of the runtime and memoryDb modules', async () => {
