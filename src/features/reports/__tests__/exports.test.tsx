@@ -43,6 +43,12 @@ describe('the bidding .xlsx export words a saving as the screen does (L10, BUG-3
     expect(r.footer).not.toMatch(/tiết kiệm -/);
   });
 
+  it('an overrun that rounds to 0,00% reads as an overrun in the cell and the totals, not as a saving', async () => {
+    const r = await exported([pkg(1_000_000_000, 1_000_040_000)]);
+    expect(r.cells).toEqual(['Vượt <0,01%']);
+    expect(r.footer).toContain('vượt dự toán 40.000 đ (<0,01%)');
+  });
+
   it('totals that save, and totals with no winning price yet', async () => {
     expect((await exported([pkg(220_000_000, 215_000_000)])).footer).toContain('tiết kiệm 5.000.000 đ (2,27%)');
     const none = await exported([pkg(50_000_000, null)]);

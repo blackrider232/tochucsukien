@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { addCalendarDays, addWorkdays, buildWorkCalendar } from '@/core/dates';
-import { biddingTotals, dailyReportState, dashboardFigures, decodeFigures, encodeFigures, formatPercent2, milestoneLabel, reportFigures, savingsPercent, workdaysToEvent } from '../domain/figures';
+import { biddingTotals, biddingTotalsSentence, dailyReportState, dashboardFigures, decodeFigures, encodeFigures, formatPercent2, milestoneLabel, reportFigures, savingsLabel, savingsPercent, workdaysToEvent } from '../domain/figures';
 import { snapshotMilestone } from '../domain/report';
 import { nextPackageCode } from '../domain/schemas';
 import { booth, d, event, guest, guests, HOLIDAYS, pkg, plan, SETTINGS, step, weekendsOnly, withHolidays } from './fixtures';
@@ -75,6 +75,17 @@ describe('signed savings rate (BUG-35)', () => {
     const t = biddingTotals([pkg(100_000_000, 90_000_000), pkg(100_000_000, 120_000_000)]);
     expect(t.savings).toBe(-10_000_000);
     expect(t.savingsPercent).toBe(-5);
+  });
+  it('an overrun that rounds to 0,00% is still an overrun, never "Tiết kiệm 0,00%" (40.000 đ on 1 tỷ)', () => {
+    const rate = savingsPercent(1_000_000_000, 1_000_040_000)!;
+    expect(rate).toBeLessThan(0);
+    expect(Object.is(rate, -0)).toBe(false);
+    expect(savingsLabel(rate)).toBe('Vượt <0,01%');
+    expect(savingsLabel(savingsPercent(1_000_000_000, 999_960_000)!)).toBe('Tiết kiệm <0,01%');
+    expect(savingsLabel(0)).toBe('Tiết kiệm 0,00%');
+    const t = biddingTotals([pkg(1_000_000_000, 1_000_040_000)]);
+    expect(biddingTotalsSentence(t)).toContain('vượt dự toán 40.000 đ (<0,01%)');
+    expect(decodeFigures(JSON.parse(JSON.stringify(encodeFigures(reportFigures({ plan: plan([]), roster: [], booths: [], packages: [pkg(1_000_000_000, 1_000_040_000)] }, withHolidays, SETTINGS, TODAY)))))).toMatchObject({ biddingSavingsPercent: rate });
   });
   it('one formatter, two decimals, Vietnamese comma, sign kept', () => {
     expect(formatPercent2(3.33)).toBe('3,33%');

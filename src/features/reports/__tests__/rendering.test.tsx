@@ -87,6 +87,16 @@ describe('headline numbers', () => {
     expect(screen.getByText('Xong: 1/3 • Quá hạn: 1 • Chưa đến hạn: 1')).toBeInTheDocument();
   });
 
+  it('an overrun of 40.000 đ on 1 tỷ is a red \"Vượt\" badge on the card and in the dashboard, not \"Tiết kiệm 0,00%\"', () => {
+    const tiny = dashboardFigures({ plan: plan([]), roster: [], booths: [], packages: [pkg(1_000_000_000, 1_000_040_000)], clippings: 0 }, withHolidays, SETTINGS, TODAY);
+    const { unmount } = show(data({ figures: tiny }), 'daily');
+    expect(screen.getAllByText('Vượt <0,01%').length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Tiết kiệm 0,00%/)).toBeNull();
+    unmount();
+    show(data({ figures: tiny }), 'dashboard');
+    expect(screen.getAllByText('Vượt <0,01%').length).toBeGreaterThan(0);
+  });
+
   it('the bidding card compares the winning prices with the dự toán of the same awarded packages (M3)', () => {
     const mixed = dashboardFigures(
       { plan: plan([]), roster: [], booths: [], packages: [pkg(200_000_000, 198_000_000), pkg(40_000_000, null)], clippings: 0 }, withHolidays, SETTINGS, TODAY,
@@ -187,6 +197,13 @@ describe('the NĐ30 document (BUG-07/08/16/17/19)', () => {
     const short = encodeFigures({ ...figures, guestsInvited: 9, quotaReached: false });
     const doc = dailyReportDocument({ ...report, figures: short }, org);
     expect(doc.sections[1]!.paragraphs[0]).toBe('- Số thư mời đã lập: 9 (định mức 13 thư mời, tức 130% của 10 đại biểu dự kiến); đạt 69% định mức, còn thiếu 4 thư mời.');
+  });
+
+  it('the printed and Word text word a 40.000 đ overrun on 1 tỷ as an overrun', () => {
+    const tiny = dashboardFigures({ plan: plan([]), roster: [], booths: [], packages: [pkg(1_000_000_000, 1_000_040_000)], clippings: 0 }, withHolidays, SETTINGS, TODAY);
+    const doc = dailyReportDocument({ ...report, figures: encodeFigures(tiny) }, org);
+    expect(doc.sections.flatMap((x) => x.paragraphs).join('\n')).toContain('vượt dự toán <0,01%');
+    expect(doc.sections.flatMap((x) => x.paragraphs).join('\n')).not.toContain('tiết kiệm');
   });
 
   it('names the quota percent the report was issued under, not quota ÷ target (L9)', () => {

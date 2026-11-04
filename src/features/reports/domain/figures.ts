@@ -48,10 +48,19 @@ export interface BiddingTotals {
   savingsPercent: number | null;
 }
 
-/** Signed (budget - winning) / budget, two decimals; null when there is no budget to compare with. */
+/** What a saving or an overrun below 0,005% is stored as: its sign survives the rounding to 0,00 and the JSON of a snapshot, which drops -0. */
+const TINY_RATE = 0.001;
+
+/**
+ * Signed (budget - winning) / budget, two decimals; null when there is no budget to compare with.
+ * A difference too small for two decimals is ±0,001, so 40.000 đ over a 1 tỷ dự toán stays an overrun
+ * (printed "<0,01%") instead of rounding to -0 and reading as a saving.
+ */
 export function savingsPercent(budget: number, winning: number): number | null {
   if (budget <= 0) return null;
-  return Math.round(((budget - winning) / budget) * 10_000) / 100;
+  const rate = Math.round(((budget - winning) / budget) * 10_000) / 100;
+  if (rate !== 0 || budget === winning) return rate;
+  return budget > winning ? TINY_RATE : -TINY_RATE;
 }
 
 /**
@@ -122,6 +131,7 @@ export function dashboardFigures(input: FigureInput & { clippings: number }, cal
 /** Two decimals with the Vietnamese comma, sign kept: the one savings formatter (BUG-35). */
 export function formatPercent2(value: number | null): string {
   if (value === null) return 'Chưa có';
+  if (Math.abs(value) === TINY_RATE) return `${value < 0 ? '-' : ''}<0,01%`;
   const [int, frac] = Math.abs(value).toFixed(2).split('.');
   return `${value < 0 ? '-' : ''}${int},${frac}%`;
 }
