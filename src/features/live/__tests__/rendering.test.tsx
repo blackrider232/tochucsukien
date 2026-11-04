@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { DutyStaffId, Email, EventId, GuestId, HHmm, IncidentId, Instant, IsoDate, SeatCode, Version } from '@/core/brand';
 import type { CheckinCode } from '@/core/checkin-code';
@@ -116,6 +116,48 @@ describe('scan dialog words what the check-in did (review MED-1)', () => {
     const g = guest({ name: 'Khách đúng giờ' });
     const { status } = await scanIn(g, { ok: true, value: { already: false, checkIn: { checkedInAt: AT } } });
     expect(await within(status()).findByText('Đã check-in: Khách đúng giờ')).toBeInTheDocument();
+  });
+});
+
+describe('offline (decision 6, review LOW-4)', () => {
+  it('says "Ngoại tuyến" and offers no write until the network is back', async () => {
+    const onLine = vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
+    try {
+      dispatch.mockReset();
+      show(data([guest({ name: 'Khách chờ' })]), 'checkin');
+      expect(screen.getByText(/Ngoại tuyến/)).toBeInTheDocument();
+      for (const name of ['Quét mã QR check-in', 'Khách phát sinh', 'Báo sự cố']) expect(screen.getByRole('button', { name })).toBeDisabled();
+      expect(screen.queryByRole('button', { name: 'Check-in' })).toBeNull();
+      onLine.mockReturnValue(true);
+      act(() => window.dispatchEvent(new Event('online')));
+      expect(await screen.findByRole('button', { name: 'Check-in' })).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Quét mã QR check-in' })).toBeEnabled();
+      expect(screen.queryByText(/Ngoại tuyến/)).toBeNull();
+      expect(dispatch).not.toHaveBeenCalled();
+    } finally {
+      onLine.mockRestore();
+    }
+  });
+});
+
+describe('offline with the scan dialog already open (review LOW-4)', () => {
+  it('a scan answered before the network dropped is not checked in', async () => {
+    const g = guest({ name: 'Khách quét khi mất mạng' });
+    dispatch.mockReset();
+    dispatch.mockImplementation(async (id: string) => (id === 'live.scan' ? { ok: true, value: { kind: 'ok', guest: g } } : { ok: true, value: { already: false, checkIn: { checkedInAt: AT } } }));
+    const { user } = show(data([g]), 'checkin');
+    await user.click(screen.getByRole('button', { name: 'Quét mã QR check-in' }));
+    const dialog = await screen.findByRole('dialog', { name: /Quét mã QR check-in/ });
+    const onLine = vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
+    try {
+      act(() => window.dispatchEvent(new Event('offline')));
+      await user.type(within(dialog).getByLabelText(/Hoặc nhập/), 'K7Q2ZX');
+      await user.click(within(dialog).getByRole('button', { name: 'Check-in' }));
+      expect(await within(dialog.querySelector<HTMLElement>('[aria-live="polite"]')!).findByText(/Chưa check-in được/)).toBeInTheDocument();
+      expect(dispatch.mock.calls.map((c) => c[0])).toEqual(['live.scan']);
+    } finally {
+      onLine.mockRestore();
+    }
   });
 });
 

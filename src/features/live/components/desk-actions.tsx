@@ -44,7 +44,9 @@ const vibrate = (pattern: number | number[]) => {
   if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') navigator.vibrate(pattern);
 };
 
-export function DeskProvider({ eventId, hall, children }: { eventId: EventId; hall: EventHall | null; children: ReactNode }) {
+const OFFLINE = 'Ngoại tuyến: chưa check-in được. Chờ có mạng lại rồi quét lại.';
+
+export function DeskProvider({ eventId, hall, online, children }: { eventId: EventId; hall: EventHall | null; online: boolean; children: ReactNode }) {
   const run = useCommand();
   const dialogs = useDialogs();
   const toast = useToast();
@@ -73,6 +75,11 @@ export function DeskProvider({ eventId, hall, children }: { eventId: EventId; ha
 
   const checkIn = useCallback(async (g: RosterEntry): Promise<CheckInDone> => {
     if (g.checkedInAt) return already(g, g.checkedInAt);
+    if (!online) {
+      fail();
+      toast.error(OFFLINE);
+      return 'failed';
+    }
     let command: 'live.checkIn' | 'live.checkInDeclined' = 'live.checkIn';
     if (g.rsvpStatus === 'declined') {
       const ok = await dialogs.confirm({
@@ -93,7 +100,7 @@ export function DeskProvider({ eventId, hall, children }: { eventId: EventId; ha
     if (r.already) return already(g, r.checkIn.checkedInAt!);
     arrived(g, r.checkIn.checkedInAt!);
     return 'checked_in';
-  }, [already, arrived, dialogs, eventId, fail, run]);
+  }, [already, arrived, dialogs, eventId, fail, online, run, toast]);
 
   const scan = useCallback(async (raw: string): Promise<ScanDone | null> => {
     const code = raw.trim();
