@@ -51,17 +51,15 @@ export function TemplatePreview({ template, event, today, isAdmin }: { template:
       title={template.title}
       subtitle={template.description}
       icon="file-signature"
-      actions={
-        <>
+    >
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
           <Button icon="download" onClick={word}>Tải Word (.doc)</Button>
           {hasTable && <Button variant="secondary" icon="file-spreadsheet" onClick={() => void excel()}>Tải Excel (.xlsx)</Button>}
           <PrintLink href={templatePrintHref(template.id, event?.id ?? null)} label="In / PDF" />
           <IconButton icon="copy" label="Sao chép nội dung văn bản" onClick={() => void copy()} />
           {isAdmin && <Button variant="secondary" icon="pencil" href={`/admin/templates?edit=${encodeURIComponent(template.id)}`}>Sửa mẫu (Admin)</Button>}
-        </>
-      }
-    >
-      <div className="space-y-3">
+        </div>
         <div className="flex flex-wrap items-center gap-1.5">
           <Badge tone="slate">{template.code || NO_CODE_LABEL}</Badge>
           <Badge tone={TEMPLATE_LEVELS[template.level].tone}>{TEMPLATE_LEVELS[template.level].label}</Badge>

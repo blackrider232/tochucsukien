@@ -59,6 +59,7 @@ describe('the 23 built-in templates against legacy/index.html', () => {
     const all = BUILTIN_TEMPLATES.map((t) => t.content).join('\n');
     expect(unknownTags(all)).toEqual([]);
     expect(all).not.toMatch(/130\s?%|120\s?%/);
+    expect(BUILTIN_TEMPLATES.map((t) => t.title + t.description).join('\n')).not.toMatch(/130\s?%|120\s?%/);
     expect(all).not.toContain('ngày {{NGAY_HOM_NAY}}');
     expect(tagNamesIn(all)).not.toContain('DINH_MUC_MOI_130');
   });

@@ -44,6 +44,7 @@ export const LEGACY_FIXES: ReadonlyArray<LegacyFix> = [
   { bug: 'B15', id: '*', field: 'content', from: '{{DINH_MUC_MOI_130}}', to: '{{DINH_MUC_MOI}}', count: 3, why: 'Thẻ không còn nhúng số 130; tên cũ vẫn được nhận như bí danh.' },
   { bug: 'B15', id: '*', field: 'content', from: '{{DINH_MUC_THE_120}}', to: '{{DINH_MUC_THE}}', count: 2, why: 'Thẻ không còn nhúng số 120; tên cũ vẫn được nhận như bí danh.' },
   { bug: 'B15', id: '*', field: 'content', from: '≥ 130%', to: '≥ {{TY_LE_MOI}}%', count: 2, why: 'Tỷ lệ mời lấy từ cài đặt.' },
+  { bug: 'B15', id: 'form_dskhach', field: 'title', from: 'định mức ≥ 130%', to: 'định mức mời', count: 1, why: 'Tiêu đề không nêu số cố định.' },
   { bug: 'B15', id: 'form_dskhach', field: 'description', from: 'tối thiểu 130% số lượng dự kiến', to: 'theo định mức so với số lượng dự kiến', count: 1, why: 'Mô tả không nêu số cố định.' },
   { bug: 'B13', id: '*', field: 'content', from: 'ngày {{NGAY_HOM_NAY}}', to: '{{NGAY_HOM_NAY}}', count: 3, why: 'Thẻ ngày hôm nay đã in "ngày 04 tháng 11 năm 2026" (NĐ 30), nên bỏ chữ "ngày" đứng trước.' },
   { bug: 'B35', id: 'form_baocao_stc_quyettoan', field: 'content', from: 'giải ngân quyết toán: <strong>{{KINH_PHI_DU_TOAN}} VNĐ', to: 'giải ngân quyết toán: <strong>{{KINH_PHI_THUC_TE}} VNĐ', count: 1, why: 'Kinh phí thực tế khác kinh phí dự toán: thẻ riêng, để trống cho người dùng điền.' },

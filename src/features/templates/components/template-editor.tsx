@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Alert, Button, Dialog, Form, FormField, Select, Textarea, TextInput, useToast, useZodForm } from '@/components/ui';
+import { Alert, Button, Dialog, Form, FormField, Select, Textarea, TextInput, useDialogs, useToast, useZodForm } from '@/components/ui';
 import { newId, type TemplateId, type Uuid } from '@/core/brand';
 import { useCommand } from '@/core/commands';
 import type { DocumentTemplate } from '../contract';
@@ -23,6 +23,7 @@ const STATUS = { ready: 'Sẵn sàng chỉnh sửa', editing: 'Đang soạn th�
 export function TemplateEditor({ target, onClose }: { target: EditorTarget; onClose: () => void }) {
   const run = useCommand();
   const toast = useToast();
+  const dialogs = useDialogs();
   const template = target.kind === 'edit' ? target.template : null;
   const original = template && template.origin !== 'custom' ? builtinDraft(template.id) : null;
   const [newCustomId] = useState(() => newId<'Template'>() as Uuid<'Template'> & TemplateId);
@@ -44,6 +45,17 @@ export function TemplateEditor({ target, onClose }: { target: EditorTarget; onCl
     form.setValue('kind', original.kind, { shouldDirty: true });
     setEditor((e) => ({ token: e.token + 1, html: original.content }));
     setReloaded(true);
+  };
+
+  /** The footer button asks the same question as Esc, the close icon and the backdrop (the Dialog asks for those). */
+  const closeAsked = async () => {
+    if (dirty) {
+      const discard = await dialogs.confirm({
+        title: 'Đóng mà không lưu?', text: 'Các thay đổi chưa lưu sẽ bị mất.', confirmLabel: 'Đóng, không lưu', cancelLabel: 'Tiếp tục chỉnh sửa', tone: 'warning',
+      });
+      if (!discard) return;
+    }
+    onClose();
   };
 
   const submit = async (draft: TemplateDraft) => {
@@ -69,7 +81,7 @@ export function TemplateEditor({ target, onClose }: { target: EditorTarget; onCl
         <>
           <p className="mr-auto text-sm text-ink-muted" role="status">{status}</p>
           {original && <Button variant="ghost" icon="refresh" onClick={restoreOriginal}>Khôi phục mẫu gốc SCE</Button>}
-          <Button variant="secondary" onClick={onClose}>Đóng</Button>
+          <Button variant="secondary" onClick={() => void closeAsked()}>Đóng</Button>
           <Button icon="check" loading={form.formState.isSubmitting} onClick={save}>Lưu cập nhật biểu mẫu chuẩn</Button>
         </>
       }

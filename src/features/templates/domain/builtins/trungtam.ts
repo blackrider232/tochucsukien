@@ -138,7 +138,7 @@ export const TRUNGTAM_TEMPLATES: ReadonlyArray<BuiltinTemplate> = [
   },
   {
     id: "form_dskhach", level: "cap_trungtam", code: "", kind: "grid",
-    title: "Bảng danh sách khách mời VIP & Doanh nghiệp (Kiểm soát định mức ≥ 130%)",
+    title: "Bảng danh sách khách mời VIP & Doanh nghiệp (Kiểm soát định mức mời)",
     description: "Bảng tính quản lý danh sách đại biểu, kiểm soát chỉ tiêu mời theo định mức so với số lượng dự kiến",
     content: `<div style="font-family: 'Times New Roman', serif; font-size: 13pt;">
     <div style="text-align: center; margin-bottom: 20px;">

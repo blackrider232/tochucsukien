@@ -97,7 +97,7 @@ export function AdminTemplates({ templates, editId }: AdminTemplatesProps) {
             minWidth="48rem"
             empty={{ icon: 'search', title: 'Không tìm thấy biểu mẫu nào theo tiêu chí tìm kiếm.' }}
             columns={[
-              { id: 'title', header: 'Tên biểu mẫu chuẩn', cell: (t) => (
+              { id: 'title', header: 'Tên biểu mẫu chuẩn', width: '36%', cell: (t) => (
                 <div>
                   <p className="font-semibold text-ink">{t.title}</p>
                   <p className="line-clamp-1 text-xs text-ink-muted">{t.description}</p>
