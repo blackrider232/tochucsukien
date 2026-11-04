@@ -1,0 +1,36 @@
+{
+  "events": [
+    { "id": "evt_real", "name": "Hội nghị XTĐT Hà Nội - Hàn Quốc 2026", "eventDate": "2026-12-15", "eventTime": "08:30", "department": "Phòng Xúc tiến đầu tư", "targetGuests": 120 },
+    { "id": "evt_demo", "name": "Hội nghị Xúc tiến Đầu tư và Giao thương Hà Nội - Tokyo 2026", "eventDate": "2026-11-20" }
+  ],
+  "eventGuests": {
+    "evt_real": [
+      { "id": "gst_seed_0", "name": "Khách bị seeder đánh dấu", "group": "VIP", "organization": "UBND", "isCheckedIn": true, "checkInTime": "08:05:12", "hasGiftPackage": true, "checkInStaff": "Nguyễn Văn Cường" },
+      { "id": "gst_real_1", "name": "Lê Văn Một", "group": "SoNganh", "organization": "Sở Ngoại vụ", "isCheckedIn": true, "checkInTime": "07:58:41", "hasGiftPackage": true, "checkInStaff": "letan@sce.vn" },
+      { "id": "gst_real_2", "name": "<img src=x onerror=alert(1)>", "organization": "Công ty Hai", "isCheckedIn": true, "checkInTime": "2026-12-15T01:05:00.000Z", "hasGiftPackage": false },
+      { "id": "gst_gift_only", "name": "Chỉ có quà", "organization": "Công ty Ba", "isCheckedIn": false, "checkInTime": null, "hasGiftPackage": true },
+      { "id": "gst_bad_time", "name": "Giờ hỏng", "organization": "Công ty Bốn", "isCheckedIn": true, "checkInTime": "sáng sớm" },
+      { "id": "gst_absent", "name": "Chưa đến", "organization": "Công ty Năm", "isCheckedIn": false }
+    ],
+    "evt_demo": [
+      { "id": "gst_x", "name": "Khách sự kiện mẫu", "isCheckedIn": true, "checkInTime": "08:00:00" }
+    ]
+  },
+  "eventDutyRoster": {
+    "evt_real": [
+      { "id": "duty_01", "name": "Nguyễn Văn Cường", "department": "Phòng Hành chính - Tổ chức", "role": "Bàn 1: Đón tiếp Lãnh đạo UBND TP & VIP", "requiredTime": "06:30 (Sáng sớm)", "checkedInAt": "06:20", "status": "on_time" },
+      { "id": "duty_1767", "name": "Đinh Thị Trực", "department": "Phòng Xúc tiến đầu tư", "role": "Bàn 3: Điều phối hội trường, sân khấu & cabin dịch", "requiredTime": "06:30 (Sáng sớm)", "checkedInAt": "06:45", "status": "on_time" },
+      { "id": "duty_1768", "name": "<script>alert(1)</script>", "department": "Phòng Không Có", "role": "Tổ hậu cần", "requiredTime": "", "checkedInAt": null, "status": "pending" },
+      { "id": "duty_1769", "name": "  ", "department": "Phòng Xúc tiến đầu tư", "role": "Bàn 2" }
+    ],
+    "evt_missing": [{ "id": "duty_x", "name": "Mồ côi" }]
+  },
+  "eventIncidents": {
+    "evt_real": [
+      { "id": "sc_01", "code": "SC-01", "location": "Sân khấu / Bục phát biểu", "description": "Mic rè", "urgency": "high", "status": "resolved", "reportedAt": "07:15", "resolvedAt": "07:22", "note": "Đổi mic" },
+      { "id": "sc_1767", "code": "SC-03", "location": "Sảnh đón xe & Bãi đỗ xe", "description": "Xe VIP không có chỗ đỗ", "urgency": "medium", "assignee": "Tổ xe", "status": "resolved", "reportedAt": "07:40", "note": "Đã bố trí" },
+      { "id": "sc_1768", "code": "SC-03", "location": "Bàn Lễ tân đón tiếp", "description": "<img src=x onerror=alert(2)> trùng ghế", "urgency": "critical", "status": "in_progress", "reportedAt": "23:50", "resolvedAt": null, "note": "" },
+      { "id": "sc_1769", "code": "", "location": "", "description": "Mất điện khu gian hàng", "urgency": "low", "status": "weird", "reportedAt": null }
+    ]
+  }
+}
