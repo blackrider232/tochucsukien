@@ -189,6 +189,13 @@ describe('the NĐ30 document (BUG-07/08/16/17/19)', () => {
     expect(doc.sections[1]!.paragraphs[0]).toBe('- Số thư mời đã lập: 9 (định mức 13 thư mời, tức 130% của 10 đại biểu dự kiến); đạt 69% định mức, còn thiếu 4 thư mời.');
   });
 
+  it('the sheet and the Word file set the body in Times New Roman at the same 14 pt (L8)', () => {
+    const { container } = renderUi(withAppContext(<PrintDailyReport report={report} preview={false} />));
+    expect([...container.querySelectorAll('style')].map((el) => el.textContent).join('\n')).toMatch(/\.nd30-report \{ font-family: "Times New Roman", Times, serif; font-size: 14pt;/);
+    const body = dailyReportWordBody(dailyReportDocument(report, org), org);
+    expect(body.startsWith('<div style="font-family:\'Times New Roman\',Times,serif;font-size:14pt;">')).toBe(true);
+  });
+
   it('the Word body is tables with escaped text, and the file name keeps the letters', () => {
     const body = dailyReportWordBody(dailyReportDocument(report, org), org);
     expect(body).toContain('<table');

@@ -7,10 +7,10 @@
 import { Nd30Header, PrintPage, SignatureBlock, useSettings } from '@/components/ui';
 import { orgIdentity } from '@/core/settings';
 import { dailyReportDocument, type IssuedReport } from '../domain/report';
+import { ND30_BODY_PT } from '../domain/word';
 
-// NĐ30 asks for Times New Roman at 13 to 14 pt. The kit's paper uses the generic serif at 14 px, so this
-// sheet names the face and the size itself. Inferred from the decree, not confirmed by the user.
-const ND30_TYPE = `.nd30-report { font-family: "Times New Roman", Times, serif; font-size: 13pt; line-height: 1.5; }
+// The kit's paper uses the generic serif at 14 px, so this sheet names the face and the Word file's size itself.
+const ND30_TYPE = `.nd30-report { font-family: "Times New Roman", Times, serif; font-size: ${ND30_BODY_PT}pt; line-height: 1.5; }
 .nd30-report .nd30-small { font-size: 11pt; }`;
 
 export function PrintDailyReport({ report, preview }: { report: IssuedReport; preview: boolean }) {

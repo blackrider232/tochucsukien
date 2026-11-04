@@ -11,11 +11,18 @@ import type { DailyReportDocument } from './report';
 
 const P = 'margin:0;';
 
+/**
+ * NĐ30 body type, on the A4 sheet and in the Word file alike: Times New Roman at
+ * 14 pt, the legacy templates' size (the decree allows 13 to 14). Inferred, not
+ * yet confirmed by the user (status, change request 2).
+ */
+export const ND30_BODY_PT = 14;
+
 export function dailyReportWordBody(doc: DailyReportDocument, org: OrgIdentity): SanitizedHtml {
   const sections = doc.sections.map(
     (s) => html`<p style="margin:12pt 0 4pt 0;"><b>${s.heading}</b></p>${s.paragraphs.map((p) => html`<p style="margin:0 0 4pt 0;text-indent:1cm;text-align:justify;">${p}</p>`)}`,
   );
-  return html`<table style="width:100%;border-collapse:collapse;border:none;">
+  return html`<div style="font-family:'Times New Roman',Times,serif;font-size:${ND30_BODY_PT}pt;"><table style="width:100%;border-collapse:collapse;border:none;">
 <tr>
 <td style="width:45%;text-align:center;vertical-align:top;font-size:13pt;">
 <p style="${P}">${org.parentAgency}</p>
@@ -47,7 +54,7 @@ ${doc.copies.map((c) => html`<p style="${P}font-size:11pt;">- ${c}</p>`)}
 <p style="margin:60pt 0 0 0;"><b>${doc.signer.name}</b></p>
 </td>
 </tr>
-</table>`;
+</table></div>`;
 }
 
 /** 'BaoCaoHangNgay_Hoi_nghi_Xuc_tien_Dau_tu_2026_2026-12-08.doc': tone marks folded, never stripped to '_' (BUG-16). */
