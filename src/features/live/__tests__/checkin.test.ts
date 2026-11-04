@@ -215,6 +215,18 @@ describe('the undo of a cancel restores what the server kept, once', () => {
     expect(await h.checkins(eventId)).toEqual([]);
   });
 
+  it('a second cancel without a restore between replaces the first token: one token survives, the newest', async () => {
+    const { h, eventId, guest, cancel } = await cancelled();
+    h.clock.now = '2026-12-15T02:01:00.000Z' as Instant;
+    await h.ok(desk, 'live.checkIn', { eventId, guestId: guest.id, desk: 'Bàn 3' });
+    h.clock.now = '2026-12-15T02:02:00.000Z' as Instant;
+    const second = await h.ok(restorer, 'live.cancelCheckIn', { eventId, guestId: guest.id });
+    expect(h.rows('sce_tcsk_checkin_undo_tokens')).toHaveLength(1);
+    expect(await h.undo(restorer, cancel.inverse)).toMatchObject({ ok: false, kind: 'conflict' });
+    expect(await h.undo(restorer, second.inverse)).toMatchObject({ ok: true });
+    expect((await h.checkins(eventId))[0]).toMatchObject({ checkedInAt: '2026-12-15T02:01:00.000Z', desk: 'Bàn 3' });
+  });
+
   it('an expired token is refused', async () => {
     const { h, eventId, cancel } = await cancelled();
     h.clock.now = '2026-12-15T02:16:00.000Z' as Instant;
