@@ -2,12 +2,14 @@
 // computed here from the owners' read models at the moment of issue and frozen
 // into the row; the person issuing writes only the narrative, the signer's
 // name and the document number. One report per event and VN day: a repeat,
-// a retry or a second desk racing the first all converge on the first report.
+// a retry (by id, even after midnight) or a second desk racing the first all
+// converge on the first report. The day stored is the database's: the trigger
+// stamps it, so the audit row names that day, not the one ctx.now gave.
 
 import { z } from 'zod';
-import type { EventId } from '@/core/brand';
+import type { DailyReportId, EventId, IsoDate } from '@/core/brand';
 import type { CommandContext } from '@/core/commands';
-import { formatVNDate, formatVNTime, todayVN } from '@/core/dates';
+import { addCalendarDays, formatVNDate, formatVNTime, todayVN } from '@/core/dates';
 import { DbError } from '@/core/db';
 import { dashboardFigures, encodeFigures, workdaysToEvent } from '../domain/figures';
 import { signerTitle, snapshotMilestone, type IssuedReport } from '../domain/report';
@@ -19,8 +21,12 @@ import { requireSources } from './upstream';
 
 const ACTION = 'PHÁT HÀNH BÁO CÁO HÀNG NGÀY';
 
-async function issuedOn(ctx: CommandContext, eventId: EventId, day: ReturnType<typeof todayVN>): Promise<IssuedReport | null> {
-  const [row] = await ctx.db.table(dailyReportsTable).list({ eventId, reportDate: day });
+/** The report this id already is, else the event's report of one of these days (newest first). */
+async function issued(ctx: CommandContext, eventId: EventId, id: DailyReportId, days: ReadonlyArray<IsoDate>): Promise<IssuedReport | null> {
+  const table = ctx.db.table(dailyReportsTable);
+  const same = await table.get(id);
+  if (same?.eventId === eventId) return toReport(same);
+  const [row] = await table.list({ eventId, reportDate: days });
   return row ? toReport(row) : null;
 }
 
@@ -39,7 +45,7 @@ export const issueDailyReport: Spec<'reports.issueDailyReport'> = {
   authorize: issueReports,
   async run(ctx, { eventId, id, draft }) {
     const today = todayVN(ctx.now);
-    const earlier = await issuedOn(ctx, eventId, today);
+    const earlier = await issued(ctx, eventId, id, [today]);
     if (earlier) return repeat(earlier);
 
     const { plan, roster, booths } = await requireSources(ctx, eventId);
@@ -55,8 +61,8 @@ export const issueDailyReport: Spec<'reports.issueDailyReport'> = {
         eventName: event.name, eventDate: event.eventDate, issuedAt: ctx.now, issuedBy: ctx.actor.profile.id,
       });
     } catch (e) {
-      // Another desk issued today's report between our read and this insert: theirs stands.
-      const raced = e instanceof DbError && e.kind === 'constraint' ? await issuedOn(ctx, eventId, today) : null;
+      // Another desk issued between our read and this insert, or the database's day is already tomorrow's: theirs stands.
+      const raced = e instanceof DbError && (e.kind === 'constraint' || e.kind === 'conflict') ? await issued(ctx, eventId, id, [today, addCalendarDays(today, 1)]) : null;
       if (raced) return repeat(raced);
       throw e;
     }
@@ -65,7 +71,7 @@ export const issueDailyReport: Spec<'reports.issueDailyReport'> = {
       value: { already: false, report },
       audit: audit(
         ACTION,
-        `Phát hành báo cáo ngày ${formatVNDate(today)} (${snapshotMilestone(report)}): tiến độ ${figures.progressPercent}%, ${figures.overdueSteps} bước quá hạn, ` +
+        `Phát hành báo cáo ngày ${formatVNDate(report.reportDate)} (${snapshotMilestone(report)}): tiến độ ${figures.progressPercent}%, ${figures.overdueSteps} bước quá hạn, ` +
           `${figures.guestsInvited}/${figures.guestQuota} thư mời, ${figures.guestsAttending} đại biểu tham dự; người ký ${report.signatoryTitle} ${report.signatory}`,
         eventId, 'daily_report', id,
       ),

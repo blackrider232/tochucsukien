@@ -31,6 +31,8 @@ const mutations = [
   ['edits need only reports.read', K, "perm: 'reports.write'", "perm: 'reports.read'"],
   ['issue not idempotent', I, 'if (earlier) return repeat(earlier);', ''],
   ['race not recovered', I, "e.kind === 'constraint'", "e.kind === 'conflict'"],
+  ['retry by id not recognised (L7)', I, 'if (same?.eventId === eventId) return toReport(same);', ''],
+  ['audit dated from ctx.now, not the stored day (L6)', I, '`Phát hành báo cáo ngày ${formatVNDate(report.reportDate)}', '`Phát hành báo cáo ngày ${formatVNDate(today)}'],
   ['report date in UTC', I, 'const today = todayVN(ctx.now);', 'const today = ctx.now.slice(0, 10) as ReturnType<typeof todayVN>;'],
   ['issuer from nothing', I, 'issuedBy: ctx.actor.profile.id,', 'issuedBy: null as never,'],
   ['UI shows issue to writers', S, "issue: can(ctx.actor, 'reports.issue', issueScope(event))", "issue: can(ctx.actor, 'reports.write', issueScope(event))"],

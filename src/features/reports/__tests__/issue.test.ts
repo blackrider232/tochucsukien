@@ -114,6 +114,45 @@ describe('reports.issueDailyReport', () => {
     expect(r).toMatchObject({ ok: true, value: { report: { reportDate: '2026-12-09' } } });
   });
 
+  it.each([
+    ['23:59:59 on 08/12', '2026-12-08T16:59:59.000Z', '2026-12-08', '08/12/2026 (T-5)'],
+    ['00:00:01 on 09/12', '2026-12-08T17:00:01.000Z', '2026-12-09', '09/12/2026 (T-4)'],
+  ])('issued at %s in Hà Nội, the report and its audit row carry that day', async (_at, now, day, label) => {
+    const { h, eventId } = await seeded();
+    h.clock.now = now as Instant;
+    const r = await h.issue(head, eventId);
+    expect(r).toMatchObject({ ok: true, value: { report: { reportDate: day } } });
+    expect(h.audits().at(-1)?.summary).toMatch(new RegExp(`^Phát hành báo cáo ngày ${label.replace(/[()]/g, '\\$&')}:`));
+  });
+
+  it('when the database stamps the next day (the request began at 23:59:59.9), the stored day is the one returned and audited', async () => {
+    const { h, eventId } = await seeded();
+    h.clock.now = '2026-12-08T16:59:59.900Z' as Instant;
+    const stampsNextDay = (db: Db): Db => ({
+      rpc: db.rpc.bind(db),
+      table(def) {
+        const t = db.table(def);
+        if (def.name !== 'sce_tcsk_daily_reports') return t;
+        return { ...t, insert: (draft) => t.insert({ ...draft, reportDate: '2026-12-09', workdaysToEvent: 4 } as typeof draft) } as typeof t;
+      },
+    });
+    const r = await h.runWith(head, stampsNextDay, 'reports.issueDailyReport', { eventId, id: newId<'DailyReport'>(), draft: ISSUE });
+    expect(r).toMatchObject({ ok: true, value: { already: false, report: { reportDate: '2026-12-09' } } });
+    expect(h.audits().at(-1)?.summary).toMatch(/^Phát hành báo cáo ngày 09\/12\/2026 \(T-4\):/);
+  });
+
+  it('a retry with the same id that lands after midnight converges on the report it issued', async () => {
+    const { h, eventId } = await seeded();
+    const id = newId<'DailyReport'>();
+    h.clock.now = '2026-12-08T16:59:59.000Z' as Instant;
+    const first = await h.issue(head, eventId, ISSUE, id);
+    h.clock.now = '2026-12-08T17:00:30.000Z' as Instant;
+    const retry = await h.issue(head, eventId, ISSUE, id);
+    if (!first.ok) throw new Error(first.message);
+    expect(retry).toMatchObject({ ok: true, value: { already: true, report: first.value.report } });
+    expect(await h.reports(eventId)).toHaveLength(1);
+  });
+
   it('takes nothing but the narrative from the client: figures, date and issuer in the payload are ignored', async () => {
     const { h, eventId } = await seeded();
     const forged = { ...ISSUE, figures: { progressPercent: 100 }, reportDate: '2026-01-01', issuedBy: admin.profile.id, progressPercent: 100 } as never;
