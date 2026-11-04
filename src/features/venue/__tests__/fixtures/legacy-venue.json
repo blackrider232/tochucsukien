@@ -36,11 +36,11 @@
     "evt_gone": { "hallId": "hall_ncc", "zones": [] }
   },
   "eventGuests": {
-    "evt_1": [{ "id": "g1", "name": "Nguyễn Văn A" }, { "id": "g2", "name": "Trần Thị B" }, { "id": "g3", "name": "Lê C" }, { "id": "gst_vip_01", "name": "Khách mẫu" }],
+    "evt_1": [{ "id": "g1", "name": "Nguyễn Văn A" }, { "id": "g2", "name": "Trần Thị B" }, { "id": "g3", "name": "Lê C" }, { "id": "gst_vip_01", "name": "Khách mẫu" }, { "id": "g4", "name": "" }, { "id": "g5", "name": "Hoàng Báo Vắng", "rsvpStatus": "declined" }],
     "evt_nohall": [{ "id": "g9", "name": "Phạm D" }]
   },
   "eventSeating": {
-    "evt_1": { "A-01": "g1", "B-40": "g2", "A-02": "g1", "X": "g3", "C-01": "ghost", "A-03": "gst_vip_01" },
+    "evt_1": { "A-01": "g1", "B-40": "g2", "A-02": "g1", "X": "g3", "C-01": "ghost", "A-03": "gst_vip_01", "C-02": "g4", "C-03": "g5" },
     "evt_nohall": { "A-05": "g9" },
     "evt_demo": { "A-01": "gst_vip_01" }
   },

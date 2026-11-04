@@ -9,7 +9,7 @@ import { useCommand } from '@/core/commands';
 import { matchesQuery } from '@/core/text';
 import { GUEST_GROUPS, isAttending, RSVP } from '@/core/vocab';
 import type { EventHall, HallTemplate, HallZone } from '../contract';
-import { findFreeSeat, formatCount, hallCapacity, orphanSeats, seatCodes, ZONE_COLORS, ZONE_GROUPS, zoneOccupancy, zoneOfSeat } from '../domain/halls';
+import { formatCount, hallCapacity, orphanSeats, seatCodes, ZONE_COLORS, ZONE_GROUPS, suggestSeat, zoneOccupancy, zoneOfSeat } from '../domain/halls';
 import { AutoAssignDialog, ChangeHallDialog, ZonesDialog } from './hall-dialogs';
 import { SeatDialog, seatCandidates } from './seat-dialog';
 import type { SeatGuestView, SeatingScreenData } from './screen-types';
@@ -83,7 +83,7 @@ export function SeatingView({ data }: { data: SeatingScreenData }) {
   };
   /** "Chưa xếp" shortcut (m4b §3.4, BUG-09): the first free seat for the guest's group, with the guest already picked. */
   const seatGuest = (g: SeatGuestView) => {
-    const code = findFreeSeat(hall, new Set(occupantOf.keys()), g.group);
+    const code = suggestSeat(hall, new Set(occupantOf.keys()), g.group);
     if (!code) return toast.warning('Hội trường đã hết ghế trống phù hợp');
     setOpen({ kind: 'seat', code, preselect: g });
   };

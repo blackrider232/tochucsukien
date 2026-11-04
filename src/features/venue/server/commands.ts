@@ -1,13 +1,14 @@
 // Every write of the venue feature. Each mutation audits and, where a reverse
 // exists, returns the inverse its undo runs. Seats change only through
-// writeSeatChanges(): each change names the occupant the client saw, so a seat
-// edited by someone else in the meantime is a conflict, never a silent eviction
-// (m4b BUG-06, BUG-09, BUG-17).
+// checkSeatChanges() then commitSeatChanges(): each change names the occupant
+// the client saw, so a seat edited by someone else after the check is a
+// conflict, never an eviction (m4b BUG-06, BUG-09, BUG-17). Undo payloads
+// travel through the client, so an undo is checked like any other write.
 
 import { z } from 'zod';
 import { newId, type BoothId, type BoothShiftId, type EventId, type GuestId, type HallTemplateId, type SeatCode, type Version } from '@/core/brand';
 import { CommandError, defineCommands, type AuditEntry, type CommandContext, type CommandSpec, type InputOf, type Inverse, type OutputOf, type Sig } from '@/core/commands';
-import type { Schema } from '@/core/db';
+import { DbError, type Schema } from '@/core/db';
 import type { RosterEntry } from '@/features/guests';
 import type { Booth, BoothShift, EventHall, HallTemplate, HallZone, SeatAssignment } from '../contract';
 import { AUTO_ASSIGN_MODES, planAutoAssign, seededRandom, type AutoAssignMode, type AutoAssignSummary } from '../domain/auto-assign';
@@ -22,6 +23,7 @@ import { boothShiftsTable, boothsTable, eventHallsTable, hallTemplatesTable, sea
 import { requireRoster } from './upstream';
 
 type HallState = { templateId: HallTemplateId | null; zones: ReadonlyArray<HallZone> };
+type Placed = { seatCode: SeatCode; guestId: GuestId };
 
 declare module '@/core/commands' {
   interface CommandMap {
@@ -31,7 +33,7 @@ declare module '@/core/commands' {
     'venue.releaseOrphans': Sig<{ eventId: EventId }, null>;
     'venue.setEventHall': Sig<{ eventId: EventId; version: Version | null; templateId: HallTemplateId; seats: SeatPolicy }, EventHall>;
     'venue.updateEventZones': Sig<{ eventId: EventId; version: Version; zones: ReadonlyArray<HallZone>; releaseOrphans: boolean }, EventHall>;
-    'venue.restoreEventHall': Sig<{ eventId: EventId; version: Version | null; hall: HallState | null; release: ReadonlyArray<SeatCode>; add: ReadonlyArray<{ seatCode: SeatCode; guestId: GuestId }> }, EventHall | null>;
+    'venue.restoreEventHall': Sig<{ eventId: EventId; version: Version | null; hall: HallState | null; release: ReadonlyArray<Placed>; add: ReadonlyArray<Placed> }, EventHall | null>;
     'venue.createHallTemplate': Sig<{ id: HallTemplateId; draft: HallTemplateDraft }, HallTemplate>;
     'venue.updateHallTemplate': Sig<{ id: HallTemplateId; version: Version; draft: HallTemplateDraft }, HallTemplate>;
     'venue.deleteHallTemplate': Sig<{ id: HallTemplateId; version: Version }, null>;
@@ -68,12 +70,13 @@ const seatsOf = (ctx: CommandContext, eventId: EventId) => ctx.db.table(seatsTab
 
 const nameOf = (roster: ReadonlyArray<RosterEntry> | null, id: GuestId) => roster?.find((g) => g.id === id)?.name ?? 'đại biểu';
 
+type CheckedSeats = { changes: SeatChange[]; roster: ReadonlyArray<RosterEntry> | null; current: SeatRow[] };
+
 /**
- * Applies seat changes after checking that each seat still holds `from`, that every newly seated guest exists, has not
- * declined, and either has no seat or leaves one named in the same changes. Rows are deleted before they are inserted,
- * so the unique (event, seat) and (event, guest) keys hold throughout.
+ * Checks seat changes against the seats as they are now: each seat still holds `from`, the seat exists in `hall`, and
+ * every newly seated guest exists, has not declined, and either has no seat or leaves one named in the same changes.
  */
-async function writeSeatChanges(ctx: CommandContext, eventId: EventId, hall: Pick<EventHall, 'zones'>, raw: ReadonlyArray<SeatChange>): Promise<{ changes: SeatChange[]; roster: ReadonlyArray<RosterEntry> | null; rows: SeatRow[] }> {
+async function checkSeatChanges(ctx: CommandContext, eventId: EventId, hall: Pick<EventHall, 'zones'>, raw: ReadonlyArray<SeatChange>): Promise<CheckedSeats> {
   const changes = raw.filter((c) => c.from !== c.to);
   if (new Set(changes.map((c) => c.seatCode)).size !== changes.length) throw new CommandError('invalid', 'Một ghế được chỉ định hai lần.');
   const incoming = changes.flatMap((c) => (c.to ? [c.to] : []));
@@ -96,11 +99,56 @@ async function writeSeatChanges(ctx: CommandContext, eventId: EventId, hall: Pic
     const seat = byGuest.get(guestId);
     if (seat && changed.get(seat.seatCode)?.from !== guestId) throw new CommandError('conflict', `${guest.name} đang ngồi ghế ${seat.seatCode}. Đang tải lại…`);
   }
+  return { changes, roster, current };
+}
 
-  const vacated = changes.filter((c) => c.from !== null).map((c) => bySeat.get(c.seatCode)!.id);
-  if (vacated.length > 0) await ctx.db.table(seatsTable).removeWhere({ eventId, id: vacated });
-  const rows = await ctx.db.table(seatsTable).insertMany(changes.flatMap((c) => (c.to ? [{ id: newId(), eventId, seatCode: c.seatCode, guestId: c.to }] : [])));
-  return { changes, roster, rows };
+/** Another writer took a seat or a guest between the check and the write; the batch was rolled back completely. */
+class SeatRace extends CommandError {
+  constructor() {
+    super('conflict', 'Ghế vừa được người khác thay đổi trong lúc lưu, nên chưa có thay đổi nào. Đang tải lại…');
+  }
+}
+
+/**
+ * Writes checked changes without a transaction (the pipeline has none). Rows that cannot clash with this batch (a guest
+ * new to the hall on an empty seat) go in before anything is deleted; the rest are deleted and then inserted. When a
+ * write fails, the new rows are removed and the deleted ones put back. A deleted row whose seat or guest another
+ * writer took meanwhile cannot come back: that loss is audited and named, never reported as success.
+ */
+async function commitSeatChanges(ctx: CommandContext, eventId: EventId, { changes, roster, current }: CheckedSeats): Promise<SeatRow[]> {
+  const table = ctx.db.table(seatsTable);
+  const bySeat = new Map(current.map((s) => [s.seatCode, s]));
+  const vacated = changes.flatMap((c) => (c.from ? [bySeat.get(c.seatCode)!] : []));
+  const leaving = new Set(vacated.map((s) => s.guestId));
+  const drafts = changes.flatMap((c) => (c.to ? [{ id: newId(), eventId, seatCode: c.seatCode, guestId: c.to, safe: c.from === null && !leaving.has(c.to) }] : []));
+  const rowsOf = (safe: boolean) => drafts.filter((d) => d.safe === safe).map(({ safe: _, ...d }) => d);
+  try {
+    const early = await table.insertMany(rowsOf(true));
+    if (vacated.length > 0) await table.removeWhere({ eventId, id: vacated.map((s) => s.id) });
+    return [...early, ...(await table.insertMany(rowsOf(false)))];
+  } catch (e) {
+    if (drafts.length > 0) await table.removeWhere({ eventId, id: drafts.map((d) => d.id) });
+    const lost: SeatRow[] = [];
+    for (const s of vacated) {
+      try {
+        await table.insert({ id: s.id, eventId, seatCode: s.seatCode, guestId: s.guestId });
+      } catch {
+        lost.push(s);
+      }
+    }
+    if (lost.length === 0) {
+      if (e instanceof DbError && e.kind === 'constraint') throw new SeatRace();
+      throw e;
+    }
+    const loss = lost.map((s) => `${nameOf(roster, s.guestId)} mất ghế ${s.seatCode}`).join('; ');
+    await ctx.db.rpc('sce_tcsk_write_audit', audit('XẾP CHỖ NGỒI', `Lưu xếp chỗ thất bại vì ghế bị thay đổi đồng thời; đã hoàn nguyên, riêng ${loss} (ghế đã có người khác)`, eventId, 'seating', eventId));
+    throw new CommandError('conflict', `Ghế vừa được người khác thay đổi trong lúc lưu. Đã hoàn nguyên, riêng ${loss} vì ghế đã có người khác ngồi; vui lòng xếp lại. Đang tải lại…`);
+  }
+}
+
+async function writeSeatChanges(ctx: CommandContext, eventId: EventId, hall: Pick<EventHall, 'zones'>, raw: ReadonlyArray<SeatChange>) {
+  const checked = await checkSeatChanges(ctx, eventId, hall, raw);
+  return { ...checked, rows: await commitSeatChanges(ctx, eventId, checked) };
 }
 
 /** The reverse changes, minus seats the hall no longer has (a guest is not put back on an orphan seat). */
@@ -139,7 +187,7 @@ const applySeats: Spec<'venue.applySeats'> = {
   },
 };
 
-/** Asked by live (walk-in) and the guest list. 'auto' picks findFreeSeat for the guest's group; a seated guest keeps the seat. */
+/** Asked by live (walk-in) and the guest list. 'auto' picks findFreeSeat for the guest's group, again once if another desk took that seat first; a seated guest keeps the seat. */
 const assignSeat: Spec<'venue.assignSeat'> = {
   kind: 'mutation',
   input: asSchema(z.object({ eventId: eventIdSchema, guestId: guestIdSchema, seatCode: z.union([z.literal('auto'), seatCodeSchema]) })),
@@ -149,22 +197,31 @@ const assignSeat: Spec<'venue.assignSeat'> = {
     const roster = await requireRoster(ctx, eventId);
     const guest = roster.find((g) => g.id === guestId);
     if (!guest) throw new CommandError('not_found', 'Không tìm thấy đại biểu trong danh sách khách mời của sự kiện.');
-    const seats = await seatsOf(ctx, eventId);
-    const own = seats.find((s) => s.guestId === guestId);
-    const target = seatCode === 'auto'
-      ? (own && zoneOfSeat(hall, own.seatCode) ? own.seatCode : findFreeSeat(hall, new Set(seats.map((s) => s.seatCode)), guest.group))
-      : seatCode;
-    const noop = (summary: string) => audit('XẾP CHỖ NGỒI', summary, eventId, 'seating', guestId);
-    if (!target) return { value: null, audit: noop(`Không còn ghế trống phù hợp cho ${guest.name}`) };
-    if (own?.seatCode === target) return { value: toSeat(own), audit: noop(`${guest.name} giữ nguyên ghế ${target}`) };
-    const occupant = seats.find((s) => s.seatCode === target);
-    if (occupant) throw new CommandError('conflict', `Ghế ${target} đã có ${nameOf(roster, occupant.guestId)} ngồi.`);
-    const changes: SeatChange[] = [{ seatCode: target, from: null, to: guestId }, ...(own ? [{ seatCode: own.seatCode, from: guestId, to: null }] : [])];
-    const done = await writeSeatChanges(ctx, eventId, hall, changes);
-    return {
-      value: toSeat(done.rows[0]!),
-      ...seatOutcome(eventId, hall, 'XẾP CHỖ NGỒI', `Xếp chỗ: ${seatSummary(done.changes, roster)}`, done.changes, `Xếp ${guest.name} vào ghế ${target}`),
+    const place = async () => {
+      const seats = await seatsOf(ctx, eventId);
+      const own = seats.find((s) => s.guestId === guestId);
+      const target = seatCode === 'auto'
+        ? (own && zoneOfSeat(hall, own.seatCode) ? own.seatCode : findFreeSeat(hall, new Set(seats.map((s) => s.seatCode)), guest.group))
+        : seatCode;
+      const noop = (summary: string) => audit('XẾP CHỖ NGỒI', summary, eventId, 'seating', guestId);
+      if (!target) return { value: null, audit: noop(`Không còn ghế trống phù hợp cho ${guest.name}`) };
+      if (own?.seatCode === target) return { value: toSeat(own), audit: noop(`${guest.name} giữ nguyên ghế ${target}`) };
+      const occupant = seats.find((s) => s.seatCode === target);
+      if (occupant) throw new CommandError('conflict', `Ghế ${target} đã có ${nameOf(roster, occupant.guestId)} ngồi.`);
+      const changes: SeatChange[] = [{ seatCode: target, from: null, to: guestId }, ...(own ? [{ seatCode: own.seatCode, from: guestId, to: null }] : [])];
+      const done = await writeSeatChanges(ctx, eventId, hall, changes);
+      return {
+        value: toSeat(done.rows[0]!),
+        ...seatOutcome(eventId, hall, 'XẾP CHỖ NGỒI', `Xếp chỗ: ${seatSummary(done.changes, roster)}`, done.changes, `Xếp ${guest.name} vào ghế ${target}`),
+      };
     };
+    try {
+      return await place();
+    } catch (e) {
+      // Two desks seating walk-ins at once pick the same free seat; the one that loses picks again, once.
+      if (seatCode !== 'auto' || !(e instanceof CommandError) || e.kind !== 'conflict') throw e;
+      return place();
+    }
   },
 };
 
@@ -248,26 +305,43 @@ const releaseOrphans: Spec<'venue.releaseOrphans'> = {
 
 // ---------- the event's hall ----------
 
-/** Writes hall and seats in one place for setEventHall, updateEventZones and their undo; returns the undo of what it did. */
-async function writeHall(ctx: CommandContext, eventId: EventId, version: Version | null, hall: HallState | null, release: ReadonlyArray<SeatCode>, add: ReadonlyArray<{ seatCode: SeatCode; guestId: GuestId }>) {
+/** One change per seat: who `release` takes off it and who `add` puts on it. */
+function hallSeatChanges(release: ReadonlyArray<Placed>, add: ReadonlyArray<Placed>): SeatChange[] {
+  for (const list of [release, add]) if (new Set(list.map((s) => s.seatCode)).size !== list.length) throw new CommandError('invalid', 'Một ghế được chỉ định hai lần.');
+  const bySeat = new Map<SeatCode, SeatChange>(release.map((r) => [r.seatCode, { seatCode: r.seatCode, from: r.guestId, to: null }]));
+  for (const a of add) bySeat.set(a.seatCode, { seatCode: a.seatCode, from: bySeat.get(a.seatCode)?.from ?? null, to: a.guestId });
+  return [...bySeat.values()];
+}
+
+const stateOf = (row: EventHallRow): HallState => ({ templateId: row.templateId, zones: row.zones });
+
+/** Makes the event's hall `state` (none when null), starting from `row`, the hall as it is now. */
+async function putHall(ctx: CommandContext, eventId: EventId, row: EventHallRow | null, state: HallState | null, id: string = newId()): Promise<EventHallRow | null> {
+  const table = ctx.db.table(eventHallsTable);
+  if (state && row) return table.update(row.id, { templateId: state.templateId, zones: [...state.zones] }, { expectedVersion: row.version });
+  if (state) return table.insert({ id, eventId, templateId: state.templateId, zones: [...state.zones] });
+  if (row) await table.remove(row.id, { expectedVersion: row.version });
+  return null;
+}
+
+/**
+ * Writes hall and seats for setEventHall, updateEventZones and their undo, and returns the undo of what it did. Every
+ * seat is checked against the new hall before anything is written: `release` must still hold its guest, and `add`
+ * follows the rules of any seat write. When the seat write fails, the hall is put back, so nothing is half applied.
+ */
+async function writeHall(ctx: CommandContext, eventId: EventId, version: Version | null, hall: HallState | null, release: ReadonlyArray<Placed>, add: ReadonlyArray<Placed>) {
   const before = await hallRow(ctx, eventId);
   if ((before?.version ?? null) !== version) throw new CommandError('conflict', 'Cấu hình hội trường vừa được người khác thay đổi. Đang tải lại…');
-  const current = await seatsOf(ctx, eventId);
-  const released = current.filter((s) => release.includes(s.seatCode));
-  let after: EventHallRow | null = null;
-  if (hall && before) after = await ctx.db.table(eventHallsTable).update(before.id, { templateId: hall.templateId, zones: [...hall.zones] }, { expectedVersion: before.version });
-  else if (hall) after = await ctx.db.table(eventHallsTable).insert({ id: newId(), eventId, templateId: hall.templateId, zones: [...hall.zones] });
-  else if (before) await ctx.db.table(eventHallsTable).remove(before.id, { expectedVersion: before.version });
-  if (released.length > 0) await ctx.db.table(seatsTable).removeWhere({ eventId, id: released.map((s) => s.id) });
-  if (add.length > 0) await ctx.db.table(seatsTable).insertMany(add.map((s) => ({ id: newId(), eventId, seatCode: s.seatCode, guestId: s.guestId })));
-  const undo: InputOf<'venue.restoreEventHall'> = {
-    eventId,
-    version: after?.version ?? null,
-    hall: before ? { templateId: before.templateId, zones: before.zones } : null,
-    release: add.map((s) => s.seatCode),
-    add: released.map((s) => ({ seatCode: s.seatCode, guestId: s.guestId })),
-  };
-  return { after, released, undo };
+  const checked = await checkSeatChanges(ctx, eventId, hall ?? { zones: [] }, hallSeatChanges(release, add));
+  const after = await putHall(ctx, eventId, before, hall);
+  try {
+    await commitSeatChanges(ctx, eventId, checked);
+  } catch (e) {
+    await putHall(ctx, eventId, after, before && stateOf(before), before?.id);
+    throw e;
+  }
+  const undo: InputOf<'venue.restoreEventHall'> = { eventId, version: after?.version ?? null, hall: before && stateOf(before), release: add, add: release };
+  return { after, undo };
 }
 
 const toHall = (row: EventHallRow): EventHall => ({ eventId: row.eventId, templateId: row.templateId, zones: row.zones, version: row.version });
@@ -288,9 +362,9 @@ const setEventHall: Spec<'venue.setEventHall'> = {
     const kept = policy === 'release' ? [] : before ? remapSeats(before.zones, template.zones, current).kept : current.filter((s) => zoneOfSeat(template, s.seatCode));
     const keptSame = kept.filter((k) => current.some((c) => c.guestId === k.guestId && c.seatCode === k.seatCode));
     const moved = kept.filter((k) => !keptSame.includes(k));
-    const release = current.filter((c) => !keptSame.some((k) => k.guestId === c.guestId)).map((c) => c.seatCode);
-    const { after, released, undo } = await writeHall(ctx, eventId, version, { templateId, zones: template.zones }, release, moved);
-    const lost = released.length - moved.length;
+    const release = current.filter((c) => !keptSame.some((k) => k.guestId === c.guestId)).map(({ seatCode, guestId }) => ({ seatCode, guestId }));
+    const { after, undo } = await writeHall(ctx, eventId, version, { templateId, zones: template.zones }, release, moved.map(({ seatCode, guestId }) => ({ seatCode, guestId })));
+    const lost = release.length - moved.length;
     return {
       value: toHall(after!),
       audit: audit('CẤU HÌNH HỘI TRƯỜNG', `Chuyển sang hội trường "${template.name}"${lost > 0 ? `, hủy xếp chỗ ${lost} đại biểu` : ''}`, eventId, 'event_hall', eventId),
@@ -318,7 +392,7 @@ const updateEventZones: Spec<'venue.updateEventZones'> = {
     if (orphans.length > 0 && !releaseOrphans) {
       throw new CommandError('conflict', `Giảm số ghế sẽ hủy xếp chỗ của ${orphans.length} đại biểu (${orphans.map((s) => s.seatCode).join(', ')}). Hãy xác nhận để tiếp tục.`);
     }
-    const { after, undo } = await writeHall(ctx, eventId, version, { templateId: before.templateId, zones }, orphans.map((s) => s.seatCode), []);
+    const { after, undo } = await writeHall(ctx, eventId, version, { templateId: before.templateId, zones }, orphans.map(({ seatCode, guestId }) => ({ seatCode, guestId })), []);
     return {
       value: toHall(after!),
       audit: audit('CẤU HÌNH HỘI TRƯỜNG', `Cấu hình phân khu: ${zones.map((z) => `${z.name} ${z.seatCount} ghế`).join('; ')}${orphans.length > 0 ? `; hủy xếp chỗ ${orphans.length} ghế` : ''}`, eventId, 'event_hall', eventId),
@@ -327,15 +401,17 @@ const updateEventZones: Spec<'venue.updateEventZones'> = {
   },
 };
 
-/** The undo of a hall change: puts back the hall (or none) and exactly the seats the change released or added. */
+/** The undo of a hall change: puts back the hall (or none) and the seats the change released or added, if they are still as it left them. */
+const placedSchema = z.object({ seatCode: seatCodeSchema, guestId: guestIdSchema });
+
 const restoreEventHall: Spec<'venue.restoreEventHall'> = {
   kind: 'mutation',
   input: asSchema(z.object({
     eventId: eventIdSchema,
     version: versionSchema.nullable(),
     hall: z.object({ templateId: hallTemplateIdSchema.nullable(), zones: zonesSchema }).nullable(),
-    release: z.array(seatCodeSchema).max(5000),
-    add: z.array(z.object({ seatCode: seatCodeSchema, guestId: guestIdSchema })).max(5000),
+    release: z.array(placedSchema).max(5000),
+    add: z.array(placedSchema).max(5000),
   })),
   authorize: seating,
   async run(ctx, { eventId, version, hall, release, add }) {

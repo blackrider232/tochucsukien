@@ -6,7 +6,7 @@ import { newId, type EventId, type GuestId, type Instant, type IsoDate, type Ver
 import type { CommandId, CommandResult, InputOf, Inverse, OutputOf } from '@/core/commands';
 import { commandLookup, runCommand } from '@/core/commands/pipeline';
 import { buildWorkCalendar } from '@/core/dates';
-import { memoryDb } from '@/core/db';
+import { memoryDb, type Db } from '@/core/db';
 import { inspectMemoryDb } from '@/core/db/memory';
 import { DEFAULT_SETTINGS } from '@/core/settings';
 import { testActor } from '@/core/testing/actors';
@@ -33,6 +33,9 @@ export function harness() {
    */
   const runWithoutRls = <K extends CommandId>(actor: Actor, id: K, input: InputOf<K>) =>
     runCommand({ ...ctx(actor), db: memoryDb(seed, admin) }, lookup, id, input) as Promise<CommandResult<OutputOf<K>>>;
+  /** Runs with the command's Db passed through `wrap`, so a test can let another writer act in the middle of a command. */
+  const runWith = <K extends CommandId>(actor: Actor, wrap: (db: Db) => Db, id: K, input: InputOf<K>) =>
+    runCommand({ ...ctx(actor), db: wrap(memoryDb(seed, actor)) }, lookup, id, input) as Promise<CommandResult<OutputOf<K>>>;
   const ok = async <K extends CommandId>(actor: Actor, id: K, input: InputOf<K>) => {
     const r = await run(actor, id, input);
     if (!r.ok) throw new Error(`${id} failed: ${r.kind} ${r.message} ${JSON.stringify(r.fieldErrors ?? {})}`);
@@ -62,5 +65,5 @@ export function harness() {
   const rows = (table: string) => inspectMemoryDb(seed, table);
   const seats = async (eventId: EventId) => Object.fromEntries((await readSeating(ctx(admin), eventId)).map((s) => [s.seatCode, s.guestId]));
   const hall = (eventId: EventId) => readEventHall(ctx(admin), eventId);
-  return { seed, ctx, run, runWithoutRls, ok, undo, createEvent, addGuest, audits, rows, seats, hall };
+  return { seed, ctx, run, runWithoutRls, runWith, ok, undo, createEvent, addGuest, audits, rows, seats, hall };
 }

@@ -3,6 +3,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildWorkCalendar } from '@/core/dates';
 import { deterministicIds, normalizeBlob, type ImportContext, type LegacyBlob } from '@/core/legacy';
+import { legacyImporter as guestsImporter } from '@/features/guests/server';
+import { legacyImporter as progressImporter } from '@/features/progress/server';
 import { zonesSchema } from '../domain/schemas';
 import { defaultHallId } from '../server/default-hall-ids';
 import { legacyImporter } from '../server/legacy-importer';
@@ -66,6 +68,21 @@ describe('venue legacy importer', () => {
     expect(m).toContain('Ghế A-03 của khách mẫu "gst_vip_01" không được nhập.');
     expect(m).toContain('Ghế B-40 không có trong sơ đồ hội trường của sự kiện; vẫn nhập để cán bộ giải phóng.');
     expect(plan().issues).toContainEqual(expect.objectContaining({ severity: 'orphan', blobKey: 'eventSeating', legacyId: 'evt_demo' }));
+  });
+
+  it('writes seats only for guests the guests importer writes and events progress writes, so the foreign keys hold', () => {
+    const guestIds = new Set(guestsImporter.plan(blob, ctx).batches[0]!.rows.map((r) => r.id));
+    const eventIds = new Set(progressImporter.plan(blob, ctx).batches.find((b) => b.table === 'sce_tcsk_events')!.rows.map((r) => r.id));
+    for (const s of rows('sce_tcsk_seat_assignments')) {
+      expect(guestIds).toContain(s.guest_id);
+      expect(eventIds).toContain(s.event_id);
+    }
+    expect(messages()).toContain('Ghế C-02 trỏ tới khách "g4" không có trong danh sách; đã bỏ.');
+  });
+
+  it('drops the seat of a guest who declined, and reports it', () => {
+    expect(rows('sce_tcsk_seat_assignments').some((s) => s.seat_code === 'C-03')).toBe(false);
+    expect(plan().issues).toContainEqual({ severity: 'coerced', blobKey: 'eventSeating', legacyId: 'evt_1', message: 'Ghế C-03 của "Hoàng Báo Vắng" không được nhập vì đại biểu đã báo vắng.' });
   });
 
   it('imports booths: demo booths skipped, codes normalized, duplicates renumbered, status and subsidy made valid (m4b BUG-02, BUG-21, BUG-22)', () => {

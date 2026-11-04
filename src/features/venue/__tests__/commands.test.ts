@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { newId, type IsoDate, type SeatCode, type Version } from '@/core/brand';
 import type { CommandId, InputOf } from '@/core/commands';
+import type { Db, Table } from '@/core/db';
 import { PTDN, testActor, XTDT } from '@/core/testing/actors';
 import type { HallZone } from '../contract';
 import { commands } from '../server/commands';
@@ -19,6 +20,29 @@ const ncc = defaultHallId('hall_ncc');
 const seat = (c: string) => c as SeatCode;
 
 afterEach(() => rosterReady(true));
+
+/** A Db that runs `hook` once, right after the `nth` call of `op` on `table`: a second writer acting in the middle of a command. */
+function interleave(table: string, op: 'list' | 'removeWhere' | 'update', hook: () => Promise<unknown>, nth = 1) {
+  return (db: Db): Db => {
+    let calls = 0;
+    return {
+      ...db,
+      table: (def) => {
+        const t = db.table(def);
+        if (def.name !== table) return t;
+        const write = t[op] as (...args: unknown[]) => Promise<unknown>;
+        return {
+          ...t,
+          [op]: async (...args: unknown[]) => {
+            const out = await write(...args);
+            if (++calls === nth) await hook();
+            return out;
+          },
+        } as typeof t as Table<never> as never;
+      },
+    };
+  };
+}
 
 async function setup() {
   const h = harness();
@@ -59,12 +83,22 @@ describe('venue.assignSeat (asked by live)', () => {
     expect(await h.seats(eventId)).toEqual({ 'A-05': g.vip1 });
   });
 
-  it("'auto' uses findFreeSeat on the event's zones and keeps a seated guest's seat (m5 BUG-19)", async () => {
+  it("'auto' takes the first free seat outside the VIP zone (decision 10) and keeps a seated guest's seat (m5 BUG-19)", async () => {
     const { h, eventId, g } = await setup();
+    expect((await h.ok(xtdtUser, 'venue.assignSeat', { eventId, guestId: g.vip1, seatCode: 'auto' })).value?.seatCode).toBe('B-01');
+    await h.ok(xtdtUser, 'venue.releaseGuestSeat', { eventId, guestId: g.vip1 });
     expect((await h.ok(xtdtUser, 'venue.assignSeat', { eventId, guestId: g.so1, seatCode: 'auto' })).value?.seatCode).toBe('B-01');
-    expect((await h.ok(xtdtUser, 'venue.assignSeat', { eventId, guestId: g.dn1, seatCode: 'auto' })).value?.seatCode).toBe('C-01');
+    expect((await h.ok(xtdtUser, 'venue.assignSeat', { eventId, guestId: g.dn1, seatCode: 'auto' })).value?.seatCode).toBe('B-02');
     expect((await h.ok(xtdtUser, 'venue.assignSeat', { eventId, guestId: g.so1, seatCode: 'auto' })).value?.seatCode).toBe('B-01');
     expect(h.rows('sce_tcsk_seat_assignments')).toHaveLength(2);
+  });
+
+  it.each([['after the pick', 1], ['after the check', 2]])("two desks seating walk-ins with 'auto' at once both get a seat when the rival acts %s (review finding 4)", async (_, nth) => {
+    const { h, eventId, g } = await setup();
+    const rival = () => h.ok(admin, 'venue.assignSeat', { eventId, guestId: g.dn1, seatCode: seat('B-01') });
+    const r = await h.runWith(xtdtUser, interleave('sce_tcsk_seat_assignments', 'list', rival, nth), 'venue.assignSeat', { eventId, guestId: g.so1, seatCode: 'auto' });
+    expect(r).toMatchObject({ ok: true, value: { seatCode: 'B-02' } });
+    expect(await h.seats(eventId)).toEqual({ 'B-01': g.dn1, 'B-02': g.so1 });
   });
 
   it('refuses a declined guest, a seat the hall does not have, and a guest of another event', async () => {
@@ -113,6 +147,81 @@ describe('venue.applySeats (seat dialog, swap, every undo)', () => {
     expect(await h.run(xtdtUser, 'venue.applySeats', { eventId, changes: [{ seatCode: seat('A-01'), from: null, to: g.vip1 }, { seatCode: seat('A-02'), from: null, to: g.vip1 }] })).toMatchObject({ ok: false, kind: 'invalid' });
     expect(await h.run(xtdtUser, 'venue.applySeats', { eventId, changes: [{ seatCode: seat('A-01'), from: null, to: g.vip1 }, { seatCode: seat('A-01'), from: null, to: g.vip2 }] })).toMatchObject({ ok: false, kind: 'invalid' });
     expect(h.rows('sce_tcsk_seat_assignments')).toHaveLength(0);
+  });
+});
+
+describe('a seat batch raced by another writer (no transaction, review finding 2)', () => {
+  it('a swap raced between its delete and insert rolls back, says who lost a seat, and audits that loss', async () => {
+    const { h, eventId, g } = await setup();
+    await h.ok(xtdtUser, 'venue.assignSeat', { eventId, guestId: g.vip1, seatCode: seat('A-01') });
+    await h.ok(xtdtUser, 'venue.assignSeat', { eventId, guestId: g.so1, seatCode: seat('B-02') });
+    const rival = () => h.ok(admin, 'venue.assignSeat', { eventId, guestId: g.dn1, seatCode: seat('A-01') });
+    const swap = await h.runWith(xtdtUser, interleave('sce_tcsk_seat_assignments', 'removeWhere', rival), 'venue.applySeats', {
+      eventId, changes: [{ seatCode: seat('A-01'), from: g.vip1, to: g.so1 }, { seatCode: seat('B-02'), from: g.so1, to: g.vip1 }],
+    });
+    expect(swap).toMatchObject({ ok: false, kind: 'conflict', message: expect.stringContaining('Nguyễn Văn VIP mất ghế A-01') });
+    expect(await h.seats(eventId)).toEqual({ 'A-01': g.dn1, 'B-02': g.so1 });
+    expect(h.audits().at(-1)).toMatchObject({ action: 'XẾP CHỖ NGỒI', summary: expect.stringContaining('Nguyễn Văn VIP mất ghế A-01') });
+  });
+
+  it('a move raced on its target seat puts the guest back and changes nothing else', async () => {
+    const { h, eventId, g } = await setup();
+    await h.ok(xtdtUser, 'venue.assignSeat', { eventId, guestId: g.vip1, seatCode: seat('A-01') });
+    const audited = h.audits().length;
+    const rival = () => h.ok(admin, 'venue.assignSeat', { eventId, guestId: g.dn1, seatCode: seat('A-05') });
+    const move = await h.runWith(xtdtUser, interleave('sce_tcsk_seat_assignments', 'removeWhere', rival), 'venue.applySeats', {
+      eventId, changes: [{ seatCode: seat('A-01'), from: g.vip1, to: null }, { seatCode: seat('A-05'), from: null, to: g.vip1 }],
+    });
+    expect(move).toMatchObject({ ok: false, kind: 'conflict', message: 'Ghế vừa được người khác thay đổi trong lúc lưu, nên chưa có thay đổi nào. Đang tải lại…' });
+    expect(await h.seats(eventId)).toEqual({ 'A-01': g.vip1, 'A-05': g.dn1 });
+    expect(h.audits()).toHaveLength(audited + 1);
+  });
+});
+
+describe('undo of a hall change (venue.restoreEventHall, review findings 1 and 3)', () => {
+  it('refuses when a seat it would free now holds someone else, and leaves hall and seats unchanged', async () => {
+    const { h, eventId, g } = await setup();
+    const xHall = newId<'HallTemplate'>();
+    const ubndZones = (await h.hall(eventId))!.zones;
+    await h.ok(admin, 'venue.createHallTemplate', { id: xHall, draft: { name: 'Hội trường X', location: '', description: '', zones: ubndZones.map((z, i) => (i === 0 ? { ...z, key: 'X', prefix: 'X-' } : z)) } });
+    await h.ok(xtdtUser, 'venue.assignSeat', { eventId, guestId: g.vip1, seatCode: seat('A-03') });
+    const change = await h.ok(xtdtUser, 'venue.setEventHall', { eventId, version: (await h.hall(eventId))!.version, templateId: xHall, seats: 'remap' });
+    expect(await h.seats(eventId)).toEqual({ 'X-03': g.vip1 });
+    await h.ok(admin, 'venue.applySeats', { eventId, changes: [{ seatCode: seat('X-03'), from: g.vip1, to: g.so1 }] });
+    const hallBefore = await h.hall(eventId);
+
+    const undo = await h.undo(xtdtUser, change.inverse);
+    expect(undo).toMatchObject({ ok: false, kind: 'conflict', message: 'Ghế X-03 vừa được người khác thay đổi. Đang tải lại…' });
+    expect(await h.hall(eventId)).toEqual(hallBefore);
+    expect(await h.seats(eventId)).toEqual({ 'X-03': g.so1 });
+  });
+
+  it('a direct call cannot seat a declined guest, use a seat the hall lacks, give a guest two seats or evict anyone', async () => {
+    const { h, eventId, g } = await setup();
+    await h.ok(xtdtUser, 'venue.assignSeat', { eventId, guestId: g.vip1, seatCode: seat('A-01') });
+    const hall = (await h.hall(eventId))!;
+    const restore = (add: Array<{ seatCode: SeatCode; guestId: typeof g.vip1 }>) =>
+      h.run(xtdtUser, 'venue.restoreEventHall', { eventId, version: hall.version, hall: { templateId: hall.templateId, zones: hall.zones }, release: [], add });
+    expect(await restore([{ seatCode: seat('C-02'), guestId: g.declined }])).toMatchObject({ ok: false, kind: 'invalid', message: 'Vũ Báo Vắng đã báo vắng, không xếp chỗ.' });
+    expect(await restore([{ seatCode: seat('Q-99'), guestId: g.so1 }])).toMatchObject({ ok: false, kind: 'invalid', message: 'Ghế Q-99 không có trong sơ đồ hội trường.' });
+    expect(await restore([{ seatCode: seat('A-02'), guestId: g.vip1 }])).toMatchObject({ ok: false, kind: 'conflict' });
+    expect(await restore([{ seatCode: seat('A-01'), guestId: g.so1 }])).toMatchObject({ ok: false, kind: 'conflict' });
+    expect(await h.seats(eventId)).toEqual({ 'A-01': g.vip1 });
+    expect(await h.hall(eventId)).toEqual(hall);
+  });
+
+  it('undoing a zone shrink raced on its seat leaves the hall and the seats as they were', async () => {
+    const { h, eventId, g } = await setup();
+    await h.ok(xtdtUser, 'venue.assignSeat', { eventId, guestId: g.so1, seatCode: seat('B-18') });
+    const hall = (await h.hall(eventId))!;
+    const smaller = hall.zones.map((z): HallZone => (z.key === 'B' ? { ...z, seatCount: 10 } : z));
+    const shrink = await h.ok(xtdtUser, 'venue.updateEventZones', { eventId, version: hall.version, zones: smaller, releaseOrphans: true });
+    const rival = () => h.ok(admin, 'venue.assignSeat', { eventId, guestId: g.so1, seatCode: seat('C-01') });
+    const undo = shrink.inverse!;
+    const r = await h.runWith(xtdtUser, interleave('sce_tcsk_event_halls', 'update', rival), undo.command, undo.input as never);
+    expect(r).toMatchObject({ ok: false, kind: 'conflict' });
+    expect((await h.hall(eventId))!.zones.find((z) => z.key === 'B')!.seatCount).toBe(10);
+    expect(await h.seats(eventId)).toEqual({ 'C-01': g.so1 });
   });
 });
 
@@ -221,6 +330,16 @@ describe('the event hall', () => {
     expect(await h.run(xtdtUser, 'venue.updateEventZones', { eventId, version: latest.version, zones: [...hall.zones, { ...hall.zones[0]!, key: 'D', prefix: 'D-' }], releaseOrphans: true })).toMatchObject({ ok: false, kind: 'invalid' });
   });
 
+  it('the undo of a seat command never puts a guest back on a seat the hall no longer has', async () => {
+    const { h, eventId, g } = await setup();
+    await h.ok(xtdtUser, 'venue.assignSeat', { eventId, guestId: g.vip1, seatCode: seat('A-01') });
+    await h.ctx(admin).db.table((await import('../server/tables')).seatsTable).insert({ id: newId(), eventId, seatCode: seat('Z-01'), guestId: g.dn1 });
+    const r = await h.ok(xtdtUser, 'venue.clearSeats', { eventId });
+    expect(r.inverse?.input).toEqual({ eventId, changes: [{ seatCode: 'A-01', from: null, to: g.vip1 }] });
+    expect((await h.undo(xtdtUser, r.inverse)).ok).toBe(true);
+    expect(await h.seats(eventId)).toEqual({ 'A-01': g.vip1 });
+  });
+
   it('releaseOrphans frees the seats an imported or shrunk hall no longer has', async () => {
     const { h, eventId, g } = await setup();
     await h.ctx(admin).db.table((await import('../server/tables')).seatsTable).insert({ id: newId(), eventId, seatCode: seat('Z-01'), guestId: g.dn1 });
@@ -305,6 +424,7 @@ describe('booths and duty shifts', () => {
     expect(edited.value).toMatchObject({ status: 'available', company: '' });
     const removed = await h.ok(xtdtUser, 'venue.deleteBooth', { eventId, id, version: edited.value.version });
     expect(h.rows('sce_tcsk_booths')).toHaveLength(0);
+    expect(h.audits().at(-1)).toMatchObject({ action: 'XÓA GIAN HÀNG', summary: 'Xóa gian hàng A01', entity: 'booth', entity_id: id });
     await h.undo(xtdtUser, removed.inverse);
     expect(h.rows('sce_tcsk_booths')).toEqual([expect.objectContaining({ id, code: 'A01', status: 'available' })]);
   });
