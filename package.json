@@ -19,15 +19,18 @@
     "check:contract": "tsx scripts/check-contract.ts"
   },
   "dependencies": {
+    "@hookform/resolvers": "7.0.2",
     "@serwist/next": "9.5.13",
     "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "2.118.0",
     "exceljs": "4.4.0",
     "isomorphic-dompurify": "4.6.0",
+    "lucide-react": "1.67.0",
     "next": "16.4.5",
     "qrcode": "1.5.4",
     "react": "19.3.1",
     "react-dom": "19.3.1",
+    "react-hook-form": "7.91.0",
     "serwist": "9.5.13",
     "zod": "4.6.7"
   },
@@ -35,7 +38,9 @@
     "@electric-sql/pglite": "0.5.15",
     "@tailwindcss/postcss": "4.3.4",
     "@testing-library/dom": "10.4.2",
+    "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.8",
     "@types/node": "26.6.6",
     "@types/qrcode": "1.5.6",
     "@types/react": "19.3.0",
