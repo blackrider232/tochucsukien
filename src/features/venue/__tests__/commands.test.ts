@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { newId, type IsoDate, type SeatCode, type Version } from '@/core/brand';
 import type { CommandId, InputOf } from '@/core/commands';
+import type { Db, Table } from '@/core/db';
 import { PTDN, testActor, XTDT } from '@/core/testing/actors';
 import type { HallZone } from '../contract';
 import { commands } from '../server/commands';
@@ -19,6 +20,32 @@ const ncc = defaultHallId('hall_ncc');
 const seat = (c: string) => c as SeatCode;
 
 afterEach(() => rosterReady(true));
+
+/** A Db that runs `hook` once, right after the first `op` on `table`: a second writer acting in the middle of a command. */
+function interleave(table: string, op: 'removeWhere' | 'update', hook: () => Promise<unknown>) {
+  return (db: Db): Db => {
+    let fired = false;
+    return {
+      ...db,
+      table: (def) => {
+        const t = db.table(def);
+        if (def.name !== table) return t;
+        const write = t[op] as (...args: unknown[]) => Promise<unknown>;
+        return {
+          ...t,
+          [op]: async (...args: unknown[]) => {
+            const out = await write(...args);
+            if (!fired) {
+              fired = true;
+              await hook();
+            }
+            return out;
+          },
+        } as typeof t as Table<never> as never;
+      },
+    };
+  };
+}
 
 async function setup() {
   const h = harness();
@@ -113,6 +140,34 @@ describe('venue.applySeats (seat dialog, swap, every undo)', () => {
     expect(await h.run(xtdtUser, 'venue.applySeats', { eventId, changes: [{ seatCode: seat('A-01'), from: null, to: g.vip1 }, { seatCode: seat('A-02'), from: null, to: g.vip1 }] })).toMatchObject({ ok: false, kind: 'invalid' });
     expect(await h.run(xtdtUser, 'venue.applySeats', { eventId, changes: [{ seatCode: seat('A-01'), from: null, to: g.vip1 }, { seatCode: seat('A-01'), from: null, to: g.vip2 }] })).toMatchObject({ ok: false, kind: 'invalid' });
     expect(h.rows('sce_tcsk_seat_assignments')).toHaveLength(0);
+  });
+});
+
+describe('a seat batch raced by another writer (no transaction, review finding 2)', () => {
+  it('a swap raced between its delete and insert rolls back, says who lost a seat, and audits that loss', async () => {
+    const { h, eventId, g } = await setup();
+    await h.ok(xtdtUser, 'venue.assignSeat', { eventId, guestId: g.vip1, seatCode: seat('A-01') });
+    await h.ok(xtdtUser, 'venue.assignSeat', { eventId, guestId: g.so1, seatCode: seat('B-02') });
+    const rival = () => h.ok(admin, 'venue.assignSeat', { eventId, guestId: g.dn1, seatCode: seat('A-01') });
+    const swap = await h.runWith(xtdtUser, interleave('sce_tcsk_seat_assignments', 'removeWhere', rival), 'venue.applySeats', {
+      eventId, changes: [{ seatCode: seat('A-01'), from: g.vip1, to: g.so1 }, { seatCode: seat('B-02'), from: g.so1, to: g.vip1 }],
+    });
+    expect(swap).toMatchObject({ ok: false, kind: 'conflict', message: expect.stringContaining('Nguyễn Văn VIP mất ghế A-01') });
+    expect(await h.seats(eventId)).toEqual({ 'A-01': g.dn1, 'B-02': g.so1 });
+    expect(h.audits().at(-1)).toMatchObject({ action: 'XẾP CHỖ NGỒI', summary: expect.stringContaining('Nguyễn Văn VIP mất ghế A-01') });
+  });
+
+  it('a move raced on its target seat puts the guest back and changes nothing else', async () => {
+    const { h, eventId, g } = await setup();
+    await h.ok(xtdtUser, 'venue.assignSeat', { eventId, guestId: g.vip1, seatCode: seat('A-01') });
+    const audited = h.audits().length;
+    const rival = () => h.ok(admin, 'venue.assignSeat', { eventId, guestId: g.dn1, seatCode: seat('A-05') });
+    const move = await h.runWith(xtdtUser, interleave('sce_tcsk_seat_assignments', 'removeWhere', rival), 'venue.applySeats', {
+      eventId, changes: [{ seatCode: seat('A-01'), from: g.vip1, to: null }, { seatCode: seat('A-05'), from: null, to: g.vip1 }],
+    });
+    expect(move).toMatchObject({ ok: false, kind: 'conflict', message: 'Ghế vừa được người khác thay đổi trong lúc lưu, nên chưa có thay đổi nào. Đang tải lại…' });
+    expect(await h.seats(eventId)).toEqual({ 'A-01': g.vip1, 'A-05': g.dn1 });
+    expect(h.audits()).toHaveLength(audited + 1);
   });
 });
 

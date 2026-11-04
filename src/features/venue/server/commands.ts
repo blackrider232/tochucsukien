@@ -7,7 +7,7 @@
 import { z } from 'zod';
 import { newId, type BoothId, type BoothShiftId, type EventId, type GuestId, type HallTemplateId, type SeatCode, type Version } from '@/core/brand';
 import { CommandError, defineCommands, type AuditEntry, type CommandContext, type CommandSpec, type InputOf, type Inverse, type OutputOf, type Sig } from '@/core/commands';
-import type { Schema } from '@/core/db';
+import { DbError, type Schema } from '@/core/db';
 import type { RosterEntry } from '@/features/guests';
 import type { Booth, BoothShift, EventHall, HallTemplate, HallZone, SeatAssignment } from '../contract';
 import { AUTO_ASSIGN_MODES, planAutoAssign, seededRandom, type AutoAssignMode, type AutoAssignSummary } from '../domain/auto-assign';
@@ -68,12 +68,13 @@ const seatsOf = (ctx: CommandContext, eventId: EventId) => ctx.db.table(seatsTab
 
 const nameOf = (roster: ReadonlyArray<RosterEntry> | null, id: GuestId) => roster?.find((g) => g.id === id)?.name ?? 'đại biểu';
 
+type CheckedSeats = { changes: SeatChange[]; roster: ReadonlyArray<RosterEntry> | null; current: SeatRow[] };
+
 /**
- * Applies seat changes after checking that each seat still holds `from`, that every newly seated guest exists, has not
- * declined, and either has no seat or leaves one named in the same changes. Rows are deleted before they are inserted,
- * so the unique (event, seat) and (event, guest) keys hold throughout.
+ * Checks seat changes against the seats as they are now: each seat still holds `from`, the seat exists in `hall`, and
+ * every newly seated guest exists, has not declined, and either has no seat or leaves one named in the same changes.
  */
-async function writeSeatChanges(ctx: CommandContext, eventId: EventId, hall: Pick<EventHall, 'zones'>, raw: ReadonlyArray<SeatChange>): Promise<{ changes: SeatChange[]; roster: ReadonlyArray<RosterEntry> | null; rows: SeatRow[] }> {
+async function checkSeatChanges(ctx: CommandContext, eventId: EventId, hall: Pick<EventHall, 'zones'>, raw: ReadonlyArray<SeatChange>): Promise<CheckedSeats> {
   const changes = raw.filter((c) => c.from !== c.to);
   if (new Set(changes.map((c) => c.seatCode)).size !== changes.length) throw new CommandError('invalid', 'Một ghế được chỉ định hai lần.');
   const incoming = changes.flatMap((c) => (c.to ? [c.to] : []));
@@ -96,11 +97,56 @@ async function writeSeatChanges(ctx: CommandContext, eventId: EventId, hall: Pic
     const seat = byGuest.get(guestId);
     if (seat && changed.get(seat.seatCode)?.from !== guestId) throw new CommandError('conflict', `${guest.name} đang ngồi ghế ${seat.seatCode}. Đang tải lại…`);
   }
+  return { changes, roster, current };
+}
 
-  const vacated = changes.filter((c) => c.from !== null).map((c) => bySeat.get(c.seatCode)!.id);
-  if (vacated.length > 0) await ctx.db.table(seatsTable).removeWhere({ eventId, id: vacated });
-  const rows = await ctx.db.table(seatsTable).insertMany(changes.flatMap((c) => (c.to ? [{ id: newId(), eventId, seatCode: c.seatCode, guestId: c.to }] : [])));
-  return { changes, roster, rows };
+/** Another writer took a seat or a guest between the check and the write; the batch was rolled back completely. */
+class SeatRace extends CommandError {
+  constructor() {
+    super('conflict', 'Ghế vừa được người khác thay đổi trong lúc lưu, nên chưa có thay đổi nào. Đang tải lại…');
+  }
+}
+
+/**
+ * Writes checked changes without a transaction (the pipeline has none). Rows that cannot clash with this batch (a guest
+ * new to the hall on an empty seat) go in before anything is deleted; the rest are deleted and then inserted. When a
+ * write fails, the new rows are removed and the deleted ones put back. A deleted row whose seat or guest another
+ * writer took meanwhile cannot come back: that loss is audited and named, never reported as success.
+ */
+async function commitSeatChanges(ctx: CommandContext, eventId: EventId, { changes, roster, current }: CheckedSeats): Promise<SeatRow[]> {
+  const table = ctx.db.table(seatsTable);
+  const bySeat = new Map(current.map((s) => [s.seatCode, s]));
+  const vacated = changes.flatMap((c) => (c.from ? [bySeat.get(c.seatCode)!] : []));
+  const leaving = new Set(vacated.map((s) => s.guestId));
+  const drafts = changes.flatMap((c) => (c.to ? [{ id: newId(), eventId, seatCode: c.seatCode, guestId: c.to, safe: c.from === null && !leaving.has(c.to) }] : []));
+  const rowsOf = (safe: boolean) => drafts.filter((d) => d.safe === safe).map(({ safe: _, ...d }) => d);
+  try {
+    const early = await table.insertMany(rowsOf(true));
+    if (vacated.length > 0) await table.removeWhere({ eventId, id: vacated.map((s) => s.id) });
+    return [...early, ...(await table.insertMany(rowsOf(false)))];
+  } catch (e) {
+    if (drafts.length > 0) await table.removeWhere({ eventId, id: drafts.map((d) => d.id) });
+    const lost: SeatRow[] = [];
+    for (const s of vacated) {
+      try {
+        await table.insert({ id: s.id, eventId, seatCode: s.seatCode, guestId: s.guestId });
+      } catch {
+        lost.push(s);
+      }
+    }
+    if (lost.length === 0) {
+      if (e instanceof DbError && e.kind === 'constraint') throw new SeatRace();
+      throw e;
+    }
+    const loss = lost.map((s) => `${nameOf(roster, s.guestId)} mất ghế ${s.seatCode}`).join('; ');
+    await ctx.db.rpc('sce_tcsk_write_audit', audit('XẾP CHỖ NGỒI', `Lưu xếp chỗ thất bại vì ghế bị thay đổi đồng thời; đã hoàn nguyên, riêng ${loss} (ghế đã có người khác)`, eventId, 'seating', eventId));
+    throw new CommandError('conflict', `Ghế vừa được người khác thay đổi trong lúc lưu. Đã hoàn nguyên, riêng ${loss} vì ghế đã có người khác ngồi; vui lòng xếp lại. Đang tải lại…`);
+  }
+}
+
+async function writeSeatChanges(ctx: CommandContext, eventId: EventId, hall: Pick<EventHall, 'zones'>, raw: ReadonlyArray<SeatChange>) {
+  const checked = await checkSeatChanges(ctx, eventId, hall, raw);
+  return { ...checked, rows: await commitSeatChanges(ctx, eventId, checked) };
 }
 
 /** The reverse changes, minus seats the hall no longer has (a guest is not put back on an orphan seat). */
