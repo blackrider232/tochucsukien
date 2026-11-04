@@ -62,26 +62,40 @@ export const STEP_TEMPLATE_KEYS = {
 /**
  * Step templateKey -> template id. A built-in id maps to itself; a custom
  * template is addressed by its uuid; anything else is null ("Chưa gắn biểu mẫu").
+ * With `catalog` (the templates the actor can read) a result that is not in it is
+ * null too, so a step pointing at a deleted custom template shows no link (m3 B08).
+ * Without it the function is pure and cannot tell a deleted uuid from a live one.
  */
-export function resolveTemplateKey(key: string): TemplateId | null {
-  const k = key.trim();
+export function resolveTemplateKey(key: string, catalog?: ReadonlyArray<{ readonly id: string }>): TemplateId | null {
+  const id = mapKey(key.trim());
+  if (id === null || !catalog) return id;
+  return catalog.some((t) => t.id === id) ? id : null;
+}
+
+function mapKey(k: string): TemplateId | null {
   if (isBuiltinId(k)) return k as TemplateId;
   if (Object.hasOwn(STEP_TEMPLATE_KEYS, k)) return (STEP_TEMPLATE_KEYS[k as keyof typeof STEP_TEMPLATE_KEYS].template as TemplateId | null);
   return parseUuid<'Template'>(k) as TemplateId | null;
 }
 
-/** The only way other features link to a template. The event is optional: the library picks it from the page. */
-export function templateHref(id: TemplateId, eventId: EventId | null): string {
+const templateQuery = (id: TemplateId, eventId: EventId | null): URLSearchParams => {
   const q = new URLSearchParams({ t: id });
   if (eventId) q.set('event', eventId);
-  return `/templates?${q}`;
+  return q;
+};
+
+/** The only way other features link to a template; null when the key resolved to nothing. The event is optional: the library picks it from the page. */
+export function templateHref(id: TemplateId, eventId: EventId | null): string;
+export function templateHref(id: TemplateId | null, eventId: EventId | null): string | null;
+export function templateHref(id: TemplateId | null, eventId: EventId | null): string | null {
+  return id === null ? null : `/templates?${templateQuery(id, eventId)}`;
 }
 
-/** The print page of the same template and event. */
-export function templatePrintHref(id: TemplateId, eventId: EventId | null): string {
-  const q = new URLSearchParams({ t: id });
-  if (eventId) q.set('event', eventId);
-  return `/templates/print?${q}`;
+/** The print page of the same template and event; null when there is no template. */
+export function templatePrintHref(id: TemplateId, eventId: EventId | null): string;
+export function templatePrintHref(id: TemplateId | null, eventId: EventId | null): string | null;
+export function templatePrintHref(id: TemplateId | null, eventId: EventId | null): string | null {
+  return id === null ? null : `/templates/print?${templateQuery(id, eventId)}`;
 }
 
 /** The built-in forms a step can be attached to, for a Select in the step dialog instead of free text (m3 B08). */

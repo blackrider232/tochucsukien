@@ -33,15 +33,18 @@ export function defaultEventId(events: ReadonlyArray<EventRef>, today: IsoDate, 
   return (sorted.find((e) => e.eventDate >= today) ?? sorted.at(-1))?.id ?? NO_EVENT;
 }
 
-/** An unknown template falls back to the default one, then to the first (m3 §3.2). */
+/**
+ * The template the address names, or null when it is not in the list (deleted or never existed).
+ * There is no fallback: opening another document for a dead link was legacy bug B08.
+ */
 export function pickTemplate(list: ReadonlyArray<DocumentTemplate>, id: string): DocumentTemplate | null {
-  return list.find((t) => t.id === id) ?? list.find((t) => t.id === DEFAULT_TEMPLATE_ID) ?? list[0] ?? null;
+  return list.find((t) => t.id === id) ?? null;
 }
 
 export function initialState(params: StudioParams, events: ReadonlyArray<EventRef>, today: IsoDate): StudioState {
   const level = TEMPLATE_LEVEL_VALUES.find((l) => l === params.level);
   return {
-    templateId: params.t ?? DEFAULT_TEMPLATE_ID,
+    templateId: params.t || DEFAULT_TEMPLATE_ID,
     eventId: params.event === NO_EVENT ? NO_EVENT : defaultEventId(events, today, params.event),
     query: params.q ?? '',
     level: level ?? 'all',

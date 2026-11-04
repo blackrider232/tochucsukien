@@ -54,8 +54,19 @@ describe('template studio', () => {
     expect(screen.getByRole('heading', { level: 2, name: /Kế hoạch tổ chức chương trình sự kiện/ })).toBeInTheDocument();
   });
 
-  it('falls back to the default template for an unknown id', () => {
-    studio({ params: { t: 'form_khong_co' } });
+  it.each(['form_khong_co', '0a0a0a0a-0a0a-4a0a-8a0a-0a0a0a0a0a0a'])('says the template is gone for an unknown or deleted id (%s) and does not open the UBND plan (m3 B08)', async (t) => {
+    const { user } = studio({ params: { t, event: E1.id } });
+    expect(screen.getByRole('alert')).toHaveTextContent('Biểu mẫu này không còn tồn tại');
+    expect(screen.queryByRole('heading', { level: 2, name: /Kế hoạch tổ chức chương trình sự kiện/ })).toBeNull();
+    expect(paper()).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Về thư viện biểu mẫu' }));
+    expect(screen.queryByText('Biểu mẫu này không còn tồn tại')).toBeNull();
+    expect(screen.getByRole('heading', { level: 2, name: /Kế hoạch tổ chức chương trình sự kiện/ })).toBeInTheDocument();
+  });
+
+  it('treats an empty ?t= as no template named and opens the default one', () => {
+    studio({ params: { t: '' } });
+    expect(screen.queryByText('Biểu mẫu này không còn tồn tại')).toBeNull();
     expect(screen.getByRole('heading', { level: 2, name: /Kế hoạch tổ chức chương trình sự kiện/ })).toBeInTheDocument();
   });
 

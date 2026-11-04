@@ -62,6 +62,21 @@ describe('step templateKey -> template', () => {
     expect(resolveTemplateKey('2d1f6f3e-8f4a-4a53-9b0c-0a1f2b3c4d5e')).toBe('2d1f6f3e-8f4a-4a53-9b0c-0a1f2b3c4d5e');
   });
 
+  it('answers null for a custom template uuid that is not in the catalog (deleted), and keeps one that is', () => {
+    const live = '2d1f6f3e-8f4a-4a53-9b0c-0a1f2b3c4d5e';
+    const gone = '0a0a0a0a-0a0a-4a0a-8a0a-0a0a0a0a0a0a';
+    const catalog = [...BUILTIN_IDS, live].map((id) => ({ id }));
+    expect(resolveTemplateKey(live, catalog)).toBe(live);
+    expect(resolveTemplateKey(gone, catalog)).toBeNull();
+    expect(resolveTemplateKey('form_giaymoi', catalog)).toBe('form_giaymoi_vip');
+    expect(resolveTemplateKey('form_kh_ubnd', catalog)).toBe('form_kh_ubnd');
+    expect(resolveTemplateKey('form_bienten', catalog)).toBeNull();
+  });
+
+  it('answers null for a built-in that the catalog does not list', () => {
+    expect(resolveTemplateKey('form_kh_ubnd', [])).toBeNull();
+  });
+
   it('answers null for an empty, unknown or hostile key, including Object.prototype names', () => {
     for (const key of ['', ' ', 'form_khong_co', 'constructor', '__proto__', 'toString', 'hasOwnProperty', '<script>']) expect(resolveTemplateKey(key), key).toBeNull();
   });
@@ -77,6 +92,10 @@ describe('links', () => {
     expect(templateHref('form_kh_ubnd' as TemplateId, eventId)).toBe(`/templates?t=form_kh_ubnd&event=${eventId}`);
     expect(templateHref('form_kh_ubnd' as TemplateId, null)).toBe('/templates?t=form_kh_ubnd');
     expect(templatePrintHref('form_kh_ubnd' as TemplateId, eventId)).toBe(`/templates/print?t=form_kh_ubnd&event=${eventId}`);
+  });
+  it('gives no link for a key that resolved to nothing', () => {
+    expect(templateHref(null, eventId)).toBeNull();
+    expect(templatePrintHref(null, eventId)).toBeNull();
   });
   it('encodes the id', () => {
     expect(templateHref('a b&c' as TemplateId, null)).toBe('/templates?t=a+b%26c');
