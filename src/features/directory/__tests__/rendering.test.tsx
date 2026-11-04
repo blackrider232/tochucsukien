@@ -63,6 +63,24 @@ describe('the directory screen renders contact text as text (m4c B1-B4, B12)', (
   });
 });
 
+describe('the CSV import commits once', () => {
+  it('a double click on "Nhập" sends one command', async () => {
+    const user = userEvent.setup();
+    let settle: (r: unknown) => void = () => undefined;
+    dispatch.mockReturnValue(new Promise((resolve) => (settle = resolve)));
+    renderUi(withAppContext(<CsvImportDialog contacts={[]} onClose={() => undefined} />));
+    await user.click(screen.getByRole('textbox', { name: 'Nội dung CSV' }));
+    await user.paste('Họ tên,Cơ quan\nAn,Sở A\nBình,Sở B');
+    const commit = await screen.findByRole('button', { name: 'Nhập 2 đối tượng' });
+    await user.dblClick(commit);
+    await waitFor(() => expect(dispatch).toHaveBeenCalled());
+    expect(dispatch.mock.calls.filter(([id]) => id === 'directory.importCsv')).toHaveLength(1);
+    expect(commit).toHaveAttribute('aria-busy', 'true');
+    settle({ ok: false, kind: 'unavailable', message: 'x' });
+    await waitFor(() => expect(commit).not.toHaveAttribute('aria-busy'));
+  });
+});
+
 describe('read-only and admin views (m4c B8)', () => {
   it('a reader sees the list, search, export and the copy, but no add, edit, delete, import or reset', () => {
     renderUi(withAppContext(<DirectoryScreen contacts={[contact()]} canAdmin={false} events={[]} />));

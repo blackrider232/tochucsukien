@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { Alert, Badge, Button, DataTable, Dialog, Form, FormField, KpiCard, Select, Textarea, downloadBlob, useZodForm, type Column } from '@/components/ui';
@@ -29,11 +29,14 @@ export function CsvImportDialog({ contacts, onClose }: { contacts: ReadonlyArray
   const [csv, defaultGroup] = useWatch({ control: form.control, name: ['csv', 'defaultGroup'] });
   const existingKeys = useMemo(() => new Set(contacts.map(guestIdentityKey)), [contacts]);
   const preview = useMemo(() => (csv.trim() === '' ? null : previewContactImport(csv, { defaultGroup, existingKeys })), [csv, defaultGroup, existingKeys]);
+  const [busy, setBusy] = useState(false);
 
   const commit = async () => {
     if (!preview || preview.counts.created === 0) return;
     const items = preview.rows.flatMap((r) => (r.status === 'new' && r.draft ? [{ id: r.id, draft: r.draft }] : []));
+    setBusy(true);
     const done = await run('directory.importCsv', { items }, { success: 'Đã nhập vào CSDL' });
+    setBusy(false);
     if (done) onClose();
   };
   const downloadTemplate = () => downloadBlob(serializeCsv(TEMPLATE_ROWS as MasterContact[], CONTACT_CSV_COLUMNS), 'Mau_Nhap_CSDL_KhachMoi.csv');
@@ -67,7 +70,7 @@ export function CsvImportDialog({ contacts, onClose }: { contacts: ReadonlyArray
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>Hủy</Button>
-          <Button icon="upload" disabled={!preview || preview.counts.created === 0} loading={form.formState.isSubmitting} onClick={() => void commit()}>
+          <Button icon="upload" disabled={!preview || preview.counts.created === 0} loading={busy} onClick={() => void commit()}>
             {preview && preview.counts.created > 0 ? `Nhập ${preview.counts.created} đối tượng` : 'Nhập đối tượng'}
           </Button>
         </>
