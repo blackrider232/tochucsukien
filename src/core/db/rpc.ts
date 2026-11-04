@@ -4,7 +4,7 @@
 import { z } from 'zod';
 import type { EventId, Instant } from '@/core/brand';
 import { parseHolidayRows, parseProfileRow } from '@/core/auth/profile';
-import { parseInstant } from '@/core/dates';
+import { parseInstant, type Holiday } from '@/core/dates';
 import { parseSettingsRow, type SettingsPatch } from '@/core/settings';
 import type { AuditLogRow, BackupRow, RpcMap } from './index';
 
@@ -69,6 +69,8 @@ export function parseAuditRow(row: unknown): AuditLogRow {
 
 const auditFacets = z.object({ actions: z.array(z.string()).default([]), entities: z.array(z.string()).default([]) });
 
+const holidayArgs = (list: ReadonlyArray<Holiday>) => list.map((h) => ({ date: h.date, name: h.name, kind: h.kind }));
+
 const list = <T>(parse: (row: unknown) => T) => (d: unknown): T[] => (Array.isArray(d) ? d.map(parse) : []);
 
 export const RPC_ALLOWLIST: { readonly [K in keyof RpcMap]: RpcSpec<K> } = {
@@ -88,8 +90,8 @@ export const RPC_ALLOWLIST: { readonly [K in keyof RpcMap]: RpcSpec<K> } = {
     result: (d) => (d ? parseSettingsRow(d) : null),
   },
   sce_tcsk_replace_holidays: {
-    args: (a) => ({ year: a.year, holidays: a.holidays.map((h) => ({ date: h.date, name: h.name, kind: h.kind })) }),
-    result: (d) => parseHolidayRows(Array.isArray(d) ? d.map((h: { date?: unknown; name?: unknown; kind?: unknown }) => ({ holiday_date: h.date, name: h.name, kind: h.kind })) : []),
+    args: (a) => ({ year: a.year, holidays: holidayArgs(a.holidays), expected: holidayArgs(a.expected) }),
+    result: (d) => (Array.isArray(d) ? parseHolidayRows(d.map((h: { date?: unknown; name?: unknown; kind?: unknown }) => ({ holiday_date: h.date, name: h.name, kind: h.kind }))) : null),
   },
   sce_tcsk_update_profile_name: { args: (a) => ({ new_fullname: a.fullname }), result: parseProfileRow },
   sce_tcsk_list_profiles: { args: () => ({}), result: list(parseProfileRow) },

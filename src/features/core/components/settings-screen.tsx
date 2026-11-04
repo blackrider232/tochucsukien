@@ -107,7 +107,7 @@ export function HolidaysEditor({ year, years, canEdit }: { year: number; years: 
   const ofYear = holidays.filter((h) => h.date.startsWith(`${year}-`)).sort((a, b) => a.date.localeCompare(b.date));
   const count = (y: number) => holidays.filter((h) => h.date.startsWith(`${y}-`)).length;
 
-  const replace = (next: ReadonlyArray<Holiday>, success: string) => run('core.holidays.replaceYear', { year, holidays: next }, { success });
+  const replace = (next: ReadonlyArray<Holiday>, success: string) => run('core.holidays.saveYear', { year, expected: ofYear, holidays: next }, { success });
   const remove = async (h: Holiday) => {
     const ok = await dialogs.confirm({
       title: `Xóa ${HOLIDAY_KIND_LABELS[h.kind].toLowerCase()} ${formatVNDate(h.date)}?`,

@@ -104,8 +104,11 @@ export interface RpcMap {
   // The rest are core's (202611041000_core_admin_functions.sql): the tables behind them have no managed columns.
   /** null when the row's version is no longer expectedVersion. */
   sce_tcsk_update_settings: { args: { expectedVersion: Version; patch: SettingsPatch }; result: SystemSettings | null };
-  /** Replaces every row of that calendar year; returns the rows it replaced. */
-  sce_tcsk_replace_holidays: { args: { year: number; holidays: ReadonlyArray<Holiday> }; result: Holiday[] };
+  /**
+   * Replaces every row of that calendar year and returns the rows it replaced, or null, writing nothing,
+   * when the year no longer holds `expected` (the list the editor saw).
+   */
+  sce_tcsk_replace_holidays: { args: { year: number; expected: ReadonlyArray<Holiday>; holidays: ReadonlyArray<Holiday> }; result: Holiday[] | null };
   sce_tcsk_update_profile_name: { args: { fullname: string }; result: Profile };
   /** As the caller's RLS shows them: everyone for admin and leader, the own department for dept_leader, else only self. */
   sce_tcsk_list_profiles: { args: Record<string, never>; result: Profile[] };

@@ -88,19 +88,20 @@ export const holidayFields = z.object({
 });
 export const MIN_YEAR = 2000;
 export const MAX_YEAR = 2100;
-export const holidaysReplaceSchema = z
-  .object({
-    year: z.number().int().min(MIN_YEAR).max(MAX_YEAR),
-    holidays: z.array(holidayFields).max(60, 'Tối đa 60 ngày mỗi năm'),
-  })
-  .superRefine((v, ctx) => {
-    const seen = new Set<string>();
-    v.holidays.forEach((h, i) => {
-      if (!h.date.startsWith(`${v.year}-`)) ctx.addIssue({ code: 'custom', path: ['holidays', i, 'date'], message: `Ngày phải thuộc năm ${v.year}` });
-      if (seen.has(h.date)) ctx.addIssue({ code: 'custom', path: ['holidays', i, 'date'], message: 'Ngày này đã có trong danh sách' });
-      seen.add(h.date);
-    });
+const holidayYear = z.object({
+  year: z.number().int().min(MIN_YEAR).max(MAX_YEAR),
+  holidays: z.array(holidayFields).max(60, 'Tối đa 60 ngày mỗi năm'),
+});
+function checkHolidayYear(v: z.output<typeof holidayYear>, ctx: z.RefinementCtx) {
+  const seen = new Set<string>();
+  v.holidays.forEach((h, i) => {
+    if (!h.date.startsWith(`${v.year}-`)) ctx.addIssue({ code: 'custom', path: ['holidays', i, 'date'], message: `Ngày phải thuộc năm ${v.year}` });
+    if (seen.has(h.date)) ctx.addIssue({ code: 'custom', path: ['holidays', i, 'date'], message: 'Ngày này đã có trong danh sách' });
+    seen.add(h.date);
   });
+}
+export const holidaysReplaceSchema = holidayYear.superRefine(checkHolidayYear);
+export const holidaysSaveSchema = holidayYear.extend({ expected: z.array(holidayFields).max(60) }).superRefine(checkHolidayYear);
 
 // ---------- profile, users, backups, audit ----------
 export const profileNameSchema = z.object({ fullname: fullnameSchema });

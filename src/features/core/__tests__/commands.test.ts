@@ -175,7 +175,7 @@ describe('core.holidays.saveYear', () => {
     const audits = h.audits().length;
     const stale = await h.run(leader, 'core.holidays.saveYear', { year: 2027, expected: seededHolidays2027, holidays: [...seededHolidays2027, lamBu] });
     expect(stale).toEqual({ ok: false, kind: 'conflict', message: STALE });
-    expect(h.holidays(2027)).toEqual([seededHolidays2027[0], tet, seededHolidays2027[1]]);
+    expect(h.holidays(2027).map((x) => x.name)).toEqual(['Tết Dương lịch', 'Tết Nguyên đán', 'Ngày Giải phóng miền Nam']);
     expect(h.audits()).toHaveLength(audits);
   });
 
@@ -185,7 +185,7 @@ describe('core.holidays.saveYear', () => {
     const theirs = [...seededHolidays2027, tet, lamBu];
     await h.ok(leader, 'core.holidays.saveYear', { year: 2027, expected: [...seededHolidays2027, tet], holidays: theirs });
     expect(await h.undo(admin, mine.inverse)).toEqual({ ok: false, kind: 'conflict', message: STALE });
-    expect(h.holidays(2027)).toEqual([seededHolidays2027[0], tet, lamBu, seededHolidays2027[1]].sort((a, b) => a.date.localeCompare(b.date)));
+    expect(h.holidays(2027).map((x) => x.name)).toEqual(['Tết Dương lịch', 'Tết Nguyên đán', 'Làm bù Tết', 'Ngày Giải phóng miền Nam']);
   });
 
   it('refuses a date outside the year and a date listed twice', async () => {

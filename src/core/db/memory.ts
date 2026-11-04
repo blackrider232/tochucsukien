@@ -454,6 +454,8 @@ function rpcHandlers(store: Store, actor: Actor, rls: Rls): { readonly [K in key
       if (new Set(a.holidays.map((h) => h.date)).size !== a.holidays.length) throw new DbError('constraint', { constraint: 'sce_tcsk_holidays_pkey' });
       const at = new Date().toISOString();
       const before = rowsOf(store, 'sce_tcsk_holidays').filter((h) => inYear(h.holiday_date));
+      const seen = a.expected.map((h) => `${h.date}|${h.name.trim().slice(0, 120)}|${h.kind}`).sort();
+      if (JSON.stringify(seen) !== JSON.stringify(before.map((h) => `${String(h.holiday_date)}|${String(h.name)}|${String(h.kind)}`).sort())) return null;
       const kept = rowsOf(store, 'sce_tcsk_holidays').filter((h) => !inYear(h.holiday_date));
       const added = a.holidays.map((h) => ({ holiday_date: h.date, name: h.name.trim().slice(0, 120), kind: h.kind, updated_at: at, updated_by: actor.profile.id }));
       store.tables.set('sce_tcsk_holidays', [...kept, ...added].sort((x, y) => String(x.holiday_date).localeCompare(String(y.holiday_date))));

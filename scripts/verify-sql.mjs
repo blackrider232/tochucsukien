@@ -190,19 +190,20 @@ await as(ids.admin, 'aal2', () => assert.rejects(db.query(`select public.sce_tcs
 await as(ids.admin, 'aal2', () => assert.rejects(db.query(`select public.sce_tcsk_update_settings(${v0 + 1}, '{"version":1}')`), /unknown_setting/, 'a patch cannot name other columns'));
 
 const year2028 = `'[{"date":"2028-01-01","name":"Tết Dương lịch"},{"date":"2028-01-26","name":"Tết Nguyên đán"},{"date":"2028-01-29","name":"Làm bù","kind":"compensatory_workday"}]'`;
-await as(ids.xtdt, 'aal1', () => assert.rejects(db.query(`select public.sce_tcsk_replace_holidays(2028, ${year2028})`), /forbidden/, 'user cannot edit holidays'));
-await as(ids.admin, 'aal1', () => assert.rejects(db.query(`select public.sce_tcsk_replace_holidays(2028, ${year2028})`), /forbidden/, 'admin at aal1 cannot edit holidays'));
+const seeded2028 = `'[{"date":"2028-01-01","name":"Tết Dương lịch"},{"date":"2028-04-30","name":"Ngày Giải phóng miền Nam"},{"date":"2028-05-01","name":"Ngày Quốc tế Lao động"},{"date":"2028-09-02","name":"Quốc khánh"}]'`;
+await as(ids.xtdt, 'aal1', () => assert.rejects(db.query(`select public.sce_tcsk_replace_holidays(2028, ${year2028}, ${seeded2028})`), /forbidden/, 'user cannot edit holidays'));
+await as(ids.admin, 'aal1', () => assert.rejects(db.query(`select public.sce_tcsk_replace_holidays(2028, ${year2028}, ${seeded2028})`), /forbidden/, 'admin at aal1 cannot edit holidays'));
 const holidays2028 = () => db.query(`select holiday_date::text as d, name, kind from public.sce_tcsk_holidays where holiday_date between '2028-01-01' and '2028-12-31' order by 1`);
-await as(ids.leader, 'aal2', () => db.query(`select public.sce_tcsk_replace_holidays(2028, ${year2028})`));
+await as(ids.leader, 'aal2', () => db.query(`select public.sce_tcsk_replace_holidays(2028, ${year2028}, ${seeded2028})`));
 const once = (await holidays2028()).rows;
-await as(ids.leader, 'aal2', () => db.query(`select public.sce_tcsk_replace_holidays(2028, ${year2028})`));
-const replaced = await as(ids.leader, 'aal2', () => db.query(`select public.sce_tcsk_replace_holidays(2028, ${year2028}) as prev`));
+await as(ids.leader, 'aal2', () => db.query(`select public.sce_tcsk_replace_holidays(2028, ${year2028}, ${year2028})`));
+const replaced = await as(ids.leader, 'aal2', () => db.query(`select public.sce_tcsk_replace_holidays(2028, ${year2028}, ${year2028}) as prev`));
 assert.deepEqual(replaced.rows[0].prev.map((h) => h.date), ['2028-01-01', '2028-01-26', '2028-01-29'], 'replace returns the rows it replaced');
 assert.deepEqual((await holidays2028()).rows, once, 'replacing a year twice with the same list converges');
 assert.equal(once.length, 3, 'the fixed-date 2028 rows are replaced by the given list');
 assert.equal((await db.query(`select count(*)::int as n from public.sce_tcsk_holidays where holiday_date between '2027-01-01' and '2027-12-31'`)).rows[0].n, 4, 'other years are untouched');
-await as(ids.leader, 'aal2', () => assert.rejects(db.query(`select public.sce_tcsk_replace_holidays(2028, '[{"date":"2029-01-01","name":"x"}]')`), /holiday_outside_year/, 'a date outside the year is refused'));
-await as(ids.leader, 'aal2', () => assert.rejects(db.query(`select public.sce_tcsk_replace_holidays(2028, '[{"date":"2028-05-01","name":"a"},{"date":"2028-05-01","name":"b"}]')`), /duplicate key/, 'one row per date'));
+await as(ids.leader, 'aal2', () => assert.rejects(db.query(`select public.sce_tcsk_replace_holidays(2028, '[{"date":"2029-01-01","name":"x"}]', ${year2028})`), /holiday_outside_year/, 'a date outside the year is refused'));
+await as(ids.leader, 'aal2', () => assert.rejects(db.query(`select public.sce_tcsk_replace_holidays(2028, '[{"date":"2028-05-01","name":"a"},{"date":"2028-05-01","name":"b"}]', ${year2028})`), /duplicate key/, 'one row per date'));
 assert.deepEqual((await holidays2028()).rows, once, 'a refused replace leaves the year as it was');
 
 const xss = `<img src=x onerror=alert(1)>`;
@@ -231,7 +232,7 @@ const rtId = roundTrip.rows[0].id;
 await as(ids.admin, 'aal2', async () => {
   await db.exec(`update public.sce_tcsk_events set name = 'Sau sao lưu' where id = '${eventId}'`);
   await db.exec(`select public.sce_tcsk_update_settings((select version from public.sce_tcsk_system_settings), '{"guest_quota_percent":170}')`);
-  await db.exec(`select public.sce_tcsk_replace_holidays(2028, '[]')`);
+  await db.exec(`select public.sce_tcsk_replace_holidays(2028, '[]', ${year2028})`);
 });
 const backupsBefore = (await as(ids.admin, 'aal2', () => db.query(`select id from public.sce_tcsk_list_backups(200)`))).rows.length;
 await as(ids.leader, 'aal2', () => assert.rejects(db.query(`select public.sce_tcsk_restore_backup(${rtId})`), /forbidden/, 'leader cannot restore'));
@@ -292,10 +293,10 @@ assert.deepEqual(settingsRow, {
   summary: 'Tên viết tắt: SCE HN → SCE; Tỷ lệ danh sách khách mời tối thiểu (nhóm 1a): 150% → 155%',
 }, 'the settings function audits old and new values with their labels');
 const holidayRow = await auditedOnce('a holiday change', ids.leader, 'aal2',
-  `select public.sce_tcsk_replace_holidays(2031, '[{"date":"2031-01-23","name":"Tết Nguyên đán"},{"date":"2031-02-01","name":"Làm bù Tết","kind":"compensatory_workday"}]')`);
+  `select public.sce_tcsk_replace_holidays(2031, '[{"date":"2031-01-23","name":"Tết Nguyên đán"},{"date":"2031-02-01","name":"Làm bù Tết","kind":"compensatory_workday"}]', '[]')`);
 assert.deepEqual([holidayRow.action, holidayRow.entity, holidayRow.entity_id, holidayRow.summary],
   ['CẬP NHẬT NGÀY NGHỈ LỄ', 'holidays', '2031', 'Năm 2031: thêm 23/01/2031 Tết Nguyên đán, 01/02/2031 Làm bù Tết (ngày làm bù)'], 'the holiday function audits what it added');
-const holidayDrop = await auditedOnce('a holiday removal', ids.leader, 'aal2', `select public.sce_tcsk_replace_holidays(2031, '[{"date":"2031-01-23","name":"Tết Nguyên đán"}]')`);
+const holidayDrop = await auditedOnce('a holiday removal', ids.leader, 'aal2', `select public.sce_tcsk_replace_holidays(2031, '[{"date":"2031-01-23","name":"Tết Nguyên đán"}]', '[{"date":"2031-01-23","name":"Tết Nguyên đán"},{"date":"2031-02-01","name":"Làm bù Tết","kind":"compensatory_workday"}]')`);
 assert.equal(holidayDrop.summary, 'Năm 2031: bỏ 01/02/2031 Làm bù Tết (ngày làm bù)', 'and what it removed');
 const xtdtName = (await nameOf(ids.xtdt)).fullname;
 const renamed = await auditedOnce('a name change', ids.xtdt, 'aal1', `select public.sce_tcsk_update_profile_name('Nguyễn Văn A')`);

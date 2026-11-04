@@ -6,12 +6,12 @@
 import type { Profile } from '@/core/auth';
 import { createAuthUser } from '@/core/auth/server';
 import type { BackupId, Email, UserId } from '@/core/brand';
-import { CommandError, defineCommands, type Inverse } from '@/core/commands';
-import { fileDateStamp } from '@/core/dates';
+import { CommandError, defineCommands, type CommandContext, type Inverse } from '@/core/commands';
+import { fileDateStamp, type Holiday } from '@/core/dates';
 import type { Schema } from '@/core/db';
 import type { SettingsPatch, SystemSettings } from '@/core/settings';
 import { ROLES, type DepartmentName, type Role } from '@/core/vocab';
-import { auditListSchema, backupNoteSchema, backupRefSchema, createUserSchema, holidaysReplaceSchema, profileNameSchema, setDepartmentSchema, setRoleSchema, setStatusSchema, settingsUpdateSchema } from '../domain/schemas';
+import { auditListSchema, backupNoteSchema, backupRefSchema, createUserSchema, holidaysReplaceSchema, holidaysSaveSchema, profileNameSchema, setDepartmentSchema, setRoleSchema, setStatusSchema, settingsUpdateSchema } from '../domain/schemas';
 import { SETTINGS_FIELDS, type SettingsField } from '../domain/labels';
 import { listProfiles, readBackup, readProfile, toAuditRow } from './reads';
 
@@ -21,6 +21,13 @@ const NO_BACKUP = 'Không tìm thấy bản sao lưu.';
 
 function changedFields(before: SystemSettings, after: SettingsPatch): SettingsField[] {
   return (Object.keys(SETTINGS_FIELDS) as SettingsField[]).filter((k) => after[k] !== undefined && after[k] !== before[k]);
+}
+
+async function saveYear(ctx: CommandContext, year: number, expected: ReadonlyArray<Holiday>, holidays: ReadonlyArray<Holiday>, stale: string) {
+  const previous = await ctx.db.rpc('sce_tcsk_replace_holidays', { year, expected, holidays });
+  if (!previous) throw new CommandError('conflict', stale);
+  const inverse: Inverse = { command: 'core.holidays.saveYear', input: { year, expected: holidays, holidays: previous }, label: `Hoàn tác ngày nghỉ năm ${year}` };
+  return { value: null, audit: 'sql' as const, inverse };
 }
 
 async function profileOrFail(ctx: Parameters<typeof readProfile>[0], id: UserId): Promise<Profile> {
@@ -54,11 +61,14 @@ export const commands = defineCommands('core', {
     kind: 'mutation',
     input: holidaysReplaceSchema,
     authorize: { perm: 'core.holidays.edit', global: true },
-    async run(ctx, { year, holidays }) {
-      const previous = await ctx.db.rpc('sce_tcsk_replace_holidays', { year, holidays });
-      const inverse: Inverse = { command: 'core.holidays.replaceYear', input: { year, holidays: previous }, label: `Hoàn tác ngày nghỉ năm ${year}` };
-      return { value: null, audit: 'sql', inverse };
-    },
+    run: (ctx, { year, holidays }) => saveYear(ctx, year, [], holidays, `Năm ${year} đã có ngày nghỉ. Sửa danh sách tại trang Tham số hệ thống.`),
+  },
+
+  'holidays.saveYear': {
+    kind: 'mutation',
+    input: holidaysSaveSchema,
+    authorize: { perm: 'core.holidays.edit', global: true },
+    run: (ctx, { year, expected, holidays }) => saveYear(ctx, year, expected, holidays, `Ngày nghỉ năm ${year} vừa được người khác thay đổi. Đang tải lại danh sách mới…`),
   },
 
   'users.create': {
