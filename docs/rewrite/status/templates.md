@@ -11,7 +11,7 @@ Branch `t3/dba7053d`. The feature lives in `src/features/templates/`. Routes are
 - **Screens**. `/templates` is the library and studio (event picker, search, level tabs, list, filled preview, Word, Excel, print, copy). `/admin/templates` has the live stat cards, filters, the status table with reset and delete, and the editor dialog. Print is `/templates/print?t=…&event=…` through `PrintPage` A4 with NĐ 30 margins.
 - **Importer** (`server/legacy-importer.ts`). Blob key `systemTemplates`: edited built-ins become overrides, unknown ids become custom templates, anything equal to the legacy original or to today's built-in is skipped.
 - **Dev seed** (`server/dev-seed.ts`). One edited built-in and one custom template, plainly fake.
-- **Tests** (226, `__tests__/`). Catalog vs legacy, merge tags (escaping, blanks, settings, aliases, one-pass substitution), key mapping over every key of the standard process, catalog resolution, exports and file names, a 19-case sanitizer table on both the list and the render path, every command (success, audit text, undo, stale version, invalid input), denial of all seven commands for six non-admin actors through RLS and with RLS bypassed (`runWithoutRls`, plus a positive control per command), the importer on a fixture, and component tests for both screens.
+- **Tests** (303, `__tests__/`). Catalog vs legacy, merge tags (escaping, blanks, settings, aliases, one-pass substitution), key mapping over every key of the standard process and an independent table of all 32 targets (a mutation run over the 32 entries kills each one), catalog resolution, exports and file names, a 19-case sanitizer table on both the list and the render path, every command (success, audit text, undo, stale version, invalid input), denial of all seven commands for six non-admin actors through RLS and with RLS bypassed (`runWithoutRls`, plus a positive control per command), the importer on a fixture, and component tests for both screens.
 
 Mutation check done for the permission tests: changing the `authorize` of any one command to `templates.read` fails 5 to 6 tests.
 
@@ -24,8 +24,8 @@ const href = id ? templateHref(id, event.id) : null;      // '/templates?t=<id>&
 ```
 
 - `null` means no form fits the step: show "Chưa gắn biểu mẫu", do not open another form. `progress/components/event-card.tsx` already does this. Its `try/catch` around the two calls can go, because they no longer throw.
-- `resolveTemplateKey` maps a built-in id to itself, a legacy or step key through `STEP_TEMPLATE_KEYS` (`domain/key-mapping.ts`, the one typed table), and a uuid (a custom template) to itself. Anything else, including `constructor` and `__proto__`, is `null`.
-- The step dialog's free-text "Mã biểu mẫu" should become a `Select` over `templateKeyOptions()` (23 built-ins, `{ value, label }`). That is a progress change.
+- `resolveTemplateKey` maps a legacy or step key through `STEP_TEMPLATE_KEYS` (`domain/key-mapping.ts`, the one typed table), a built-in id to itself, and a uuid (a custom template) to itself. Anything else, including `constructor` and `__proto__`, is `null`. Given the readable catalog as a second argument (`resolveTemplateKey(key, templates)`) it also returns `null` for a uuid that is not in it, so a deleted custom template shows no link. `templateHref(null, …)` and `templatePrintHref(null, …)` return `null`.
+- The step dialog's free-text "Mã biểu mẫu" should become a `Select` over `templateKeyOptions(templates)`: `{ value, label, group }`, the 23 built-ins in group "Biểu mẫu chuẩn" (an admin's new title shows), then custom templates in group "Tùy chỉnh" (the label starts with "Tùy chỉnh:" because a flat `Select` does not show groups). Without the argument it lists only the 23 built-ins. That is a progress change.
 - `key-mapping.test.ts` reads every `templateKey` out of `progress/domain/standard-templates.ts` (both event types) and asserts each resolves to a built-in or is in the declared no-form list. Of the 9 keys legacy left unmapped, 8 now resolve (`form_giaymoi` to Giấy mời đại biểu, `form_baocao_nhom1..5` to Báo cáo tiến độ hàng ngày, `form_duyet_mou` to Công văn rà soát MOU, `form_checkin_letan` to the on-site checklist). `form_kehoach_truyenthong` has no fitting form. The three legacy mismatches (`form_bienten`, `form_sodo_chongoi`, `form_duyet_anpham`) are now "no form" rather than a wrong one. Those four are for product to confirm (Q3).
 
 ## Bugs (m3 §6)
@@ -41,12 +41,12 @@ const href = id ? templateHref(id, event.id) : null;      // '/templates?t=<id>&
 | B05 | Fixed. The admin nav entry has `templates.admin`, so the sidebar hides it. The proxy redirects a non-admin to `/events?denied=1`, and the page checks `can()` again. Verified as `user` and `dept_leader`. |
 | B06 | Fixed. Role comes from the profile through the matrix. No email heuristic, no "demo mode". |
 | B07 | Fixed for this module. The nav entry `admin-templates` carries the legacy tab id, and the library's "Quản trị biểu mẫu" button goes to `/admin/templates`. The Settings screen belongs to core. |
-| B08 | Fixed. One typed key table, with a test over every standard step key. An unresolved key shows "Chưa gắn biểu mẫu" (progress). |
+| B08 | Fixed. One typed key table, with a test over every standard step key. An unresolved key shows "Chưa gắn biểu mẫu" (progress). The library no longer falls back either: `/templates?t=<unknown or deleted>` shows "Biểu mẫu này không còn tồn tại" with a way back, and opens no other form. |
 | B09 | Fixed. The three wrong mappings are now "no form". Product confirms (Q3). |
 | B10 | Fixed. Only overrides and custom templates are stored. A built-in fix reaches everyone, and "reset" deletes the row. |
 | B11 | Fixed. `code` is optional. The editor does not prefill a made-up `BM-SCE/2026`. |
 | B12 | Fixed. Missing values are dotted blanks, with a warning that names the missing fields. No 350.000.000, 08:30 fallback, 150 or "Tại Hội trường Trung tâm". A budget of 0 stays 0. |
-| B13 | Fixed. `{{NGAY_HOM_NAY}}` prints "ngày 04 tháng 11 năm 2026". `{{NGAY_TO_CHUC}}` prints `dd/mm/yyyy`. New `{{THU_TO_CHUC}}` gives the weekday. Three built-in sentences lost a duplicated "ngày". |
+| B13 | Fixed. `{{NGAY_HOM_NAY}}` prints "ngày 04 tháng 11 năm 2026". `{{NGAY_TO_CHUC}}` prints `dd/mm/yyyy`. New `{{THU_TO_CHUC}}` gives the weekday. Three built-in sentences lost a duplicated "ngày", and the importer drops the same word from edited built-ins it imports. The twelve places where a form names the event day read "Thứ Hai, ngày 09/11/2026" again (`{{THU_TO_CHUC}}, ngày {{NGAY_TO_CHUC}}`). Legacy printed "ngày Thứ Hai, 09/11/2026"; the weekday-first order is the NĐ 30 form. |
 | B14 | Fixed. Today and file names use the VN date (`todayVN`, `fileDateStamp`). |
 | B15 | Fixed. `{{DINH_MUC_MOI}}`, `{{DINH_MUC_THE}}`, `{{TY_LE_MOI}}`, `{{TY_LE_THE}}` read settings. The old `_130` and `_120` names are aliases. Built-in text no longer hard-codes 130% or 120%. |
 | B16 | Fixed. Nothing adds a border to every `td`. The data tables carry their own `border`, the letterhead and signature tables have none. |
@@ -70,11 +70,26 @@ const href = id ? templateHref(id, event.id) : null;      // '/templates?t=<id>&
 | B34 | Fixed. The dead state, the wrapper and the guards are gone. |
 | B35 | Fixed. The settlement report has a separate `{{KINH_PHI_THUC_TE}}`, left blank for the person to fill (no source in the system). |
 | B36 | Fixed. The decision body reads `/QĐ-TTXT`. The checklist description says 5 hạng mục. |
-| B37 | Deferred in part. The letterheads, the "GIÁM ĐỐC …" headings and the banner lines (18 replacements in 11 templates) use `{{CO_QUAN_CHU_QUAN}}`, `{{TEN_CO_QUAN}}` and `{{TEN_VIET_TAT}}` from settings. 27 mentions inside running prose ("Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp Hà Nội phối hợp…") stay literal text, because a tag in a sentence needs a grammatical form the settings do not hold. An admin can edit them. |
+| B37 | Deferred in part. The letterheads, the "GIÁM ĐỐC …" headings and the banner lines (17 replacements in 11 templates) use `{{CO_QUAN_CHU_QUAN}}`, `{{TEN_CO_QUAN}}` and `{{TEN_VIET_TAT}}` from settings. Three prose mentions of a pre-rename agency name were wrong text, not a grammar question, and are now the current name as one literal entry each in `LEGACY_FIXES`: "Trung tâm Xúc tiến Đầu tư SCE" (twice, in the MOU letter and the press release signature) and the name without "Hà Nội" (UBND coordination letter). 23 mentions inside running prose stay literal (12 of "Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp Hà Nội", 11 of "Sở Tài chính"). The settings hold the names in capitals (`TRUNG TÂM XÚC TIẾN …`) and a sentence needs the sentence-case form, so a tag would print capitals mid-sentence. Some are the other party in a document (the UBND plan assigns tasks to Sở Tài chính), not the issuing agency. An admin can edit them. |
 | B38 | Fixed. Badges render from the data (code, level, kind, status), the same status as the admin table. |
 | B39 | Fixed. The list items are buttons (`aria-pressed`), icon-only controls are `IconButton` or `RowMenu` with labels, the editor is a kit `Dialog` (role, focus trap, Esc), and the tag picker is a kit `Combobox`. Keyboard use was tested in component tests, not by hand across a whole session. |
 | B40 | Fixed. The kit `Dialog` scrolls its body and keeps the footer. Checked at 360 px. |
 | B41 | Not applicable. No localStorage. |
+
+## Review fixes (independent review: PASS WITH FIXES)
+
+| Finding | Commit |
+|---|---|
+| 1. A link to an unknown or deleted template opened the UBND plan (B08 again). `pickTemplate` has no fallback, the studio shows an alert, `resolveTemplateKey` takes the catalog and answers `null` for a deleted uuid, `templateHref` and `templatePrintHref` answer `null` for `null`. | `ba1b717` |
+| 2. Imported edits of built-ins printed "ngày ngày". The importer runs the B13 date-word fix (`server/legacy-content.ts`), tested on the three affected templates, on all 23, and on the spellings an editor leaves. | `dcd8b6d` |
+| 3. B37 reason was partly false: three pre-rename names fixed as literal `LEGACY_FIXES` entries, count and note corrected (the "18 replacements" was 17 letterhead replacements plus these 3). | `47d183d` |
+| 4. Weekday restored in the twelve event-date places with `{{THU_TO_CHUC}}`, one test per affected template (Monday and Sunday events). | `06d6087` |
+| 5. `templateKeyOptions(templates)` lists custom templates in group "Tùy chỉnh". | `0d65eb6` |
+| 6a. All 32 step-key targets asserted against an independent table (and the legacy alias map). The table is now consulted before the built-in id check, so the eight identity entries are live. | `874ae1a` |
+| 6b. The `deleteCustom` audit text is asserted, with and without a symbol. | `f592d60` |
+| 6c. The studio fallback test (finding 1). Reverting the fix fails it. | `ba1b717` |
+
+Each new test was seen failing before its fix or with the fix reverted (the tests of finding 1, 2, 3, 4 failed first; 5, 6b and 6c by reverting the change).
 
 ## Product questions (m3 §7.3)
 
@@ -106,7 +121,9 @@ Decisions used: 14 (Word export), 18 (agency names through `orgIdentity`), 13 (d
 
 - **A.** Add a `RichEditor` primitive (and the text-format icons) to the kit.
 - **B.** Fix `Tabs` so its screen-reader counts stay inside the scroller (`relative` on the list, or no absolute `sr-only` inside it).
-- **C.** Progress: replace the free-text "Mã biểu mẫu" with a `Select` over `templateKeyOptions()`, and drop the `try/catch` around `resolveTemplateKey` and `templateHref`.
+- **C.** Progress: replace the free-text "Mã biểu mẫu" with a `Select` over `templateKeyOptions(templates)`, and drop the `try/catch` around `resolveTemplateKey` and `templateHref`.
+- **D.** Progress: pass the readable catalog to `resolveTemplateKey(key, templates)` (from `listTemplates(ctx)` on the server, handed to `event-card.tsx`). Without it a step that points at a deleted custom template still shows a link, which now lands on "Biểu mẫu này không còn tồn tại" instead of on another form.
+- **E.** Core (`src/core/text`, `sanitizeRichHtml`): CSS function names written with a CSS escape or as `image-set(...)` get through, and `position:fixed` is kept. Probed on the current sanitizer: `<p style="background:u\72l(https://evil.example/x.png)">` comes out unchanged, `<p style="background-image:image-set('https://evil.example/x.png' 1x)">` comes out unchanged, `<p style="position:fixed;top:0;left:0;width:100%;height:100%">` comes out unchanged. `url(...)` and `-webkit-image-set(url(...))` are removed. This module cannot fix it.
 
 ## Not verified
 
@@ -115,7 +132,7 @@ Decisions used: 14 (Word export), 18 (agency names through `orgIdentity`), 13 (d
 - Opening the `.doc` in Word, and the `.xlsx` in Excel. The `.doc` content was read back (escaped title and fields, no markup injection). The `.xlsx` was only seen to download with the expected file name.
 - The editor in Safari and Firefox. It was exercised in Chrome only.
 - An import of a real production blob. Frozen copies from an older legacy version differ from today's original, so they import as overrides, and the report says so ("Khôi phục mẫu gốc" clears them).
-- An independent review. The brief forbade starting sub-agents, so none ran.
+- An independent review of the first cut ran and returned the findings below. The fixes have not had a second review.
 
 ## Screenshots
 
