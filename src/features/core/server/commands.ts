@@ -12,7 +12,6 @@ import { fileDateStamp, formatVNDate, formatVNTime, type Holiday } from '@/core/
 import type { Schema } from '@/core/db';
 import type { SettingsPatch, SystemSettings } from '@/core/settings';
 import { ROLES, type DepartmentName, type Role } from '@/core/vocab';
-import '../command-map';
 import { HOLIDAY_KIND_LABELS, auditListSchema, backupNoteSchema, backupRefSchema, createUserSchema, holidaysReplaceSchema, profileNameSchema, setDepartmentSchema, setRoleSchema, setStatusSchema, settingsUpdateSchema } from '../domain/schemas';
 import { SETTINGS_FIELDS, type SettingsField } from '../domain/labels';
 import { listProfiles, readBackup, readProfile, toAuditRow } from './reads';

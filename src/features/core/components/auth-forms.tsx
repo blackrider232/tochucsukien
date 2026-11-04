@@ -117,10 +117,10 @@ export function RegisterForm({ onSignUp = signUp }: { onSignUp?: typeof signUp }
   );
 }
 
-export function ResetPasswordForm({ hasSession }: { hasSession: boolean }) {
-  const [recovering, setRecovering] = useState(hasSession);
-  useEffect(() => onPasswordRecovery(() => setRecovering(true)), []);
-  return recovering ? <NewPasswordForm /> : <ResetRequestForm />;
+export function ResetPasswordForm({ recovering }: { recovering: boolean }) {
+  const [fromEvent, setFromEvent] = useState(false);
+  useEffect(() => onPasswordRecovery(() => setFromEvent(true)), []);
+  return recovering || fromEvent ? <NewPasswordForm /> : <ResetRequestForm />;
 }
 
 function ResetRequestForm() {

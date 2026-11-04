@@ -43,7 +43,7 @@ Branch `t3/core-auth-admin-screens`, based on `dev` at `b64d86a`. The feature li
 | B22 | Fixed. No auth modal, Supabase config modal or dead handlers. `departments` is dropped by the importer. |
 | B23 | Fixed. "Tạo bản sao lưu" prompts for a note and creates it. |
 | B24 | Fixed by design. The server reads the session per request. There is no data load in `onAuthStateChange`. Sign-out is a POST that clears the undo stack. |
-| B25 | Fixed. The reset email links to `/auth/callback?next=/reset-password`, which sets a recovery session. `/reset-password` then asks for the new password, and it also listens for `PASSWORD_RECOVERY`. Not verified against a real Supabase. |
+| B25 | Fixed. The reset email links to `/auth/callback?next=/reset-password`, which sets a recovery session and opens `/reset-password?mode=recovery`. Only then, or on a `PASSWORD_RECOVERY` event, does the page ask for a new password without the old one. A signed-in visitor gets the email form, and the profile page asks for the current password. Not verified against a real Supabase. |
 | B26 | Fixed. One users screen, every department including Ban Giám đốc, labels from `ROLES`. |
 | B27 | Fixed. Role, department and status labels come from `ROLES`, `DEPARTMENTS` and `PROFILE_STATUS`. |
 | B28 | Not applicable. React text everywhere, and `escapeHtml` is foundation's. |
