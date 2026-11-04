@@ -1,1 +1,209 @@
 @import "tailwindcss";
+
+/* Dark mode is a data attribute on <html>, set before first paint by the boot script in src/core/prefs. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* ---------------------------------------------------------------------------
+   Design tokens. One palette: brand blue, slate neutrals, 11 tones (below).
+   Components read semantic tokens (bg-surface, text-ink, border-line,
+   bg-primary), so they follow the theme without per-component dark: variants.
+   --------------------------------------------------------------------------- */
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-500: #3b82f6;
+  --color-brand-600: #2563eb;
+  --color-brand-700: #1d4ed8;
+  --color-brand-800: #1e40af;
+  --color-brand-900: #1e3a8a;
+
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+
+  --radius-control: 0.625rem;
+  --radius-card: 0.875rem;
+  --radius-modal: 1rem;
+
+  --shadow-card: 0 1px 2px 0 rgb(15 23 42 / 0.06), 0 1px 3px 0 rgb(15 23 42 / 0.08);
+  --shadow-pop: 0 8px 24px -4px rgb(15 23 42 / 0.18), 0 2px 6px -2px rgb(15 23 42 / 0.12);
+  --shadow-modal: 0 24px 48px -12px rgb(15 23 42 / 0.35);
+
+  --animate-pulse-soft: pulse-soft 2s ease-in-out infinite;
+  --animate-toast-in: toast-in 0.18s ease-out;
+  --animate-dialog-in: dialog-in 0.16s ease-out;
+
+  @keyframes pulse-soft {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.85; transform: scale(1.03); }
+  }
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateY(-0.5rem); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes dialog-in {
+    from { opacity: 0; transform: translateY(0.5rem) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+}
+
+:root {
+  color-scheme: light;
+  --app: #f1f5f9;
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --surface-3: #f1f5f9;
+  --line: #e2e8f0;
+  --line-strong: #cbd5e1;
+  --ink: #0f172a;
+  --ink-2: #334155;
+  --ink-muted: #475569;
+  --primary: #1d4ed8;
+  --primary-hover: #1e40af;
+  --on-primary: #ffffff;
+  --focus: #2563eb;
+  --overlay: rgb(15 23 42 / 0.55);
+  --sidebar: #0f172a;
+  --sidebar-line: #1e293b;
+  --sidebar-ink: #e2e8f0;
+  --sidebar-muted: #94a3b8;
+  --sidebar-hover: rgb(255 255 255 / 0.06);
+  --sidebar-active: #1d4ed8;
+  --touch: 2.5rem;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --app: #0b1220;
+  --surface: #1e293b;
+  --surface-2: #172033;
+  --surface-3: #263349;
+  --line: #334155;
+  --line-strong: #475569;
+  --ink: #f1f5f9;
+  --ink-2: #cbd5e1;
+  --ink-muted: #94a3b8;
+  --primary: #2563eb;
+  --primary-hover: #3b82f6;
+  --on-primary: #ffffff;
+  --focus: #93c5fd;
+  --overlay: rgb(2 6 23 / 0.7);
+  --sidebar: #020617;
+  --sidebar-line: #1e293b;
+  --sidebar-ink: #e2e8f0;
+  --sidebar-muted: #94a3b8;
+  --sidebar-hover: rgb(255 255 255 / 0.07);
+  --sidebar-active: #2563eb;
+}
+
+@theme inline {
+  --color-app: var(--app);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-muted: var(--ink-muted);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-on-primary: var(--on-primary);
+  --color-focus: var(--focus);
+  --color-overlay: var(--overlay);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-line: var(--sidebar-line);
+  --color-sidebar-ink: var(--sidebar-ink);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-hover: var(--sidebar-hover);
+  --color-sidebar-active: var(--sidebar-active);
+  --spacing-touch: var(--touch);
+}
+
+/* ---------------------------------------------------------------------------
+   Tones. data-tone="blue" on any element yields --tone-bg/-fg/-bd/-solid.
+   Used by Badge, StatusBadge, KpiCard, SectionCard accents, rows. A status is
+   never colour alone: the label (and often an icon) always carries it.
+   --------------------------------------------------------------------------- */
+[data-tone] {
+  --tone-bg: var(--t50);
+  --tone-fg: var(--t800);
+  --tone-bd: var(--t200);
+  --tone-solid: var(--t700);
+  --tone-on-solid: #ffffff;
+}
+[data-theme="dark"] [data-tone],
+[data-theme="dark"][data-tone] {
+  --tone-bg: color-mix(in oklab, var(--t400) 16%, transparent);
+  --tone-fg: var(--t200);
+  --tone-bd: color-mix(in oklab, var(--t400) 38%, transparent);
+  --tone-solid: var(--t400);
+  --tone-on-solid: #020617;
+}
+[data-tone="slate"] { --t50: var(--color-slate-50); --t200: var(--color-slate-200); --t400: var(--color-slate-400); --t700: var(--color-slate-700); --t800: var(--color-slate-800); }
+[data-tone="blue"] { --t50: var(--color-blue-50); --t200: var(--color-blue-200); --t400: var(--color-blue-400); --t700: var(--color-blue-700); --t800: var(--color-blue-800); }
+[data-tone="indigo"] { --t50: var(--color-indigo-50); --t200: var(--color-indigo-200); --t400: var(--color-indigo-400); --t700: var(--color-indigo-700); --t800: var(--color-indigo-800); }
+[data-tone="purple"] { --t50: var(--color-purple-50); --t200: var(--color-purple-200); --t400: var(--color-purple-400); --t700: var(--color-purple-700); --t800: var(--color-purple-800); }
+[data-tone="amber"] { --t50: var(--color-amber-50); --t200: var(--color-amber-200); --t400: var(--color-amber-400); --t700: var(--color-amber-700); --t800: var(--color-amber-800); }
+[data-tone="emerald"] { --t50: var(--color-emerald-50); --t200: var(--color-emerald-200); --t400: var(--color-emerald-400); --t700: var(--color-emerald-700); --t800: var(--color-emerald-800); }
+[data-tone="rose"] { --t50: var(--color-rose-50); --t200: var(--color-rose-200); --t400: var(--color-rose-400); --t700: var(--color-rose-700); --t800: var(--color-rose-800); }
+[data-tone="red"] { --t50: var(--color-red-50); --t200: var(--color-red-200); --t400: var(--color-red-400); --t700: var(--color-red-700); --t800: var(--color-red-800); }
+[data-tone="teal"] { --t50: var(--color-teal-50); --t200: var(--color-teal-200); --t400: var(--color-teal-400); --t700: var(--color-teal-700); --t800: var(--color-teal-800); }
+[data-tone="cyan"] { --t50: var(--color-cyan-50); --t200: var(--color-cyan-200); --t400: var(--color-cyan-400); --t700: var(--color-cyan-700); --t800: var(--color-cyan-800); }
+[data-tone="sky"] { --t50: var(--color-sky-50); --t200: var(--color-sky-200); --t400: var(--color-sky-400); --t700: var(--color-sky-700); --t800: var(--color-sky-800); }
+
+/* ---------------------------------------------------------------------------
+   Base. Zoom stays enabled, text stays selectable, and
+   there is exactly one focus ring.
+   --------------------------------------------------------------------------- */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+body {
+  background: var(--app);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+}
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+:focus:not(:focus-visible) {
+  outline: none;
+}
+::selection {
+  background: color-mix(in oklab, var(--focus) 30%, transparent);
+}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 4px; }
+button:not(:disabled), [role="button"]:not([aria-disabled="true"]), summary { cursor: pointer; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Print. The (app) shell carries data-shell and is hidden; (print) routes have
+   no shell at all. PrintPage adds the @page size and margins per document.
+   --------------------------------------------------------------------------- */
+@media print {
+  [data-shell], [data-no-print], .no-print { display: none !important; }
+  html, body { background: #ffffff !important; color: #000000 !important; }
+  [data-theme="dark"] { color-scheme: light; }
+  .print-page { box-shadow: none !important; margin: 0 !important; border: 0 !important; background: #ffffff !important; color: #000000 !important; }
+  .print-page * { color: inherit; }
+  a { color: inherit; text-decoration: none; }
+  table { page-break-inside: auto; }
+  tr, td, th { page-break-inside: avoid; }
+  thead { display: table-header-group; }
+}

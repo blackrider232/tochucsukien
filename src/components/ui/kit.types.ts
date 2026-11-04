@@ -1,14 +1,16 @@
 // Shared UI kit, src/components/ui/*, foundation-owned and frozen for module
-// workers. Prop signatures only. In the app ReactNode is React's; here it is a
-// stand-in so the sketch type-checks without node_modules.
+// workers. Prop signatures only; the implementations live beside this file and
+// are re-exported by ./index.ts (conformance.ts checks each against the
+// signature here). ReactNode is React's.
 // Rules every primitive enforces: labels bound to controls, Esc/backdrop close,
 // focus trap and return, role="dialog", aria-label on icon-only buttons, text
 // content rendered as React text (no HTML strings), 44px touch targets.
 
+import type { ReactNode } from 'react';
 import type { HHmm, IsoDate, SanitizedHtml } from '@/core/brand';
 import type { EnumRegistry, Tone } from '@/core/vocab';
 
-export type ReactNode = unknown;
+export type { ReactNode };
 export type Component<P> = (props: P) => ReactNode | Promise<ReactNode>;
 
 /** Per-tab accent, from the legacy sidebar table (core §1.4). */
@@ -19,7 +21,7 @@ export type IconName =
   | 'user-cog' | 'layout-template' | 'building' | 'contact' | 'bell' | 'printer' | 'cloud' | 'download'
   | 'undo' | 'redo' | 'moon' | 'sun' | 'plus' | 'pencil' | 'trash' | 'search' | 'x' | 'check' | 'qr-code'
   | 'mail' | 'file-spreadsheet' | 'file-text' | 'alert-triangle' | 'clock' | 'lock' | 'unlock' | 'shield'
-  | 'log-out' | 'chevron-down' | 'chevron-right' | 'copy' | 'external-link' | 'upload' | 'map' | 'armchair';
+  | 'log-out' | 'chevron-down' | 'chevron-right' | 'copy' | 'external-link' | 'upload' | 'map' | 'armchair' | 'menu';
 
 // ---------- actions ----------
 export interface ButtonProps {
