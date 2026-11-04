@@ -49,9 +49,13 @@ export type SanitizedHtml = Brand<string, 'SanitizedHtml'>;
 export type Version = Brand<number, 'Version'>;
 
 export function newId<E extends string>(): Uuid<E> {
-  throw new Error('not implemented');
+  return crypto.randomUUID() as Uuid<E>;
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
 export function parseUuid<E extends string>(raw: unknown): Uuid<E> | null {
-  throw new Error('not implemented');
+  if (typeof raw !== 'string') return null;
+  const lower = raw.trim().toLowerCase();
+  return UUID.test(lower) ? (lower as Uuid<E>) : null;
 }
