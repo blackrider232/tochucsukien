@@ -104,6 +104,7 @@ describe('fetchSheetCsv (no open proxy)', () => {
     ['another host', 'https://evil.com/steal'],
     ['plain http on Google', 'http://doc-0s.googleusercontent.com/x'],
     ['a look-alike host', 'https://googleusercontent.com.evil.com/x'],
+    ['a Google-looking prefix on another domain', 'https://doc-0s.googleusercontent.com.evil.com/x'],
     ['the metadata address', 'http://169.254.169.254/latest/meta-data/'],
     ['localhost', 'http://localhost:3000/api'],
   ])('refuses a redirect to %s and never fetches it', async (_, location) => {

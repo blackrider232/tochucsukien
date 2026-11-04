@@ -50,9 +50,10 @@ describe('useGoogleToken', () => {
     const { result } = render(google);
     act(() => void result.current.signIn(null));
     await google.answer({ ok: true, token: 'tok', expiresInSec: 600 });
-    vi.setSystemTime(Date.now() + 600_000 - EXPIRY_MARGIN_MS - 1000);
+    const expiresAt = (result.current.state as { expiresAt: number }).expiresAt;
+    vi.setSystemTime(expiresAt - EXPIRY_MARGIN_MS - 1);
     expect(result.current.current()).toBe('tok');
-    vi.setSystemTime(Date.now() + 2000);
+    vi.setSystemTime(expiresAt - EXPIRY_MARGIN_MS);
     act(() => void expect(result.current.current()).toBeNull());
     expect(result.current.state).toMatchObject({ kind: 'error', message: expect.stringContaining('hết hạn') });
   });
