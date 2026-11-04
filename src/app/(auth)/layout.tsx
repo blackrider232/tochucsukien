@@ -13,7 +13,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           <ThemeToggle />
         </div>
         <header className="flex flex-col items-center gap-2 text-center">
-          <Image src="/icons/logo-192.png" alt="" width={64} height={64} priority />
+          <Image src="/icons/logo-192.png" alt="" width={166} height={64} priority className="h-16 w-auto" />
           <h1 className="text-xl font-bold text-ink">Quản trị tổ chức sự kiện</h1>
           <p className="text-sm text-ink-2">Trung tâm Xúc tiến đầu tư và Hỗ trợ doanh nghiệp Hà Nội</p>
         </header>
