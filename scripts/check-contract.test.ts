@@ -1,10 +1,13 @@
 import { join } from 'node:path';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { augmentationsIn, checkContract, collectSnapshot, sqlAuditIn, type ContractSnapshot } from './check-contract';
 
+// collectSnapshot loads the feature servers, which reach the server-only core/auth/admin.ts.
+vi.mock('next/dist/compiled/server-only', () => ({}));
+
 let real: ContractSnapshot;
-beforeAll(() => {
-  real = collectSnapshot(join(import.meta.dirname, '..'));
+beforeAll(async () => {
+  real = await collectSnapshot(join(import.meta.dirname, '..'));
 });
 
 type Mutable<T> = T extends ReadonlyArray<infer U> ? Mutable<U>[] : T extends object ? { -readonly [K in keyof T]: Mutable<T[K]> } : T;

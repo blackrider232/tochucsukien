@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { GuestId, Version } from '@/core/brand';
-import { DbError, supabaseAuditWriter, supabaseDb } from '@/core/db';
+import { DbError, supabaseDb } from '@/core/db';
+import { supabaseAuditWriter } from '@/core/db/supabase';
 import { translatePgError, type PgBuilder, type PgResponse } from '@/core/db/supabase';
 import { testActor, XTDT } from '@/core/testing/actors';
 import { checkinsTable, E1, guestsTable } from '@/core/testing/tables';

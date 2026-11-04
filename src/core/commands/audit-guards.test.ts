@@ -23,6 +23,18 @@ describe('who can reach the audit writer', () => {
     expect(readFileSync(join(ROOT, 'src/core/commands/dispatch.ts'), 'utf8')).toMatch(/runCommand\(loaded\.ctx, lookup, id, input, commandAuditWriter\(loaded\.ctx\.db\)\)/);
   });
 
+  it('the writers trust the actor they get, so they live behind a server-only module that only core/auth/admin.ts imports', () => {
+    const SERVER_ONLY = /^import 'next\/dist\/compiled\/server-only';$/m;
+    expect(readFileSync(join(ROOT, 'src/core/db/index.ts'), 'utf8')).not.toMatch(/\b(memoryAuditWriter|supabaseAuditWriter)\b/);
+    expect(mentioning(/\b(memoryAuditWriter|supabaseAuditWriter)\b/)).toEqual([
+      'src/core/auth/admin.ts', 'src/core/commands/pipeline.ts', 'src/core/db/audit-writers.ts', 'src/core/db/memory.ts', 'src/core/db/supabase.ts',
+    ]);
+    expect(mentioning(/@\/core\/db\/audit-writers|\.\/audit-writers/)).toEqual(['src/core/auth/admin.ts']);
+    // pipeline.ts keeps only the memoryDb default of runCommand, for tests and the dev memory runtime.
+    expect(readFileSync(join(ROOT, 'src/core/commands/pipeline.ts'), 'utf8')).not.toMatch(/\bsupabaseAuditWriter\b/);
+    for (const f of ['src/core/auth/admin.ts', 'src/core/db/audit-writers.ts']) expect(readFileSync(join(ROOT, f), 'utf8')).toMatch(SERVER_ONLY);
+  });
+
   it('no feature names a writer or the service client', () => {
     expect(mentioning(/\b(memoryAuditWriter|supabaseAuditWriter|serviceClient|AuditWriter)\b/).filter((f) => f.startsWith('src/features/'))).toEqual([]);
   });

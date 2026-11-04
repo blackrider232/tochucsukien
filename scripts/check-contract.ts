@@ -3,15 +3,13 @@
 // break each rule on a copy of the real snapshot.
 // Usage: pnpm check:contract
 
+import './server-context';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 import { permissionMatrix } from '@/core/permissions';
 import { parseCatalog, tablesTouched, type SqlFile } from '@/core/db/sql-catalog';
-import { featureManifests } from '@/features/registry';
-import { featureServers } from '@/features/registry-server';
-import { featureSlots } from '@/features/registry-slots';
 import { PERMISSIONS_SQL_PATH, renderPermissionsSql } from './gen-permissions-sql';
 
 export interface ManifestFacts {
@@ -206,7 +204,11 @@ export function sqlAuditIn(code: string, fileName = 'feature.ts'): boolean {
   return found;
 }
 
-export function collectSnapshot(root: string): ContractSnapshot {
+export async function collectSnapshot(root: string): Promise<ContractSnapshot> {
+  // After ./server-context: the feature servers reach core/auth/admin.ts, which is server-only.
+  const [{ featureManifests }, { featureServers }, { featureSlots }] = await Promise.all([
+    import('@/features/registry'), import('@/features/registry-server'), import('@/features/registry-slots'),
+  ]);
   const featuresDir = join(root, 'src', 'features');
   const featureDirs = readdirSync(featuresDir).filter((d) => statSync(join(featuresDir, d)).isDirectory()).sort();
   const featureFiles = Object.fromEntries(featureDirs.map((d) => [d, REQUIRED_FEATURE_FILES.filter((f) => existsSync(join(featuresDir, d, f)))]));
@@ -252,7 +254,7 @@ export function collectSnapshot(root: string): ContractSnapshot {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const errors = checkContract(collectSnapshot(join(import.meta.dirname, '..')));
+  const errors = checkContract(await collectSnapshot(join(import.meta.dirname, '..')));
   if (errors.length > 0) {
     for (const e of errors) console.error(`✗ ${e}`);
     console.error(`check:contract failed with ${errors.length} violation(s)`);

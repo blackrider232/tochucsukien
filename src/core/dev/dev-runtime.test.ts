@@ -10,6 +10,7 @@ import type { DevSeed } from './runtime';
 const seeds = vi.hoisted(() => ({ calls: [] as string[], extra: {} as Record<string, DevSeed> }));
 const cookieJar = vi.hoisted(() => new Map<string, string>());
 
+vi.mock('next/dist/compiled/server-only', () => ({}));
 vi.mock('next/headers', () => ({
   cookies: async () => ({ get: (name: string) => (cookieJar.has(name) ? { name, value: cookieJar.get(name) } : undefined), delete: (name: string) => cookieJar.delete(name) }),
 }));

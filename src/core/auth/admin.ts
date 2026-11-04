@@ -1,13 +1,15 @@
-// Server-only. The one module that holds the service-role client, and it never
+// Server-only (the import below fails a client build). The one module that holds the service-role client, and it never
 // exports it. The service role creates auth users so the calling admin's own
 // session is untouched (core B8); the DB trigger then inserts a pending 'user'
 // profile, and core.users.create sets role, department and status through the
 // profile functions, as the admin, so those re-check and audit. It also writes
 // the command pipeline's audit rows, which no user JWT may write.
 
+import 'next/dist/compiled/server-only';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Email, UserId } from '@/core/brand';
-import { DbError, memoryAuditWriter, supabaseAuditWriter, type AuditWriter, type Db } from '@/core/db';
+import { DbError, type AuditWriter, type Db } from '@/core/db';
+import { memoryAuditWriter, supabaseAuditWriter } from '@/core/db/audit-writers';
 import { devMemoryEnabled } from '@/core/dev/mode';
 import type { DepartmentName } from '@/core/vocab';
 import { requireSupabaseEnv } from './env';

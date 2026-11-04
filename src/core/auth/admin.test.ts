@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('next/dist/compiled/server-only', () => ({}));
 import { commandAuditWriter } from '@/core/auth/admin';
 import { supabaseDb } from '@/core/db';
 import { testActor, XTDT } from '@/core/testing/actors';

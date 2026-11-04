@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { GuestId, UserId, Version } from '@/core/brand';
-import { DbError, memoryAuditWriter, memoryDb, supabaseDb, type CommandAuditRow, type Db } from '@/core/db';
-import { inspectMemoryDb } from '@/core/db/memory';
+import { DbError, memoryDb, supabaseDb, type CommandAuditRow, type Db } from '@/core/db';
+import { inspectMemoryDb, memoryAuditWriter } from '@/core/db/memory';
 import { PTDN, testActor, XTDT } from '@/core/testing/actors';
 import { checkinsTable, contactsTable, E1, E2, E3, eventRows, eventsTable, guestsTable } from '@/core/testing/tables';
 

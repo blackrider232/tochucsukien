@@ -6,12 +6,11 @@
 // --path <file> (or a positional path), --include-demo, --keep-admins <emails>.
 // Writing needs NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.
 
+import './server-context';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { isDemoLegacyEvent, isDemoLegacyId, normalizeBlob, runLegacyImport, type ImportReport, type ImportRunOptions, type LegacyBlob, type LegacyImporter } from '@/core/legacy';
 import type { FeatureManifest } from '@/core/registry';
-import { featureManifests } from '@/features/registry';
-import { featureServers } from '@/features/registry-server';
 
 export function parseArgs(argv: ReadonlyArray<string>): ImportRunOptions {
   let source: 'file' | 'database' | null = null;
@@ -94,6 +93,8 @@ export function formatReport(opts: ImportRunOptions, report: ImportReport, cover
 }
 
 async function main() {
+  // After ./server-context: the feature servers reach core/auth/admin.ts, which is server-only.
+  const [{ featureManifests }, { featureServers }] = await Promise.all([import('@/features/registry'), import('@/features/registry-server')]);
   const opts = parseArgs(process.argv.slice(2));
   const importers = Object.values(featureServers).flatMap((s) => (s.legacyImporter ? [s.legacyImporter] : []));
   const report = await runLegacyImport(opts, importers);

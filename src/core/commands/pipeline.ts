@@ -11,7 +11,8 @@
 import { z } from 'zod';
 import type { EventId, Instant, UserId, Version } from '@/core/brand';
 import { gateFor, type Gate, type RequestContext } from '@/core/auth';
-import { DbError, defineTable, memoryAuditWriter, type AuditWriter, type BaseRow, type DbErrorKind } from '@/core/db';
+import { DbError, defineTable, type AuditWriter, type BaseRow, type DbErrorKind } from '@/core/db';
+import { memoryAuditWriter } from '@/core/db/memory';
 import { can, type ScopedResource } from '@/core/permissions';
 import type { DepartmentName } from '@/core/vocab';
 import { CommandError, type AuditEntry, type CommandContext, type CommandFailure, type CommandResult, type CommandSpec } from './index';

@@ -17,8 +17,8 @@ import type { SettingsPatch, SystemSettings } from '@/core/settings';
 import { DbError, type DbErrorKind } from './errors';
 
 export { DbError, type DbErrorKind };
-export { supabaseAuditWriter, supabaseDb } from './supabase';
-export { memoryAuditWriter, memoryDb } from './memory';
+export { supabaseDb } from './supabase';
+export { memoryDb } from './memory';
 
 /** Satisfied structurally by a zod schema. Rows are parsed at this boundary only. */
 export interface Schema<T> {
