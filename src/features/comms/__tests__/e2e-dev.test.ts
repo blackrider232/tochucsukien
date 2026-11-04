@@ -146,14 +146,16 @@ describe('comms in the dev memory runtime, end to end', () => {
     const screen = (await invitationScreenData(s.ctx, s.eventId, null))!;
     expect(screen.guests.filter((g) => g.lastDelivery === 'sent').map((g) => g.email).sort()).toEqual(['guest.g@example.org', 'thu.nghiem.e@example.com']);
 
-    // The dev sheet: E confirms with banquet, G declines, a newcomer and a row without a time wait for review.
+    // The dev sheet: E confirms with banquet, G declines, a newcomer and a row without a time wait for review, and so does
+    // E's later sentence, for a person to decide; E stays confirmed.
     const sync = await s.run('comms.syncForm', { eventId: s.eventId });
-    expect(sync).toMatchObject({ status: 'ok', rows: 5, fresh: 5, applied: 2, created: 0, failed: 0 });
+    expect(sync).toMatchObject({ status: 'ok', rows: 6, fresh: 6, applied: 2, created: 0, failed: 0 });
     const roster = await readRoster(s.ctx, s.eventId);
     expect(roster.find((g) => g.email === 'thu.nghiem.e@example.com')).toMatchObject({ rsvpStatus: 'confirmed', hasBanquet: true, rsvpSource: 'google_form' });
     expect(roster.find((g) => g.email === 'guest.g@example.org')).toMatchObject({ rsvpStatus: 'declined', rsvpSource: 'google_form' });
     const form = (await formScreenData(s.ctx, s.eventId))!;
     expect(form.responses.find((r) => r.name.includes('onerror'))).toMatchObject({ name: '<img src=x onerror=alert(3)> Thử XSS', applyStatus: 'pending', match: 'none' });
+    expect(form.responses.find((r) => r.rsvpAnswer.startsWith('Có tham dự nhưng'))).toMatchObject({ applyStatus: 'review', match: 'email', matchedGuest: { name: 'Doanh nhân Thử Nghiệm E' } });
 
     const actions = (await s.audits()).map((a) => a.action);
     for (const a of ['BẮT ĐẦU GỬI THƯ', 'GỬI THƯ MỜI', 'ĐỒNG BỘ GOOGLE FORM', 'CẬP NHẬT RSVP']) expect(actions).toContain(a);
