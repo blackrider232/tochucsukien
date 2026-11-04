@@ -259,6 +259,26 @@ describe('editable report tables on Postgres', () => {
     }
   });
 
+  it('the database folds spaces, tabs, line breaks, non-breaking and zero-width characters as foldVi does, so the index and the command agree', async () => {
+    const corpus = [
+      'GÓI\u00a0A', 'GÓI A', '\u00a0GÓI A\u00a0', 'gói\ta', 'gói\n\r\ta', 'gói\u2003\u2009a', 'gói\u3000a', 'gói\u202fa', 'gói\u2028a', '\ufeffgói a', 'gói\u000ba\u000c',
+      'gói\u200ba', 'gói\u200da\u2060', 'gói a\u00ad', '', ' ', '\t\u00a0\u3000', 'Ñandú ǎ ǵ ǻ', 'e\u0301 e\u0323\u0302 Đ đ', 'ÁẢÃẠ ÂẤẦẨẪẬ ƠỚỜỞỠỢ ƯỨỪỬỮỰ', 'TB-2026/001  (A)',
+    ];
+    for (const code of corpus) {
+      const r = await db.query<{ k: string }>(`select tcsk.reports_code_key($1) as k`, [code]);
+      expect(r.rows[0]!.k, JSON.stringify(code)).toBe(foldVi(code));
+    }
+  });
+
+  it('a package code with a non-breaking space is a duplicate of the same code with a space', async () => {
+    const insert = (code: string) =>
+      as(ids.staff, 'aal1', () =>
+        db.exec(`insert into public.sce_tcsk_bidding_packages (event_id, code, name, department, budget_vnd, status) values ('${eventId}', '${code}', 'Gói', 'Phòng Hành chính - Tổ chức', 100, 'Đang thẩm định hồ sơ')`),
+      );
+    await insert('GÓI B 7');
+    await expect(insert('GÓI\u00a0B\u00a07')).rejects.toThrow(/duplicate key/);
+  });
+
   it('refuses a status or a clipping type outside the contract, and a javascript: link', async () => {
     await expect(
       as(ids.staff, 'aal1', () =>
