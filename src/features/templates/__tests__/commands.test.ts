@@ -148,11 +148,20 @@ describe('templates.createCustom, updateCustom, deleteCustom', () => {
 
     const current = (await h.catalog()).at(-1)!;
     const deleted = await h.ok(admin, 'templates.deleteCustom', { id, version: current.version as Version });
-    expect(h.audits().at(-1)).toMatchObject({ action: 'XÓA BIỂU MẪU CHUẨN' });
+    expect(h.audits().at(-1)).toMatchObject({ action: 'XÓA BIỂU MẪU CHUẨN', summary: 'Admin xóa biểu mẫu chuẩn: "Biểu mẫu thử" (BM-01)', entity: 'template', entity_id: id });
     expect(await h.catalog()).toHaveLength(23);
     expect((await h.undo(admin, deleted.inverse)).ok).toBe(true);
     expect((await h.catalog()).at(-1)).toMatchObject({ id, title: 'Biểu mẫu thử' });
     expect((await h.undo(admin, created.inverse)).ok).toBe(true);
+  });
+
+  it('audits the delete of a template without a symbol as "không số hiệu"', async () => {
+    const h = harness();
+    const id = h.customId();
+    const created = await h.ok(admin, 'templates.createCustom', { id, draft: draft({ code: '', title: 'Phiếu nội bộ' }) });
+    await h.ok(admin, 'templates.deleteCustom', { id, version: created.value.version as Version });
+    expect(h.audits().at(-1)).toMatchObject({ action: 'XÓA BIỂU MẪU CHUẨN', summary: 'Admin xóa biểu mẫu chuẩn: "Phiếu nội bộ" (không số hiệu)', entity_id: id });
+    expect(h.audits()).toHaveLength(2);
   });
 
   it('converges when the same create is retried and conflicts when the id is reused for another document', async () => {
