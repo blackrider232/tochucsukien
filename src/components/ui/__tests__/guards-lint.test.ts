@@ -1,8 +1,15 @@
 // @vitest-environment node
 import { ESLint } from 'eslint';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
+// One instance for the file. Its first lint loads the config and every plugin, which takes
+// seconds on a cold, busy machine, so that cost is paid once in beforeAll under its own timeout.
 const eslint = new ESLint({ cwd: process.cwd() });
+const COLD_START_MS = 60_000;
+
+beforeAll(async () => {
+  await eslint.lintText('export {};', { filePath: 'src/features/guests/components/warm-up.tsx' });
+}, COLD_START_MS);
 
 async function messages(filePath: string, code: string): Promise<string[]> {
   const [result] = await eslint.lintText(code, { filePath });
@@ -12,7 +19,7 @@ async function messages(filePath: string, code: string): Promise<string[]> {
 const FEATURE = 'src/features/guests/components/guest-row.tsx';
 const KIT = 'src/components/ui/fixture.tsx';
 
-describe('UI guards in pnpm lint', () => {
+describe('UI guards in pnpm lint', { timeout: COLD_START_MS }, () => {
   it('G1 bans palette colour classes in features, the app and the kit', async () => {
     const bad = `export const A = () => <p className="text-red-600 dark:text-red-400">x</p>;`;
     expect(await messages(FEATURE, bad)).toEqual(expect.arrayContaining([expect.stringContaining('Use a token class')]));
