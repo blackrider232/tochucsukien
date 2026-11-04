@@ -6,4 +6,4 @@ export { listHallTemplates, hallTemplateUsage, readEventHall, readSeating, readB
 export { rosterOf, type Upstream } from './upstream';
 export { commands } from './commands';
 export type { SeatChange, AutoAssignSummary } from './commands';
-export const legacyImporter = null;
+export { legacyImporter } from './legacy-importer';
