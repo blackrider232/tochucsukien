@@ -19,7 +19,7 @@ import { createCommands } from '../server/commands';
 import { fakeSheetSource, type SheetSource } from '../server/sheet-source';
 
 export const SETTINGS = { ...DEFAULT_SETTINGS, version: 1 as Version };
-export const NOW = '2026-11-04T02:00:00.000Z' as Instant;
+export const NOW = '2026-11-10T02:00:00.000Z' as Instant;
 
 export const GUEST: GuestDraft = {
   name: 'Nguyễn Văn An', group: 'DoanhNghiep', title: '', organization: 'Công ty A', phone: '', email: null, sendMethod: 'direct',

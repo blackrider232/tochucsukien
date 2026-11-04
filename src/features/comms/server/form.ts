@@ -84,7 +84,15 @@ interface Tally {
   failures: string[];
 }
 
+const emptyTally = (): Tally => ({ applied: 0, stale: 0, noAnswer: 0, review: 0, created: 0, failed: 0, failures: [] });
+
 const rowHashOf = (rowKey: string) => createHash('sha256').update(rowKey, 'utf8').digest('hex');
+
+/** Whether the guest's RSVP is this response's: given by the Form at exactly its time (a create, or an earlier try). */
+async function holdsAnswer(ctx: CommandContext, eventId: EventId, guestId: GuestId, respondedAt: Instant) {
+  const guest = (await readRoster(ctx, eventId)).find((g) => g.id === guestId);
+  return guest?.rsvpSource === 'google_form' && guest.rsvpAt !== null && Date.parse(guest.rsvpAt) === Date.parse(respondedAt);
+}
 
 /** Gives a response to a guest: claim the row against its version first, then ask guests, then record the outcome. */
 async function applyToGuest(ctx: CommandContext, row: ResponseRow, guestId: GuestId, match: ResponseRow['match'], respondedAt: Instant, t: Tally): Promise<void> {
@@ -106,13 +114,13 @@ async function applyToGuest(ctx: CommandContext, row: ResponseRow, guestId: Gues
       ...(row.substitute ? { substituteName: row.substitute } : {}),
       ...(row.hasBanquet === null ? {} : { hasBanquet: row.hasBanquet }),
     });
-    await ctx.db.table(responsesTable).update(row.id, applied ? { applyStatus: 'applied', appliedAt: ctx.now } : { applyStatus: 'stale' }, { expectedVersion: claimed.version });
-    if (applied) t.applied += 1;
+    const done = applied || (await holdsAnswer(ctx, row.eventId, guestId, respondedAt));
+    await ctx.db.table(responsesTable).update(row.id, done ? { applyStatus: 'applied', appliedAt: ctx.now } : { applyStatus: 'stale' }, { expectedVersion: claimed.version });
+    if (done) t.applied += 1;
     else t.stale += 1;
   } catch (e) {
     // guests may have saved the RSVP and then failed on the seat; the guest row tells which.
-    const guest = (await readRoster(ctx, row.eventId)).find((g) => g.id === guestId);
-    const saved = guest?.rsvpSource === 'google_form' && guest.rsvpAt !== null && Date.parse(guest.rsvpAt) === Date.parse(respondedAt);
+    const saved = await holdsAnswer(ctx, row.eventId, guestId, respondedAt);
     if (saved) await ctx.db.table(responsesTable).update(row.id, { applyStatus: 'applied', appliedAt: ctx.now }, { expectedVersion: claimed.version });
     if (saved) t.applied += 1;
     else t.failed += 1;
@@ -128,11 +136,13 @@ const isGovernment = (organization: string) => {
   return w.startsWith(' so ') || ['ubnd', 'uy ban', 'hdnd'].some((p) => hasPhrase(w, p));
 };
 
-/** A guest made from a response nobody matched (auto-add on): pending invite, the answers as given, flagged in notes. */
+/**
+ * A guest made from a response nobody matched (auto-add on): pending invite, flagged in notes, and no RSVP yet. The
+ * answer then goes through guests.applyRsvp at the response's own time, so a later answer of the same person wins.
+ */
 function draftFromResponse(r: ResponseRow): GuestDraft {
   const digits = normalizePhone(r.phone);
   const phoneOk = r.phone === '' || (/^[\d\s.+()-]+$/.test(r.phone) && digits.length >= 8 && digits.length <= 15);
-  const status = r.rsvp === 'substituted' && !r.substitute ? 'pending' : (r.rsvp ?? 'pending');
   const notes = ['Tự đăng ký qua Google Form', r.notes, phoneOk ? '' : `SĐT trong phản hồi: ${r.phone}`].filter(Boolean).join(' | ');
   return {
     name: clip(r.name, 200),
@@ -143,10 +153,10 @@ function draftFromResponse(r: ResponseRow): GuestDraft {
     email: r.email,
     sendMethod: 'email',
     inviteStatus: 'pending',
-    rsvpStatus: status,
+    rsvpStatus: 'pending',
     rsvpSource: 'google_form',
-    substituteName: status === 'substituted' ? clip(r.substitute, 300) : '',
-    hasBanquet: r.hasBanquet ?? false,
+    substituteName: '',
+    hasBanquet: false,
     notes: clip(notes, 2000),
     masterContactId: null,
   };
@@ -240,7 +250,7 @@ export const syncFormWith = (sheets: SheetSource): CommandSpec<InputOf<'comms.sy
       throw e;
     }
 
-    const t: Tally = { applied: 0, stale: 0, noAnswer: 0, review: 0, created: 0, failed: 0, failures: [] };
+    const t = emptyTally();
     const work = [...existing.filter((r) => r.applyStatus === 'pending' || (r.applyStatus === 'no_time' && UNRESOLVED.has(r.match))), ...inserted]
       .sort((a, b) => Date.parse(a.respondedAt) - Date.parse(b.respondedAt));
     try {
@@ -283,8 +293,12 @@ async function autoAdd(ctx: CommandContext, eventId: EventId, rows: ReadonlyArra
   for (const r of rows) {
     const id = ids.get(r.id)!;
     if (present.has(id)) {
-      await ctx.db.table(responsesTable).update(r.id, { matchedGuestId: id, match: 'created', candidateGuestIds: [], applyStatus: 'applied', appliedAt: ctx.now }, { expectedVersion: r.version });
+      // A newcomer counts as created, whatever became of its answer; only a failure to apply it is reported.
+      const own = emptyTally();
+      await applyToGuest(ctx, r, id, 'created', r.respondedAt, own);
       t.created += 1;
+      t.failed += own.failed;
+      t.failures.push(...own.failures);
     } else {
       // guests skipped it as a person already on the list (two responses of one newcomer, or a guest added meanwhile).
       await place(ctx, r, index, false, t);
@@ -327,7 +341,7 @@ export const resolveResponse: CommandSpec<InputOf<'comms.resolveResponse'>, Outp
       };
     }
     if (row.applyStatus === 'applied') throw new CommandError('invalid', 'Phản hồi này đã được áp dụng.');
-    const t: Tally = { applied: 0, stale: 0, noAnswer: 0, review: 0, created: 0, failed: 0, failures: [] };
+    const t = emptyTally();
     if (action.kind === 'match') {
       const guest = (await readRoster(ctx, eventId)).find((g) => g.id === action.guestId);
       if (!guest) throw new CommandError('not_found', 'Không tìm thấy khách mời này trong sự kiện.');
@@ -343,16 +357,18 @@ export const resolveResponse: CommandSpec<InputOf<'comms.resolveResponse'>, Outp
     const guestId = newId<'Guest'>();
     const { added } = await ctx.call('guests.upsertMany', { eventId, items: [{ id: guestId, draft: draftFromResponse(row) }], onExisting: 'skip' });
     if (added === 0) throw new CommandError('conflict', 'Đã có khách mời trùng email, số điện thoại hoặc họ tên và cơ quan. Hãy chọn ghép với khách mời đó.');
-    let after: ResponseRow;
+    let after: ResponseRow | null;
     try {
-      after = await ctx.db.table(responsesTable).update(id, { matchedGuestId: guestId, match: 'created', candidateGuestIds: [], applyStatus: 'applied', appliedAt: ctx.now }, { expectedVersion: version });
+      await applyToGuest(ctx, row, guestId, 'created', row.applyStatus === 'no_time' ? ctx.now : row.respondedAt, t);
+      after = await ctx.db.table(responsesTable).get(id);
     } catch {
       await auditPartial(ctx, manage.perm, audit('XỬ LÝ PHẢN HỒI FORM', `Thêm khách mời mới từ phản hồi Google Form của "${who}", nhưng chưa ghi được phản hồi là đã xử lý; lần đồng bộ sau sẽ ghép phản hồi với khách mới này`, eventId, 'rsvp_response', id));
       throw new CommandError('conflict', `Đã thêm khách mời "${who}" nhưng chưa ghi được phản hồi là đã xử lý. Tải lại trang để xem.`);
     }
+    const outcome = t.applied ? '' : t.noAnswer ? ', chưa có câu trả lời rõ' : t.failures.length ? `, chưa áp dụng được câu trả lời: ${t.failures[0]}` : '';
     return {
-      value: { applyStatus: after.applyStatus },
-      audit: audit('XỬ LÝ PHẢN HỒI FORM', `Thêm khách mời mới từ phản hồi Google Form của "${who}"`, eventId, 'rsvp_response', id),
+      value: { applyStatus: after?.applyStatus ?? row.applyStatus },
+      audit: audit('XỬ LÝ PHẢN HỒI FORM', `Thêm khách mời mới từ phản hồi Google Form của "${who}"${outcome}`, eventId, 'rsvp_response', id),
     };
   },
 };

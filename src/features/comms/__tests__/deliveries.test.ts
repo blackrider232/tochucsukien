@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { newId, type CampaignId, type Email, type EventId, type GuestId, type Instant } from '@/core/brand';
 import { testActor, XTDT } from '@/core/testing/actors';
 import { campaignIdFor, CLAIM_LEASE_MS } from '../server/deliveries';
@@ -11,6 +11,15 @@ const colleague = testActor('user', XTDT);
 /** One run of the send loop each: two tabs of one officer are two runs. */
 const TAB_A = newId<'CampaignRun'>();
 const TAB_B = newId<'CampaignRun'>();
+
+// memoryDb stamps updated_at from Date, and the lease compares it with the command's clock: both read NOW.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(Date.parse(NOW));
+});
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 type H = ReturnType<typeof harness>;
 const to = (email: string, guestId: GuestId | null = null) => ({ guestId, email: email as Email, recipientName: `Người ${email}` });
@@ -227,12 +236,7 @@ describe('comms.releaseDeliveries', () => {
 });
 
 describe('comms.renewClaims', () => {
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   it('keeps a long run’s unsent tail: a colleague 31 minutes after the claim still cannot take it', async () => {
-    vi.useFakeTimers({ toFake: ['Date'] });
     const t0 = Date.parse(NOW);
     const h = harness();
     const at = (min: number) => {
