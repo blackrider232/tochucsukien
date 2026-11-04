@@ -1,13 +1,13 @@
 # Status: feature `guests` (M4a, Khách mời)
 
-Branch `t3/3df3975e`. The feature lives in `src/features/guests/`. Routes are `/events/[eventId]/guests` (list), `/events/[eventId]/guests/namecards` (print studio) and `/events/[eventId]/guests/print` (under `(print)`).
+Branch `t3/guests-module-rewrite`. The feature lives in `src/features/guests/`. Routes are `/events/[eventId]/guests` (list), `/events/[eventId]/guests/namecards` (print studio) and `/events/[eventId]/guests/print` (under `(print)`).
 
 ## What is built
 
-- **Domain** (`domain/`). `roster.ts` holds every selector: `guestKpis`, `quotaProgress`, `printSets`, `isNamecardGuest`, `isBanquetGuest`, `guestIdentityKey`, `sameGuest`, `filterGuests` and `rsvpTransition`. `guestQuota` (decision 2) is re-exported from `@/core/settings` as the one quota. `schemas.ts` holds the zod field rules the form and the commands share. `export.ts` builds the styled guest-list workbook. `print.ts` holds the print themes, sizes and URLs.
-- **Server** (`server/`). `tables.ts` and `reads.ts` hold `readRoster`, `readRosterEntry` and `readLegacyGuestIds`. `commands.ts` holds create, update, delete, restore, applyRsvp, upsertMany and markInvited. Every mutation is audited, and those a person can take back return an inverse. `legacy-importer.ts` imports `eventGuests` and exports `legacyGuestIndex`, `legacyCheckins` and `legacyEmailStatuses` for venue, live and comms. `dev-seed.ts` adds fake guests to progress's dev event. `screen-data.ts` builds what the screens get.
+- **Domain** (`domain/`). `roster.ts` holds every selector: `guestKpis`, `quotaProgress`, `printSets`, `isNamecardGuest`, `isBanquetGuest`, `guestIdentityKey` (the one identity rule), `filterGuests` and `rsvpTransition`. `guestQuota` (decision 2) is re-exported from `@/core/settings` as the one quota. `schemas.ts` holds the zod field rules the form and the commands share. `export.ts` builds the styled guest-list workbook. `print.ts` holds the print themes, sizes and URLs.
+- **Server** (`server/`). `tables.ts` and `reads.ts` hold `readRoster`, `readRosterEntry` and `readLegacyGuestIds`. `commands.ts` holds create, update, delete, restore, applyRsvp, upsertMany, markInvited and `undoRsvp` (the inverse of a decline that freed a seat, declared beside the contract's commands). Every mutation is audited, and those a person can take back return an inverse. `legacy-importer.ts` imports `eventGuests` and exports `legacyGuestIndex`, `legacyCheckins` and `legacyEmailStatuses` for venue, live and comms. `dev-seed.ts` adds fake guests to progress's dev event. `screen-data.ts` builds what the screens get.
 - **Screens** (`components/`). The guest page has four KPI cards and their four pop-ups, a filtered and sortable table, the RSVP and delete row menu (confirm, then undo), the add/edit dialog and the xlsx export. The print studio previews table tents and QR badges. The print sheets print A4 at true size, one tent per landscape sheet and four badges per portrait sheet, with a theme picker that never prints.
-- **Tests** (`__tests__/`, 72). They cover quota rounding (9 cases), KPI and print-set selectors, identity, search, every command with audit text and undo round trips, and seat release and re-seating through a stand-in venue. Every verb is denied to an outsider twice: once through RLS, and once with RLS bypassed (`runWithoutRls`), so the command's own `authorize` is what refuses. There are also the importer fixture, the xlsx read back with exceljs (layout, labels, signature, `=`/`+`/`-`/`@`/TAB cells), XSS rendering, and the QR round trip through `parseScannedCode`.
+- **Tests** (`__tests__/`, 99). They cover quota rounding (9 cases for the shared function, and the feature's own `quotaProgress` where ceil, round and floor differ), KPI and print-set selectors, identity, search, every command with audit text and undo round trips, and seat release and re-seating through a stand-in venue that can also refuse a release. Every command is refused to an actor who may read but not write (a stub of `can`, because every role holds both grants), `upsertMany` is timed (2000 items into 3000 guests under 1 s) and compared with a pairwise key comparison on random imports, and `applyRsvp` is tested on both sides of its staleness boundary. Every verb is denied to an outsider twice: once through RLS, and once with RLS bypassed (`runWithoutRls`), so the command's own `authorize` is what refuses. There are also the importer fixture, the xlsx read back with exceljs (layout, labels, signature, and `=`/`+`/`-`/`@`/TAB/CR cells as plain string cells with no apostrophe), XSS rendering, and the QR round trip through `parseScannedCode`.
 - **Browser** (`SCE_DEV_MEMORY=1 pnpm dev`, headless Chrome). Checked at 1440 and 360 px, light and dark, as admin, `user:XTDT` and `user:PTDN`. The run covered add with validation errors, edit, RSVP, delete then undo, the four pop-ups and the xlsx download read back. The print sheets were rendered to PDF: 2 tents gave 2 landscape pages, 6 badges gave 2 portrait pages. A chuyên viên of another department gets 404 on the list and on the print sheet.
 
 ## Bugs (m4a §6)
@@ -27,11 +27,11 @@ Branch `t3/3df3975e`. The feature lives in `src/features/guests/`. Routes are `/
 | B12 | Deferred to comms (sandbox send, decision 16). |
 | B13 | Fixed. The badge QR is `encodeCheckinPayload(eventId, guestId)` from `@/core/checkin-code`. A test decodes it with `parseScannedCode` and compares the drawn matrix. |
 | B14 | Deferred to comms (simulated responses). |
-| B15 | Fixed in `guests.applyRsvp`. A response older than `rsvpAt` (a staff edit or an earlier response) is ignored, and banquet changes only when the response answers it. |
+| B15 | Fixed in `guests.applyRsvp`. A response not strictly newer than `rsvpAt` (a staff edit or an earlier response, or one made at the same instant) is ignored, and banquet changes only when the response answers it. |
 | B16 | Deferred to comms (column mapping). |
-| B17 | Fixed on the guests side: `applyRsvp` turns confirmed with a named substitute into substituted. Parsing the answer text is comms. |
-| B18 | Fixed. One `rsvpTransition` serves the form, the row menu and `applyRsvp`. A decline asks `venue.releaseGuestSeat`. |
-| B19, B20, B21, B22 | Deferred to comms (form matching, gid, cache, scheduled sync). `guestIdentityKey` and `sameGuest` are the rules to match with. |
+| B17 | Fixed on the guests side: `applyRsvp` turns confirmed with a named substitute into substituted, and refuses substituted when no substitute is named (in the response or already on the guest). Parsing the answer text is comms. |
+| B18 | Fixed. One `rsvpTransition` serves `guests.update`, `guests.undoRsvp` and `guests.applyRsvp`; the form and the row menu go through `update`. A decline saves the guest first and only then asks `venue.releaseGuestSeat`. If venue refuses, the decline stays applied and audited, and the command fails with a message naming the seat to release by hand. |
+| B19, B20, B21, B22 | Deferred to comms (form matching, gid, cache, scheduled sync). `guestIdentityKey` is the rule to match with. |
 | B23 | Fixed. The target is `event.targetGuests`. The quota is `guestQuota` at `settings.guestQuotaPercent` (decision 2). |
 | B24, B25 | Deferred to comms (merge tags). The roster gives `seatCode`, and the event gives `eventDate` and `eventTime`. |
 | B26 | Not applicable. `honorific`, `danhXung` and `qrCode` are not in the model. |
@@ -45,7 +45,7 @@ Branch `t3/3df3975e`. The feature lives in `src/features/guests/`. Routes are `/
 | B38 | Fixed. `printSets` feeds KPI 3, the pop-up, the studio and the print route. VIP means group VIP or a seat in a `vipZone` (venue), never `'A-'`. Nobody gets both a tent and a badge. |
 | B39 | Fixed. Banquet counts exclude declined guests. The flag is kept, so an undone decline restores it. |
 | B40 | Fixed. A new guest is pending, uninvited and without banquet. |
-| B41 | Fixed. There is one identity rule. `upsertMany` fills blanks only and keeps `masterContactId`. |
+| B41 | Fixed. There is one identity rule, `guestIdentityKey` (folded email, else phone digits, else folded name and organization), and `upsertMany` looks guests up by it in maps (linear). Two records are the same person exactly when their keys are equal, so a record with an email and the same person recorded without one are different identities. `upsertMany` fills blanks only and keeps `masterContactId`; a match shares the key, so what it can fill is title, notes and master contact. |
 | B42 | Fixed. Ids are client uuids. The importer gives colliding legacy ids a `#2` key. |
 | B43 | Fixed. "Ghế đã xếp" counts roster guests with a seat. |
 | B44 | Fixed. Labels and tones come from `@/core/vocab` on every surface, the xlsx included. |
@@ -53,7 +53,7 @@ Branch `t3/3df3975e`. The feature lives in `src/features/guests/`. Routes are `/
 | B46 | Not applicable. Guest pages are per event, and an absent event is a 404. |
 | B47 | Fixed. Agency names come from `orgIdentity(settings)` and `agencyShortName`. |
 | B48 | Not applicable. The dead code was not ported. |
-| B49 | Deferred to comms (responses export). The guest xlsx writes formula-safe text cells (test). |
+| B49 | Deferred to comms (responses export). The guest xlsx writes every person-supplied value as a plain string cell, which Excel never evaluates, with no apostrophe (that prefix is for CSV only). Test. |
 | B50 | Fixed. The kit gives Dialog, button KPI cards, labelled icon buttons and the row menu, and RSVP is text in a badge. |
 | B51 | Fixed. The table becomes a card list under md. 360 px had no horizontal scroll in the browser. |
 | B52 | Deferred. A custom background needs a file input and image storage the kit lacks (change request 3). The four built-in themes ship. |
@@ -61,10 +61,22 @@ Branch `t3/3df3975e`. The feature lives in `src/features/guests/`. Routes are `/
 | B54 | Fixed. Each guest is a row with `version`, and every write is guarded. |
 | B55 | Fixed on the guests side: `substituteName` is only the attending substitute. The importer moves the legacy walk-in text into notes. |
 | B56, B58 | Deferred to comms (test send, gviz CSV). |
-| B57 | Fixed. There is one seat table with an FK cascade. Undo re-creates the guest and asks venue for the seat back, and the audit says when it is gone. |
+| B57 | Fixed. There is one seat table with an FK cascade. Undo of a delete re-creates the guest and asks venue for the seat back. Undo of a decline does the same through `guests.undoRsvp`, with the seat read from the database when the decline released it. The audit says when the seat is gone. |
 | B59 | Not applicable. There is no starter data. |
 
 From m4c §6, for the guest-list export: B6 (formula injection), B7 and B66 (no HTML fallback), B34 (VN date, event time), B35 (every group counted and filled), B36 (settings agency names), B52 (ExcelJS from npm) and B60 (registry labels) are fixed.
+
+## Review fixes (independent review, PASS WITH FIXES)
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 | A decline freed the seat before the version-checked save, so a stale version left a confirmed guest without a seat. | Guest first, seat after, in `update`, `undoRsvp` and `applyRsvp`. A venue refusal keeps the decline, audits it and fails with the seat to release by hand. Commit 75d083e. |
+| 2 | Undoing a decline did not give the seat back. | The inverse is `guests.undoRsvp`, carrying the seat read from the database. A taken seat leaves the RSVP undone and the audit says the seat is no longer free. Commit 75d083e. |
+| 3 | The xlsx prefixed `+ - = @` cells with an apostrophe. | String cells as typed; the apostrophe stays CSV-only. Commit 6042a41. |
+| 4 | `upsertMany` was quadratic (2000 into 3000 took 5.2 s). | Key maps, one fold per record. 2000 items into 3000 guests is under 1 s in vitest; a pairwise reference agrees on random imports. Commit 310fa61. |
+| 5 | `guestIdentityKey` and `sameGuest` disagreed. | `sameGuest` is deleted; `guestIdentityKey` decides everywhere. Commit 310fa61. Consequence to know: an import row without an email no longer matches a guest recorded with one (and the reverse), so it adds a guest instead of filling blanks. |
+| 6 | `applyRsvp` accepted substituted without a name and had its own transition logic. | It goes through `rsvpTransition` (new `needsSubstitute`) and refuses with a Vietnamese message. Commit 75d083e. |
+| 7 | Surviving mutations. | Tests for `quotaProgress` rounding, the `applyRsvp` staleness boundary (equal time is ignored) and the write permission of every command, each shown to fail when its fix is reverted. Commit 828d71f. |
 
 ## Product questions (m4a §7.4)
 
@@ -104,3 +116,4 @@ Other choices. Declined guests get no tent or badge. The xlsx signature title us
 5. The kit `Select` has no controlled mode outside a form, and `Icon` has no accessible label.
 6. exceljs reads font sizes back as integers, so a read-back test cannot assert 10.5.
 7. The T3 preview tool timed out on screenshots in this session. Headless Chrome through playwright-core did the browser checks.
+8. memoryDb's `insertMany` is quadratic (each row scans the table for its id, its uniques and its read policy), so an import test with thousands of new rows times the test double, not the command. The `upsertMany` timing test imports mostly existing guests for that reason.

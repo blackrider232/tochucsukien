@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { newId, type ContactId, type Email, type EventId, type Instant, type Version } from '@/core/brand';
-import type { CheckinCode } from '@/core/checkin-code';
-import type { CommandId, InputOf } from '@/core/commands';
+import { newId, type ContactId, type Email, type Instant, type Version } from '@/core/brand';
+import type { CommandId } from '@/core/commands';
 import { testActor, PTDN, XTDT } from '@/core/testing/actors';
-import type { Guest } from '../contract';
 import { commands } from '../server/commands';
+import { inputs } from './command-inputs';
 import { draft, harness, NOW } from './harness';
 
 const admin = testActor('admin', null);
@@ -167,14 +166,14 @@ describe('guests.upsertMany (asked by directory and comms)', () => {
     const { h, eventId, guest } = await setup();
     const contact = 'c0000000-0000-4000-8000-000000000001' as ContactId;
     const items = [
-      { id: newId<'Guest'>(), draft: draft({ name: 'NGUYỄN VĂN AN', organization: 'Sở tài chính hà nội', title: 'Giám đốc', phone: '0912.345.678', masterContactId: contact }) },
+      { id: newId<'Guest'>(), draft: draft({ name: 'NGUYỄN VĂN AN', organization: 'Sở tài chính hà nội', title: 'Giám đốc', masterContactId: contact }) },
       { id: newId<'Guest'>(), draft: draft({ name: 'Mới Một', organization: 'Công ty A', email: 'moi1@a.vn' as Email }) },
       { id: newId<'Guest'>(), draft: draft({ name: 'Mới Một (trùng email)', organization: 'Công ty A', email: 'MOI1@a.vn' as Email }) },
     ];
     const r = await h.ok(xtdtUser, 'guests.upsertMany', { eventId, items, onExisting: 'fill_blanks' });
     expect(r.value).toEqual({ added: 1, updated: 1, skipped: 1 });
     const roster = await h.roster(xtdtUser, eventId);
-    expect(roster.find((g) => g.id === guest.id)).toMatchObject({ name: 'Nguyễn Văn An', title: 'Giám đốc', phone: '0912.345.678', masterContactId: contact });
+    expect(roster.find((g) => g.id === guest.id)).toMatchObject({ name: 'Nguyễn Văn An', title: 'Giám đốc', phone: '', masterContactId: contact });
     expect(roster).toHaveLength(2);
     expect(h.audits().at(-1)).toMatchObject({ action: 'NHẬP KHÁCH MỜI', summary: 'Nhập khách mời: thêm 1, bổ sung thông tin 1, bỏ qua 1 (trùng)' });
     expect((await h.ok(xtdtUser, 'guests.upsertMany', { eventId, items, onExisting: 'fill_blanks' })).value).toEqual({ added: 0, updated: 0, skipped: 3 });
@@ -204,16 +203,6 @@ describe('guests.markInvited (asked by comms after a send)', () => {
 });
 
 describe('every command is denied to an actor outside the event department, with no write and no audit', () => {
-  const inputs = (eventId: EventId, guest: Guest) =>
-    ({
-      create: { eventId, id: newId<'Guest'>(), draft: draft({ name: 'X' }) },
-      update: { eventId, id: guest.id, version: guest.version, patch: { notes: 'x' } },
-      delete: { eventId, id: guest.id, version: guest.version },
-      restore: { eventId, guest: { id: newId<'Guest'>(), draft: draft({ name: 'Y' }), checkinCode: 'ABCDEF' as CheckinCode, rsvpAt: null, seatCode: null } },
-      applyRsvp: { eventId, id: guest.id, status: 'declined', source: 'google_form', respondedAt: '2026-11-05T00:00:00.000Z' as Instant },
-      upsertMany: { eventId, items: [{ id: newId<'Guest'>(), draft: draft({ name: 'Z', organization: 'Khác' }) }], onExisting: 'fill_blanks' },
-      markInvited: { eventId, ids: [guest.id], method: 'email' },
-    }) satisfies { [K in CommandId as K extends `guests.${infer V}` ? V : never]: InputOf<K> };
   const snapshot = (h: ReturnType<typeof harness>) => ({ guests: h.rows('sce_tcsk_guests'), audits: h.audits().length });
 
   it.each(Object.keys(commands))('guests.%s', async (verb) => {

@@ -2,17 +2,15 @@
 // where a person can take it back, returns the inverse command its undo runs.
 
 import { z } from 'zod';
-import type { EventId, GuestId } from '@/core/brand';
-// Type-only: a runtime import of '@/core/commands' re-exports dispatch.ts, which reads the feature registry while this
-// module is still loading (import cycle). Failures are DbErrors instead of CommandErrors.
-import type { AuditEntry, CommandContext, CommandsOf, CommandSpec, Inverse, InputOf, Sig } from '@/core/commands';
+import type { EventId, GuestId, SeatCode, Version } from '@/core/brand';
+import { CommandError, type AuditEntry, type CommandContext, type CommandsOf, type CommandSpec, type Inverse, type InputOf, type Sig } from '@/core/commands';
 import { DbError, type DraftOf, type Schema } from '@/core/db';
 import { RSVP, SEND_METHOD } from '@/core/vocab';
 import type { Guest, GuestDraft } from '../contract';
-import { rsvpTransition, sameGuest } from '../domain/roster';
+import { guestIdentityKey, rsvpTransition } from '../domain/roster';
 import {
   MAX_BATCH, RSVP_SOURCE_VALUES, RSVP_VALUES, SEND_METHOD_VALUES, eventIdSchema, guestDraftSchema, guestIdSchema, guestPatchSchema,
-  draftOf, guestSnapshotSchema, instantSchema, versionSchema, type GuestSnapshot,
+  draftOf, guestSnapshotSchema, instantSchema, seatCodeSchema, versionSchema, type GuestSnapshot,
 } from '../domain/schemas';
 import { readRosterEntry, toGuest } from './reads';
 import { guestsTable, seatsTable, type GuestRow } from './tables';
@@ -21,6 +19,8 @@ declare module '@/core/commands' {
   interface CommandMap {
     /** The undo of guests.delete: the same id and printed check-in code, and the seat asked back from venue. */
     'guests.restore': Sig<{ eventId: EventId; guest: GuestSnapshot }, Guest>;
+    /** The undo of a decline that freed a seat: the RSVP patch, and the seat venue is asked to give back (read by the server, not typed by a person). */
+    'guests.undoRsvp': Sig<{ eventId: EventId; id: GuestId; version: Version; patch: Partial<GuestDraft>; seatCode: SeatCode | null }, Guest>;
   }
 }
 
@@ -41,11 +41,40 @@ async function guestOf(ctx: CommandContext, eventId: EventId, id: GuestId): Prom
   return guest;
 }
 
-/** A declined guest gives the seat back; venue owns the seat, so venue is asked (m4a B18, B57). */
-async function releaseSeatIfAny(ctx: CommandContext, eventId: EventId, guestId: GuestId): Promise<void> {
-  const seats = await ctx.db.table(seatsTable).list({ eventId, guestId });
-  if (seats.length > 0) await ctx.call('venue.releaseGuestSeat', { eventId, guestId });
+const seatOf = async (ctx: CommandContext, eventId: EventId, guestId: GuestId): Promise<SeatCode | null> =>
+  (await ctx.db.table(seatsTable).list({ eventId, guestId }))[0]?.seatCode ?? null;
+
+/**
+ * A declined guest gives the seat back; venue owns the seat, so venue is asked (m4a B18, B57). Always after the guest
+ * row is saved, so a stale version fails before any seat is freed. The pipeline audits only a command that succeeds, so
+ * when venue refuses, the saved change is audited here before the error: the decline stays applied and the seat is
+ * flagged for a person to release.
+ */
+async function releaseSeat(ctx: CommandContext, eventId: EventId, guestId: GuestId, seat: SeatCode, saved: AuditEntry): Promise<void> {
+  try {
+    await ctx.call('venue.releaseGuestSeat', { eventId, guestId });
+  } catch {
+    await ctx.db.rpc('sce_tcsk_write_audit', { ...saved, summary: `${saved.summary}; chưa giải phóng được ghế ${seat}, cần giải phóng thủ công` });
+    throw new CommandError('conflict', `Đã ghi nhận báo vắng nhưng chưa giải phóng được ghế ${seat}. Vui lòng giải phóng ghế này thủ công ở sơ đồ chỗ ngồi.`);
+  }
 }
+
+/** Asks venue for the seat a decline freed; the RSVP is already undone either way, and the note says what became of the seat. */
+async function reseat(ctx: CommandContext, eventId: EventId, guestId: GuestId, seat: SeatCode): Promise<string> {
+  try {
+    await ctx.call('venue.assignSeat', { eventId, guestId, seatCode: seat });
+    return `, xếp lại ghế ${seat}`;
+  } catch {
+    const taken = (await ctx.db.table(seatsTable).list({ eventId, seatCode: seat })).some((s) => s.guestId !== guestId);
+    return `, không xếp lại được ghế ${seat} (${taken ? 'ghế không còn trống' : 'venue không xếp được ghế'})`;
+  }
+}
+
+/** What undoes an RSVP change: a plain update, or, when the change freed a seat, the command that also asks for it back. */
+const rsvpInverse = (eventId: EventId, after: GuestRow, patch: Partial<GuestDraft>, seatCode: SeatCode | null, label: string) =>
+  seatCode
+    ? inverse('guests.undoRsvp', { eventId, id: after.id, version: after.version, patch, seatCode }, label)
+    : inverse('guests.update', { eventId, id: after.id, version: after.version, patch }, label);
 
 const sameFields = (row: GuestRow, draft: Partial<GuestDraft>) => (Object.keys(draft) as (keyof GuestDraft)[]).every((k) => row[k] === draft[k]);
 
@@ -84,25 +113,45 @@ const create: Spec<InputOf<'guests.create'>, Guest> = {
   },
 };
 
+/**
+ * Saves a patch through the one RSVP transition (m4a B18). The guest row goes first, against the version; the seat a
+ * decline frees is read here from the database, so the inverse can ask for it back.
+ */
+async function savePatch(ctx: CommandContext, eventId: EventId, id: GuestId, version: Version, patch: Partial<GuestDraft>) {
+  const before = await guestOf(ctx, eventId, id);
+  const t = rsvpTransition(before, patch);
+  const next: Partial<GuestDraft> = t.statusChanged ? { ...t.patch, rsvpSource: t.patch.rsvpSource ?? 'manual' } : t.patch;
+  const seat = t.statusChanged && t.releasesSeat ? await seatOf(ctx, eventId, id) : null;
+  const after = await ctx.db.table(guestsTable).update(id, t.statusChanged ? { ...next, rsvpAt: ctx.now } : next, { expectedVersion: version });
+  const old = Object.fromEntries(Object.keys(next).map((k) => [k, before[k as keyof GuestDraft]])) as Partial<GuestDraft>;
+  const onlyRsvp = Object.keys(patch).every((k) => k === 'rsvpStatus' || k === 'substituteName' || k === 'rsvpSource');
+  return { before, after, old, seat, onlyRsvp, statusChanged: t.statusChanged };
+}
+
 const update: Spec<InputOf<'guests.update'>, Guest> = {
   kind: 'mutation',
   input: asSchema(z.object({ eventId: eventIdSchema, id: guestIdSchema, version: versionSchema, patch: guestPatchSchema })),
   authorize: writeOnEvent,
   async run(ctx, { eventId, id, version, patch }) {
-    const before = await guestOf(ctx, eventId, id);
-    const t = rsvpTransition(before, patch);
-    const next: Partial<GuestDraft> = t.statusChanged ? { ...t.patch, rsvpSource: t.patch.rsvpSource ?? 'manual' } : t.patch;
-    if (t.statusChanged && t.releasesSeat) await releaseSeatIfAny(ctx, eventId, id);
-    const after = await ctx.db.table(guestsTable).update(id, t.statusChanged ? { ...next, rsvpAt: ctx.now } : next, { expectedVersion: version });
-    const old = Object.fromEntries(Object.keys(next).map((k) => [k, before[k as keyof GuestDraft]])) as Partial<GuestDraft>;
-    const onlyRsvp = Object.keys(patch).every((k) => k === 'rsvpStatus' || k === 'substituteName' || k === 'rsvpSource');
-    return {
-      value: toGuest(after),
-      audit: onlyRsvp && t.statusChanged
-        ? audit('CẬP NHẬT RSVP', `Cập nhật RSVP: ${who(after)}: ${RSVP[before.rsvpStatus].label} → ${RSVP[after.rsvpStatus].label}`, eventId, id)
-        : audit('CẬP NHẬT KHÁCH MỜI', `Cập nhật hồ sơ đại biểu: ${who(after)}`, eventId, id),
-      inverse: inverse('guests.update', { eventId, id, version: after.version, patch: old }, onlyRsvp ? `RSVP của "${after.name}"` : `Sửa khách mời "${after.name}"`),
-    };
+    const { before, after, old, seat, onlyRsvp, statusChanged } = await savePatch(ctx, eventId, id, version, patch);
+    const entry = onlyRsvp && statusChanged
+      ? audit('CẬP NHẬT RSVP', `Cập nhật RSVP: ${who(after)}: ${RSVP[before.rsvpStatus].label} → ${RSVP[after.rsvpStatus].label}`, eventId, id)
+      : audit('CẬP NHẬT KHÁCH MỜI', `Cập nhật hồ sơ đại biểu: ${who(after)}`, eventId, id);
+    if (seat) await releaseSeat(ctx, eventId, id, seat, entry);
+    return { value: toGuest(after), audit: entry, inverse: rsvpInverse(eventId, after, old, seat, onlyRsvp ? `RSVP của "${after.name}"` : `Sửa khách mời "${after.name}"`) };
+  },
+};
+
+const undoRsvp: Spec<InputOf<'guests.undoRsvp'>, Guest> = {
+  kind: 'mutation',
+  input: asSchema(z.object({ eventId: eventIdSchema, id: guestIdSchema, version: versionSchema, patch: guestPatchSchema, seatCode: seatCodeSchema.nullable() })),
+  authorize: writeOnEvent,
+  async run(ctx, { eventId, id, version, patch, seatCode }) {
+    const { before, after, old, seat } = await savePatch(ctx, eventId, id, version, patch);
+    const note = seatCode && after.rsvpStatus !== 'declined' ? await reseat(ctx, eventId, id, seatCode) : '';
+    const entry = audit('HOÀN TÁC RSVP', `Hoàn tác RSVP: ${who(after)}: ${RSVP[before.rsvpStatus].label} → ${RSVP[after.rsvpStatus].label}${note}`, eventId, id);
+    if (seat) await releaseSeat(ctx, eventId, id, seat, entry);
+    return { value: toGuest(after), audit: entry, inverse: rsvpInverse(eventId, after, old, seat, `RSVP của "${after.name}"`) };
   },
 };
 
@@ -164,27 +213,23 @@ const applyRsvp: Spec<InputOf<'guests.applyRsvp'>, { applied: boolean }> = {
   authorize: writeOnEvent,
   async run(ctx, { eventId, id, status, source, respondedAt, substituteName, hasBanquet }) {
     const before = await guestOf(ctx, eventId, id);
-    // Latest wins: a response older than the last change, by staff or by an earlier response, is ignored (m4a B15, Q5).
+    // Latest wins: a response older than the last change, by staff or by an earlier response, is ignored; so is one made
+    // at the very moment of the last change (m4a B15, Q5).
     if (before.rsvpAt && Date.parse(respondedAt) <= Date.parse(before.rsvpAt)) {
       return { value: { applied: false }, audit: audit('BỎ QUA PHẢN HỒI RSVP', `Bỏ qua phản hồi cũ hơn thay đổi gần nhất: ${who(before)}`, eventId, id) };
     }
     // A named substitute means someone else attends (m4a B17, Q12).
     const final = status === 'confirmed' && substituteName ? 'substituted' : status;
-    const patch: Partial<GuestRow> = {
-      rsvpStatus: final,
-      rsvpSource: source,
-      rsvpAt: respondedAt,
-      substituteName: final === 'substituted' ? substituteName || before.substituteName : '',
-      ...(hasBanquet === undefined ? {} : { hasBanquet }),
-    };
-    if (final === 'declined') await releaseSeatIfAny(ctx, eventId, id);
-    const after = await ctx.db.table(guestsTable).update(id, patch, { expectedVersion: before.version });
+    const t = rsvpTransition(before, { rsvpStatus: final, rsvpSource: source, ...(substituteName ? { substituteName } : {}), ...(hasBanquet === undefined ? {} : { hasBanquet }) });
+    if (t.needsSubstitute) {
+      throw new CommandError('invalid', 'Cần nhập tên người đi thay khi chọn "Cử người đi thay".', { substituteName: 'Nhập tên người đi thay.' });
+    }
+    const seat = t.releasesSeat ? await seatOf(ctx, eventId, id) : null;
+    const after = await ctx.db.table(guestsTable).update(id, { ...t.patch, rsvpAt: respondedAt }, { expectedVersion: before.version });
     const old = { rsvpStatus: before.rsvpStatus, substituteName: before.substituteName, hasBanquet: before.hasBanquet, rsvpSource: before.rsvpSource };
-    return {
-      value: { applied: true },
-      audit: audit('CẬP NHẬT RSVP', `Cập nhật RSVP từ phản hồi: ${who(after)}: ${RSVP[before.rsvpStatus].label} → ${RSVP[final].label}`, eventId, id),
-      inverse: inverse('guests.update', { eventId, id, version: after.version, patch: old }, `RSVP của "${after.name}"`),
-    };
+    const entry = audit('CẬP NHẬT RSVP', `Cập nhật RSVP từ phản hồi: ${who(after)}: ${RSVP[before.rsvpStatus].label} → ${RSVP[final].label}`, eventId, id);
+    if (seat) await releaseSeat(ctx, eventId, id, seat, entry);
+    return { value: { applied: true }, audit: entry, inverse: rsvpInverse(eventId, after, old, seat, `RSVP của "${after.name}"`) };
   },
 };
 
@@ -202,15 +247,24 @@ const upsertMany: Spec<InputOf<'guests.upsertMany'>, { added: number; updated: n
   ),
   authorize: writeOnEvent,
   async run(ctx, { eventId, items, onExisting }) {
-    const existing = await ctx.db.table(guestsTable).list({ eventId });
+    // Every identity key is folded once; the lookups below are map hits, so an import is linear in guests plus items.
+    const byKey = new Map<string, GuestRow>();
+    for (const g of await ctx.db.table(guestsTable).list({ eventId })) {
+      const key = guestIdentityKey(g);
+      if (!byKey.has(key)) byKey.set(key, g);
+    }
+    const seen = new Set<string>();
     const fresh: DraftOf<GuestRow>[] = [];
     let [updated, skipped] = [0, 0];
     for (const { id, draft } of items) {
-      if (fresh.some((f) => sameGuest(f, draft))) {
+      const key = guestIdentityKey(draft);
+      // A second item for a guest this import already added or filled changes nothing; the first one won.
+      if (seen.has(key)) {
         skipped += 1;
         continue;
       }
-      const match = existing.find((g) => sameGuest(g, draft));
+      seen.add(key);
+      const match = byKey.get(key);
       if (!match) {
         fresh.push(newRow(eventId, id, draft, draft.rsvpStatus === 'pending' ? null : ctx.now));
         continue;
@@ -252,4 +306,4 @@ const markInvited: Spec<InputOf<'guests.markInvited'>, null> = {
   },
 };
 
-export const commands: CommandsOf<'guests'> = { create, update, delete: remove, restore, applyRsvp, upsertMany, markInvited };
+export const commands: CommandsOf<'guests'> = { create, update, undoRsvp, delete: remove, restore, applyRsvp, upsertMany, markInvited };

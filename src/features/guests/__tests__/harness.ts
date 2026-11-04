@@ -7,7 +7,7 @@ import { newId, type EventId, type GuestId, type Instant, type IsoDate, type Sea
 import type { CommandId, CommandResult, CommandSpec, InputOf, Inverse, OutputOf } from '@/core/commands';
 import { commandLookup, runCommand } from '@/core/commands/pipeline';
 import { buildWorkCalendar } from '@/core/dates';
-import { DbError, memoryDb } from '@/core/db';
+import { DbError, memoryDb, type DraftOf } from '@/core/db';
 import { inspectMemoryDb } from '@/core/db/memory';
 import { DEFAULT_SETTINGS } from '@/core/settings';
 import { testActor, XTDT } from '@/core/testing/actors';
@@ -17,7 +17,7 @@ import type { GuestDraft } from '../contract';
 import { NEW_GUEST_DEFAULTS } from '../domain/schemas';
 import { commands } from '../server/commands';
 import { readRoster } from '../server/reads';
-import { seatsTable } from '../server/tables';
+import { guestsTable, seatsTable, type GuestRow } from '../server/tables';
 
 export const SETTINGS = { ...DEFAULT_SETTINGS, version: 1 as Version };
 export const NOW = '2026-11-04T02:00:00.000Z' as Instant;
@@ -34,9 +34,10 @@ const venueSpec = (run: CommandSpec<Venue, unknown>['run']): CommandSpec<Venue, 
   run,
 });
 /** Stand-in for venue's two commands guests asks: release a guest's seat, and give a seat back (refused if taken). */
-const venue = {
+const venueOf = (state: { releaseFails: boolean }) => ({
   commands: {
     releaseGuestSeat: venueSpec(async (ctx, { eventId, guestId }) => {
+      if (state.releaseFails) throw new DbError('forbidden');
       await ctx.db.table(seatsTable).removeWhere({ eventId, guestId });
       return { value: null, audit: { action: 'GIẢI PHÓNG GHẾ', summary: 'test', eventId, entity: 'seat', entityId: guestId } };
     }),
@@ -47,11 +48,13 @@ const venue = {
       return { value: row, audit: { action: 'XẾP GHẾ', summary: 'test', eventId, entity: 'seat', entityId: guestId } };
     }),
   },
-};
+});
 
 export function harness() {
   const seed = { sce_tcsk_events: [], sce_tcsk_task_groups: [], sce_tcsk_steps: [], sce_tcsk_guests: [], sce_tcsk_seat_assignments: [], sce_tcsk_checkins: [], sce_tcsk_audit_logs: [] };
-  const lookup = commandLookup({ guests: { commands }, progress: { commands: progressCommands }, venue });
+  /** Set `releaseFails` to make venue refuse to release a seat, as it would for an actor without seating rights. */
+  const venueState = { releaseFails: false };
+  const lookup = commandLookup({ guests: { commands }, progress: { commands: progressCommands }, venue: venueOf(venueState) });
   const ctx = (actor: Actor): RequestContext => ({ actor, db: memoryDb(seed, actor), settings: SETTINGS, calendar: buildWorkCalendar([]), now: NOW });
   const run = <K extends CommandId>(actor: Actor, id: K, input: InputOf<K>) => runCommand(ctx(actor), lookup, id, input) as Promise<CommandResult<OutputOf<K>>>;
   /**
@@ -87,9 +90,14 @@ export function harness() {
   };
   const seat = (eventId: EventId, guestId: GuestId, seatCode: string) =>
     memoryDb(seed, testActor('admin', null)).table(seatsTable).insert({ eventId, guestId, seatCode: seatCode as SeatCode });
+  /** Rows straight into the table, as an earlier import would have left them: no command, no audit. */
+  const seedGuests = (eventId: EventId, drafts: ReadonlyArray<GuestDraft>) =>
+    memoryDb(seed, testActor('admin', null)).table(guestsTable).insertMany(
+      drafts.map((d) => ({ ...d, id: newId<'Guest'>(), eventId, legacyId: null, rsvpAt: null }) as unknown as DraftOf<GuestRow>),
+    );
   const unseat = (eventId: EventId, guestId: GuestId) => memoryDb(seed, testActor('admin', null)).table(seatsTable).removeWhere({ eventId, guestId });
   const roster = (actor: Actor, eventId: EventId) => readRoster(ctx(actor), eventId);
   const audits = () => inspectMemoryDb(seed, 'sce_tcsk_audit_logs');
   const rows = (table: string) => inspectMemoryDb(seed, table);
-  return { seed, ctx, run, runWithoutRls, ok, undo, createEvent, addGuest, seat, unseat, roster, audits, rows };
+  return { seed, venueState, ctx, run, runWithoutRls, ok, undo, createEvent, addGuest, seat, unseat, seedGuests, roster, audits, rows };
 }

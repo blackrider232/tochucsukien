@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { SeatCode, Version } from '@/core/brand';
 import { DEFAULT_SETTINGS, type SystemSettings } from '@/core/settings';
 import { filterGuests, guestIdentityKey, guestKpis, guestQuota, isNamecardGuest, printSets, quotaProgress } from '..';
-import { NO_FILTER, rsvpTransition, sameGuest } from '../domain/roster';
+import { NO_FILTER, rsvpTransition } from '../domain/roster';
 import { entry } from './roster-fixture';
 
 const settings = (guestQuotaPercent = 130): SystemSettings => ({ ...DEFAULT_SETTINGS, guestQuotaPercent, version: 1 as Version });
@@ -20,6 +20,18 @@ describe('invite quota (decision 2): ceil(targetGuests x percent / 100), one sel
     [200, 200, 400],
   ])('%i guests at %i%% -> %i', (target, percent, quota) => {
     expect(guestQuota(target, settings(percent))).toBe(quota);
+  });
+
+  it('the quota of quotaProgress rounds up, where nearest and down would differ (7 x 130% = 9.1)', () => {
+    expect(quotaProgress(0, 7, settings()).quota).toBe(10);
+    expect(quotaProgress(0, 33, settings(135)).quota).toBe(45);
+    expect(quotaProgress(9, 7, settings())).toMatchObject({ quota: 10, reached: false, missing: 1 });
+    expect(quotaProgress(10, 7, settings())).toMatchObject({ quota: 10, reached: true, missing: 0 });
+  });
+
+  it('the percent invited rounds to the nearest whole number, not up or down (1/3 and 2/3)', () => {
+    expect(quotaProgress(1, 3, settings(100)).percent).toBe(33);
+    expect(quotaProgress(2, 3, settings(100)).percent).toBe(67);
   });
 
   it('reports reached, missing, surplus and percent against the quota', () => {
@@ -68,11 +80,21 @@ describe('identity and dedupe (m4a B41)', () => {
     expect(guestIdentityKey({ name: ' Nguyễn  Văn An ', organization: 'Sở Tài Chính', email: null, phone: '' })).toBe('name:nguyen van an|so tai chinh');
   });
 
-  it('sameGuest compares the first identity both records carry', () => {
-    const base = { name: 'Nguyễn Văn An', organization: 'Sở Tài chính', email: null, phone: '' };
-    expect(sameGuest(base, { ...base, name: 'NGUYEN VAN AN', phone: '0912.345.678' })).toBe(true);
-    expect(sameGuest({ ...base, email: 'a@x.vn' as never }, { ...base, email: 'b@x.vn' as never })).toBe(false);
-    expect(sameGuest({ ...base, phone: '0912345678' }, { ...base, phone: '0912345679' })).toBe(false);
+  it('is the only identity rule: records agree exactly when their keys are equal, whatever one of them lacks', () => {
+    const base = { name: 'Nguyễn Văn An', organization: 'Sở Tài chính', email: null as string | null, phone: '' };
+    const key = (o: Partial<typeof base>) => guestIdentityKey({ ...base, ...o } as Parameters<typeof guestIdentityKey>[0]);
+    // Only one record has an email: it is identified by the email, the other by what it has.
+    expect(key({ email: 'a@x.vn' })).not.toBe(key({}));
+    expect(key({ email: 'a@x.vn' })).not.toBe(key({ phone: '0912345678' }));
+    // Only one record has a phone: the same.
+    expect(key({ phone: '0912345678' })).not.toBe(key({}));
+    // Same email, whatever the rest.
+    expect(key({ email: 'A@X.vn', name: 'Khác' })).toBe(key({ email: 'a@x.vn' }));
+    // Same phone in two forms, or no email: phone decides, not the name.
+    expect(key({ phone: '+84 912.345.678', name: 'Khác' })).toBe(key({ phone: '0912345678' }));
+    // A short phone is not an identity; the name and organization are.
+    expect(key({ phone: '1234567', name: 'NGUYEN VAN AN', organization: 'so tai chinh' })).toBe(key({}));
+    expect(key({ email: 'a@x.vn' })).not.toBe(key({ email: 'b@x.vn' }));
   });
 });
 
@@ -101,7 +123,14 @@ describe('one search and filter for every list (m4a B45)', () => {
 
 describe('rsvpTransition (m4a B18)', () => {
   it('releases the seat on decline and drops the substitute when leaving substituted', () => {
-    expect(rsvpTransition({ rsvpStatus: 'substituted', substituteName: 'X' }, { rsvpStatus: 'declined' })).toEqual({ patch: { rsvpStatus: 'declined', substituteName: '' }, statusChanged: true, releasesSeat: true });
-    expect(rsvpTransition({ rsvpStatus: 'pending', substituteName: '' }, { notes: 'n' })).toEqual({ patch: { notes: 'n' }, statusChanged: false, releasesSeat: false });
+    expect(rsvpTransition({ rsvpStatus: 'substituted', substituteName: 'X' }, { rsvpStatus: 'declined' })).toEqual({ patch: { rsvpStatus: 'declined', substituteName: '' }, statusChanged: true, releasesSeat: true, needsSubstitute: false });
+    expect(rsvpTransition({ rsvpStatus: 'pending', substituteName: '' }, { notes: 'n' })).toEqual({ patch: { notes: 'n' }, statusChanged: false, releasesSeat: false, needsSubstitute: false });
+  });
+
+  it('flags a substitution that names nobody, whether the name comes from the patch or the current row', () => {
+    expect(rsvpTransition({ rsvpStatus: 'pending', substituteName: '' }, { rsvpStatus: 'substituted' }).needsSubstitute).toBe(true);
+    expect(rsvpTransition({ rsvpStatus: 'pending', substituteName: '' }, { rsvpStatus: 'substituted', substituteName: 'Vũ D' }).needsSubstitute).toBe(false);
+    expect(rsvpTransition({ rsvpStatus: 'substituted', substituteName: 'Vũ D' }, { rsvpStatus: 'substituted' }).needsSubstitute).toBe(false);
+    expect(rsvpTransition({ rsvpStatus: 'pending', substituteName: '' }, { rsvpStatus: 'confirmed' }).needsSubstitute).toBe(false);
   });
 });
