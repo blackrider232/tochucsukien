@@ -456,6 +456,26 @@ assert.deepEqual((await db.query(`select has_table_privilege('authenticated', 'p
   { t: false, a: false }, 'a table a later migration creates gets no TRUNCATE for authenticated and nothing for anon');
 await db.exec(`drop table public.sce_tcsk_later_probe`);
 
+// Sequences (202611041360_core_sequence_privileges.sql): only owner-rights functions draw ids, so no API role holds one.
+const sequences = (await db.query(`select c.oid::regclass::text as s from pg_catalog.pg_class c join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = 'public' and c.relkind = 'S' and c.relname like 'sce\\_tcsk\\_%' order by 1`)).rows.map((r) => r.s);
+assert.ok(sequences.includes('sce_tcsk_audit_logs_id_seq') && sequences.includes('sce_tcsk_backups_id_seq'), `the sequence matrix covers the audit and backup ids (${sequences})`);
+for (const role of ['anon', 'authenticated']) {
+  const seqHeld = (await db.query(`select s.s, p.priv from unnest($1::text[]) s(s) cross join unnest(array['USAGE', 'SELECT', 'UPDATE']) p(priv)
+    where has_sequence_privilege($2, s.s, p.priv) order by 1, 2`, [sequences, role])).rows.map((r) => `${r.s} ${r.priv}`);
+  assert.deepEqual(seqHeld, [], `${role} holds no privilege on any sequence`);
+}
+await as(ids.admin, 'aal2', () => assert.rejects(db.query(`select setval('public.sce_tcsk_audit_logs_id_seq', 1)`), /permission denied/, 'a signed-in user cannot rewind the audit id'));
+const auditsBeforeSeq = await auditCount();
+await auditedOnce('a change after the rewind attempt', ids.leader, 'aal2', `select public.sce_tcsk_create_backup('Sau setval', 'manual')`);
+assert.equal(await auditCount(), auditsBeforeSeq + 1, 'the next audited call still writes its row');
+await db.exec(`create sequence public.sce_tcsk_later_seq`);
+// The project is shared, so the default privileges only take what no app needs: setval for authenticated, all for anon.
+// A later sce_tcsk_ sequence still fails the matrix above until its migration revokes USAGE.
+assert.deepEqual((await db.query(`select has_sequence_privilege('authenticated', 'public.sce_tcsk_later_seq', 'UPDATE') as u, has_sequence_privilege('anon', 'public.sce_tcsk_later_seq', 'USAGE') as a`)).rows[0],
+  { u: false, a: false }, 'a sequence a later migration creates gets no setval for authenticated and nothing for anon');
+await db.exec(`drop sequence public.sce_tcsk_later_seq`);
+
 // The audit log is append-only for every role, the owner and the service role included (202611041310_core_audit_append_only.sql).
 const auditRowsBefore = await auditCount();
 for (const role of ['service_role', null]) {
