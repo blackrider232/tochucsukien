@@ -8,6 +8,7 @@ import { buildWorkCalendar, type Holiday } from '@/core/dates';
 import { memoryDb } from '@/core/db';
 import { inspectMemoryDb } from '@/core/db/memory';
 import { DEFAULT_SETTINGS } from '@/core/settings';
+import { testActor } from '@/core/testing/actors';
 import type { EventDraft } from '../contract';
 import { commands } from '../server/commands';
 import { readEventPlan } from '../server/reads';
@@ -42,6 +43,12 @@ export function harness() {
   const lookup = commandLookup({ progress: { commands } });
   const ctx = (actor: Actor): RequestContext => ({ actor, db: memoryDb(seed, actor), settings: SETTINGS, calendar: buildWorkCalendar(HOLIDAYS), now: NOW });
   const run = <K extends CommandId>(actor: Actor, id: K, input: InputOf<K>) => runCommand(ctx(actor), lookup, id, input) as Promise<CommandResult<OutputOf<K>>>;
+  /**
+   * Runs as `actor` against a Db that answers like an admin's, so row-level security lets everything through.
+   * Whatever is refused here is refused by the command's own authorize and checks, not by the emulated RLS.
+   */
+  const runWithoutRls = <K extends CommandId>(actor: Actor, id: K, input: InputOf<K>) =>
+    runCommand({ ...ctx(actor), db: memoryDb(seed, testActor('admin', null)) }, lookup, id, input) as Promise<CommandResult<OutputOf<K>>>;
   const ok = async <K extends CommandId>(actor: Actor, id: K, input: InputOf<K>) => {
     const r = await run(actor, id, input);
     if (!r.ok) throw new Error(`${id} failed: ${r.kind} ${r.message} ${JSON.stringify(r.fieldErrors ?? {})}`);
@@ -59,5 +66,5 @@ export function harness() {
   const plan = (actor: Actor, id: EventId) => readEventPlan(ctx(actor), id);
   const audits = () => inspectMemoryDb(seed, 'sce_tcsk_audit_logs');
   const rows = (table: string) => inspectMemoryDb(seed, table);
-  return { seed, ctx, run, ok, undo, createEvent, plan, audits, rows };
+  return { seed, ctx, run, runWithoutRls, ok, undo, createEvent, plan, audits, rows };
 }

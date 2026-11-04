@@ -310,6 +310,78 @@ describe('every command is denied to an actor outside the event department, with
     expect({ events: h.rows('sce_tcsk_events'), groups: h.rows('sce_tcsk_task_groups'), steps: h.rows('sce_tcsk_steps'), audits: h.audits().length }).toEqual(before);
   });
 
+  it.each(Object.keys(commands))('progress.%s refuses an outsider on its own, even when row-level security would let the read and write through', async (verb) => {
+    const { h, eventId, plan, group, step } = await setup();
+    const sub = step.subTasks[0]!;
+    const inputs: { [K in CommandId as K extends `progress.${infer V}` ? V : never]: InputOf<K> } = {
+      createEvent: { id: newId(), draft: draft({ department: XTDT }) },
+      updateEvent: { id: eventId, version: plan.event.version, patch: { name: 'x' } },
+      deleteEvent: { id: eventId, version: plan.event.version },
+      restoreEvent: { id: eventId },
+      setStepDone: { eventId, stepId: step.id, done: true },
+      createStep: { eventId, groupId: group.id, step: { ...(step as Step), subTasks: [], links: [], id: newId(), done: false } },
+      updateStep: { eventId, stepId: step.id, version: step.version, patch: { name: 'x' } },
+      deleteStep: { eventId, stepId: step.id, version: step.version },
+      addSubTask: { eventId, stepId: step.id, subTask: { id: 'n', name: 'x', completed: false } },
+      setSubTaskDone: { eventId, stepId: step.id, subTaskId: sub.id, done: true },
+      removeSubTask: { eventId, stepId: step.id, subTaskId: sub.id },
+      addLink: { eventId, stepId: step.id, link: { id: 'l', name: 'x', url: 'https://a.vn/' as SafeUrl } },
+      removeLink: { eventId, stepId: step.id, linkId: 'l' },
+      setGroupNote: { eventId, groupId: group.id, note: 'x' },
+      createGroups: { eventId, groups: [{ id: newId(), phase: 'phase_prepare', name: 'x', leadPerson: '', note: '', sort: 9, steps: [] }] },
+      updateGroup: { eventId, groupId: group.id, version: group.version, patch: { name: 'x' } },
+      deleteGroups: { eventId, groupIds: [group.id] },
+      applyTemplate: { eventId, type: 'hoi_cho' },
+    };
+    const before = { events: h.rows('sce_tcsk_events'), groups: h.rows('sce_tcsk_task_groups'), steps: h.rows('sce_tcsk_steps'), audits: h.audits().length };
+    const r = await h.runWithoutRls(ptdnUser, `progress.${verb}` as CommandId, inputs[verb as keyof typeof inputs] as never);
+    expect(r).toMatchObject({ ok: false, kind: 'forbidden' });
+    expect({ events: h.rows('sce_tcsk_events'), groups: h.rows('sce_tcsk_task_groups'), steps: h.rows('sce_tcsk_steps'), audits: h.audits().length }).toEqual(before);
+  });
+
+  describe("the event row is the lead department's, whatever row-level security allows", () => {
+    async function supported() {
+      const h = harness();
+      const id = await h.createEvent(xtdtUser, { supportingDepartments: [PTDN] });
+      return { h, id, version: (await h.plan(xtdtUser, id))!.event.version };
+    }
+
+    it('a supporting department cannot edit the event row', async () => {
+      const { h, id, version } = await supported();
+      for (const actor of [ptdnUser, ptdnLeader]) {
+        expect(await h.runWithoutRls(actor, 'progress.updateEvent', { id, version, patch: { name: 'x' } })).toMatchObject({ ok: false, kind: 'forbidden' });
+      }
+    });
+
+    it('a supporting department and a lead-department chuyên viên can neither delete nor restore it', async () => {
+      const { h, id, version } = await supported();
+      for (const actor of [ptdnUser, ptdnLeader, xtdtUser]) {
+        expect(await h.runWithoutRls(actor, 'progress.deleteEvent', { id, version })).toMatchObject({ ok: false, kind: 'forbidden' });
+        expect(await h.runWithoutRls(actor, 'progress.restoreEvent', { id })).toMatchObject({ ok: false, kind: 'forbidden' });
+      }
+      expect(h.rows('sce_tcsk_events')[0]).toMatchObject({ deleted_at: null });
+    });
+
+    it('only a role holding progress.delete on the lead department deletes', async () => {
+      const { h, id, version } = await supported();
+      expect((await h.runWithoutRls(xtdtLeader, 'progress.deleteEvent', { id, version })).ok).toBe(true);
+    });
+
+    it('refuses handing the event to a department outside the actor’s own, but an admin may', async () => {
+      const { h, id, version } = await supported();
+      expect(await h.runWithoutRls(xtdtUser, 'progress.updateEvent', { id, version, patch: { department: PTDN } })).toMatchObject({ ok: false, kind: 'forbidden' });
+      expect(await h.runWithoutRls(xtdtLeader, 'progress.updateEvent', { id, version, patch: { department: PTDN } })).toMatchObject({ ok: false, kind: 'forbidden' });
+      expect(h.rows('sce_tcsk_events')[0]).toMatchObject({ department: XTDT });
+      expect((await h.runWithoutRls(admin, 'progress.updateEvent', { id, version, patch: { department: PTDN } })).ok).toBe(true);
+    });
+
+    it('a supporting department still works the plan', async () => {
+      const { h, id } = await supported();
+      const step = (await h.plan(xtdtUser, id))!.groups[0]!.steps[0]!;
+      expect((await h.runWithoutRls(ptdnUser, 'progress.setStepDone', { eventId: id, stepId: step.id, done: true })).ok).toBe(true);
+    });
+  });
+
   it('a pending account is stopped at the gate', async () => {
     const { h, eventId, step } = await setup();
     const pending = testActor('user', XTDT, { status: 'pending' });
