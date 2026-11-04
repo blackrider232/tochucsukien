@@ -163,3 +163,12 @@ export function parseRsvpAnswer(raw: string): Exclude<RsvpStatus, 'pending'> | n
   if (substitute) return 'substituted';
   return yesNo === null ? null : yesNo ? 'confirmed' : 'declined';
 }
+
+/** What people put in the substitute column to say there is none. */
+const NO_SUBSTITUTE: ReadonlySet<string> = new Set(['', 'khong', 'ko', 'k', 'kg', 'khg', 'khong co', 'khong co ai', 'khong ai', 'khong cu', 'none', 'no', 'n a', 'na', 'x', '0']);
+
+/** The substitute's name as typed, or '' when the cell says there is none ("Không", "-", "n/a"). */
+export function substituteName(raw: string): string {
+  const name = raw.trim();
+  return NO_SUBSTITUTE.has(words(name).trim()) ? '' : name;
+}

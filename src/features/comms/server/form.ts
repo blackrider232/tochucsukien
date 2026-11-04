@@ -11,6 +11,7 @@ import { CommandError, type CommandContext, type CommandSpec, type InputOf, type
 import { DbError, type DraftOf } from '@/core/db';
 import { normalizePhone } from '@/core/text';
 import { readRoster, type GuestDraft, type RosterEntry } from '@/features/guests/server';
+import { substituteName } from '../domain/answers';
 import { canIdentify, detectColumns, hasPhrase, words } from '../domain/columns';
 import { CsvError, parseCsv } from '../domain/csv';
 import { buildMatchIndex, matchResponse, type MatchIndex } from '../domain/matching';
@@ -97,8 +98,10 @@ async function holdsAnswer(ctx: CommandContext, eventId: EventId, guestId: Guest
 /** Gives a response to a guest: claim the row against its version first, then ask guests, then record the outcome. */
 async function applyToGuest(ctx: CommandContext, row: ResponseRow, guestId: GuestId, match: ResponseRow['match'], respondedAt: Instant, t: Tally): Promise<void> {
   const claimed = await ctx.db.table(responsesTable).update(row.id, { matchedGuestId: guestId, match, candidateGuestIds: [] }, { expectedVersion: row.version });
-  // A named substitute is needed for 'substituted' (guests refuses it otherwise): without one the answer is unclear.
-  const status = row.rsvp === 'substituted' && !row.substitute ? null : row.rsvp;
+  // A name goes with a substitution only (guests makes any answer with a name 'substituted'), and a substitution
+  // needs one (guests refuses it otherwise): without a name the answer is unclear.
+  const substitute = row.rsvp === 'substituted' ? substituteName(row.substitute) : '';
+  const status = row.rsvp === 'substituted' && !substitute ? null : row.rsvp;
   if (status === null || status === 'pending') {
     await ctx.db.table(responsesTable).update(row.id, { applyStatus: 'no_answer' }, { expectedVersion: claimed.version });
     t.noAnswer += 1;
@@ -111,7 +114,7 @@ async function applyToGuest(ctx: CommandContext, row: ResponseRow, guestId: Gues
       status,
       source: 'google_form',
       respondedAt,
-      ...(row.substitute ? { substituteName: row.substitute } : {}),
+      ...(substitute ? { substituteName: substitute } : {}),
       ...(row.hasBanquet === null ? {} : { hasBanquet: row.hasBanquet }),
     });
     const done = applied || (await holdsAnswer(ctx, row.eventId, guestId, respondedAt));

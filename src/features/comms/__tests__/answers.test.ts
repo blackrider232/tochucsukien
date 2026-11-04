@@ -4,7 +4,7 @@
 // null never frees a seat.
 
 import { describe, expect, it } from 'vitest';
-import { parseRsvpAnswer, parseYesNo } from '../domain/answers';
+import { parseRsvpAnswer, parseYesNo, substituteName } from '../domain/answers';
 
 const plain = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
 /** [answer, reading, reading without diacritics when it differs]: "vâng" (yes), "vắng" (absent) and "hông" (no) lose their meaning typed plain. */
@@ -163,5 +163,14 @@ describe('answers', () => {
 
   it.each(both(BANQUET))('banquet %j -> %s', (raw, expected) => {
     expect(parseYesNo(raw)).toBe(expected);
+  });
+});
+
+describe('substituteName', () => {
+  it.each(['Không', 'không có', 'Không có ai', 'ko', 'K', '-', '—', 'n/a', 'N/A', 'none', 'x', '0', '  '])('%j names nobody', (raw) => {
+    expect(substituteName(raw)).toBe('');
+  });
+  it.each([['Trần Văn Bình', 'Trần Văn Bình'], ['  Ông Khổng Minh ', 'Ông Khổng Minh'], ['Phó GĐ Nguyễn Khoa', 'Phó GĐ Nguyễn Khoa']])('%j is a name', (raw, name) => {
+    expect(substituteName(raw)).toBe(name);
   });
 });

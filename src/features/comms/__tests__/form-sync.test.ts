@@ -79,6 +79,26 @@ describe('comms.syncForm', () => {
     expect(await h.guest(eventId, g.id)).toMatchObject({ rsvpStatus: 'confirmed', rsvpAt: '2026-11-04T04:00:00.000Z' });
   });
 
+  it.each(['Không', 'ko', '-', 'n/a', 'None', 'Không có'])('"%s" in the substitute column is no substitute: a yes stays confirmed, "Cử người đi thay" is no answer', async (none) => {
+    const { h, eventId, sync } = await setup();
+    const yes = await h.addGuest(eventId, { email: 'yes@a.vn' as Email });
+    const sub = await h.addGuest(eventId, { email: 'sub@a.vn' as Email, rsvpStatus: 'confirmed' });
+    sheet.text = csv(`04/11/2026 10:00:00,Yes,Công ty A,yes@a.vn,,Có,,${none}`, `04/11/2026 10:00:00,Sub,Công ty A,sub@a.vn,,Cử người đi thay,,${none}`);
+    expect(await sync()).toMatchObject({ applied: 1, noAnswer: 1, failed: 0 });
+    expect(await h.guest(eventId, yes.id)).toMatchObject({ rsvpStatus: 'confirmed', substituteName: '' });
+    expect(await h.guest(eventId, sub.id)).toMatchObject({ rsvpStatus: 'confirmed', substituteName: '' });
+  });
+
+  it('a named substitute goes with a substitution only: a yes with a name in that column stays a yes', async () => {
+    const { h, eventId, sync } = await setup();
+    const yes = await h.addGuest(eventId, { email: 'yes@a.vn' as Email });
+    const sub = await h.addGuest(eventId, { email: 'sub@a.vn' as Email });
+    sheet.text = csv('04/11/2026 10:00:00,Yes,Công ty A,yes@a.vn,,Có,,Trần Văn Bình', '04/11/2026 10:00:00,Sub,Công ty A,sub@a.vn,,Cử người đi thay,,Trần Văn Bình');
+    expect(await sync()).toMatchObject({ applied: 2, failed: 0 });
+    expect(await h.guest(eventId, yes.id)).toMatchObject({ rsvpStatus: 'confirmed', substituteName: '' });
+    expect(await h.guest(eventId, sub.id)).toMatchObject({ rsvpStatus: 'substituted', substituteName: 'Trần Văn Bình' });
+  });
+
   it('"Cử người đi thay" without a name is no answer: the guest is left as is, nothing fails', async () => {
     const { h, eventId, sync, responses } = await setup();
     const g = await h.addGuest(eventId, { email: 'an@a.vn' as Email, rsvpStatus: 'confirmed' });
