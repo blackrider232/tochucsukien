@@ -308,6 +308,8 @@ Worker to feature map. M2 owns `progress`. M3 owns `templates`. M4a owns `guests
 
 Editing the event row itself (date, department, delete) is lead-department only. Supporting departments can work every event-scoped child table. Verified by `verify-sql.mjs` ("supporting department cannot edit the event row").
 
+A soft-deleted event is readable only by holders of `progress.delete` in scope (admin and leader all, dept_leader of the lead department), so they can undo the delete (`0006_core_soft_delete_visibility.sql`). The child rows of a soft-deleted event stay readable by admin only. Verified by `verify-sql.mjs` and mirrored by `memoryDb`.
+
 ## Table schema summary
 
 All domain tables have `id uuid pk`, `version int`, `created_at`, `created_by`, `updated_at` and `updated_by`. The event-scoped ones also have `event_id` (FK cascade, deferrable). Most also carry `legacy_id`.

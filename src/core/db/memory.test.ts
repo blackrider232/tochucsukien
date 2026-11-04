@@ -60,6 +60,52 @@ describe('memoryDb RLS emulation', () => {
   });
 });
 
+describe('memoryDb soft-deleted events (0006)', () => {
+  // E3 is led by PTDN with XTĐT supporting.
+  async function deleteE3() {
+    const { seed, as, xtdt, ptdn, admin } = setup();
+    const actors = { xtdt, ptdn, admin, ptdnLead: testActor('dept_leader', PTDN), xtdtLead: testActor('dept_leader', XTDT), leader: testActor('leader', 'Ban Giám đốc') };
+    await as(admin).table(guestsTable).insert(draft(E3, G(1), 'A'));
+    const e3 = (await as(actors.ptdnLead).table(eventsTable).get(E3))!;
+    const deleted = await as(actors.ptdnLead).table(eventsTable).update(E3, { deletedAt: '2026-11-04T01:00:00.000Z' }, { expectedVersion: e3.version });
+    return { seed, as, actors, deleted };
+  }
+
+  it('the lead department’s dept_leader reads and restores its deleted event', async () => {
+    const { as, actors, deleted } = await deleteE3();
+    expect((await as(actors.ptdnLead).table(eventsTable).get(E3))?.deletedAt).toBe('2026-11-04T01:00:00.000Z');
+    const restored = await as(actors.ptdnLead).table(eventsTable).update(E3, { deletedAt: null }, { expectedVersion: deleted.version });
+    expect(restored.deletedAt).toBeNull();
+    expect((await as(actors.xtdt).table(guestsTable).list()).map((g) => g.name)).toEqual(['A']);
+  });
+
+  it('only holders of progress.delete in scope see it; its children stay hidden from all but admin', async () => {
+    const { as, actors } = await deleteE3();
+    const sees = async (a: typeof actors.admin) => (await as(a).table(eventsTable).list()).some((e) => e.id === E3);
+    expect(await sees(actors.leader)).toBe(true);
+    expect((await as(actors.admin).table(eventsTable).list()).map((e) => e.id)).toEqual([E1, E2, E3]);
+    expect(await sees(actors.xtdtLead)).toBe(false);
+    expect(await sees(actors.ptdn)).toBe(false);
+    expect(await as(actors.ptdnLead).table(guestsTable).list()).toEqual([]);
+    expect(await as(actors.xtdt).table(guestsTable).list()).toEqual([]);
+    expect((await as(actors.admin).table(guestsTable).list()).map((g) => g.name)).toEqual(['A']);
+  });
+
+  it('hard purge stays admin only', async () => {
+    const { as, actors, deleted } = await deleteE3();
+    await rejectsWith(as(actors.ptdnLead).table(eventsTable).remove(E3, { expectedVersion: deleted.version }), 'forbidden');
+    await rejectsWith(as(actors.leader).table(eventsTable).remove(E3, { expectedVersion: deleted.version }), 'forbidden');
+    await as(actors.admin).table(eventsTable).remove(E3, { expectedVersion: deleted.version });
+    expect(await as(actors.admin).table(eventsTable).get(E3)).toBeNull();
+  });
+
+  it('a user cannot soft-delete', async () => {
+    const { as, xtdt } = setup();
+    const e1 = (await as(xtdt).table(eventsTable).get(E1))!;
+    await rejectsWith(as(xtdt).table(eventsTable).update(E1, { deletedAt: '2026-11-04T01:00:00.000Z' }, { expectedVersion: e1.version }), 'forbidden');
+  });
+});
+
 describe('memoryDb rows, defaults and managed columns', () => {
   it('fills SQL defaults and stamps managed columns', async () => {
     const { as, xtdt, seed } = setup();
