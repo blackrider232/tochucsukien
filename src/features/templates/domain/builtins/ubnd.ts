@@ -172,7 +172,7 @@ export const UBND_TEMPLATES: ReadonlyArray<BuiltinTemplate> = [
     <p style="text-indent: 30px; text-align: justify;">
         1. <strong>Công an Thành phố:</strong> Xây dựng phương án đảm bảo an ninh trật tự, an toàn phòng chống cháy nổ tại địa điểm tổ chức; phân luồng giao thông chống ùn tắc.<br>
         2. <strong>Sở Y tế:</strong> Bố trí 01 tổ y tế thường trực cùng xe cứu thương và trang thiết bị y tế tại hiện trường phục vụ đại biểu suốt thời gian diễn ra sự kiện.<br>
-        3. <strong>Sở Tài chính:</strong> Chỉ đạo Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp chủ động liên hệ, phối hợp chặt chẽ với các đơn vị để triển khai thực hiện./.
+        3. <strong>Sở Tài chính:</strong> Chỉ đạo Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp Hà Nội chủ động liên hệ, phối hợp chặt chẽ với các đơn vị để triển khai thực hiện./.
     </p>
 
     <table style="width: 100%; border-collapse: collapse; margin-top: 40px;">

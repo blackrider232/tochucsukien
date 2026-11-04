@@ -64,6 +64,13 @@ describe('the 23 built-in templates against legacy/index.html', () => {
     expect(tagNamesIn(all)).not.toContain('DINH_MUC_MOI_130');
   });
 
+  it('names the agency only by its current name, never by a pre-rename one (m3 B37)', () => {
+    const all = BUILTIN_TEMPLATES.map((t) => t.title + t.description + t.content).join('\n');
+    expect(all).not.toMatch(/Xúc tiến Đầu tư SCE/i);
+    const bare = [...all.matchAll(/Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp(?! Hà Nội)/gi)];
+    expect(bare.map((m) => all.slice(Math.max(0, m.index! - 40), m.index! + 70))).toEqual([]);
+  });
+
   it('has no emoji in any template (UI rule 5, check-ui)', () => {
     expect(BUILTIN_TEMPLATES.map((t) => t.title + t.description + t.content).join('\n')).not.toMatch(/\p{Extended_Pictographic}/u);
   });

@@ -364,7 +364,7 @@ export const TRUNGTAM_TEMPLATES: ReadonlyArray<BuiltinTemplate> = [
     </p>
 
     <p style="text-indent: 30px; text-align: justify;">
-        Trong khuôn khổ chương trình <strong>{{TEN_SU_KIEN}}</strong>, dự kiến sẽ diễn ra Lễ ký kết Biên bản ghi nhớ hợp tác (MOU) giữa Trung tâm Xúc tiến Đầu tư SCE và các Tổ chức, Tập đoàn quốc tế.
+        Trong khuôn khổ chương trình <strong>{{TEN_SU_KIEN}}</strong>, dự kiến sẽ diễn ra Lễ ký kết Biên bản ghi nhớ hợp tác (MOU) giữa Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp Hà Nội (SCE) và các Tổ chức, Tập đoàn quốc tế.
     </p>
     <p style="text-indent: 30px; text-align: justify;">
         Để đảm bảo tính chuẩn xác về mặt đối ngoại, thông lệ quốc tế và tuân thủ các quy định pháp luật của Việt Nam, Trung tâm kính đề nghị Sở Ngoại vụ rà soát, cho ý kiến chuyên môn đối với các dự thảo MOU song ngữ đính kèm.
@@ -530,7 +530,7 @@ export const TRUNGTAM_TEMPLATES: ReadonlyArray<BuiltinTemplate> = [
 
     <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; margin-top: 20px; font-size: 11pt;">
         <strong>Thông tin liên hệ báo chí:</strong><br>
-        Tổ Truyền thông - Trung tâm Xúc tiến Đầu tư SCE<br>
+        Tổ Truyền thông - Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp Hà Nội (SCE)<br>
         Người phụ trách: Đ/c {{CAN_BO_PHU_TRACH}} • Điện thoại: 0912.xxx.xxx • Email: truyenthong.sce@hanoi.gov.vn
     </div>
 </div>`,

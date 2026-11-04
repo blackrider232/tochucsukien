@@ -38,6 +38,7 @@ export function loadLegacyTemplates(): LegacyTemplate[] {
   return JSON.parse(line.slice(line.indexOf('['), line.lastIndexOf(']') + 1)) as LegacyTemplate[];
 }
 
+const PRE_RENAME = 'Tên cũ của cơ quan trong câu văn; thay bằng tên hiện hành (câu văn cần dạng viết thường nên không dùng thẻ).';
 const LETTERHEAD = 'Tên cơ quan lấy từ cài đặt hệ thống (orgIdentity), không viết cứng.';
 
 export const LEGACY_FIXES: ReadonlyArray<LegacyFix> = [
@@ -61,6 +62,9 @@ export const LEGACY_FIXES: ReadonlyArray<LegacyFix> = [
   { bug: 'B37', id: 'form_baocao_tiendo_hangngay', field: 'content', from: 'SỞ TÀI CHÍNH HÀ NỘI - TRUNG TÂM XÚC TIẾN SCE', to: '{{CO_QUAN_CHU_QUAN}} - {{TEN_CO_QUAN}}', count: 1, why: LETTERHEAD },
   { bug: 'B37', id: 'form_the_xe_vip', field: 'content', from: 'UBND THÀNH PHỐ HÀ NỘI - TRUNG TÂM XÚC TIẾN SCE', to: 'UBND THÀNH PHỐ HÀ NỘI - {{TEN_CO_QUAN}}', count: 1, why: LETTERHEAD },
   { bug: 'B37', id: 'form_thongcao_baochi', field: 'content', from: 'ỦY BAN NHÂN DÂN THÀNH PHỐ HÀ NỘI - SỞ TÀI CHÍNH', to: 'ỦY BAN NHÂN DÂN THÀNH PHỐ HÀ NỘI - {{CO_QUAN_CHU_QUAN}}', count: 1, why: LETTERHEAD },
+  { bug: 'B37', id: 'form_congvan_ubnd_phoihop', field: 'content', from: 'Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp chủ động', to: 'Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp Hà Nội chủ động', count: 1, why: PRE_RENAME },
+  { bug: 'B37', id: 'form_congvan_mou_ngoaivu', field: 'content', from: 'giữa Trung tâm Xúc tiến Đầu tư SCE và', to: 'giữa Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp Hà Nội (SCE) và', count: 1, why: PRE_RENAME },
+  { bug: 'B37', id: 'form_thongcao_baochi', field: 'content', from: 'Tổ Truyền thông - Trung tâm Xúc tiến Đầu tư SCE<br>', to: 'Tổ Truyền thông - Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp Hà Nội (SCE)<br>', count: 1, why: PRE_RENAME },
   { bug: 'UI-5', id: 'form_giaymoi_vip', field: 'content', from: '<li>⏰ <strong>', to: '<li><strong>', count: 1, why: 'Biểu tượng cảm xúc không thuộc văn bản hành chính và bị cấm trong mã nguồn (quy tắc UI 5).' },
   { bug: 'UI-5', id: 'form_giaymoi_vip', field: 'content', from: '<li>📍 <strong>', to: '<li><strong>', count: 1, why: 'Biểu tượng cảm xúc không thuộc văn bản hành chính và bị cấm trong mã nguồn (quy tắc UI 5).' },
   { bug: 'UI-5', id: 'form_giaymoi_vip', field: 'content', from: '<li>👔 <strong>', to: '<li><strong>', count: 1, why: 'Biểu tượng cảm xúc không thuộc văn bản hành chính và bị cấm trong mã nguồn (quy tắc UI 5).' },
