@@ -19,7 +19,11 @@ await db.exec(`
   create function auth.jwt() returns jsonb language sql stable as $$ select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;
   grant usage on schema auth to authenticated, anon;
   grant execute on all functions in schema auth to authenticated, anon;
-  grant usage on schema public to authenticated, anon;
+  grant usage on schema public to authenticated, anon, service_role;
+  -- Supabase's default privileges: every new table, sequence and function is granted to all three API roles.
+  alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+  alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
+  alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
   create publication supabase_realtime;
 `);
 
@@ -360,6 +364,25 @@ assert.deepEqual(anonCallable.rows.map((r) => r.f), [], 'anon executes no functi
 const internal = await db.query(`select p.oid::regprocedure::text as f from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'tcsk' and p.proname in ('take_snapshot', 'holidays_of', 'holiday_diff', 'role_label', 'bootstrap_first_admin') and has_function_privilege('authenticated', p.oid, 'execute') order by 1`);
 assert.deepEqual(internal.rows.map((r) => r.f), [], 'authenticated executes no internal helper of the audited functions');
+
+// Table privileges (202611041300_core_table_privileges.sql): RLS decides rows, grants decide statements.
+const TABLE_PRIVILEGES = ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER'];
+const relations = (await db.query(`select c.oid::regclass::text as t from pg_catalog.pg_class c join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = 'public' and c.relkind in ('r', 'v') and c.relname like 'sce\\_tcsk\\_%' order by 1`)).rows.map((r) => r.t);
+assert.ok(relations.length >= 31, `the privilege matrix covers every table and view (${relations.length})`);
+const held = async (role) => (await db.query(`select r.t, p.priv from unnest($1::text[]) r(t) cross join unnest($2::text[]) p(priv)
+  where has_table_privilege($3, r.t, p.priv) order by 1, 2`, [relations, TABLE_PRIVILEGES, role])).rows.map((r) => `${r.t} ${r.priv}`);
+assert.deepEqual(await held('anon'), [], 'anon holds no privilege on any table or view');
+const authenticatedHeld = await held('authenticated');
+assert.deepEqual(authenticatedHeld.filter((p) => /TRUNCATE|REFERENCES|TRIGGER$/.test(p)), [], 'authenticated holds no TRUNCATE, REFERENCES or TRIGGER anywhere');
+for (const t of ['sce_tcsk_events', 'sce_tcsk_guests', 'sce_tcsk_checkins']) {
+  for (const priv of ['SELECT', 'INSERT', 'UPDATE', 'DELETE']) assert.ok(authenticatedHeld.includes(`${t} ${priv}`), `authenticated keeps ${priv} on ${t} for RLS to decide`);
+}
+await as(ids.admin, 'aal2', () => assert.rejects(db.exec(`truncate public.sce_tcsk_guests`), /permission denied/, 'an admin cannot truncate a domain table'));
+await db.exec(`create table public.sce_tcsk_later_probe (id int)`);
+assert.deepEqual((await db.query(`select has_table_privilege('authenticated', 'public.sce_tcsk_later_probe', 'TRUNCATE') as t, has_table_privilege('anon', 'public.sce_tcsk_later_probe', 'SELECT') as a`)).rows[0],
+  { t: false, a: false }, 'a table a later migration creates gets no TRUNCATE for authenticated and nothing for anon');
+await db.exec(`drop table public.sce_tcsk_later_probe`);
 
 // Holidays carry the list the editor saw (202611041200_core_holidays_guard.sql).
 const year2031 = async () => (await db.query(`select holiday_date::text as date, name, kind from public.sce_tcsk_holidays where holiday_date between '2031-01-01' and '2031-12-31' order by 1`)).rows;
