@@ -236,3 +236,28 @@ describe('editable report tables on Postgres', () => {
     ).rejects.toThrow(/row-level security/);
   });
 });
+
+describe("core's backup and restore keep every reports table as it was", () => {
+  const tables = ['sce_tcsk_daily_reports', 'sce_tcsk_bidding_packages', 'sce_tcsk_media_clippings'];
+  const dump = async () => {
+    const out: Record<string, unknown[]> = {};
+    for (const t of tables) out[t] = (await db.query<{ j: unknown }>(`select to_jsonb(x) as j from public.${t} x order by x.id`)).rows.map((r) => r.j);
+    return out;
+  };
+
+  it('a restore by a signed-in admin leaves the issued reports (date, issuer, event name, signer, T-n), the packages and the clippings unchanged', async () => {
+    // A legacy report of the same event (the import runs without auth.uid(), so the trigger keeps its values).
+    await db.exec(`select set_config('request.jwt.claim.sub', '', false), set_config('request.jwt.claims', '{}', false)`);
+    await db.exec(
+      `insert into public.sce_tcsk_daily_reports (event_id, report_date, workdays_to_event, progress_percent, issued_by, issued_at, figures, event_name, event_date, signatory_title)
+       values ('${eventId}', '2026-11-30', 11, 20, '${ids.head}', '2026-11-30T03:00:00Z', '{"progressPercent":20}', 'Tên cũ của sự kiện', '2026-12-15', 'TRƯỞNG PHÒNG XÚC TIẾN ĐẦU TƯ')`,
+    );
+    const before = await dump();
+    expect(before.sce_tcsk_daily_reports.length).toBeGreaterThanOrEqual(3);
+    expect(before.sce_tcsk_bidding_packages.length).toBeGreaterThan(0);
+    expect(before.sce_tcsk_media_clippings.length).toBeGreaterThan(0);
+    const id = await as(ids.admin, 'aal2', async () => (await db.query<{ id: string }>(`select public.sce_tcsk_create_backup('reports round trip') as id`)).rows[0]!.id);
+    await as(ids.admin, 'aal2', () => db.query(`select public.sce_tcsk_restore_backup(${id}::bigint)`));
+    expect(await dump()).toEqual(before);
+  });
+});
