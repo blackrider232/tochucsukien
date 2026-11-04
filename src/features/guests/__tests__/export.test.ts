@@ -80,15 +80,17 @@ describe('guest-list xlsx export (m4c §1.6.1)', () => {
     expect(departmentHeadTitle('Ban Giám đốc', 'Phòng Tư vấn doanh nghiệp')).toBe('TRƯỞNG PHÒNG TƯ VẤN DOANH NGHIỆP');
   });
 
-  it('never writes a formula: =, +, -, @ and TAB values become plain text cells (m4a B49, m4c B6)', async () => {
-    const roster = INJECTIONS.map((v) => entry({ name: v, title: v, organization: v, phone: '', notes: v, substituteName: v, rsvpStatus: 'substituted' }));
+  it('writes formula-looking text as it is, in a plain string cell, with no apostrophe prefix (m4a B49, m4c B6)', async () => {
+    const payloads = ["=cmd|' /C calc'!A0", '+1+1', '-2+3', '@SUM(A1)', '\tTAB', '\rCR', '+84 912 345 678', '- đón tại sảnh', '=HYPERLINK("http://evil","x")'];
+    const roster = payloads.map((v) => entry({ name: v, title: v, organization: v, phone: v, email: null, notes: v, substituteName: v, rsvpStatus: 'substituted' }));
     const ws = await readBack(input({ roster, event: { ...input().event, location: '=1+1' } }));
-    INJECTIONS.forEach((v, i) => {
+    payloads.forEach((v, i) => {
       const r = ws.getRow(FIRST_DATA_ROW + i);
-      for (const col of [2, 3, 4, 11, 14]) {
+      for (const col of [2, 3, 4, 6, 11, 14]) {
         const cell = r.getCell(col);
         expect(cell.type).toBe(ExcelJS.ValueType.String);
-        expect(cell.value).toBe(`'${v}`);
+        // XML parsing turns a bare CR into LF on read-back; the leading character stays non-apostrophe either way.
+        expect(cell.value).toBe(v.replace(/\r/g, '\n'));
       }
     });
     ws.eachRow((row) => row.eachCell((cell) => expect(cell.type).not.toBe(ExcelJS.ValueType.Formula)));

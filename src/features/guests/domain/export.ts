@@ -1,14 +1,15 @@
 // The styled guest-list workbook of m4c §1.6.1: the legacy layout cell for
 // cell, with the fixes. Labels come from the vocab registries (m4c B60, m4a
 // B44), agency lines from orgIdentity(settings) (B36), the date is VN local
-// (B34), every group is counted and filled (B35), and every text cell goes
-// through safeSpreadsheetText (B6). No HTML fallback (B66).
+// (B34) and every group is counted and filled (B35). Values go in as string
+// cells exactly as typed: an xlsx text cell is never evaluated as a formula
+// (B6, B49), so no apostrophe is added (that prefix is for CSV only). No HTML
+// fallback (B66).
 
 import type { Borders, Cell, Fill, Font, Workbook } from 'exceljs';
 import type { Instant, IsoDate } from '@/core/brand';
 import { formatVNDate, formatVNTime, todayVN } from '@/core/dates';
 import { orgIdentity, type SystemSettings } from '@/core/settings';
-import { safeSpreadsheetText } from '@/core/text';
 import { DEPARTMENTS, GUEST_GROUPS, INVITE, RSVP, SEND_METHOD, isAttending, type DepartmentName, type GuestGroup, type InviteStatus, type RsvpStatus, type SendMethod } from '@/core/vocab';
 import type { RosterEntry } from '../contract';
 import { isBanquetGuest } from './roster';
@@ -97,9 +98,6 @@ const RSVP_STYLE: Readonly<Record<RsvpStatus, { fill: string; font: Partial<Font
   pending: { fill: 'FFFEF9C3', font: font(9.5, { color: color('FF854D0E') }) },
 };
 
-/** Every value that came from a person is text, never a formula, whatever it starts with. */
-const text = (v: string) => safeSpreadsheetText(v);
-
 function statsLine(roster: ReadonlyArray<RosterEntry>): string {
   const n = roster.length;
   const of = (g: GuestGroup) => roster.filter((x) => x.group === g).length;
@@ -167,7 +165,7 @@ export async function buildGuestWorkbook(input: GuestListExport): Promise<Workbo
   ws.getRow(4).height = 34;
 
   const when = `${formatVNDate(event.eventDate)}${event.eventTime ? `, khai mạc ${event.eventTime}` : ''}`;
-  merged('A5:N5', text(`Sự kiện: ${(event.name || 'Sự kiện').toUpperCase()}   |   Ngày tổ chức: ${when}   |   Địa điểm: ${event.location || 'Theo thông báo'}`), {
+  merged('A5:N5', `Sự kiện: ${(event.name || 'Sự kiện').toUpperCase()}   |   Ngày tổ chức: ${when}   |   Địa điểm: ${event.location || 'Theo thông báo'}`, {
     font: font(10.5, { bold: true, italic: true, color: color('FF334155') }),
     fill: solid('FFF8FAFC'),
     border: { bottom: thin('FFE2E8F0') },
@@ -203,21 +201,21 @@ export async function buildGuestWorkbook(input: GuestListExport): Promise<Workbo
       return cell;
     };
     put(1, index + 1, center);
-    put(2, text(g.name), left, { font: font(10.5, { bold: true, color: color('FF0F172A') }) });
-    put(3, text(g.title), left);
-    put(4, text(g.organization), left);
+    put(2, g.name, left, { font: font(10.5, { bold: true, color: color('FF0F172A') }) });
+    put(3, g.title, left);
+    put(4, g.organization, left);
     put(5, GUEST_GROUPS[g.group].label, center, { font: GROUP_FONT[g.group], fill: GUEST_GROUPS[g.group].exportFill });
     // Text format keeps a leading 0; the value is a string cell either way.
-    put(6, text(g.phone), center).numFmt = '@';
-    put(7, text(g.email ?? ''), left, { font: font(9.5, { color: color('FF2563EB') }) });
+    put(6, g.phone, center).numFmt = '@';
+    put(7, g.email ?? '', left, { font: font(9.5, { color: color('FF2563EB') }) });
     put(8, SEND_METHOD[g.sendMethod].label, center, SEND_STYLE[g.sendMethod]);
     put(9, INVITE[g.inviteStatus].label, center, INVITE_STYLE[g.inviteStatus]);
     put(10, RSVP[g.rsvpStatus].label, center, RSVP_STYLE[g.rsvpStatus]);
-    put(11, text(g.rsvpStatus === 'substituted' ? g.substituteName : ''), left, { font: font(9.5, { italic: true }) });
+    put(11, g.rsvpStatus === 'substituted' ? g.substituteName : '', left, { font: font(9.5, { italic: true }) });
     if (g.hasBanquet) put(12, g.rsvpStatus === 'declined' ? 'Có (đã báo vắng)' : '✓ Có dự tiệc', center, { fill: 'FFCCFBF1', font: font(9.5, { bold: true, color: color('FF0F766E') }) });
     else put(12, 'Không', center, { font: font(9.5, { color: color('FF94A3B8') }) });
     put(13, g.seatCode ?? '-', center, { font: g.seatCode ? font(10, { bold: true, color: color('FF1E3A8A') }) : font(9.5, { color: color('FF94A3B8') }) });
-    put(14, text(g.notes), left, { font: font(9, { italic: true, color: color('FF64748B') }) });
+    put(14, g.notes, left, { font: font(9, { italic: true, color: color('FF64748B') }) });
   });
 
   const footer = FIRST_DATA_ROW + roster.length + 1;
@@ -245,7 +243,7 @@ export async function buildGuestWorkbook(input: GuestListExport): Promise<Workbo
   ws.getRow(notes).height = 18;
   for (const r of [notes + 1, notes + 2, notes + 3]) ws.getRow(r).height = 16;
   const name = notes + 4;
-  sign(`A${name}:D${name}`, text(author.fullname || 'Cán bộ Lễ tân'), font(10, { bold: true, color: color('FF0F172A') }));
+  sign(`A${name}:D${name}`, author.fullname || 'Cán bộ Lễ tân', font(10, { bold: true, color: color('FF0F172A') }));
   ws.getRow(name).height = 22;
 
   return workbook;
