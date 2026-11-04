@@ -40,9 +40,11 @@ export function InvitationsPage({ data }: { data: InvitationScreenData }) {
   const toast = useToast();
   const dialogs = useDialogs();
   const first = emailTemplate('invitation');
+  // A retry reopens the failed campaign's own message, so it stays the same campaign.
+  const message = data.retry?.message ?? { subject: first.subject, body: first.html, attachQr: first.attachQr };
   const defaultMailbox = data.mailboxes.find((m) => m.isDefault) ?? data.mailboxes[0];
   const form = useZodForm(composeSchema, {
-    defaultValues: { senderId: defaultMailbox?.id ?? PERSONAL, templateKey: 'invitation', subject: first.subject, body: first.html, contactPhone: '', attachQr: first.attachQr },
+    defaultValues: { senderId: defaultMailbox?.id ?? PERSONAL, templateKey: 'invitation', subject: message.subject, body: message.body, contactPhone: '', attachQr: message.attachQr },
   });
   const values = useWatch({ control: form.control }) as Compose;
 
@@ -137,6 +139,7 @@ export function InvitationsPage({ data }: { data: InvitationScreenData }) {
             senderEmail: ctx.from.email,
             subject: compose.subject,
             body: compose.body,
+            attachQr: compose.attachQr,
             runToken: r.token,
             takeOver: r.takeOver,
             recipients: chunk.map((x) => ({ guestId: x.guestId, email: x.email, recipientName: x.name })),
@@ -240,7 +243,14 @@ export function InvitationsPage({ data }: { data: InvitationScreenData }) {
         ]}
       />
       {!data.canSend && <Alert tone="info">{'Bạn chỉ có quyền xem. Gửi thư cần quyền "Gửi thư mời" của sự kiện này.'}</Alert>}
-      {data.retry && <Alert tone="info">{`Đã chọn lại ${data.retry.guestIds.length + data.retry.manual.length} người nhận bị lỗi ở lần gửi trước.`}</Alert>}
+      {data.retry && (
+        <Alert tone="info">
+          {`Đã chọn lại ${data.retry.guestIds.length + data.retry.manual.length} người nhận bị lỗi ở lần gửi trước. `}
+          {data.retry.message
+            ? 'Tiêu đề và nội dung là của đợt gửi đó; sửa chúng sẽ thành một đợt gửi mới. Nhập lại số điện thoại liên hệ nếu thư có dùng.'
+            : 'Đợt gửi này không lưu mẫu thư (dữ liệu phần mềm cũ), nên thư được soạn lại từ mẫu mặc định.'}
+        </Alert>
+      )}
       <div className="grid gap-4 lg:grid-cols-12">
         <div className="min-w-0 lg:col-span-5">
           <RecipientsPanel

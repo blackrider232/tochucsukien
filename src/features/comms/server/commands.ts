@@ -43,7 +43,7 @@ declare module '@/core/commands' {
      */
     'comms.startCampaign': Sig<
       {
-        eventId: EventId; senderEmail: Email; subject: string; body: string; runToken: RunToken; takeOver: boolean;
+        eventId: EventId; senderEmail: Email; subject: string; body: string; attachQr: boolean; runToken: RunToken; takeOver: boolean;
         recipients: ReadonlyArray<{ guestId: GuestId | null; email: Email; recipientName: string }>;
       },
       { campaignId: CampaignId; claimed: ReadonlyArray<Email>; alreadySent: ReadonlyArray<Email>; inFlight: ReadonlyArray<Email>; ownInFlight: ReadonlyArray<Email> }

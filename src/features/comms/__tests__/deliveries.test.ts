@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { newId, type CampaignId, type Email, type EventId, type GuestId, type Instant } from '@/core/brand';
 import { testActor, XTDT } from '@/core/testing/actors';
 import { campaignIdFor, CLAIM_LEASE_MS } from '../server/deliveries';
-import { failingWrites, harness, NOW, xtdtUser } from './harness';
+import { invitationScreenData } from '../server/screen-data';
+import { admin, failingWrites, harness, NOW, xtdtUser } from './harness';
 
 const SENDER = 'btc@x.vn' as Email;
 const MESSAGE = { subject: 'Giấy mời {ho_ten}', body: '<p>Kính gửi {danh_xung} {ho_ten}</p>' };
@@ -16,8 +17,8 @@ const to = (email: string, guestId: GuestId | null = null) => ({ guestId, email:
 const sent = (email: string, guestId: GuestId | null = null) => ({ ...to(email, guestId), status: 'sent' as const, providerMessageId: `msg-${email}`, error: null });
 const failed = (email: string, guestId: GuestId | null = null) => ({ ...to(email, guestId), status: 'error' as const, providerMessageId: null, error: 'Gmail: Invalid To header' });
 
-const start = async (h: H, eventId: EventId, recipients: ReturnType<typeof to>[], actor = xtdtUser, message = MESSAGE, runToken = TAB_A, takeOver = false) =>
-  (await h.ok(actor, 'comms.startCampaign', { eventId, senderEmail: SENDER, ...message, runToken, takeOver, recipients })).value;
+const start = async (h: H, eventId: EventId, recipients: ReturnType<typeof to>[], actor = xtdtUser, message: { subject: string; body: string; attachQr?: boolean } = MESSAGE, runToken = TAB_A, takeOver = false) =>
+  (await h.ok(actor, 'comms.startCampaign', { eventId, senderEmail: SENDER, attachQr: false, ...message, runToken, takeOver, recipients })).value;
 const record = (h: H, eventId: EventId, campaignId: CampaignId, results: ReadonlyArray<ReturnType<typeof sent> | ReturnType<typeof failed>>, actor = xtdtUser, runToken = TAB_A) =>
   h.run(actor, 'comms.recordDeliveries', { eventId, campaignId, runToken, senderEmail: SENDER, subject: 'Giấy mời', results });
 const deliveries = (h: H) =>
@@ -120,11 +121,28 @@ describe('comms.startCampaign', () => {
     const h = harness();
     const eventId = await h.createEvent();
     const r = await h.runWith(failingWrites((t, op, nth) => t === 'sce_tcsk_email_deliveries' && op === 'insert' && nth === 1), xtdtUser, 'comms.startCampaign', {
-      eventId, senderEmail: SENDER, ...MESSAGE, runToken: TAB_A, takeOver: false, recipients: [to('a@x.vn'), to('b@x.vn')],
+      eventId, senderEmail: SENDER, ...MESSAGE, attachQr: false, runToken: TAB_A, takeOver: false, recipients: [to('a@x.vn'), to('b@x.vn')],
     });
     expect(r).toMatchObject({ ok: false, kind: 'conflict', message: expect.stringContaining('Đã giữ chỗ 1 người nhận') });
     expect(deliveries(h)).toEqual([['a@x.vn', 'queued']]);
     expect(h.audits().at(-1)).toMatchObject({ action: 'BẮT ĐẦU GỬI THƯ', summary: expect.stringContaining('đã giữ chỗ 1 người nhận rồi dừng vì lỗi') });
+  });
+});
+
+describe('a campaign keeps its message', () => {
+  it('"Gửi lại thư lỗi" gets the very templates of the failed campaign, so the retry is the same message', async () => {
+    const h = harness();
+    const eventId = await h.createEvent();
+    const guest = await h.addGuest(eventId, { email: 'loi@b.vn' as Email });
+    const custom = { subject: 'Thư mời riêng {ho_ten}', body: '<p>Nội dung đã sửa cho {danh_xung} {ho_ten}</p>', attachQr: true };
+    const { campaignId } = await start(h, eventId, [to('loi@b.vn', guest.id), to('ngoai@x.vn')], xtdtUser, custom);
+    await record(h, eventId, campaignId, [failed('loi@b.vn', guest.id), failed('ngoai@x.vn')]);
+    const screen = (await invitationScreenData(h.ctx(xtdtUser), eventId, campaignId))!;
+    expect(screen.retry).toEqual({ campaignId, guestIds: [guest.id], manual: [{ email: 'ngoai@x.vn', name: 'Người ngoai@x.vn' }], message: custom });
+    expect(campaignIdFor(eventId, screen.retry!.message!.subject, screen.retry!.message!.body)).toBe(campaignId);
+    // Another officer of the event reads the same message; the latest QR choice wins.
+    await start(h, eventId, [to('loi@b.vn', guest.id)], xtdtUser, { ...custom, attachQr: false }, TAB_B);
+    expect((await invitationScreenData(h.ctx(admin), eventId, campaignId))!.retry?.message).toEqual({ ...custom, attachQr: false });
   });
 });
 

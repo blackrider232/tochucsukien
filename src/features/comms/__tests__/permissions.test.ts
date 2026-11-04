@@ -39,13 +39,13 @@ async function fixture() {
   const form = (await h.ok(xtdtUser, 'comms.saveForm', { eventId, version: null, config: { formUrl: null, sheetUrl: SHEET, autoSync: false, autoAddNewGuests: false } } as never)).value;
   await h.ok(xtdtUser, 'comms.syncForm', { eventId });
   const response = (h.rows('sce_tcsk_rsvp_responses') as Array<{ id: string; version: number }>)[0]!;
-  const claim = (await h.ok(xtdtUser, 'comms.startCampaign', { eventId, senderEmail: 'btc@x.vn' as Email, subject: 's', body: '<p>a</p>', runToken: RUN, takeOver: false, recipients: [{ guestId: null, email: 'a@x.vn' as Email, recipientName: '' }] })).value;
+  const claim = (await h.ok(xtdtUser, 'comms.startCampaign', { eventId, senderEmail: 'btc@x.vn' as Email, subject: 's', body: '<p>a</p>', attachQr: false, runToken: RUN, takeOver: false, recipients: [{ guestId: null, email: 'a@x.vn' as Email, recipientName: '' }] })).value;
   const inputs: Record<keyof typeof EVENT_COMMANDS, unknown> = {
     saveForm: { eventId, version: form.version + 2, config: { formUrl: 'https://forms.gle/x', sheetUrl: SHEET, autoSync: true, autoAddNewGuests: false } },
     saveColumnMap: { eventId, version: form.version + 2, columnMap: { name: 0, email: 1 } },
     syncForm: { eventId },
     resolveResponse: { eventId, id: response.id, version: response.version as Version, action: { kind: 'dismiss' } },
-    startCampaign: { eventId, senderEmail: 'btc@x.vn' as Email, subject: 's', body: '<p>b</p>', runToken: RUN, takeOver: false, recipients: [{ guestId: null, email: 'b@x.vn', recipientName: '' }] },
+    startCampaign: { eventId, senderEmail: 'btc@x.vn' as Email, subject: 's', body: '<p>b</p>', attachQr: false, runToken: RUN, takeOver: false, recipients: [{ guestId: null, email: 'b@x.vn', recipientName: '' }] },
     recordDeliveries: { eventId, campaignId: claim.campaignId, runToken: RUN, senderEmail: 'btc@x.vn' as Email, subject: 's', results: [{ guestId: null, email: 'a@x.vn', recipientName: '', status: 'error', providerMessageId: null, error: 'x' }] },
     renewClaims: { eventId, campaignId: claim.campaignId, runToken: RUN },
     releaseDeliveries: { eventId, campaignId: claim.campaignId, runToken: RUN, emails: ['a@x.vn'] },
@@ -107,7 +107,7 @@ describe('every event command asks for its own permission', () => {
     const h = harness();
     const eventId: EventId = await h.createEvent();
     const g = await h.addGuest(eventId, { email: 'an@a.vn' as Email });
-    const { campaignId } = (await h.ok(xtdtUser, 'comms.startCampaign', { eventId, senderEmail: 'btc@x.vn' as Email, subject: 's', body: '<p>b</p>', runToken: RUN, takeOver: false, recipients: [{ guestId: g.id, email: 'an@a.vn' as Email, recipientName: 'An' }] })).value;
+    const { campaignId } = (await h.ok(xtdtUser, 'comms.startCampaign', { eventId, senderEmail: 'btc@x.vn' as Email, subject: 's', body: '<p>b</p>', attachQr: false, runToken: RUN, takeOver: false, recipients: [{ guestId: g.id, email: 'an@a.vn' as Email, recipientName: 'An' }] })).value;
     grants.withhold = 'guests.write';
     const r = await h.run(xtdtUser, 'comms.recordDeliveries', { eventId, campaignId, runToken: RUN, senderEmail: 'btc@x.vn' as Email, subject: 's', results: [{ guestId: g.id, email: 'an@a.vn' as Email, recipientName: 'An', status: 'sent', providerMessageId: 'msg-1', error: null }] });
     expect(r).toMatchObject({ ok: true, value: { recorded: 1, notInvited: 1 } });

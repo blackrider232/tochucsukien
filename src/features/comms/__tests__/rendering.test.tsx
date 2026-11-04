@@ -52,6 +52,13 @@ describe('comms screens render untrusted text as text', () => {
     expect(screen.getByRole('button', { name: /Bắt đầu gửi \(0\)/ })).toBeDisabled();
   });
 
+  it('a retry from the log opens with the failed campaign’s own subject and body', () => {
+    const message = { subject: 'Thư mời riêng {ho_ten}', body: '<p>Nội dung đã sửa</p>', attachQr: true };
+    renderUi(withAppContext(<InvitationsPage data={invitationData({ retry: { campaignId: '0b0e0b0e-0000-5000-8000-000000000001' as CampaignId, guestIds: ['g1' as GuestId], manual: [], message } })} />));
+    expect(screen.getByDisplayValue('Thư mời riêng {ho_ten}')).toBeInTheDocument();
+    expect(screen.getByText(/Đã chọn lại 1 người nhận bị lỗi/)).toBeInTheDocument();
+  });
+
   it('says plainly that sending is not set up without a Client ID: no sandbox fallback', () => {
     renderUi(withAppContext(<InvitationsPage data={invitationData()} />));
     expect(screen.getByText(/Chưa cấu hình Google OAuth Client ID/)).toBeInTheDocument();

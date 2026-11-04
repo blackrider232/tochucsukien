@@ -11,7 +11,7 @@ import { readEvent } from '@/features/progress/server';
 import { detectColumns } from '../domain/columns';
 import { parseColumnMap } from '../domain/responses';
 import type { DeliveryLogData, FormScreenData, InvitationScreenData, MailboxesScreenData, ScreenEvent } from '../domain/screen';
-import { listDeliveries, listMailboxes, listResponses, readForm } from './reads';
+import { listDeliveries, listMailboxes, listResponses, readCampaign, readForm } from './reads';
 
 async function eventOf(ctx: RequestContext, eventId: EventId) {
   const event = await readEvent(ctx, eventId);
@@ -29,6 +29,7 @@ export async function invitationScreenData(ctx: RequestContext, eventId: EventId
   for (const d of deliveries) if (d.guestId && d.status !== 'queued' && !lastOf.has(d.guestId)) lastOf.set(d.guestId, d.status);
   const campaignId = parseUuid<'EmailCampaign'>(retryCampaign);
   const failed = campaignId ? deliveries.filter((d) => d.campaignId === campaignId && d.status === 'error') : [];
+  const campaign = campaignId && failed.length > 0 ? await readCampaign(ctx, eventId, campaignId) : null;
   return {
     event: event.view,
     guests: roster.map((g) => ({
@@ -46,6 +47,7 @@ export async function invitationScreenData(ctx: RequestContext, eventId: EventId
           campaignId,
           guestIds: failed.flatMap((d) => (d.guestId ? [d.guestId] : [])),
           manual: failed.filter((d) => !d.guestId).map((d) => ({ email: d.email, name: d.recipientName })),
+          message: campaign && { subject: campaign.subjectTemplate, body: campaign.bodyTemplate, attachQr: campaign.attachQr },
         }
       : null,
     devTransport: devMemoryEnabled(),

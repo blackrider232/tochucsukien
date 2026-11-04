@@ -24,7 +24,7 @@ import { CLAIM_LEASE_MS } from '../domain/campaign';
 import { campaignIdSchema, deliveryResultSchema, eventIdSchema, guestIdSchema, MAX_CLAIM_BATCH, requiredEmailSchema, runTokenSchema } from '../domain/schemas';
 import { DEV_FAKE_ID_PREFIX } from '../domain/transport';
 import { asSchema, audit, auditPartial } from './command-kit';
-import { deliveriesTable, type DeliveryRow } from './tables';
+import { campaignsTable, deliveriesTable, type DeliveryRow } from './tables';
 
 export const MAX_DELIVERY_BATCH = 50;
 export { CLAIM_LEASE_MS };
@@ -55,14 +55,17 @@ export const startCampaign: CommandSpec<InputOf<'comms.startCampaign'>, OutputOf
       senderEmail: requiredEmailSchema,
       subject: z.string().trim().min(1).max(300),
       body: z.string().trim().min(1).max(100_000),
+      attachQr: z.boolean(),
       runToken: runTokenSchema,
       takeOver: z.boolean(),
       recipients: z.array(recipientSchema).min(1).max(MAX_CLAIM_BATCH),
     }),
   ),
   authorize: send,
-  async run(ctx, { eventId, senderEmail, subject, body, runToken, takeOver, recipients }) {
+  async run(ctx, { eventId, senderEmail, subject, body, attachQr, runToken, takeOver, recipients }) {
     const campaignId = campaignIdFor(eventId, subject, body);
+    // Kept for "Gửi lại thư lỗi"; written before any claim, so a claim never lacks its message.
+    await ctx.db.table(campaignsTable).upsertOn(['id'], { id: campaignId, eventId, subjectTemplate: subject, bodyTemplate: body, attachQr });
     const existing = await byEmail(ctx, eventId, campaignId);
     const claimed: Email[] = [];
     const alreadySent: Email[] = [];

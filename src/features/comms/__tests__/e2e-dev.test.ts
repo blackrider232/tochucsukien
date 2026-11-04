@@ -67,7 +67,7 @@ async function scenario() {
   const apiFor = (recordFails: ReadonlySet<string> = new Set()): CampaignApi => ({
     claim: async (chunk, r) =>
       run('comms.startCampaign', {
-        eventId, senderEmail: mctx.from.email, subject: compose.subject, body: compose.body, runToken: r.token, takeOver: r.takeOver,
+        eventId, senderEmail: mctx.from.email, subject: compose.subject, body: compose.body, attachQr: compose.attachQr, runToken: r.token, takeOver: r.takeOver,
         recipients: chunk.map((x) => ({ guestId: x.guestId, email: x.email, recipientName: x.name })),
       }),
     async record(campaignId, runToken, o) {
@@ -245,7 +245,7 @@ describe('comms in the dev memory runtime, end to end', () => {
           vi.setSystemTime(Date.now() + 12 * 60_000);
           if (m.to[0]!.email === list[2]!.email) {
             second = await runCommand({ ...s.ctx, now: new Date().toISOString() as Instant }, lookup, 'comms.startCampaign', {
-              eventId: s.eventId, senderEmail: 'ban.to.chuc@example.com' as Email, subject: emailTemplate('invitation').subject, body: emailTemplate('invitation').html,
+              eventId: s.eventId, senderEmail: 'ban.to.chuc@example.com' as Email, subject: emailTemplate('invitation').subject, body: emailTemplate('invitation').html, attachQr: false,
               runToken: newId<'CampaignRun'>(), takeOver: false, recipients: list.map((r) => ({ guestId: r.guestId, email: r.email, recipientName: r.name })),
             });
           }
@@ -290,7 +290,7 @@ describe('comms in the dev memory runtime, end to end', () => {
   it('a send outside the dev runtime refuses the fake transport’s results', async () => {
     const s = await scenario();
     const runToken = newId<'CampaignRun'>();
-    const claim = await s.run('comms.startCampaign', { eventId: s.eventId as EventId, senderEmail: 'ban.to.chuc@example.com' as Email, subject: 's', body: '<p>b</p>', runToken, takeOver: false, recipients: [{ guestId: null, email: 'x@example.com' as Email, recipientName: '' }] });
+    const claim = await s.run('comms.startCampaign', { eventId: s.eventId as EventId, senderEmail: 'ban.to.chuc@example.com' as Email, subject: 's', body: '<p>b</p>', attachQr: false, runToken, takeOver: false, recipients: [{ guestId: null, email: 'x@example.com' as Email, recipientName: '' }] });
     vi.stubEnv('SCE_DEV_MEMORY', '');
     const r = await runCommand(s.ctx, lookup, 'comms.recordDeliveries', {
       eventId: s.eventId, campaignId: claim.campaignId, runToken, senderEmail: 'ban.to.chuc@example.com', subject: 's',

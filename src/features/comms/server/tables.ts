@@ -1,4 +1,4 @@
-// The four tables comms owns (0002_domain_tables.sql and the *_comms_*.sql
+// The tables comms owns (0002_domain_tables.sql and the *_comms_*.sql
 // migrations after it).
 
 import { z } from 'zod';
@@ -179,5 +179,27 @@ export const deliveriesTable = defineTable<DeliveryRow>({
     error: z.string().nullable(),
     providerMessageId: z.string().nullable(),
     imported: z.boolean(),
+  }),
+});
+
+/** The message of a campaign; its id is campaignIdFor(eventId, subjectTemplate, bodyTemplate). */
+export interface CampaignRow extends BaseRow {
+  id: CampaignId;
+  eventId: EventId;
+  subjectTemplate: string;
+  bodyTemplate: string;
+  attachQr: boolean;
+}
+export const campaignsTable = defineTable<CampaignRow>({
+  name: 'sce_tcsk_email_campaigns',
+  owner: 'comms',
+  eventScoped: true,
+  row: z.object({
+    ...managed,
+    id: z.string().transform((v) => v as CampaignId),
+    eventId,
+    subjectTemplate: z.string(),
+    bodyTemplate: z.string(),
+    attachQr: z.boolean(),
   }),
 });

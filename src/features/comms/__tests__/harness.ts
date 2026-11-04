@@ -53,7 +53,7 @@ export function failingWrites(when: (table: string, op: 'insert' | 'insertMany' 
 export function harness(opts: { now?: Instant; sheets?: SheetSource } = {}) {
   const seed = {
     sce_tcsk_events: [], sce_tcsk_task_groups: [], sce_tcsk_steps: [], sce_tcsk_guests: [], sce_tcsk_seat_assignments: [], sce_tcsk_checkins: [],
-    sce_tcsk_audit_logs: [], sce_tcsk_sender_mailboxes: [], sce_tcsk_rsvp_forms: [], sce_tcsk_rsvp_responses: [], sce_tcsk_email_deliveries: [],
+    sce_tcsk_audit_logs: [], sce_tcsk_sender_mailboxes: [], sce_tcsk_rsvp_forms: [], sce_tcsk_rsvp_responses: [], sce_tcsk_email_deliveries: [], sce_tcsk_email_campaigns: [],
   };
   const clock = { now: opts.now ?? NOW };
   const sheets = opts.sheets ?? fakeSheetSource();

@@ -21,7 +21,7 @@ export const commsManifest = defineFeature({
     { dir: '(app)/events/[eventId]/invitations', permission: 'comms.read' },
     { dir: 'api/cron/rsvp-sync', permission: 'comms.rsvp.manage' },
   ],
-  tables: ['sce_tcsk_sender_mailboxes', 'sce_tcsk_rsvp_forms', 'sce_tcsk_rsvp_responses', 'sce_tcsk_email_deliveries'],
+  tables: ['sce_tcsk_sender_mailboxes', 'sce_tcsk_rsvp_forms', 'sce_tcsk_rsvp_responses', 'sce_tcsk_email_deliveries', 'sce_tcsk_email_campaigns'],
   // Partial keys: Google Form fields on events, email results on guests, unitSenderEmails in settings (googleClientId is core's).
   legacyBlobKeys: ['events', 'eventGuests', 'systemSettings'],
 });

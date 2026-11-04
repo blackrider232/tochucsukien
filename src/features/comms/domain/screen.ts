@@ -39,8 +39,16 @@ export interface InvitationScreenData {
   officer: { name: string; email: Email };
   org: OrgIdentity;
   canSend: boolean;
-  /** Recipients of an earlier campaign that failed, from the delivery log's "Gửi lại thư lỗi". */
-  retry: { campaignId: CampaignId; guestIds: ReadonlyArray<GuestId>; manual: ReadonlyArray<{ email: Email; name: string }> } | null;
+  /**
+   * Recipients of an earlier campaign that failed, from the delivery log's "Gửi lại thư lỗi", and that campaign's
+   * message. `message` is null for a campaign that kept none (rows imported from the old app).
+   */
+  retry: {
+    campaignId: CampaignId;
+    guestIds: ReadonlyArray<GuestId>;
+    manual: ReadonlyArray<{ email: Email; name: string }>;
+    message: { subject: string; body: string; attachQr: boolean } | null;
+  } | null;
   /** SCE_DEV_MEMORY only: the fake transport replaces Google sign-in. */
   devTransport: boolean;
 }
