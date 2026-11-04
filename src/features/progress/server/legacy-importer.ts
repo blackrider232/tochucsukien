@@ -7,7 +7,7 @@ import { combineVN, parseHHmm, parseInstant, parseIsoDate, todayVN } from '@/cor
 import { isDemoLegacyEvent, type ImportIssue, type LegacyImporter } from '@/core/legacy';
 import { parseSafeUrl, parseVnd } from '@/core/text';
 import { isDepartmentName, type DepartmentName } from '@/core/vocab';
-import { CHAIR_DEPARTMENTS, DAY_TYPES, GROUP_PHASES, STEP_PHASES } from '../domain/schemas';
+import { CHAIR_DEPARTMENTS, DAY_TYPES, GROUP_PHASES, MAX_GUESTS, MAX_OFFSET_DAYS, STEP_PHASES } from '../domain/schemas';
 
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -15,6 +15,7 @@ const str = (v: unknown) => (typeof v === 'string' ? v.trim() : typeof v === 'nu
 const oneOf = <T extends string>(values: ReadonlyArray<T>, v: unknown): T | null => (values.includes(v as T) ? (v as T) : null);
 const TEMPLATE_KEY = /^[A-Za-z0-9_-]*$/;
 const DEFAULT_DEPARTMENT: DepartmentName = 'Phòng Xúc tiến đầu tư';
+const DEFAULT_GUESTS = 150;
 
 /** Repeated keys get '#2', '#3' so every row keeps its own deterministic id. */
 function uniqueKeys() {
@@ -64,7 +65,10 @@ export const legacyImporter: LegacyImporter = {
       const budgetText = str(raw.budget);
       const budget = budgetText ? parseVnd(budgetText) : null;
       if (budgetText && budget === null) issue('coerced', legacyId, `Kinh phí "${budgetText}" không đọc được; để trống.`);
-      const guests = Number(raw.targetGuests ?? raw.expectedDelegates);
+      const guestsText = str(raw.targetGuests ?? raw.expectedDelegates);
+      const guests = Number(guestsText);
+      const guestsOk = Number.isInteger(guests) && guests >= 1 && guests <= MAX_GUESTS;
+      if (guestsText && !guestsOk) issue('coerced', legacyId, `Số khách dự kiến ${guestsText} của "${name}" ngoài khoảng 1 đến ${MAX_GUESTS}; đặt ${DEFAULT_GUESTS}.`);
 
       eventRows.push({
         id: eventId,
@@ -79,7 +83,7 @@ export const legacyImporter: LegacyImporter = {
         supporting_departments: CHAIR_DEPARTMENTS.filter((d) => d !== department),
         lead_person: str(raw.leadPerson),
         budget_vnd: budget,
-        target_guests: Number.isInteger(guests) && guests >= 0 ? guests : 150,
+        target_guests: guestsOk ? guests : DEFAULT_GUESTS,
         note: str(raw.note),
         ...(createdAt ? { created_at: createdAt } : {}),
       });
@@ -99,6 +103,7 @@ export const legacyImporter: LegacyImporter = {
           const sKey = stepKey(`${gKey}|${str(s.id) || `index-${si + 1}`}`);
           const stepScope = `${legacyId}|${sKey}`;
           const offset = Number(s.offsetDays);
+          if (offset > MAX_OFFSET_DAYS && oneOf(STEP_PHASES, s.targetPhase) !== 'dday') issue('coerced', sKey, `Bước "${str(s.name)}" có số ngày lệch ${offset} vượt ${MAX_OFFSET_DAYS}; đã giảm còn ${MAX_OFFSET_DAYS}.`);
           const phaseOf = oneOf(STEP_PHASES, s.targetPhase) ?? 'before';
           const templateKey = str(s.templateKey);
           if (!TEMPLATE_KEY.test(templateKey)) issue('coerced', sKey, `Mã biểu mẫu "${templateKey}" chứa ký tự không hợp lệ; đã bỏ.`);
@@ -130,7 +135,7 @@ export const legacyImporter: LegacyImporter = {
             legacy_id: sKey,
             name: str(s.name) || `Bước ${si + 1}`,
             requirement: str(s.requirement),
-            offset_days: phaseOf === 'dday' ? 0 : Number.isInteger(offset) && offset >= 0 ? offset : 0,
+            offset_days: phaseOf === 'dday' ? 0 : Number.isInteger(offset) && offset >= 0 ? Math.min(offset, MAX_OFFSET_DAYS) : 0,
             day_type: oneOf(DAY_TYPES, s.dayType) ?? 'workday',
             target_phase: phaseOf,
             completed_at: completedAt,

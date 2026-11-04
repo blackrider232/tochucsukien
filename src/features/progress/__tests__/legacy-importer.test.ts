@@ -71,4 +71,21 @@ describe('progress legacy importer', () => {
     const r = plan({ programs: [{ id: 'evt_p', name: 'Cũ', eventDate: '2025-05-05', groups: [] }], events: [] });
     expect(rows('sce_tcsk_events', r)).toEqual([expect.objectContaining({ legacy_id: 'evt_p', event_date: '2025-05-05' })]);
   });
+
+  it('keeps imported numbers inside what the forms accept, and reports each change (review finding 3)', () => {
+    const r = plan({
+      events: [
+        { id: 'big', name: 'Offset lớn', eventDate: '2026-12-15', targetGuests: 250_000, groups: [{ id: 'g', steps: [{ id: 'a', name: 'A', offsetDays: 999 }, { id: 'b', name: 'B', offsetDays: 365 }] }] },
+        { id: 'zero', name: 'Không khách', eventDate: '2026-12-16', targetGuests: 0, groups: [] },
+        { id: 'fine', name: 'Bình thường', eventDate: '2026-12-17', department: 'Phòng Xúc tiến đầu tư', targetGuests: 1, groups: [] },
+      ],
+    });
+    expect(rows('sce_tcsk_steps', r).map((s) => s.offset_days)).toEqual([365, 365]);
+    expect(rows('sce_tcsk_events', r).map((e) => e.target_guests)).toEqual([150, 150, 1]);
+    const messages = r.issues.map((i) => i.message);
+    expect(messages).toContain('Bước "A" có số ngày lệch 999 vượt 365; đã giảm còn 365.');
+    expect(messages).toContain('Số khách dự kiến 250000 của "Offset lớn" ngoài khoảng 1 đến 100000; đặt 150.');
+    expect(messages).toContain('Số khách dự kiến 0 của "Không khách" ngoài khoảng 1 đến 100000; đặt 150.');
+    expect(r.issues.filter((i) => i.legacyId === 'fine' || i.message.includes('"B"'))).toEqual([]);
+  });
 });

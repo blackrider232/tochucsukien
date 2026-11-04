@@ -29,6 +29,9 @@ export const STEP_PHASES = ['before', 'dday', 'after'] as const satisfies Readon
 export const DAY_TYPES = ['workday', 'calendar'] as const satisfies ReadonlyArray<DayType>;
 export const GROUP_PHASES = ['phase_prepare', 'phase_dday'] as const satisfies ReadonlyArray<GroupPhase>;
 
+export const MAX_GUESTS = 100_000;
+export const MAX_OFFSET_DAYS = 365;
+
 export const eventFields = z.object({
   name: required(300, 'Vui lòng nhập tên sự kiện'),
   type: z.enum(EVENT_TYPE_VALUES),
@@ -39,7 +42,7 @@ export const eventFields = z.object({
   supportingDepartments: z.array(departmentSchema).max(CHAIR_DEPARTMENTS.length),
   leadPerson: text(200),
   budget: z.number().int().min(0, 'Kinh phí không âm').max(Number.MAX_SAFE_INTEGER).nullable().transform((v) => v as Vnd | null),
-  targetGuests: z.number({ error: 'Vui lòng nhập số khách dự kiến' }).int('Số khách là số nguyên').min(1, 'Ít nhất 1 khách').max(100_000),
+  targetGuests: z.number({ error: 'Vui lòng nhập số khách dự kiến' }).int('Số khách là số nguyên').min(1, 'Ít nhất 1 khách').max(MAX_GUESTS),
   note: text(5000),
 });
 
@@ -54,7 +57,7 @@ export const stepFields = z.object({
   name: required(300, 'Vui lòng nhập tên công việc'),
   requirement: text(5000),
   targetPhase: z.enum(STEP_PHASES),
-  offsetDays: z.number({ error: 'Nhập số ngày' }).int('Số ngày là số nguyên').min(0, 'Không âm').max(365, 'Tối đa 365 ngày'),
+  offsetDays: z.number({ error: 'Nhập số ngày' }).int('Số ngày là số nguyên').min(0, 'Không âm').max(MAX_OFFSET_DAYS, `Tối đa ${MAX_OFFSET_DAYS} ngày`),
   dayType: z.enum(DAY_TYPES),
   assignee: text(200),
   /** Shown as text and passed to templates.resolveTemplateKey only (m2 BUG-18). */
