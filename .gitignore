@@ -24,3 +24,9 @@ PROJECT_KNOWLEDGE.md
 
 # Unused/Raw Source Graphics
 /icon/Logo (tách nền sát cạnh).png
+
+# Next.js / Node
+.next/
+.env*.local
+*.tsbuildinfo
+next-env.d.ts
