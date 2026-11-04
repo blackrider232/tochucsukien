@@ -5,7 +5,7 @@
 // "Đang gửi" is a claim with no answer yet: a run in progress, or one that
 // stopped with that message in flight, whose outcome only Gmail's Sent folder tells.
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Badge, Button, DataTable, FilterBar, KpiCard, LinkTabs, SectionCard, type Column } from '@/components/ui';
 import { formatVNTime } from '@/core/dates';
 import { matchesQuery } from '@/core/text';
@@ -28,11 +28,6 @@ export function DeliveryLog({ data }: { data: DeliveryLogData }) {
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('all');
   const [campaign, setCampaign] = useState('all');
-  const campaigns = useMemo(() => {
-    const seen = new Map<string, string>();
-    for (const r of data.rows) if (!seen.has(r.campaignId)) seen.set(r.campaignId, r.subject || 'Không có tiêu đề');
-    return [...seen];
-  }, [data.rows]);
   const rows = data.rows.filter((r) => (status === 'all' || r.status === status) && (campaign === 'all' || r.campaignId === campaign) && matchesQuery(q, r.recipientName, r.email, r.subject, r.error));
   const failedCampaign = campaign !== 'all' && data.rows.some((r) => r.campaignId === campaign && r.status === 'error') ? campaign : null;
   const sent = data.rows.filter((r) => r.status === 'sent').length;
@@ -87,7 +82,7 @@ export function DeliveryLog({ data }: { data: DeliveryLogData }) {
             search={{ value: q, onChange: setQ, placeholder: 'Tìm theo người nhận, email, tiêu đề, lỗi...' }}
             filters={[
               { id: 'status', label: 'Trạng thái', value: status, options: STATUS_OPTIONS, onChange: setStatus },
-              { id: 'campaign', label: 'Đợt gửi', value: campaign, options: [{ value: 'all', label: 'Tất cả đợt gửi' }, ...campaigns.map(([id, subject]) => ({ value: id, label: subject }))], onChange: setCampaign },
+              { id: 'campaign', label: 'Đợt gửi', value: campaign, options: [{ value: 'all', label: 'Tất cả đợt gửi' }, ...data.campaigns.map((c) => ({ value: c.id as string, label: c.label || 'Không có tiêu đề' }))], onChange: setCampaign },
             ]}
           />
           {campaign === 'all' && failed > 0 && <p className="text-sm text-ink-muted">Chọn một đợt gửi để gửi lại các thư lỗi của đợt đó.</p>}

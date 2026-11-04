@@ -70,6 +70,8 @@ export interface DeliveryLogRow {
 export interface DeliveryLogData {
   event: ScreenEvent;
   rows: ReadonlyArray<DeliveryLogRow>;
+  /** Every campaign of the rows, newest first, named by its subject template. */
+  campaigns: ReadonlyArray<{ id: CampaignId; label: string }>;
   canSend: boolean;
 }
 

@@ -19,3 +19,5 @@ export const listDeliveries = (ctx: RequestContext, eventId: EventId): Promise<R
 
 export const readCampaign = async (ctx: RequestContext, eventId: EventId, id: CampaignId): Promise<CampaignRow | null> =>
   (await ctx.db.table(campaignsTable).list({ eventId, id }))[0] ?? null;
+
+export const listCampaigns = (ctx: RequestContext, eventId: EventId): Promise<ReadonlyArray<CampaignRow>> => ctx.db.table(campaignsTable).list({ eventId });

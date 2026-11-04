@@ -138,6 +138,23 @@ describe('comms screens render untrusted text as text', () => {
     await vi.waitFor(() => expect(dispatched).toHaveBeenCalledWith('comms.saveForm', expect.objectContaining({ config: expect.objectContaining({ autoSync: true }) })));
   });
 
+  it('the delivery log names each campaign by its subject template, not by one recipient’s merged subject', () => {
+    renderUi(
+      withAppContext(
+        <DeliveryLog
+          data={{
+            event,
+            canSend: true,
+            campaigns: [{ id: 'c1' as CampaignId, label: 'Giấy mời {ho_ten}' }],
+            rows: [{ id: 'd1', campaignId: 'c1' as CampaignId, guestId: null, recipientName: 'Nguyễn Văn An', email: 'a@x.vn' as Email, subject: 'Giấy mời Nguyễn Văn An', senderEmail: 'b@x.vn', status: 'sent', sentAt: null, updatedAt: '2026-11-04T03:00:00.000Z' as Instant, error: null, imported: false }],
+          }}
+        />,
+      ),
+    );
+    expect(screen.getByRole('option', { name: 'Giấy mời {ho_ten}' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Giấy mời Nguyễn Văn An' })).toBeNull();
+  });
+
   it('the delivery log shows names and Gmail errors as text and marks imported rows', () => {
     const { container } = renderUi(
       withAppContext(
@@ -145,6 +162,7 @@ describe('comms screens render untrusted text as text', () => {
           data={{
             event,
             canSend: true,
+            campaigns: [{ id: 'c1' as CampaignId, label: XSS }, { id: 'c0' as CampaignId, label: 'Thư gửi từ phần mềm cũ' }],
             rows: [
               { id: 'd1', campaignId: 'c1' as CampaignId, guestId: null, recipientName: XSS, email: 'a@x.vn' as Email, subject: XSS, senderEmail: 'b@x.vn', status: 'error', sentAt: null, updatedAt: '2026-11-04T03:00:00.000Z' as Instant, error: XSS, imported: false },
               { id: 'd2', campaignId: 'c0' as CampaignId, guestId: null, recipientName: 'Cũ', email: 'c@x.vn' as Email, subject: '', senderEmail: '', status: 'sent', sentAt: null, updatedAt: '2026-11-01T03:00:00.000Z' as Instant, error: null, imported: true },

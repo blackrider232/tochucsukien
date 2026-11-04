@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { newId, type CampaignId, type Email, type EventId, type GuestId, type Instant } from '@/core/brand';
 import { testActor, XTDT } from '@/core/testing/actors';
 import { campaignIdFor, CLAIM_LEASE_MS } from '../server/deliveries';
-import { invitationScreenData } from '../server/screen-data';
+import { deliveryLogData, invitationScreenData } from '../server/screen-data';
 import { admin, failingWrites, harness, NOW, xtdtUser } from './harness';
 
 const SENDER = 'btc@x.vn' as Email;
@@ -152,6 +152,14 @@ describe('a campaign keeps its message', () => {
     // Another officer of the event reads the same message; the latest QR choice wins.
     await start(h, eventId, [to('loi@b.vn', guest.id)], xtdtUser, { ...custom, attachQr: false }, TAB_B);
     expect((await invitationScreenData(h.ctx(admin), eventId, campaignId))!.retry?.message).toEqual({ ...custom, attachQr: false });
+  });
+
+  it('the log names a campaign by its subject template, never by a recipient’s merged name', async () => {
+    const h = harness();
+    const eventId = await h.createEvent();
+    const { campaignId } = await start(h, eventId, [to('a@x.vn')]);
+    await h.run(xtdtUser, 'comms.recordDeliveries', { eventId, campaignId, runToken: TAB_A, senderEmail: SENDER, subject: 'Giấy mời Nguyễn Văn An', results: [sent('a@x.vn')] });
+    expect((await deliveryLogData(h.ctx(xtdtUser), eventId))!.campaigns).toEqual([{ id: campaignId, label: MESSAGE.subject }]);
   });
 });
 

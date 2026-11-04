@@ -2,7 +2,7 @@
 // `can*` flags hide controls only; the commands and RLS decide.
 
 import type { RequestContext } from '@/core/auth';
-import { parseUuid, type EventId, type GuestId } from '@/core/brand';
+import { parseUuid, type CampaignId, type EventId, type GuestId } from '@/core/brand';
 import { devMemoryEnabled } from '@/core/dev/mode';
 import { can } from '@/core/permissions';
 import { orgIdentity } from '@/core/settings';
@@ -12,7 +12,7 @@ import { detectColumns } from '../domain/columns';
 import { parseColumnMap } from '../domain/responses';
 import type { DeliveryLogData, FormScreenData, InvitationScreenData, MailboxesScreenData, ScreenEvent } from '../domain/screen';
 import { serverSyncReady } from './cron';
-import { listDeliveries, listMailboxes, listResponses, readCampaign, readForm } from './reads';
+import { listCampaigns, listDeliveries, listMailboxes, listResponses, readCampaign, readForm } from './reads';
 
 async function eventOf(ctx: RequestContext, eventId: EventId) {
   const event = await readEvent(ctx, eventId);
@@ -58,9 +58,16 @@ export async function invitationScreenData(ctx: RequestContext, eventId: EventId
 export async function deliveryLogData(ctx: RequestContext, eventId: EventId): Promise<DeliveryLogData | null> {
   const event = await eventOf(ctx, eventId);
   if (!event) return null;
-  const rows = await listDeliveries(ctx, eventId);
+  const [rows, kept] = await Promise.all([listDeliveries(ctx, eventId), listCampaigns(ctx, eventId)]);
+  const subjects = new Map(kept.map((c) => [c.id, c.subjectTemplate]));
+  // A row's own subject is merged for its recipient, so it names a campaign only for legacy rows, which have one text.
+  const campaigns = new Map<CampaignId, string>();
+  for (const d of rows) {
+    if (!campaigns.has(d.campaignId)) campaigns.set(d.campaignId, subjects.get(d.campaignId) ?? (d.imported ? d.subject : 'Đợt gửi chưa lưu mẫu thư'));
+  }
   return {
     event: event.view,
+    campaigns: [...campaigns].map(([id, label]) => ({ id, label })),
     rows: rows.map((d) => ({
       id: d.id, campaignId: d.campaignId, guestId: d.guestId, recipientName: d.recipientName, email: d.email, subject: d.subject, senderEmail: d.senderEmail,
       status: d.status, sentAt: d.sentAt, updatedAt: d.updatedAt, error: d.error, imported: d.imported,
