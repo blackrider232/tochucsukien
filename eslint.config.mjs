@@ -17,12 +17,26 @@ const featureInternals = (key) => ({
   message: `Import ${key} through "@/features/${key}" or "@/features/${key}/server" only.`,
 });
 
-const importRule = ({ supabase, ownKey }) => [
+// One way into the command system: '@/core/commands'. Tests also run commands through '@/core/commands/pipeline'.
+const COMMANDS_INTERNALS = {
+  group: ['@/core/commands/*', '!@/core/commands/pipeline'],
+  message: 'Import commands from "@/core/commands" (defineCommands, CommandError, types, useCommand). Tests use runCommand from "@/core/commands/pipeline".',
+};
+
+// Feature server code imports '@/core/commands' at runtime and dispatch imports every feature, so the entry stays pure.
+const PURE_COMMANDS_ENTRY = {
+  group: ['./dispatch', './pipeline', '@/core/commands/*', '@/features/*', '@/core/auth/server', 'next/headers'],
+  allowTypeImports: true,
+  message: '@/core/commands must not reach dispatch, the registry or next/headers: features import it at runtime, so it would close an import cycle.',
+};
+
+const importRule = ({ supabase, ownKey, extra = [] }) => [
   'error',
   {
     patterns: [
       ...(supabase ? [SUPABASE] : []),
       ...FEATURE_KEYS.filter((key) => key !== ownKey).map(featureInternals),
+      ...extra,
     ],
   },
 ];
@@ -72,17 +86,21 @@ export default defineConfig([
   {
     files: ['src/**/*.{ts,tsx}', 'scripts/**/*.{ts,mjs}'],
     rules: {
-      'no-restricted-imports': importRule({ supabase: true, ownKey: null }),
+      'no-restricted-imports': importRule({ supabase: true, ownKey: null, extra: [COMMANDS_INTERNALS] }),
       'no-restricted-syntax': syntaxRule(),
     },
   },
   ...FEATURE_KEYS.map((key) => ({
     files: [`src/features/${key}/**`],
-    rules: { 'no-restricted-imports': importRule({ supabase: true, ownKey: key }) },
+    rules: { 'no-restricted-imports': importRule({ supabase: true, ownKey: key, extra: [COMMANDS_INTERNALS] }) },
   })),
   {
     files: ['src/core/db/**', 'src/core/auth/**'],
-    rules: { 'no-restricted-imports': importRule({ supabase: false, ownKey: null }) },
+    rules: { 'no-restricted-imports': importRule({ supabase: false, ownKey: null, extra: [COMMANDS_INTERNALS] }) },
+  },
+  {
+    files: ['src/core/commands/index.ts', 'src/core/commands/client.tsx'],
+    rules: { 'no-restricted-imports': importRule({ supabase: true, ownKey: null, extra: [PURE_COMMANDS_ENTRY] }) },
   },
   { files: ['src/core/commands/dispatch.ts'], rules: { 'no-restricted-syntax': syntaxRule('useServer') } },
   { files: ['src/components/ui/**'], rules: { 'no-restricted-syntax': syntaxRule('rawHtml') } },

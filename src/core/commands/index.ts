@@ -3,6 +3,9 @@
 // There is exactly one 'use server' file in the app (src/core/commands/dispatch.ts);
 // eslint forbids 'use server' anywhere else, so a feature cannot grow a second
 // write path that skips permission or audit.
+// Feature server code imports this entry at runtime, and dispatch imports every
+// feature through the registry, so nothing reachable from here may import
+// dispatch, the registry or next/headers. eslint enforces it.
 
 import type { EventId } from '@/core/brand';
 import type { RequestContext } from '@/core/auth';
@@ -99,9 +102,6 @@ export type CommandFailure = {
   fieldErrors?: Readonly<Record<string, string>>;
 };
 export type CommandResult<O> = { ok: true; value: O; inverse?: Inverse } | CommandFailure;
-
-/** The single server action. */
-export { dispatch } from './dispatch';
 
 export interface RunOptions {
   /** Toast on success. Omit for silent (e.g. checkbox toggles that are visibly applied). */

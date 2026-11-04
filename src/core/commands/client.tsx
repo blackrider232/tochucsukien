@@ -3,10 +3,12 @@
 // Client side of the write path: toasts, conflict refresh, the per-tab undo
 // stack and router.refresh(). Toasts go through CommandFeedbackProvider, which
 // the (app) layout wires to the kit's toast host, so core does not import UI.
+// dispatch is imported on first send: @/core/commands re-exports this file, and
+// a static import would close the cycle features -> @/core/commands -> dispatch
+// -> registry -> features.
 
 import { createContext, useCallback, useContext, useSyncExternalStore, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { dispatch } from './dispatch';
 import type { CommandId, CommandResult, Inverse, InputOf, OutputOf, RunOptions, UndoApi } from './index';
 
 export interface CommandFeedback {
@@ -50,6 +52,7 @@ export function clearUndo(): void {
 
 async function send(id: CommandId, input: unknown): Promise<CommandResult<unknown>> {
   try {
+    const { dispatch } = await import('./dispatch');
     return await dispatch(id, input as never);
   } catch {
     return { ok: false, kind: 'unavailable', message: NETWORK_FAILURE };

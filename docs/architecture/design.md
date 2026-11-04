@@ -227,6 +227,7 @@ Worker to feature map. M2 owns `progress`. M3 owns `templates`. M4a owns `guests
    - `@/features/*/!(server)/**` from outside that feature;
    - `@supabase/*` outside `src/core/db` and `src/core/auth`;
    - `'use server'` outside `src/core/commands/dispatch.ts`;
+   - any `@/core/commands/*` path except `@/core/commands/pipeline` (tests), and, inside `@/core/commands` itself, any static import of dispatch, the registry or `next/headers`, because feature server code imports that entry at runtime;
    - `dangerouslySetInnerHTML` except with a `SanitizedHtml` value through the kit's `<RichHtml>`;
    - `localStorage` outside `src/core/prefs` (UI prefs only, cleared on sign-out);
    - `Date.prototype.toISOString().slice` and `new Date('YYYY-MM-DD')` patterns (use `core/dates`).
