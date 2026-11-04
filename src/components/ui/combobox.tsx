@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import type { ComboboxProps } from './kit.types';
 import { matchesQuery } from '@/core/text';
 import { cn } from './cn';
-import { controlClass } from './filter-bar';
+import { controlClass } from './control-class';
 import { useControl } from './use-control';
 
 const DEBOUNCE_MS = 200;
@@ -95,7 +95,7 @@ export function Combobox<T>({ name, search, itemKey, itemLabel, renderItem, onPi
   const activeItem = items[active];
   const optionId = (i: number) => `${listId}-opt-${i}`;
   const message =
-    status === 'loading' ? 'Đang tìm…' : status === 'error' ? 'Không tìm được. Thử lại sau.' : status === 'ready' && items.length === 0 ? 'Không tìm thấy kết quả.' : null;
+    status === 'loading' ? 'Đang tìm…' : status === 'error' ? 'Không tìm thấy kết quả do lỗi kết nối. Thử lại sau.' : status === 'ready' && items.length === 0 ? 'Không tìm thấy kết quả.' : null;
 
   return (
     <div className="relative">

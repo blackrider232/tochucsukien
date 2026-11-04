@@ -11,23 +11,24 @@ import { ProgressBar } from './progress-bar';
 /** A clickable card is a real button or link; a plain one is a div. */
 export function KpiCard({ label, value, icon, accent, ofTotal, caption, progress, badge, highlight, onClick, href }: KpiCardProps) {
   const interactive = Boolean(onClick || href);
+  // flex-col + justify-start: a <button> card would otherwise centre its content when the grid stretches it.
   const className = cn(
-    'block w-full rounded-card border bg-surface p-4 text-left shadow-card',
-    highlight ? 'border-(--tone-solid) ring-1 ring-(--tone-solid)' : 'border-line',
-    interactive && 'transition hover:border-(--tone-solid) hover:shadow-pop',
+    'flex h-full w-full flex-col justify-start rounded-card border border-line p-4 text-left shadow-card',
+    highlight ? 'bg-(--tone-bg)' : 'bg-surface',
+    interactive && 'transition hover:border-control-border hover:shadow-pop active:translate-y-px',
   );
 
   const body: ReactNode = (
     <>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">{label}</p>
+          <p className="text-xs font-semibold text-ink-muted">{label}</p>
           <p className="mt-1 flex items-baseline gap-1.5 text-2xl font-bold tabular-nums text-ink">
             {value}
             {ofTotal !== undefined && <span className="text-sm font-medium text-ink-muted">/ {ofTotal}</span>}
           </p>
         </div>
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-(--tone-bg) text-(--tone-fg)">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-surface-3 text-ink-2">
           <Icon name={icon} size={20} />
         </span>
       </div>
@@ -39,7 +40,7 @@ export function KpiCard({ label, value, icon, accent, ofTotal, caption, progress
       )}
       {progress && (
         <div className="mt-3">
-          <ProgressBar value={progress.value} max={progress.max} tone={accent} label={label} />
+          <ProgressBar value={progress.value} max={progress.max} label={label} />
         </div>
       )}
     </>

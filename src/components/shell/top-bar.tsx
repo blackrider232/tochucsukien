@@ -17,22 +17,23 @@ export function TopBar({
   onOpenMenu: () => void;
 }) {
   return (
-    <header data-shell className="sticky top-0 z-30 border-b border-line bg-surface/95 backdrop-blur">
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 sm:px-5">
+    <header data-shell className="sticky top-0 z-30 border-b border-line bg-surface">
+      {/* One 56 px row on every width: on phones the theme switch is in the drawer and redo hides. */}
+      <div className="flex min-h-14 flex-nowrap items-center gap-2 px-3 py-1.5 sm:px-5">
         <div className="md:hidden">
           <IconButton icon="menu" label="Mở menu" onClick={onOpenMenu} />
         </div>
-        <div className="min-w-0 flex-1 basis-40">
+        <div className="min-w-0 flex-1">
           <h1 className="truncate text-base font-bold leading-tight text-ink sm:text-lg">{title}</h1>
           {subtitle && <p className="truncate text-xs text-ink-muted">{subtitle}</p>}
         </div>
         {badge}
         <OfflineIndicator />
-        <div className="flex items-center">
+        <div className="flex shrink-0 items-center">
           <UndoControls />
-          <ThemeToggle />
+          <span className="max-md:hidden"><ThemeToggle /></span>
         </div>
-        {headerActions.length > 0 && <div className="flex flex-wrap items-center gap-2">{headerActions}</div>}
+        {headerActions.length > 0 && <div className="flex shrink-0 items-center gap-2">{headerActions}</div>}
       </div>
     </header>
   );

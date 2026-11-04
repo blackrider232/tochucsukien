@@ -69,7 +69,7 @@ describe('Combobox', () => {
 
     const failing = renderUi(<Combobox name="x" search={async () => { throw new Error('offline'); }} itemKey={(c: Contact) => c.id} itemLabel={(c: Contact) => c.name} onPick={() => {}} />);
     await failing.user.type(failing.getAllByRole('combobox')[1]!, 'a');
-    await waitFor(() => expect(screen.getByText('Không tìm được. Thử lại sau.')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Không tìm thấy kết quả do lỗi kết nối. Thử lại sau.')).toBeInTheDocument());
   });
 
   it('ignores a slow earlier response that arrives after a newer one', async () => {

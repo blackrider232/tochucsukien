@@ -33,7 +33,7 @@ export function PrintPage({ size, orientation, margins, children }: PrintPagePro
       <style>{css}</style>
       <div
         data-print-page={`${size}-${orientation}`}
-        className="print-page mx-auto my-4 box-border max-w-none bg-white font-serif text-[14px] leading-snug text-black shadow-pop"
+        className="print-page mx-auto my-4 box-border max-w-none bg-paper font-serif text-print-base leading-snug text-paper-ink shadow-pop"
       >
         {children}
       </div>
@@ -57,17 +57,17 @@ export function Nd30Header({ issuer, documentNumber, date }: Nd30HeaderProps) {
   const org = orgIdentity(settings);
   const lines = ISSUER_LINES[issuer](org);
   return (
-    <header className="mb-4 grid grid-cols-[1fr_1.15fr] gap-4 text-center text-[13px]">
+    <header className="mb-4 grid grid-cols-[1fr_1.15fr] gap-4 text-center text-print-sm">
       <div>
         {lines.parent && <p className="uppercase">{lines.parent}</p>}
         {lines.name.map((line) => <p key={line} className="font-bold uppercase">{line}</p>)}
-        <p aria-hidden="true" className="mx-auto mt-0.5 h-px w-20 bg-black" />
+        <p aria-hidden="true" className="mx-auto mt-0.5 h-px w-20 bg-paper-ink" />
         <p className="mt-2">{documentNumber ?? `Số: ..... /${org.agencyShortName}`}</p>
       </div>
       <div>
         <p className="font-bold uppercase">Cộng hòa xã hội chủ nghĩa Việt Nam</p>
         <p className="font-bold">Độc lập - Tự do - Hạnh phúc</p>
-        <p aria-hidden="true" className="mx-auto mt-0.5 h-px w-40 bg-black" />
+        <p aria-hidden="true" className="mx-auto mt-0.5 h-px w-40 bg-paper-ink" />
         <p className="mt-2 italic">
           {org.city}, {date ? formatNd30Date(date) : 'ngày ..... tháng ..... năm .....'}
         </p>
@@ -90,7 +90,7 @@ function Signatory({ title, note, name }: { title: string; note?: string; name?:
 /** Signatories at the bottom, with the "Nơi nhận" list on the left when given. */
 export function SignatureBlock({ left, right, recipients }: SignatureBlockProps) {
   return (
-    <footer className="mt-6 break-inside-avoid text-[13px]">
+    <footer className="mt-6 break-inside-avoid text-print-sm">
       <div className="grid grid-cols-2 gap-4">
         <div>{left && <Signatory {...left} />}</div>
         <Signatory {...right} />
@@ -98,7 +98,7 @@ export function SignatureBlock({ left, right, recipients }: SignatureBlockProps)
       {recipients && recipients.length > 0 && (
         <div className="mt-4">
           <p className="font-bold italic">Nơi nhận:</p>
-          <ul className="text-[12px]">
+          <ul className="text-print-xs">
             {recipients.map((r) => (
               <li key={r}>- {r}</li>
             ))}

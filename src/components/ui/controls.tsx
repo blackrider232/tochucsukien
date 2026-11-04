@@ -3,9 +3,12 @@
 import { useId, useState, type ChangeEvent, type FocusEventHandler, type Ref } from 'react';
 import { useController, useWatch } from 'react-hook-form';
 import type {
-  CheckboxProps, DateInputProps, MoneyInputProps, NumberInputProps, SelectProps, TextInputProps, TimeInputProps,
+  CheckboxProps, DateInputProps, MoneyInputProps, NumberInputProps, RadioGroupProps, SelectProps, SwitchProps, TextareaProps,
+  TextInputProps, TimeInputProps,
 } from './kit.types';
-import { controlClass } from './filter-bar';
+import { cn } from './cn';
+import { controlClass, errorClass, labelClass } from './control-class';
+import { RequiredMark } from './form';
 import { useAppContext } from '@/core/auth';
 import { useControl, useControlMeta } from './use-control';
 
@@ -14,11 +17,11 @@ export function TextInput({ name, placeholder, type = 'text', autoComplete }: Te
   return <input id={id} type={type} placeholder={placeholder} autoComplete={autoComplete} className={controlClass} {...register} {...aria} />;
 }
 
-export function NumberInput({ name, min, max, step }: NumberInputProps) {
+export function NumberInput({ name, min, max, step, disabled }: NumberInputProps) {
   const { id, register, aria } = useControl(name, {
     setValueAs: (v: unknown) => (v === '' || v === null || v === undefined ? undefined : Number(v)),
   });
-  return <input id={id} type="number" inputMode="decimal" min={min} max={max} step={step} className={`${controlClass} tabular-nums`} {...register} {...aria} />;
+  return <input id={id} type="number" inputMode="decimal" min={min} max={max} step={step} disabled={disabled} className={`${controlClass} tabular-nums`} {...register} {...aria} />;
 }
 
 const MAX_MONEY_DIGITS = 15;
@@ -106,7 +109,7 @@ function HolidayNote({ name, id }: { name: string; id: string }) {
   const holiday = typeof value === 'string' ? holidays.find((h) => h.date === value && h.kind === 'holiday') : undefined;
   if (!holiday) return <span id={id} hidden />;
   return (
-    <p id={id} className="mt-1 text-xs font-medium text-amber-800 dark:text-amber-300">
+    <p id={id} className="mt-1 text-xs font-medium text-warning-ink">
       Ngày nghỉ lễ: {holiday.name}
     </p>
   );
@@ -117,10 +120,10 @@ export function TimeInput({ name, defaultValue }: TimeInputProps) {
   return <input id={id} type="time" step={60} defaultValue={defaultValue} className={controlClass} {...register} {...aria} />;
 }
 
-export function Select<K extends string>({ name, options, placeholder }: SelectProps<K>) {
-  const { id, register, aria } = useControl(name);
+export function Select<K extends string>({ name, options, placeholder, defaultValue }: SelectProps<K>) {
+  const { id, form, register, aria } = useControl(name);
   return (
-    <select id={id} className={controlClass} {...register} {...aria}>
+    <select id={id} className={controlClass} defaultValue={form ? undefined : defaultValue} {...register} {...aria}>
       {placeholder !== undefined && <option value="">{placeholder}</option>}
       {options.map((o) => (
         <option key={o.value} value={o.value}>{o.label}</option>
@@ -129,28 +132,99 @@ export function Select<K extends string>({ name, options, placeholder }: SelectP
   );
 }
 
-/** Own label and description, so it is used inside a form directly rather than inside FormField. */
-export function Checkbox({ name, label, description }: CheckboxProps) {
+export function Textarea({ name, placeholder, rows = 3 }: TextareaProps) {
+  const { id, register, aria } = useControl(name);
+  return <textarea id={id} rows={rows} placeholder={placeholder} className={`${controlClass} py-2`} {...register} {...aria} />;
+}
+
+const BOX = 'mt-0.5 size-5 shrink-0 accent-primary disabled:cursor-not-allowed';
+
+/**
+ * Own label and description, so it is used inside a form directly rather than inside FormField.
+ * With checked and onChange it is a controlled checkbox outside any form (task lists).
+ */
+export function Checkbox({ name, label, description, checked, onChange, disabled, strike }: CheckboxProps) {
   const { id, register, aria, error } = useControl(name);
   const descId = `${id}-desc`;
   const errId = `${id}-error`;
+  const controlled = checked !== undefined;
+  const bound = controlled ? { name, checked, onChange: (e: ChangeEvent<HTMLInputElement>) => onChange?.(e.target.checked) } : register;
   return (
     <div>
-      <label htmlFor={id} className="flex min-h-touch cursor-pointer items-start gap-3 py-1.5">
+      <label htmlFor={id} className="flex min-h-touch cursor-pointer items-start gap-3 py-1.5 has-disabled:cursor-not-allowed">
         <input
           id={id}
           type="checkbox"
-          className="mt-0.5 size-5 shrink-0 accent-primary"
-          {...register}
+          disabled={disabled}
+          className={BOX}
+          {...bound}
           aria-invalid={aria['aria-invalid']}
           aria-describedby={[description ? descId : null, error ? errId : null].filter(Boolean).join(' ') || undefined}
         />
         <span className="min-w-0">
-          <span className="block text-sm font-semibold text-ink">{label}</span>
+          <span className={cn('block text-sm font-semibold', strike && checked ? 'text-ink-muted line-through' : 'text-ink')}>{label}</span>
           {description && <span id={descId} className="block text-xs text-ink-muted">{description}</span>}
         </span>
       </label>
-      {error && <p id={errId} role="alert" className="text-sm font-medium text-red-700 dark:text-red-300">{error}</p>}
+      {error && <p id={errId} role="alert" className={errorClass}>{error}</p>}
+    </div>
+  );
+}
+
+/** A fieldset of radios with its legend, hint and error. The form value is the picked option's value. */
+export function RadioGroup<K extends string>({ name, label, options, hint, required, orientation = 'vertical', defaultValue }: RadioGroupProps<K>) {
+  const { id, form, register, error } = useControl(name);
+  const hintId = `${id}-hint`;
+  const errId = `${id}-error`;
+  const describedBy = [hint ? hintId : null, error ? errId : null].filter(Boolean).join(' ') || undefined;
+  return (
+    <fieldset role="radiogroup" aria-describedby={describedBy} aria-invalid={error ? true : undefined} aria-required={required || undefined}>
+      <legend className={labelClass}>
+        {label}
+        {required && <RequiredMark />}
+      </legend>
+      {hint && <p id={hintId} className="text-xs text-ink-muted">{hint}</p>}
+      <div className={cn('mt-1 flex', orientation === 'vertical' ? 'flex-col' : 'flex-wrap gap-x-5')}>
+        {options.map((o) => (
+          <label key={o.value} className="flex min-h-touch cursor-pointer items-start gap-3 py-1.5">
+            <input type="radio" value={o.value} defaultChecked={form ? undefined : o.value === defaultValue} className={BOX} {...register} />
+            <span className="min-w-0">
+              <span className="block text-sm text-ink">{o.label}</span>
+              {o.description && <span className="block text-xs text-ink-muted">{o.description}</span>}
+            </span>
+          </label>
+        ))}
+      </div>
+      {error && <p id={errId} role="alert" className={errorClass}>{error}</p>}
+    </fieldset>
+  );
+}
+
+/** role="switch": the change applies at once, so the caller saves on onChange and toasts the result. */
+export function Switch({ checked, onChange, label, description, disabled }: SwitchProps) {
+  const id = useId();
+  const descId = `${id}-desc`;
+  return (
+    <div className="flex min-h-touch items-start justify-between gap-4 py-1.5">
+      <span className="min-w-0">
+        <label htmlFor={id} className="block cursor-pointer text-sm font-semibold text-ink">{label}</label>
+        {description && <span id={descId} className="block text-xs text-ink-muted">{description}</span>}
+      </span>
+      <button
+        id={id}
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-describedby={description ? descId : undefined}
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        className={cn(
+          'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+          checked ? 'bg-primary' : 'bg-control-border',
+        )}
+      >
+        <span aria-hidden="true" className={cn('size-5 rounded-full bg-on-primary shadow-card transition-transform', checked ? 'translate-x-5.5' : 'translate-x-0.5')} />
+      </button>
     </div>
   );
 }

@@ -3,16 +3,14 @@
 import { useId } from 'react';
 import type { FilterBarProps } from './kit.types';
 import { Icon } from './icons';
-
-export const controlClass =
-  'min-h-touch w-full rounded-control border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-muted aria-invalid:border-red-600 disabled:bg-surface-3 disabled:text-ink-muted';
+import { controlClass, labelClass } from './control-class';
 
 export function FilterBar({ search, filters, trailing }: FilterBarProps) {
   const searchId = useId();
   return (
     <div role="search" className="flex flex-wrap items-end gap-3">
       <div className="min-w-0 flex-1 basis-56">
-        <label htmlFor={searchId} className="sr-only">{search.placeholder}</label>
+        <label htmlFor={searchId} className={`mb-1 ${labelClass}`}>{search.label ?? 'Tìm kiếm'}</label>
         <div className="relative">
           <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-ink-muted">
             <Icon name="search" size={16} />
@@ -40,7 +38,7 @@ function FilterSelect({ filter }: { filter: NonNullable<FilterBarProps['filters'
   const id = useId();
   return (
     <div className="min-w-36 flex-1 basis-40 sm:flex-none">
-      <label htmlFor={id} className="mb-0.5 block text-xs font-semibold text-ink-muted">{filter.label}</label>
+      <label htmlFor={id} className={`mb-1 ${labelClass}`}>{filter.label}</label>
       <select id={id} value={filter.value} onChange={(e) => filter.onChange(e.target.value)} className={controlClass}>
         {filter.options.map((o) => (
           <option key={o.value} value={o.value}>{o.label}</option>

@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { IconButton } from '@/components/ui/button';
+import { cn } from '@/components/ui/cn';
 import { useUndo } from '@/core/commands';
 
 function isTyping(target: EventTarget | null): boolean {
@@ -31,8 +32,12 @@ export function UndoControls() {
 
   return (
     <>
-      <IconButton icon="undo" label={undo.undoLabel ? `Hoàn tác: ${undo.undoLabel}` : 'Hoàn tác'} disabled={!undo.canUndo} onClick={() => void undo.undo()} />
-      <IconButton icon="redo" label={undo.redoLabel ? `Làm lại: ${undo.redoLabel}` : 'Làm lại'} disabled={!undo.canRedo} onClick={() => void undo.redo()} />
+      <span className={cn(!undo.canUndo && 'max-sm:hidden')}>
+        <IconButton icon="undo" label={undo.undoLabel ? `Hoàn tác: ${undo.undoLabel}` : 'Hoàn tác'} disabled={!undo.canUndo} onClick={() => void undo.undo()} />
+      </span>
+      <span className="max-sm:hidden">
+        <IconButton icon="redo" label={undo.redoLabel ? `Làm lại: ${undo.redoLabel}` : 'Làm lại'} disabled={!undo.canRedo} onClick={() => void undo.redo()} />
+      </span>
     </>
   );
 }

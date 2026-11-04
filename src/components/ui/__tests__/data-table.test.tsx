@@ -66,10 +66,14 @@ describe('DataTable', () => {
     const { user } = renderUi(<Harness />);
     await user.click(screen.getByRole('checkbox', { name: 'Chọn dòng 2' }));
     expect(screen.getByText('Đã chọn 1 / 3 dòng')).toBeInTheDocument();
-    expect(screen.getByRole('checkbox', { name: 'Chọn tất cả' })).toHaveProperty('indeterminate', true);
-    await user.click(screen.getByRole('checkbox', { name: 'Chọn tất cả' }));
+    const all = screen.getAllByRole('checkbox', { name: 'Chọn tất cả' });
+    const headerAll = all.find((c) => c.closest('[role="columnheader"]'));
+    const phoneAll = all.find((c) => !c.closest('[role="columnheader"]'));
+    expect(headerAll).toHaveProperty('indeterminate', true);
+    await user.click(headerAll!);
     expect(screen.getByText('Đã chọn 3 / 3 dòng')).toBeInTheDocument();
-    await user.click(screen.getByRole('checkbox', { name: 'Chọn tất cả' }));
+    expect(phoneAll).toBeChecked();
+    await user.click(phoneAll!);
     expect(screen.queryByText(/Đã chọn/)).not.toBeInTheDocument();
   });
 });

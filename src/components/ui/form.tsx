@@ -8,6 +8,7 @@ import {
 } from 'react-hook-form';
 import type { z } from 'zod';
 import type { FormFieldProps } from './kit.types';
+import { errorClass, labelClass } from './control-class';
 
 /**
  * One form hook for every screen: react-hook-form + the zod schema the command
@@ -70,6 +71,16 @@ export function useFieldError(name: string): string | undefined {
   return typeof error?.message === 'string' ? error.message : undefined;
 }
 
+/** The red star plus "(bắt buộc)" for screen readers; colour is never the only marker. */
+export function RequiredMark() {
+  return (
+    <>
+      <span aria-hidden="true" className="ml-0.5 text-danger-ink">*</span>
+      <span className="sr-only"> (bắt buộc)</span>
+    </>
+  );
+}
+
 /** Label, control, unit, hint and error as one unit; the control gets id, aria-invalid and aria-describedby. */
 export function FormField({ label, name, required, hint, suffix, children }: FormFieldProps) {
   const id = useId();
@@ -81,21 +92,16 @@ export function FormField({ label, name, required, hint, suffix, children }: For
   return (
     <FieldContext.Provider value={{ name, id, describedBy, required: Boolean(required), invalid: Boolean(error) }}>
       <div className="space-y-1">
-        <label htmlFor={id} className="block text-sm font-semibold text-ink">
+        <label htmlFor={id} className={labelClass}>
           {label}
-          {required && (
-            <>
-              <span aria-hidden="true" className="ml-0.5 text-red-600 dark:text-red-400">*</span>
-              <span className="sr-only"> (bắt buộc)</span>
-            </>
-          )}
+          {required && <RequiredMark />}
         </label>
         <div className="flex items-center gap-2">
           <div className="min-w-0 flex-1">{children}</div>
           {suffix && <span className="shrink-0 text-sm text-ink-muted">{suffix}</span>}
         </div>
         {hint && <p id={hintId} className="text-xs text-ink-muted">{hint}</p>}
-        {error && <p id={errorId} role="alert" className="text-sm font-medium text-red-700 dark:text-red-300">{error}</p>}
+        {error && <p id={errorId} role="alert" className={errorClass}>{error}</p>}
       </div>
     </FieldContext.Provider>
   );

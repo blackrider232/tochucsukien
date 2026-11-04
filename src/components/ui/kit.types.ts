@@ -67,6 +67,7 @@ export interface DialogProps {
   title: string;
   subtitle?: string;
   icon?: IconName;
+  /** Kept for compatibility and ignored: icon tiles are neutral, a tint only ever means a status. */
   accent?: Accent;
   size?: 'sm' | 'md' | 'lg' | 'xl' | '3xl' | 'full';
   /** When true, closing asks "Đóng mà không lưu?" first (m3 B21). */
@@ -94,7 +95,7 @@ export interface Dialogs {
 export function useDialogs(): Dialogs {
   throw new Error('not implemented');
 }
-/** Top-end, 2 s, plain text only (core B29). */
+/** Top-end, plain text only (core B29). Success and info stay 4 s, warning and error 6 s; hover or focus pauses. */
 export interface Toast {
   success(text: string): void;
   info(text: string): void;
@@ -110,6 +111,7 @@ export interface SectionCardProps {
   title: string;
   subtitle?: string;
   icon?: IconName;
+  /** Kept for compatibility and ignored: the icon tile is neutral. */
   accent?: Accent;
   actions?: ReactNode;
   children: ReactNode;
@@ -124,6 +126,7 @@ export interface KpiCardProps {
   caption?: string;
   progress?: { value: number; max: number };
   badge?: { text: string; tone: Tone; pulse?: boolean };
+  /** Tints the card with its accent; the one KPI a screen leads with. */
   highlight?: boolean;
   /** Clickable cards open a dialog or link; rendered as button or anchor accordingly. */
   onClick?: () => void;
@@ -158,6 +161,7 @@ export interface ProgressBarProps {
 }
 export interface BadgeProps {
   tone: Tone;
+  /** Only for a live state ('Đang diễn ra', 'Khẩn cấp'), and on at most one element per screen. */
   pulse?: boolean;
   icon?: IconName;
   children: ReactNode;
@@ -168,6 +172,31 @@ export interface StatusBadgeProps<K extends string> {
   value: K;
   size?: 'sm' | 'md';
   pulse?: boolean;
+}
+/** A callout inside a page or dialog: what happened and what to do. Not for results of an action (useToast). */
+export interface AlertProps {
+  tone: 'info' | 'success' | 'warning' | 'danger';
+  title?: string;
+  children: ReactNode;
+  /** One Button, e.g. "Thử lại". */
+  action?: ReactNode;
+}
+export interface RowMenuItem {
+  id: string;
+  label: string;
+  icon?: IconName;
+  /** Exactly one of onSelect or href. */
+  onSelect?: () => void;
+  href?: string;
+  /** Destructive items are red and should open useDialogs().confirm. */
+  tone?: 'danger';
+  disabled?: boolean;
+}
+/** The "…" menu at the end of a table row or card: one IconButton, a keyboard menu, Esc returns focus. */
+export interface RowMenuProps {
+  items: ReadonlyArray<RowMenuItem>;
+  /** Accessible name of the trigger, e.g. 'Thao tác với Nguyễn Văn An'. Defaults to 'Thao tác'. */
+  label?: string;
 }
 export interface EmptyStateProps {
   icon: IconName;
@@ -184,7 +213,7 @@ export interface Column<Row> {
   width?: string;
   /** Present => sortable header. */
   sortValue?: (row: Row) => string | number;
-  /** Hidden below md; the row still shows it in the stacked mobile layout. */
+  /** Hidden below md. The first column is the row's title on phones; give the rest a reason to stay. */
   hideOnMobile?: boolean;
 }
 export interface DataTableProps<Row> {
@@ -200,9 +229,12 @@ export interface DataTableProps<Row> {
   rowTone?: (row: Row) => Tone | null;
   selection?: { selected: ReadonlySet<string>; onChange: (next: ReadonlySet<string>) => void };
   toolbar?: ReactNode;
+  /** Skeleton rows and aria-busy while the rows are being fetched; the empty state waits. */
+  loading?: boolean;
 }
 export interface FilterBarProps {
-  search: { value: string; onChange: (v: string) => void; placeholder: string };
+  /** label defaults to 'Tìm kiếm'; every control in the bar has a visible label, like a FormField. */
+  search: { value: string; onChange: (v: string) => void; placeholder: string; label?: string };
   filters?: ReadonlyArray<{ id: string; label: string; value: string; options: ReadonlyArray<{ value: string; label: string }>; onChange: (v: string) => void }>;
   trailing?: ReactNode;
 }
@@ -222,7 +254,7 @@ export interface FormFieldProps {
   children: ReactNode;
 }
 export interface TextInputProps { name: string; placeholder?: string; type?: 'text' | 'email' | 'tel' | 'url' | 'password'; autoComplete?: string }
-export interface NumberInputProps { name: string; min?: number; max?: number; step?: number }
+export interface NumberInputProps { name: string; min?: number; max?: number; step?: number; disabled?: boolean }
 export interface MoneyInputProps { name: string }
 export interface DateInputProps {
   name: string;
@@ -236,6 +268,28 @@ export interface SelectProps<K extends string> {
   name: string;
   options: ReadonlyArray<{ value: K; label: string }>;
   placeholder?: string;
+  /** For a plain form post without useZodForm; inside a Form, use the form's defaultValues. */
+  defaultValue?: K;
+}
+export interface TextareaProps { name: string; placeholder?: string; rows?: number }
+/** Own legend, hint and error, like Checkbox: use it inside a Form directly, not inside FormField. */
+export interface RadioGroupProps<K extends string> {
+  name: string;
+  label: string;
+  options: ReadonlyArray<{ value: K; label: string; description?: string }>;
+  hint?: string;
+  required?: boolean;
+  orientation?: 'vertical' | 'horizontal';
+  /** For a plain form post without useZodForm. */
+  defaultValue?: K;
+}
+/** An on/off setting that applies at once (no Save button). For a form field, use Checkbox. */
+export interface SwitchProps {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  label: string;
+  description?: string;
+  disabled?: boolean;
 }
 export interface ComboboxProps<T> {
   name: string;
@@ -246,7 +300,17 @@ export interface ComboboxProps<T> {
   renderItem?: (t: T) => ReactNode;
   onPick: (t: T) => void;
 }
-export interface CheckboxProps { name: string; label: string; description?: string }
+export interface CheckboxProps {
+  name: string;
+  label: string;
+  description?: string;
+  /** Controlled use outside a form (task lists): pass checked and onChange together. */
+  checked?: boolean;
+  onChange?: (next: boolean) => void;
+  disabled?: boolean;
+  /** Line through the label while checked, for done tasks. */
+  strike?: boolean;
+}
 
 // ---------- print and documents ----------
 export interface PrintPageProps {

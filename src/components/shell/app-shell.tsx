@@ -73,7 +73,7 @@ export function AppShell({ model, slots, children }: { model: ShellModel; slots:
         aria-label="Thanh bên"
         className={cn(
           'sticky top-0 hidden h-dvh shrink-0 bg-sidebar transition-[width] duration-200 md:block',
-          collapsed ? 'w-[4.5rem]' : 'w-64',
+          collapsed ? 'w-18' : 'w-64',
         )}
       >
         <SidebarContent

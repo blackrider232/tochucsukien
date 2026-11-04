@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 export default async function PrintLayout({ children }: { children: ReactNode }) {
   return (
     <AppContextProvider value={await appContextValue()}>
-      <div className="min-h-dvh bg-surface-3 px-2 py-3 print:bg-white print:p-0">
+      <div className="min-h-dvh bg-surface-3 px-2 py-3 print:bg-paper print:p-0">
         <AutoPrint />
         <main id="main-content" tabIndex={-1} className="outline-none">
           {children}

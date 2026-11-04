@@ -17,13 +17,13 @@ describe('useToast', () => {
   beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }));
   afterEach(() => vi.useRealTimers());
 
-  it('shows plain text as a status and removes it after 2 seconds', () => {
+  it('shows plain text as a status and removes it after 4 seconds', () => {
     const { baseElement } = renderUi(<Probe />);
     act(() => screen.getByRole('button', { name: 'ok' }).click());
     const toast = screen.getByRole('status');
     expect(toast).toHaveTextContent('Đã lưu <b>xong</b>');
     expect(baseElement.querySelector('b')).toBeNull();
-    act(() => { vi.advanceTimersByTime(1900); });
+    act(() => { vi.advanceTimersByTime(3900); });
     expect(screen.getByRole('status')).toBeInTheDocument();
     act(() => { vi.advanceTimersByTime(200); });
     expect(screen.queryByRole('status')).not.toBeInTheDocument();

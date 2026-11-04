@@ -39,8 +39,11 @@ function SelectBox({ label, checked, indeterminate, onChange }: { label: string;
   );
 }
 
+const SKELETON_ROWS = 5;
+const EYEBROW = 'text-xs font-semibold text-ink-muted';
+
 export function DataTable<Row>({
-  rows, columns, rowKey, empty, numbered, stickyHeader, maxHeight, minWidth, rowTone, selection, toolbar,
+  rows, columns, rowKey, empty, numbered, stickyHeader, maxHeight, minWidth, rowTone, selection, toolbar, loading,
 }: DataTableProps<Row>) {
   const [sort, setSort] = useState<SortState>(null);
 
@@ -76,38 +79,48 @@ export function DataTable<Row>({
   const gridCols = [selection ? '3rem' : null, numbered ? '3.5rem' : null, ...columns.map((c) => c.width ?? 'minmax(0, 1fr)')]
     .filter(Boolean)
     .join(' ');
-  const scrollStyle = stickyHeader ? { maxHeight: maxHeight ?? 'min(70dvh, 40rem)' } : maxHeight ? { maxHeight } : undefined;
+  // Phones scroll the page, never a box inside it, so the height limit applies from md up.
+  const tableMax = stickyHeader ? (maxHeight ?? 'min(70dvh, 40rem)') : maxHeight;
   const hasToolbar = Boolean(toolbar) || Boolean(selection);
+  const [first, ...rest] = columns;
+  const selectAll = (
+    <SelectBox label="Chọn tất cả" checked={allSelected} indeterminate={selectedCount > 0 && !allSelected} onChange={toggleAll} />
+  );
 
   return (
     <div className="space-y-2">
       {hasToolbar && (
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p aria-live="polite" className="text-sm font-medium text-ink-2">
-            {selection && selectedCount > 0 ? `Đã chọn ${selectedCount} / ${rows.length} dòng` : ''}
-          </p>
+          <div className="flex items-center gap-1">
+            {selection && rows.length > 0 && <div className="flex items-center md:hidden">{selectAll}<span className="text-sm text-ink-2">Chọn tất cả</span></div>}
+            <p aria-live="polite" className="text-sm font-medium text-ink-2">
+              {selection && selectedCount > 0 ? `Đã chọn ${selectedCount} / ${rows.length} dòng` : ''}
+            </p>
+          </div>
           {toolbar && <div className="flex flex-wrap items-center gap-2">{toolbar}</div>}
         </div>
       )}
-      {rows.length === 0 ? (
+      {rows.length === 0 && !loading ? (
         <div className="rounded-card border border-line bg-surface">
           <EmptyState {...empty} />
         </div>
       ) : (
-        <div className="overflow-auto rounded-card border border-line bg-surface md:shadow-card" style={scrollStyle}>
+        <div
+          className="overflow-auto rounded-card border border-line bg-surface md:max-h-(--table-max) md:shadow-card"
+          style={tableMax ? ({ '--table-max': tableMax } as CSSProperties) : undefined}
+        >
           <div
             role="table"
+            aria-busy={loading || undefined}
             className="w-full text-sm md:min-w-(--table-min)"
             style={{ '--table-min': minWidth ?? '0', '--cols': gridCols } as CSSProperties}
           >
             <div role="rowgroup" className={cn('max-md:hidden', stickyHeader && 'sticky top-0 z-10')}>
               <div role="row" className="border-b border-line bg-surface-2 md:grid md:grid-cols-(--cols)">
                 {selection && (
-                  <div role="columnheader" className="flex items-center justify-center">
-                    <SelectBox label="Chọn tất cả" checked={allSelected} indeterminate={selectedCount > 0 && !allSelected} onChange={toggleAll} />
-                  </div>
+                  <div role="columnheader" className="flex items-center justify-center">{selectAll}</div>
                 )}
-                {numbered && <div role="columnheader" className="flex items-center justify-center px-2 py-2.5 text-xs font-bold uppercase tracking-wide text-ink-muted">STT</div>}
+                {numbered && <div role="columnheader" className={cn('flex min-h-11 items-center justify-center px-2', EYEBROW)}>STT</div>}
                 {columns.map((c) => {
                   const dir = sort?.id === c.id ? sort.dir : null;
                   return (
@@ -115,13 +128,13 @@ export function DataTable<Row>({
                       key={c.id}
                       role="columnheader"
                       aria-sort={c.sortValue ? (dir === 'asc' ? 'ascending' : dir === 'desc' ? 'descending' : 'none') : undefined}
-                      className={cn('min-w-0 px-3 py-2.5 text-xs font-bold uppercase tracking-wide text-ink-muted', ALIGN[c.align ?? 'left'])}
+                      className={cn('flex min-h-11 min-w-0 items-center px-3', EYEBROW, ALIGN[c.align ?? 'left'], JUSTIFY[c.align ?? 'left'])}
                     >
                       {c.sortValue ? (
                         <button
                           type="button"
                           onClick={() => cycleSort(c.id)}
-                          className={cn('-mx-1 inline-flex min-h-8 items-center gap-1 rounded px-1 font-bold uppercase hover:text-ink', JUSTIFY[c.align ?? 'left'])}
+                          className="-mx-1 inline-flex min-h-8 items-center gap-1 rounded-control px-1 hover:text-ink pointer-coarse:min-h-touch"
                         >
                           {c.header}
                           <Icon name={dir === 'desc' ? 'chevron-down' : 'chevron-right'} size={12} className={cn(dir === 'asc' && '-rotate-90', !dir && 'opacity-40')} />
@@ -135,59 +148,81 @@ export function DataTable<Row>({
                 })}
               </div>
             </div>
-            <div role="rowgroup" className="max-md:space-y-3 max-md:p-3">
-              {sorted.map((row, index) => {
-                const key = rowKey(row);
-                const tone = rowTone?.(row) ?? null;
-                const selected = selection?.selected.has(key) ?? false;
-                return (
-                  <div
-                    key={key}
-                    role="row"
-                    aria-selected={selection ? selected : undefined}
-                    data-tone={tone ?? undefined}
-                    className={cn(
-                      'border-b border-line last:border-b-0 hover:bg-surface-2 md:grid md:grid-cols-(--cols) max-md:flex max-md:flex-col max-md:rounded-control max-md:border max-md:p-1',
-                      tone && 'border-l-4 border-l-(--tone-solid) bg-(--tone-bg)',
-                      selected && 'bg-surface-3',
-                    )}
-                  >
-                    {selection && (
-                      <div role="cell" className="flex items-center justify-center max-md:justify-start max-md:pl-1">
-                        <SelectBox label={`Chọn dòng ${index + 1}`} checked={selected} onChange={(next) => toggleOne(key, next)} />
+            <div role="rowgroup">
+              {loading && rows.length === 0 ? (
+                <SkeletonRows columns={columns.length + (selection ? 1 : 0) + (numbered ? 1 : 0)} />
+              ) : (
+                sorted.map((row, index) => {
+                  const key = rowKey(row);
+                  const tone = rowTone?.(row) ?? null;
+                  const selected = selection?.selected.has(key) ?? false;
+                  return (
+                    <div
+                      key={key}
+                      role="row"
+                      aria-selected={selection ? selected : undefined}
+                      data-tone={tone ?? undefined}
+                      className={cn(
+                        'border-b border-line last:border-b-0 hover:bg-surface-2 max-md:px-3 max-md:py-2 md:grid md:grid-cols-(--cols)',
+                        tone && 'bg-(--tone-bg) shadow-[inset_4px_0_0_var(--tone-solid)]',
+                        selected && 'bg-selected',
+                      )}
+                    >
+                      {/* On phones the checkbox, STT and the first column share one line: the row's title. */}
+                      <div className="flex items-center gap-2 md:contents">
+                        {selection && (
+                          <div role="cell" className="flex items-center justify-center max-md:-ml-2">
+                            <SelectBox label={`Chọn dòng ${index + 1}`} checked={selected} onChange={(next) => toggleOne(key, next)} />
+                          </div>
+                        )}
+                        {numbered && (
+                          <div role="cell" className="flex items-center justify-center tabular-nums text-ink-muted md:px-2 md:py-2.5">
+                            {index + 1}<span className="md:hidden">.</span>
+                          </div>
+                        )}
+                        {first && <Cell column={first} title>{first.cell(row, index)}</Cell>}
                       </div>
-                    )}
-                    {numbered && (
-                      <div role="cell" className="flex items-center justify-center px-2 py-2.5 tabular-nums text-ink-muted max-md:justify-start max-md:py-1">
-                        <span className="md:hidden">STT&nbsp;</span>{index + 1}
-                      </div>
-                    )}
-                    {columns.map((c) => (
-                      <Cell key={c.id} column={c}>{c.cell(row, index)}</Cell>
-                    ))}
-                  </div>
-                );
-              })}
+                      {rest.map((c) => (
+                        <Cell key={c.id} column={c}>{c.cell(row, index)}</Cell>
+                      ))}
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
+          {loading && <p className="sr-only" role="status">Đang tải dữ liệu…</p>}
         </div>
       )}
     </div>
   );
 }
 
-function Cell<Row>({ column, children }: { column: Column<Row>; children: ReactNode }) {
+function SkeletonRows({ columns }: { columns: number }) {
+  return Array.from({ length: SKELETON_ROWS }, (_, r) => (
+    <div key={r} role="row" aria-hidden="true" className="border-b border-line last:border-b-0 max-md:px-3 max-md:py-3 md:grid md:grid-cols-(--cols)">
+      {Array.from({ length: columns }, (_, c) => (
+        <div key={c} className={cn('px-3 py-3.5', c > 0 && 'max-md:hidden')}>
+          <span className="block h-3 w-3/4 animate-pulse rounded-full bg-surface-3" />
+        </div>
+      ))}
+    </div>
+  ));
+}
+
+function Cell<Row>({ column, title, children }: { column: Column<Row>; title?: boolean; children: ReactNode }) {
   return (
     <div
       role="cell"
       className={cn(
-        'min-w-0 px-3 py-2.5 text-ink max-md:flex max-md:items-baseline max-md:justify-between max-md:gap-3 max-md:py-1.5',
+        'min-w-0 text-ink md:px-3 md:py-2.5',
         ALIGN[column.align ?? 'left'],
-        column.hideOnMobile && 'max-md:text-xs max-md:text-ink-muted',
+        title ? 'max-md:flex-1 max-md:text-left max-md:font-semibold' : 'max-md:flex max-md:items-baseline max-md:justify-between max-md:gap-3 max-md:py-0.5',
+        column.hideOnMobile && 'max-md:hidden',
       )}
     >
-      <span className="hidden shrink-0 text-xs font-semibold uppercase tracking-wide text-ink-muted max-md:inline">{column.header}</span>
-      <span className="min-w-0 max-md:text-right">{children}</span>
+      {!title && <span className={cn('shrink-0 md:hidden', EYEBROW)}>{column.header}</span>}
+      <span className={cn('min-w-0', !title && 'max-md:text-right')}>{children}</span>
     </div>
   );
 }

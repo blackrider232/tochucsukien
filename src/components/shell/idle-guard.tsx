@@ -69,7 +69,7 @@ export function IdleGuard({
       role="alertdialog"
       size="sm"
       icon="clock"
-      accent="amber"
+      tone="warning"
       title="Phiên làm việc sắp hết hạn"
       hideClose
       closeOnBackdrop={false}

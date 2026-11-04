@@ -4,6 +4,8 @@ import { createContext, useCallback, useContext, useMemo, useRef, useState, type
 import type { ConfirmOptions, Dialogs, PromptOptions } from './kit.types';
 import { DialogShell } from './dialog-shell';
 import { Button } from './button';
+import { controlClass, errorClass, labelClass } from './control-class';
+import { RequiredMark } from './form';
 
 type Request = { id: number } & (
   | { kind: 'confirm'; options: ConfirmOptions; resolve: (v: boolean) => void }
@@ -71,8 +73,8 @@ function ConfirmView({ options, onDone, alert }: { options: ConfirmOptions; onDo
       role="alertdialog"
       size="sm"
       title={options.title}
-      icon={dangerous || tone === 'warning' ? 'alert-triangle' : undefined}
-      accent={dangerous ? 'rose' : tone === 'warning' ? 'amber' : 'blue'}
+      icon={dangerous ? 'circle-x' : tone === 'warning' ? 'alert-triangle' : undefined}
+      tone={dangerous ? 'danger' : tone === 'warning' ? 'warning' : undefined}
       hideClose
       closeOnBackdrop={false}
       onRequestClose={() => onDone(false)}
@@ -126,9 +128,9 @@ function PromptView({ options, onDone }: { options: PromptOptions; onDone: (v: s
     >
       <form onSubmit={submit} noValidate className="space-y-2">
         {options.text && <p className="whitespace-pre-line text-sm text-ink-2">{options.text}</p>}
-        <label htmlFor="sce-prompt-input" className="block text-sm font-semibold text-ink">
+        <label htmlFor="sce-prompt-input" className={labelClass}>
           {options.label}
-          {options.required && <span aria-hidden="true" className="text-red-600"> *</span>}
+          {options.required && <RequiredMark />}
         </label>
         <input
           id="sce-prompt-input"
@@ -139,9 +141,9 @@ function PromptView({ options, onDone }: { options: PromptOptions; onDone: (v: s
           aria-required={options.required || undefined}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? 'sce-prompt-error' : undefined}
-          className="min-h-touch w-full rounded-control border border-line-strong bg-surface px-3 text-sm text-ink aria-invalid:border-red-600"
+          className={controlClass}
         />
-        {error && <p id="sce-prompt-error" role="alert" className="text-sm text-red-700 dark:text-red-300">{error}</p>}
+        {error && <p id="sce-prompt-error" role="alert" className={errorClass}>{error}</p>}
       </form>
     </DialogShell>
   );

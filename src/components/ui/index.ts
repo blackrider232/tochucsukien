@@ -17,7 +17,9 @@ export { EmptyState } from './empty-state';
 export { DataTable } from './data-table';
 export { FilterBar } from './filter-bar';
 export { Form, FormField, useZodForm } from './form';
-export { TextInput, NumberInput, MoneyInput, DateInput, TimeInput, Select, Checkbox } from './controls';
+export { TextInput, NumberInput, MoneyInput, DateInput, TimeInput, Select, Textarea, Checkbox, RadioGroup, Switch } from './controls';
+export { Alert } from './alert';
+export { RowMenu } from './row-menu';
 export { Combobox } from './combobox';
 export { PrintPage, Nd30Header, SignatureBlock, PrintLink } from './print';
 export { QrCode, qrPngDataUrl } from './qr';
@@ -25,6 +27,7 @@ export { RichHtml } from './rich-html';
 export { downloadBlob, downloadXlsx, downloadWordHtml, xlsxSheet } from './files';
 export { useBeep } from './beep';
 export { ThemeToggle, useTheme } from './theme';
+export { cn } from './cn';
 
 // Hooks that read app context, realtime, commands and undo are implemented in core.
 export { useAppContext, useSettings, useCalendar, useEventChanges } from '@/core/auth';

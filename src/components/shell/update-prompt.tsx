@@ -54,7 +54,7 @@ export function UpdatePrompt() {
   const { phase, apply, dismiss } = useServiceWorkerUpdate();
   if (phase === 'idle') return null;
   return (
-    <div role="status" data-no-print className="fixed inset-x-3 bottom-3 z-[60] mx-auto flex max-w-md flex-wrap items-center gap-3 rounded-card border border-line bg-surface p-3 shadow-pop">
+    <div role="status" data-no-print className="fixed inset-x-3 bottom-3 z-60 mx-auto flex max-w-md flex-wrap items-center gap-3 rounded-card border border-line bg-surface p-3 shadow-pop">
       <p className="min-w-0 flex-1 text-sm text-ink">Có phiên bản mới của ứng dụng. Cập nhật để dùng bản mới nhất.</p>
       <Button variant="ghost" onClick={dismiss}>Để sau</Button>
       <Button loading={phase === 'updating'} onClick={apply}>Cập nhật</Button>

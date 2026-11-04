@@ -20,13 +20,13 @@ export function useToast(): Toast {
 
 const LOOK: Record<Kind, { tone: Tone; icon: IconName; label: string }> = {
   success: { tone: 'emerald', icon: 'check', label: 'Thành công' },
-  info: { tone: 'blue', icon: 'bell', label: 'Thông báo' },
+  info: { tone: 'blue', icon: 'info', label: 'Thông báo' },
   warning: { tone: 'amber', icon: 'alert-triangle', label: 'Cảnh báo' },
-  error: { tone: 'red', icon: 'alert-triangle', label: 'Lỗi' },
+  error: { tone: 'red', icon: 'circle-x', label: 'Lỗi' },
 };
 
-/** Success and info vanish after 2 s; warnings and errors stay 6 s so they can be read. Hover or focus pauses. */
-const DURATION: Record<Kind, number> = { success: 2000, info: 2000, warning: 6000, error: 6000 };
+/** Success and info stay 4 s (a check-in desk looks up late); warnings and errors 6 s. Hover or focus pauses. */
+const DURATION: Record<Kind, number> = { success: 4000, info: 4000, warning: 6000, error: 6000 };
 const MAX_VISIBLE = 4;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
@@ -52,8 +52,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={api}>
       {children}
       <div
+        role="region"
         aria-label="Thông báo"
-        className="pointer-events-none fixed inset-x-0 top-0 z-[60] flex flex-col items-end gap-2 p-3 sm:p-4"
+        className="pointer-events-none fixed inset-x-0 top-0 z-60 flex flex-col items-end gap-2 p-3 sm:p-4"
         data-no-print
       >
         {items.map((t) => (
@@ -98,7 +99,7 @@ function ToastView({ item, onDone }: { item: Item; onDone: (id: number) => void 
         type="button"
         aria-label="Đóng thông báo"
         onClick={() => onDone(item.id)}
-        className="-m-1 flex size-8 shrink-0 items-center justify-center rounded-md text-ink-muted hover:bg-surface-3"
+        className="-m-1 flex size-8 shrink-0 items-center justify-center rounded-control text-ink-muted hover:bg-surface-3 pointer-coarse:size-touch"
       >
         <Icon name="x" size={14} />
       </button>

@@ -29,11 +29,11 @@ export function QrCode({ payload, size, caption }: QrCodeProps) {
         height={size}
         viewBox={`0 0 ${modules} ${modules}`}
         shapeRendering="crispEdges"
-        className="bg-white"
+        className="bg-paper text-paper-ink"
       >
-        <path d={path} fill="#000000" />
+        <path d={path} fill="currentColor" />
       </svg>
-      {caption && <figcaption className="font-mono text-sm font-semibold tracking-widest text-ink print:text-black">{caption}</figcaption>}
+      {caption && <figcaption className="font-mono text-sm font-semibold tracking-widest text-ink print:text-paper-ink">{caption}</figcaption>}
     </figure>
   );
 }

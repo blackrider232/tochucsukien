@@ -23,7 +23,7 @@ export async function loadShell(): Promise<{ model: ShellModel; slots: ShellSlot
     admin: registry.navFor('admin'),
     subTabsOf: (id) => registry.subTabsOf(id),
     allowed,
-    brand: { title: `SỰ KIỆN ${ctx.settings.agencyShortName}`, subtitle: ctx.settings.agencyName },
+    brand: { title: `Sự kiện ${ctx.settings.agencyShortName}`, subtitle: ctx.settings.agencyName },
     user: { name: profile.fullname, roleLabel: ROLES[profile.role].short, department: profile.department },
   });
 

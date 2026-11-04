@@ -20,12 +20,12 @@ function itemClass(variant: Variant, active: boolean): string {
     return cn(base, 'rounded-full', active ? 'bg-primary text-on-primary' : 'text-ink-2 hover:bg-surface-3');
   }
   if (variant === 'underline') {
-    return cn(base, '-mb-px border-b-2', active ? 'border-primary text-primary dark:text-blue-300' : 'border-transparent text-ink-muted hover:text-ink');
+    return cn(base, '-mb-px border-b-2', active ? 'border-link text-link' : 'border-transparent text-ink-muted hover:text-ink');
   }
-  return cn(base, 'rounded-md', active ? 'bg-surface text-ink shadow-card' : 'text-ink-muted hover:text-ink');
+  return cn(base, 'rounded-control', active ? 'bg-surface text-ink shadow-card' : 'text-ink-muted hover:text-ink');
 }
 
-function TabContent({ item, active }: { item: TabItem; active: boolean }) {
+function TabContent({ item, onPrimary }: { item: TabItem; onPrimary: boolean }) {
   return (
     <>
       {item.icon && <Icon name={item.icon} size={16} />}
@@ -34,7 +34,7 @@ function TabContent({ item, active }: { item: TabItem; active: boolean }) {
         <span
           className={cn(
             'rounded-full px-1.5 text-2xs font-bold tabular-nums',
-            active ? 'bg-white/25 text-current' : 'bg-surface-3 text-ink-2',
+            onPrimary ? 'bg-on-primary text-primary' : 'bg-surface-3 text-ink-2',
           )}
         >
           <span aria-hidden="true">{item.count}</span>
@@ -55,7 +55,7 @@ export function LinkTabs({ items, activeId, variant = 'pill', label = 'Ph√¢n m·ª
           return (
             <li key={item.id} className="shrink-0">
               <Link href={item.href} aria-current={active ? 'page' : undefined} className={itemClass(variant, active)}>
-                <TabContent item={item} active={active} />
+                <TabContent item={item} onPrimary={active && variant === 'pill'} />
               </Link>
             </li>
           );
@@ -101,7 +101,7 @@ export function Tabs({ items, value, onChange, variant = 'pill' }: TabsProps) {
             onKeyDown={(e) => onKeyDown(e, i)}
             className={itemClass(variant, active)}
           >
-            <TabContent item={item} active={active} />
+            <TabContent item={item} onPrimary={active && variant === 'pill'} />
           </button>
         );
       })}

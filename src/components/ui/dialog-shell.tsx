@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
-import type { Accent, DialogProps, IconName } from './kit.types';
+import type { DialogProps, IconName } from './kit.types';
 import { cn } from './cn';
 import { Icon } from './icons';
 import { IconButton } from './button';
@@ -44,18 +44,22 @@ export interface DialogShellProps extends Omit<DialogProps, 'dirty' | 'onClose'>
   hideClose?: boolean;
   /** role="alertdialog" for confirm and alert. */
   role?: 'dialog' | 'alertdialog';
+  /** Status tint of the icon tile (confirm and the idle warning). Every other dialog has a neutral tile. */
+  tone?: 'danger' | 'warning';
 }
+
+const TILE_TONE = { danger: 'red', warning: 'amber' } as const;
 
 /** Accessible modal: role, aria-modal, labelled, focus trap, Esc, focus return, scroll lock. */
 export function DialogShell({
-  open, onRequestClose, title, subtitle, icon, accent, size = 'md', footer, children,
-  closeOnBackdrop = true, hideClose = false, role = 'dialog',
+  open, onRequestClose, title, subtitle, icon, size = 'md', footer, children,
+  closeOnBackdrop = true, hideClose = false, role = 'dialog', tone,
 }: DialogShellProps) {
   const mounted = useMounted();
   if (!mounted || !open) return null;
   return createPortal(
     <DialogView
-      onRequestClose={onRequestClose} title={title} subtitle={subtitle} icon={icon} accent={accent} size={size}
+      onRequestClose={onRequestClose} title={title} subtitle={subtitle} icon={icon} tone={tone} size={size}
       footer={footer} closeOnBackdrop={closeOnBackdrop} hideClose={hideClose} role={role}
     >
       {children}
@@ -133,9 +137,9 @@ export function useModalLayer(panelRef: RefObject<HTMLElement | null>, onRequest
 }
 
 function DialogView({
-  onRequestClose, title, subtitle, icon, accent, size, footer, children, closeOnBackdrop, hideClose, role,
+  onRequestClose, title, subtitle, icon, tone, size, footer, children, closeOnBackdrop, hideClose, role,
 }: {
-  onRequestClose: () => void; title: string; subtitle?: string; icon?: IconName; accent?: Accent;
+  onRequestClose: () => void; title: string; subtitle?: string; icon?: IconName; tone?: 'danger' | 'warning';
   size: keyof typeof SIZE; footer?: ReactNode; children: ReactNode; closeOnBackdrop: boolean; hideClose: boolean;
   role: 'dialog' | 'alertdialog';
 }) {
@@ -167,7 +171,10 @@ function DialogView({
       >
         <header className="flex items-start gap-3 border-b border-line px-4 py-3 sm:px-5">
           {icon && (
-            <span data-tone={accent ?? 'blue'} className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-control bg-(--tone-bg) text-(--tone-fg)">
+            <span
+              data-tone={tone ? TILE_TONE[tone] : undefined}
+              className={cn('mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-control', tone ? 'bg-(--tone-bg) text-(--tone-fg)' : 'bg-surface-3 text-ink-2')}
+            >
               <Icon name={icon} size={18} />
             </span>
           )}

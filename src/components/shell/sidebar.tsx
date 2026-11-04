@@ -4,8 +4,23 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/components/ui/cn';
-import { IconButton } from '@/components/ui/button';
+import { useTheme } from '@/components/ui/theme';
 import { activeNav, eventIdFromPath, resolveHref, type ShellModel, type ShellNavItem } from './nav-model';
+
+/** Icon buttons on the dark rail: light glyph, rail hover, so they keep 3:1 where a default IconButton would not. */
+export const SIDEBAR_BUTTON =
+  'flex size-touch shrink-0 items-center justify-center rounded-control text-sidebar-muted transition-colors hover:bg-sidebar-hover hover:text-sidebar-ink active:bg-sidebar-hover';
+
+/** The theme switch lives in the drawer on phones, so the top bar stays one row. */
+function SidebarThemeToggle() {
+  const { theme, toggle } = useTheme();
+  const label = theme === 'dark' ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối';
+  return (
+    <button type="button" onClick={toggle} aria-label={label} title={label} className={SIDEBAR_BUTTON}>
+      <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={18} />
+    </button>
+  );
+}
 
 function NavSection({
   title, items, pathname, collapsed, badges, onNavigate,
@@ -22,7 +37,7 @@ function NavSection({
   const current = activeNav(items, pathname);
   return (
     <section aria-label={title} className="space-y-1">
-      <h2 className={cn('px-3 pb-1 pt-2 text-2xs font-bold uppercase tracking-wider text-sidebar-muted', collapsed && 'sr-only')}>{title}</h2>
+      <h2 className={cn('px-3 pb-1 pt-2 text-xs font-semibold text-sidebar-muted', collapsed && 'sr-only')}>{title}</h2>
       <ul className="space-y-1">
         {items.map((item) => {
           const active = current?.id === item.id;
@@ -35,14 +50,13 @@ function NavSection({
                 aria-label={collapsed ? item.label : undefined}
                 title={item.tooltip ?? item.label}
                 onClick={onNavigate}
-                data-tone={item.accent}
                 className={cn(
                   'flex min-h-touch items-center gap-3 rounded-control px-3 text-sm font-semibold transition-colors',
                   collapsed && 'justify-center px-0',
-                  active ? 'bg-sidebar-active text-white shadow-md' : 'text-sidebar-ink hover:bg-sidebar-hover',
+                  active ? 'bg-sidebar-active text-on-primary shadow-card' : 'text-sidebar-ink hover:bg-sidebar-hover',
                 )}
               >
-                <span className={cn('flex w-5 shrink-0 justify-center', active ? 'text-white' : 'text-(--t200)')}>
+                <span className={cn('flex w-5 shrink-0 justify-center', active ? 'text-on-primary' : 'text-sidebar-muted')}>
                   <Icon name={item.icon} size={collapsed ? 20 : 16} />
                 </span>
                 {!collapsed && <span className="min-w-0 flex-1 truncate">{item.label}</span>}
@@ -76,11 +90,11 @@ export function SidebarContent({
       <div className={cn('flex items-center gap-2.5 border-b border-sidebar-line p-3', collapsed && 'flex-col')}>
         <Link href="/" onClick={onNavigate} className="flex min-w-0 flex-1 items-center gap-2.5" aria-label={`${model.brand.title}, về trang chủ`}>
           {/* eslint-disable-next-line @next/next/no-img-element -- fixed small PNG from /public, no optimizer needed */}
-          <img src="/icons/app-icon-192.png" alt="" width={36} height={36} className="size-9 shrink-0 rounded-xl bg-white p-0.5" />
+          <img src="/icons/app-icon-192.png" alt="" width={36} height={36} className="size-9 shrink-0 rounded-control bg-paper p-0.5" />
           {!collapsed && (
             <span className="min-w-0">
-              <span className="block truncate text-xs font-black uppercase tracking-wide text-white">{model.brand.title}</span>
-              <span className="block truncate text-2xs font-medium text-blue-300">{model.brand.subtitle}</span>
+              <span className="block truncate text-sm font-bold text-sidebar-ink">{model.brand.title}</span>
+              <span className="block truncate text-2xs font-medium text-sidebar-muted">{model.brand.subtitle}</span>
             </span>
           )}
         </Link>
@@ -91,12 +105,19 @@ export function SidebarContent({
             aria-label={collapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}
             aria-expanded={!collapsed}
             title={collapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}
-            className="flex size-touch shrink-0 items-center justify-center rounded-control text-sidebar-muted hover:bg-sidebar-hover hover:text-white"
+            className={SIDEBAR_BUTTON}
           >
             <Icon name="chevron-right" size={16} className={cn('transition-transform', !collapsed && 'rotate-180')} />
           </button>
         )}
-        {onClose && <IconButton icon="x" label="Đóng menu" onClick={onClose} />}
+        {onClose && (
+          <>
+            <SidebarThemeToggle />
+            <button type="button" onClick={onClose} aria-label="Đóng menu" title="Đóng menu" className={SIDEBAR_BUTTON}>
+              <Icon name="x" size={18} />
+            </button>
+          </>
+        )}
       </div>
       <nav aria-label="Chức năng chính" className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
         <NavSection title="Danh mục chức năng" items={model.main} pathname={pathname} collapsed={collapsed} badges={badges} onNavigate={onNavigate} />
