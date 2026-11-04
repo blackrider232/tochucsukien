@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { EventId, GroupId, Instant, IsoDate, StepId, Version } from '@/core/brand';
 import { buildWorkCalendar, countdown, formatCountdown, workdaysBetween } from '@/core/dates';
 import type { EventPlan, SceEvent, Step } from '../contract';
+import { stepsByDeadline } from '../domain/dashboard';
 import { countdownBadge, deadlineOf, eventProgress, isInDailyReportWindow, offsetLabel, stepState } from '../domain/schedule';
 import { HOLIDAYS, SETTINGS } from './harness';
 
@@ -97,6 +98,45 @@ describe('eventProgress', () => {
     };
     expect(eventProgress(weekendsOnly, plan, d('2026-12-11'))).toEqual({ total: 3, done: 1, overdue: 1, dueSoon: 1, percent: 33 });
     expect(eventProgress(weekendsOnly, { ...plan, groups: [] }, d('2026-12-11')).percent).toBe(0);
+  });
+
+  it('rounds the percent to the nearest whole number: 1 of 3 is 33, 2 of 3 is 67', () => {
+    const done = '2026-11-01T00:00:00.000Z' as Instant;
+    const planOf = (...steps: Step[]): EventPlan => ({
+      event: event('2026-12-15'),
+      groups: [{ id: 'b0000000-0000-4000-8000-000000000001' as GroupId, eventId: event('2026-12-15').id, phase: 'phase_prepare', name: 'N1', leadPerson: '', note: '', sort: 0, version: 1 as Version, steps }],
+    });
+    expect(eventProgress(weekendsOnly, planOf(step({ completedAt: done }), step({}), step({})), d('2026-12-01')).percent).toBe(33);
+    expect(eventProgress(weekendsOnly, planOf(step({ completedAt: done }), step({ completedAt: done }), step({})), d('2026-12-01')).percent).toBe(67);
+    expect(eventProgress(weekendsOnly, planOf(step({ completedAt: done })), d('2026-12-01')).percent).toBe(100);
+  });
+});
+
+describe('stepsByDeadline orders a group by deadline, ties by stored order (m2 BUG-44)', () => {
+  const t0 = d('2026-12-15');
+  const at = (name: string, sort: number, over: Partial<Step>) => step({ name, sort, ...over });
+  const names = (steps: Step[]) => steps.map((s) => s.name);
+
+  it('sorts the earliest deadline first whatever the stored order', () => {
+    const stored = [
+      at('hậu sự kiện', 0, { targetPhase: 'after', offsetDays: 2 }),
+      at('ngày diễn ra', 1, { targetPhase: 'dday', offsetDays: 0 }),
+      at('T-3', 2, { offsetDays: 3 }),
+      at('T-20', 3, { offsetDays: 20 }),
+      at('T-1', 4, { offsetDays: 1 }),
+    ];
+    expect(names(stepsByDeadline(weekendsOnly, t0, stored))).toEqual(['T-20', 'T-3', 'T-1', 'ngày diễn ra', 'hậu sự kiện']);
+  });
+
+  it('keeps the stored order between steps that fall due on the same day', () => {
+    const stored = [at('thứ ba', 2, { offsetDays: 3 }), at('thứ nhất', 0, { offsetDays: 3 }), at('thứ hai', 1, { offsetDays: 3 }), at('sớm hơn', 5, { offsetDays: 9 })];
+    expect(names(stepsByDeadline(weekendsOnly, t0, stored))).toEqual(['sớm hơn', 'thứ nhất', 'thứ hai', 'thứ ba']);
+  });
+
+  it('does not reorder the caller’s array', () => {
+    const stored = [at('b', 0, { offsetDays: 1 }), at('a', 1, { offsetDays: 9 })];
+    stepsByDeadline(weekendsOnly, t0, stored);
+    expect(names(stored)).toEqual(['b', 'a']);
   });
 });
 
