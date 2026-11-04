@@ -197,6 +197,22 @@ describe('an undo token is held to what it copies and to one use', () => {
     await asB(inserted(g, {}));
   });
 
+  it('copies a check-in written with microseconds, as the app sees it to the millisecond', async () => {
+    const g = await addGuest('Kiều Thị Micro');
+    await asB(`insert into public.sce_tcsk_checkins (event_id, guest_id, checked_in_at, checked_in_by, desk, gift_given_at)
+      values ('${eventId}', '${g}', date_trunc('second', now()) + interval '123456 microseconds', '${B}', 'Bàn 1', date_trunc('second', now()) + interval '654321 microseconds')`);
+    const ms = (col: string) => `date_trunc('milliseconds', ${col})`;
+    // What parseInstant gives the app, written back by live.cancelCheckIn.
+    const copy = (shift = '0 seconds') => `insert into public.sce_tcsk_checkin_undo_tokens (event_id, guest_id, checked_in_at, checked_in_by, desk, gift_given_at, expires_at)
+      select event_id, guest_id, ${ms('checked_in_at')} + interval '${shift}', checked_in_by, desk, ${ms('gift_given_at')}, now() + interval '15 minutes' from public.sce_tcsk_checkins where guest_id = '${g}'`;
+    await expect(asB(copy('1 millisecond'))).rejects.toThrow(/copies a current check-in/);
+    await asB(copy());
+    await asB(`delete from public.sce_tcsk_checkins where guest_id = '${g}'`);
+    await asB(`update public.sce_tcsk_checkin_undo_tokens set consumed_at = now() where guest_id = '${g}'`);
+    await asB(restoreSql(g, {}));
+    expect(await checkinOf(g)).toMatchObject({ checked_in_by: B, desk: 'Bàn 1' });
+  });
+
   it('clamps the expiry to 15 minutes, starts unconsumed', async () => {
     const g = await addGuest('Đinh Thị Hạn');
     await asB(`insert into public.sce_tcsk_checkins (event_id, guest_id, checked_in_at, checked_in_by) values ('${eventId}', '${g}', now(), '${B}')`);
