@@ -9,7 +9,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWatch } from 'react-hook-form';
 import { Alert, Badge, Button, Form, FormField, LinkTabs, SectionCard, Select, qrPngDataUrl, useDialogs, useToast, useZodForm } from '@/components/ui';
-import { newId, type CampaignId } from '@/core/brand';
 import { encodeCheckinPayload } from '@/core/checkin-code';
 import { useCommand } from '@/core/commands';
 import { formatVNTime } from '@/core/dates';
@@ -17,7 +16,8 @@ import { resolveGoogleClientId } from '../domain/client-id';
 import {
   composeSchema, dataUrlBytes, fromAddress, invitationMessage, mergeDataFor, PERSONAL, selectedRecipients, senderChoice, type Compose, type ManualRecipient, type MessageContext, type Recipient,
 } from '../domain/compose';
-import { abortableSleep, dispatch, TransportError, type DispatchOutcome } from '../domain/dispatcher';
+import { runCampaign } from '../domain/campaign';
+import { abortableSleep, TransportError } from '../domain/dispatcher';
 import { emailTemplate, type EmailTemplateKey } from '../domain/email-templates';
 import { checkTags } from '../domain/merge';
 import type { MailMessage } from '../domain/mime';
@@ -50,7 +50,6 @@ export function InvitationsPage({ data }: { data: InvitationScreenData }) {
   const [log, setLog] = useState<LogLine[]>([]);
   const [preview, setPreview] = useState<MailMessage | null>(null);
   const [testing, setTesting] = useState(false);
-  const campaign = useRef<CampaignId>(data.retry?.campaignId ?? newId<'EmailCampaign'>());
   const abort = useRef<AbortController | null>(null);
 
   const choice = senderChoice(values.senderId, data.mailboxes, (m) => resolveGoogleClientId(m, { googleClientId: data.googleClientId }));
@@ -122,10 +121,33 @@ export function InvitationsPage({ data }: { data: InvitationScreenData }) {
     setRunState({ kind: 'running', total: list.length, done: 0, current: null, stopping: false });
     addLog('info', `Bắt đầu gửi ${list.length} thư từ ${ctx.from.email}`);
     const subjectOf = (r: Recipient) => invitationMessage(r, compose, ctx, null).subject;
-    const report = await dispatch({
+    const report = await runCampaign({
       recipients: list,
       signal: controller.signal,
       sleep: abortableSleep,
+      api: {
+        claim: async (chunk) =>
+          (await run('comms.startCampaign', {
+            eventId: data.event.id,
+            senderEmail: ctx.from.email,
+            subject: compose.subject,
+            body: compose.body,
+            recipients: chunk.map((r) => ({ guestId: r.guestId, email: r.email, recipientName: r.name })),
+          })) ?? null,
+        async record(campaignId, o) {
+          const result = o.kind === 'sent'
+            ? { guestId: o.recipient.guestId, email: o.recipient.email, recipientName: o.recipient.name, status: 'sent' as const, providerMessageId: o.messageId, error: null }
+            : { guestId: o.recipient.guestId, email: o.recipient.email, recipientName: o.recipient.name, status: 'error' as const, providerMessageId: null, error: o.failure.message.slice(0, 500) };
+          const saved = await run('comms.recordDeliveries', { eventId: data.event.id, campaignId, senderEmail: ctx.from.email, subject: subjectOf(o.recipient), results: [result] });
+          if (!saved) return false;
+          addLog(o.kind === 'sent' ? 'success' : 'error', o.kind === 'sent' ? `Đã gửi: ${o.recipient.name || o.recipient.email} <${o.recipient.email}>` : `Lỗi: ${o.recipient.email}: ${o.failure.message}`);
+          if (saved.notInvited > 0) addLog('error', `Chưa cập nhật được trạng thái giấy mời của ${o.recipient.name || o.recipient.email}; hãy cập nhật ở danh sách khách mời.`);
+          return true;
+        },
+        async release(campaignId, emails) {
+          await run('comms.releaseDeliveries', { eventId: data.event.id, campaignId, emails });
+        },
+      },
       async send(r) {
         let message: MailMessage;
         try {
@@ -135,19 +157,13 @@ export function InvitationsPage({ data }: { data: InvitationScreenData }) {
         }
         return transport.send(message);
       },
-      async record(o: DispatchOutcome<Recipient>) {
-        const result = o.kind === 'sent'
-          ? { guestId: o.recipient.guestId, email: o.recipient.email, recipientName: o.recipient.name, status: 'sent' as const, providerMessageId: o.messageId, error: null }
-          : { guestId: o.recipient.guestId, email: o.recipient.email, recipientName: o.recipient.name, status: 'error' as const, providerMessageId: null, error: o.failure.message.slice(0, 500) };
-        const saved = await run('comms.recordDeliveries', { eventId: data.event.id, campaignId: campaign.current, senderEmail: ctx.from.email, subject: subjectOf(o.recipient), results: [result] });
-        if (!saved) throw new Error('record');
-        addLog(o.kind === 'sent' ? 'success' : 'error', o.kind === 'sent' ? `Đã gửi: ${o.recipient.name || o.recipient.email} <${o.recipient.email}>` : `Lỗi: ${o.recipient.email}: ${o.failure.message}`);
-      },
       onProgress: (done, total, current) => setRunState((s) => (s.kind === 'running' ? { ...s, done, total, current } : s)),
     });
+    if (report.alreadySent.length > 0) addLog('info', `Bỏ qua ${report.alreadySent.length} người đã nhận thư này: ${report.alreadySent.map((r) => r.email).join(', ')}`);
+    if (report.inFlight.length > 0) addLog('info', `Bỏ qua ${report.inFlight.length} người đang được gửi ở phiên khác: ${report.inFlight.map((r) => r.email).join(', ')}`);
     abort.current = null;
-    // Whoever received the message leaves the selection, so the next "Bắt đầu gửi" cannot mail them twice.
-    const delivered = new Set<string>([...report.sent, ...report.unrecorded].map((s) => s.recipient.email));
+    // Whoever has the message leaves the selection; the server refuses them again anyway (comms.startCampaign).
+    const delivered = new Set<string>([...report.sent, ...report.unrecorded, ...report.alreadySent.map((recipient) => ({ recipient }))].map((s) => s.recipient.email));
     setGuestIds((ids) => new Set([...ids].filter((id) => !list.some((r) => r.guestId === id && delivered.has(r.email)))));
     setManualIds((ids) => new Set([...ids].filter((email) => !delivered.has(email))));
     setRunState({ kind: 'finished', report });

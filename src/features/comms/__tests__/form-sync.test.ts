@@ -3,7 +3,7 @@ import type { Email, EventId } from '@/core/brand';
 import type { SyncReport } from '../domain/sync-report';
 import type { SheetSource } from '../server/sheet-source';
 import type { ResponseRow } from '../server/tables';
-import { admin, harness, xtdtUser } from './harness';
+import { admin, failingWrites, harness, xtdtUser } from './harness';
 
 const sheet = { text: '', result: null as null | { ok: false; message: string }, calls: [] as string[] };
 const sheets: SheetSource = {
@@ -114,6 +114,29 @@ describe('comms.syncForm', () => {
     expect(roster[0]!.hasBanquet).toBe(true);
   });
 
+  it('a sync that stops part-way keeps what it applied, audits it, fails, and the next sync finishes the rest', async () => {
+    const { h, eventId, sync, responses } = await setup({ autoAddNewGuests: true });
+    const g = await h.addGuest(eventId, { email: 'an@a.vn' as Email });
+    sheet.text = csv('04/11/2026 10:00:00,Nguyễn Văn An,Công ty A,an@a.vn,,Có,,', '04/11/2026 10:05:00,Khách Mới,Công ty Mới,moi@x.vn,,Có,,');
+    const r = await h.runWith(failingWrites((t, op) => t === 'sce_tcsk_guests' && op === 'insertMany'), xtdtUser, 'comms.syncForm', { eventId });
+    expect(r).toMatchObject({ ok: false, kind: 'conflict', message: 'Đồng bộ dừng giữa chừng: đã áp dụng 1 phản hồi và thêm 0 khách mới. Bấm "Đồng bộ ngay" để xử lý phần còn lại.' });
+    expect(await h.guest(eventId, g.id)).toMatchObject({ rsvpStatus: 'confirmed' });
+    expect(h.audits().at(-1)).toMatchObject({ action: 'ĐỒNG BỘ GOOGLE FORM', summary: expect.stringMatching(/^Đồng bộ Google Form dừng giữa chừng \(.+\): lưu 2 phản hồi mới; áp dụng 1, thêm khách mới 0; phần còn lại chờ lần đồng bộ sau$/) });
+    expect(responses().map((x) => x.apply_status).sort()).toEqual(['applied', 'pending']);
+    expect(await sync()).toMatchObject({ fresh: 0, created: 1, applied: 0 });
+    expect(await h.roster(eventId)).toHaveLength(2);
+  });
+
+  it('a sync that fails before any write audits nothing extra and changes nothing', async () => {
+    const { h, eventId, responses } = await setup();
+    sheet.text = csv('04/11/2026 10:00:00,Nguyễn Văn An,Công ty A,an@a.vn,,Có,,');
+    const audits = h.audits().length;
+    const r = await h.runWith(failingWrites((t, op) => t === 'sce_tcsk_rsvp_responses' && op === 'insertMany'), xtdtUser, 'comms.syncForm', { eventId });
+    expect(r).toMatchObject({ ok: false });
+    expect(h.audits()).toHaveLength(audits);
+    expect(responses()).toEqual([]);
+  });
+
   it('applies the later of two answers by the same guest last', async () => {
     const { h, eventId, sync } = await setup();
     const g = await h.addGuest(eventId, { email: 'an@a.vn' as Email });
@@ -212,5 +235,20 @@ describe('comms.resolveResponse', () => {
     await s.h.ok(xtdtUser, 'comms.resolveResponse', { eventId: s.eventId, id: row.id as never, version: row.version as never, action: { kind: 'create' } });
     expect(await s.h.roster(s.eventId)).toHaveLength(1);
     expect(s.responses()[0]).toMatchObject({ match: 'created', apply_status: 'applied' });
+  });
+
+  it('"create" whose response cannot be marked keeps the new guest, audits it, and fails', async () => {
+    const s = await setup();
+    sheet.text = csv('04/11/2026 10:00:00,Khách Mới,Công ty Mới,moi@x.vn,,Có,,');
+    await s.sync();
+    const row = s.responses()[0]!;
+    const r = await s.h.runWith(failingWrites((t, op) => t === 'sce_tcsk_rsvp_responses' && op === 'update', 'conflict'), xtdtUser, 'comms.resolveResponse', {
+      eventId: s.eventId, id: row.id as never, version: row.version as never, action: { kind: 'create' },
+    });
+    expect(r).toMatchObject({ ok: false, kind: 'conflict', message: 'Đã thêm khách mời "Khách Mới" nhưng chưa ghi được phản hồi là đã xử lý. Tải lại trang để xem.' });
+    expect(await s.h.roster(s.eventId)).toHaveLength(1);
+    expect(s.h.audits().at(-1)).toMatchObject({ action: 'XỬ LÝ PHẢN HỒI FORM', summary: expect.stringContaining('chưa ghi được phản hồi là đã xử lý') });
+    // The next sync places the response on the guest it created.
+    expect(await s.sync()).toMatchObject({ applied: 1, created: 0 });
   });
 });

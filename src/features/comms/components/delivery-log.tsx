@@ -2,6 +2,8 @@
 
 // "Nhật ký gửi": one row per recipient per campaign, as Gmail answered. Rows
 // imported from the old app say so: its sandbox marked unsent mail as sent.
+// "Đang gửi" is a claim with no answer yet: a run in progress, or one that
+// stopped with that message in flight, whose outcome only Gmail's Sent folder tells.
 
 import { useMemo, useState } from 'react';
 import { Badge, Button, DataTable, FilterBar, KpiCard, LinkTabs, SectionCard, type Column } from '@/components/ui';
@@ -13,10 +15,12 @@ const STATUS_OPTIONS = [
   { value: 'all', label: 'Tất cả' },
   { value: 'sent', label: 'Đã gửi' },
   { value: 'error', label: 'Lỗi gửi' },
+  { value: 'queued', label: 'Đang gửi' },
 ];
 
 function StatusCell({ row }: { row: DeliveryLogRow }) {
   if (row.status === 'sent') return <Badge tone={row.imported ? 'slate' : 'emerald'} icon="circle-check">{row.imported ? 'Đã gửi (phần mềm cũ)' : 'Đã gửi'}</Badge>;
+  if (row.status === 'queued') return <Badge tone="amber" icon="clock">Đang gửi</Badge>;
   return <Badge tone="rose" icon="circle-x">Lỗi gửi</Badge>;
 }
 
@@ -70,7 +74,7 @@ export function DeliveryLog({ data }: { data: DeliveryLogData }) {
       </div>
       <SectionCard
         title="Nhật ký gửi thư"
-        subtitle="Mỗi dòng là kết quả Gmail trả về cho một người nhận"
+        subtitle="Mỗi dòng là kết quả Gmail trả về cho một người nhận. Dòng Đang gửi chưa có kết quả: nếu không còn ai đang gửi, hãy kiểm tra mục Đã gửi của Gmail"
         icon="list-check"
       >
         <div className="space-y-3">

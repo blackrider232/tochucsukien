@@ -7,7 +7,7 @@ import { defineCommands, type Sig } from '@/core/commands';
 import type { SenderMailbox } from '../contract';
 import type { ColumnMap } from '../domain/columns';
 import type { DeliveryResult, FormConfig, MailboxDraft } from '../domain/schemas';
-import { recordDeliveries } from './deliveries';
+import { recordDeliveries, releaseDeliveries, startCampaign } from './deliveries';
 import type { SyncReport } from '../domain/sync-report';
 import { resolveResponse, saveColumnMap, saveForm, syncFormWith } from './form';
 import { deleteMailbox, restoreMailbox, saveMailbox } from './mailboxes';
@@ -35,11 +35,21 @@ declare module '@/core/commands' {
       },
       { applyStatus: ApplyStatus }
     >;
-    /** Outcomes of real sends, recorded as Gmail answered them. */
+    /**
+     * Claims each address for one message before it is sent. The campaign id comes from the subject and body templates,
+     * so the same message composed again is the same campaign, and an address that already received it is refused.
+     */
+    'comms.startCampaign': Sig<
+      { eventId: EventId; senderEmail: Email; subject: string; body: string; recipients: ReadonlyArray<{ guestId: GuestId | null; email: Email; recipientName: string }> },
+      { campaignId: CampaignId; claimed: ReadonlyArray<Email>; alreadySent: ReadonlyArray<Email>; inFlight: ReadonlyArray<Email> }
+    >;
+    /** Outcomes of real sends, recorded as Gmail answered them, each on the claim startCampaign made. */
     'comms.recordDeliveries': Sig<
       { eventId: EventId; campaignId: CampaignId; senderEmail: Email; subject: string; results: ReadonlyArray<DeliveryResult> },
-      { recorded: number }
+      { recorded: number; notInvited: number }
     >;
+    /** Frees the claims a stopped run did not use. */
+    'comms.releaseDeliveries': Sig<{ eventId: EventId; campaignId: CampaignId; emails: ReadonlyArray<Email> }, { released: number }>;
   }
 }
 
@@ -57,7 +67,9 @@ export const createCommands = (deps: CommsDeps) =>
     saveColumnMap,
     syncForm: syncFormWith(deps.sheets),
     resolveResponse,
+    startCampaign,
     recordDeliveries,
+    releaseDeliveries,
   });
 
 export const commands = createCommands({ sheets: defaultSheetSource });

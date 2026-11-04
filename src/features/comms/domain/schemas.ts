@@ -83,6 +83,9 @@ export const columnMapSchema = z
   .refine((m) => new Set(Object.values(m)).size === Object.values(m).length, 'Mỗi cột chỉ ghép với một thông tin')
   .refine((m) => canIdentify(m), 'Cần ghép ít nhất cột Họ và tên, Email hoặc Số điện thoại') as unknown as z.ZodType<ColumnMap, ColumnMap>;
 
+/** Addresses one comms.startCampaign or comms.releaseDeliveries call takes; a longer run claims in chunks. */
+export const MAX_CLAIM_BATCH = 200;
+
 export const deliveryResultSchema = z
   .object({
     guestId: guestIdSchema.nullable(),

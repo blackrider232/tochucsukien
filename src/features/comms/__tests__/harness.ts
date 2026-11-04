@@ -8,7 +8,7 @@ import { newId, type EventId, type GuestId, type Instant, type IsoDate, type Ver
 import type { CommandId, CommandResult, Inverse, InputOf, OutputOf } from '@/core/commands';
 import { commandLookup, runCommand } from '@/core/commands/pipeline';
 import { buildWorkCalendar } from '@/core/dates';
-import { memoryDb } from '@/core/db';
+import { DbError, memoryDb, type Db } from '@/core/db';
 import { inspectMemoryDb } from '@/core/db/memory';
 import { DEFAULT_SETTINGS } from '@/core/settings';
 import { testActor, XTDT } from '@/core/testing/actors';
@@ -29,6 +29,27 @@ export const GUEST: GuestDraft = {
 export const xtdtUser = testActor('user', XTDT);
 export const admin = testActor('admin', null);
 
+/**
+ * A Db that throws DbError(kind) on the write `when` picks (table name, operation, how many such writes came before),
+ * so a test can stop a command after some of its writes stuck.
+ */
+export function failingWrites(when: (table: string, op: 'insert' | 'insertMany' | 'update' | 'remove', nth: number) => boolean, kind: 'conflict' | 'unavailable' = 'unavailable') {
+  const counts = new Map<string, number>();
+  return (db: Db): Db => ({
+    rpc: db.rpc.bind(db),
+    table(def) {
+      const t = db.table(def);
+      const guard = <A extends unknown[], R>(op: 'insert' | 'insertMany' | 'update' | 'remove', f: (...a: A) => Promise<R>) => (...a: A): Promise<R> => {
+        const key = `${def.name}.${op}`;
+        const nth = counts.get(key) ?? 0;
+        counts.set(key, nth + 1);
+        return when(def.name, op, nth) ? Promise.reject(new DbError(kind)) : f(...a);
+      };
+      return { ...t, insert: guard('insert', t.insert.bind(t)), insertMany: guard('insertMany', t.insertMany.bind(t)), update: guard('update', t.update.bind(t)), remove: guard('remove', t.remove.bind(t)) };
+    },
+  });
+}
+
 export function harness(opts: { now?: Instant; sheets?: SheetSource } = {}) {
   const seed = {
     sce_tcsk_events: [], sce_tcsk_task_groups: [], sce_tcsk_steps: [], sce_tcsk_guests: [], sce_tcsk_seat_assignments: [], sce_tcsk_checkins: [],
@@ -40,6 +61,9 @@ export function harness(opts: { now?: Instant; sheets?: SheetSource } = {}) {
   const ctx = (actor: Actor): RequestContext => ({ actor, db: memoryDb(seed, actor), settings: SETTINGS, calendar: buildWorkCalendar([]), now: clock.now });
   const run = <K extends CommandId>(actor: Actor, id: K, input: InputOf<K>) => runCommand(ctx(actor), lookup, id, input) as Promise<CommandResult<OutputOf<K>>>;
   /** As `actor`, on a Db that answers like an admin's: whatever is refused is refused by the command, not by emulated RLS. */
+  /** As `actor`, through a Db wrapped by `wrap` (failingWrites): for partial-failure paths. */
+  const runWith = <K extends CommandId>(wrap: (db: Db) => Db, actor: Actor, id: K, input: InputOf<K>) =>
+    runCommand({ ...ctx(actor), db: wrap(memoryDb(seed, actor)) }, lookup, id, input) as Promise<CommandResult<OutputOf<K>>>;
   const runWithoutRls = <K extends CommandId>(actor: Actor, id: K, input: InputOf<K>) =>
     runCommand({ ...ctx(actor), db: memoryDb(seed, admin) }, lookup, id, input) as Promise<CommandResult<OutputOf<K>>>;
   const ok = async <K extends CommandId>(actor: Actor, id: K, input: InputOf<K>) => {
@@ -70,5 +94,5 @@ export function harness(opts: { now?: Instant; sheets?: SheetSource } = {}) {
   const guest = async (eventId: EventId, id: GuestId) => (await roster(eventId)).find((g) => g.id === id)!;
   const rows = (table: string) => inspectMemoryDb(seed, table);
   const audits = () => rows('sce_tcsk_audit_logs') as Array<{ action: string; summary: string }>;
-  return { seed, clock, sheets, ctx, run, runWithoutRls, ok, undo, createEvent, addGuest, roster, guest, rows, audits };
+  return { seed, clock, sheets, ctx, run, runWith, runWithoutRls, ok, undo, createEvent, addGuest, roster, guest, rows, audits };
 }

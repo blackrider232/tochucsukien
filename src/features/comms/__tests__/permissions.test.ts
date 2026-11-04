@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { newId, type Email, type EventId, type Version } from '@/core/brand';
+import type { Email, EventId, Version } from '@/core/brand';
 import type { CommandId } from '@/core/commands';
 import { PTDN, testActor } from '@/core/testing/actors';
 import { commands } from '../server/commands';
@@ -26,7 +26,9 @@ const EVENT_COMMANDS = {
   saveColumnMap: 'comms.rsvp.manage',
   syncForm: 'comms.rsvp.manage',
   resolveResponse: 'comms.rsvp.manage',
+  startCampaign: 'comms.send',
   recordDeliveries: 'comms.send',
+  releaseDeliveries: 'comms.send',
 } as const;
 
 async function fixture() {
@@ -35,12 +37,15 @@ async function fixture() {
   const form = (await h.ok(xtdtUser, 'comms.saveForm', { eventId, version: null, config: { formUrl: null, sheetUrl: SHEET, autoSync: false, autoAddNewGuests: false } } as never)).value;
   await h.ok(xtdtUser, 'comms.syncForm', { eventId });
   const response = (h.rows('sce_tcsk_rsvp_responses') as Array<{ id: string; version: number }>)[0]!;
+  const claim = (await h.ok(xtdtUser, 'comms.startCampaign', { eventId, senderEmail: 'btc@x.vn' as Email, subject: 's', body: '<p>a</p>', recipients: [{ guestId: null, email: 'a@x.vn' as Email, recipientName: '' }] })).value;
   const inputs: Record<keyof typeof EVENT_COMMANDS, unknown> = {
     saveForm: { eventId, version: form.version + 2, config: { formUrl: 'https://forms.gle/x', sheetUrl: SHEET, autoSync: true, autoAddNewGuests: false } },
     saveColumnMap: { eventId, version: form.version + 2, columnMap: { name: 0, email: 1 } },
     syncForm: { eventId },
     resolveResponse: { eventId, id: response.id, version: response.version as Version, action: { kind: 'dismiss' } },
-    recordDeliveries: { eventId, campaignId: newId<'EmailCampaign'>(), senderEmail: 'btc@x.vn' as Email, subject: 's', results: [{ guestId: null, email: 'a@x.vn', recipientName: '', status: 'error', providerMessageId: null, error: 'x' }] },
+    startCampaign: { eventId, senderEmail: 'btc@x.vn' as Email, subject: 's', body: '<p>b</p>', recipients: [{ guestId: null, email: 'b@x.vn', recipientName: '' }] },
+    recordDeliveries: { eventId, campaignId: claim.campaignId, senderEmail: 'btc@x.vn' as Email, subject: 's', results: [{ guestId: null, email: 'a@x.vn', recipientName: '', status: 'error', providerMessageId: null, error: 'x' }] },
+    releaseDeliveries: { eventId, campaignId: claim.campaignId, emails: ['a@x.vn'] },
   };
   return { h, eventId, inputs };
 }
@@ -93,5 +98,18 @@ describe('every event command asks for its own permission', () => {
     expect(r).toMatchObject({ ok: true, value: { status: 'ok', applied: 0, failed: 1 } });
     expect((r as unknown as { value: { failures: string[] } }).value.failures[0]).toContain('không có quyền');
     expect((await h.roster(eventId))[0]).toMatchObject({ rsvpStatus: 'pending' });
+  });
+
+  it('a send guests will not mark invited is still recorded, and the audit says which invitation status to fix', async () => {
+    const h = harness();
+    const eventId: EventId = await h.createEvent();
+    const g = await h.addGuest(eventId, { email: 'an@a.vn' as Email });
+    const { campaignId } = (await h.ok(xtdtUser, 'comms.startCampaign', { eventId, senderEmail: 'btc@x.vn' as Email, subject: 's', body: '<p>b</p>', recipients: [{ guestId: g.id, email: 'an@a.vn' as Email, recipientName: 'An' }] })).value;
+    grants.withhold = 'guests.write';
+    const r = await h.run(xtdtUser, 'comms.recordDeliveries', { eventId, campaignId, senderEmail: 'btc@x.vn' as Email, subject: 's', results: [{ guestId: g.id, email: 'an@a.vn' as Email, recipientName: 'An', status: 'sent', providerMessageId: 'msg-1', error: null }] });
+    expect(r).toMatchObject({ ok: true, value: { recorded: 1, notInvited: 1 } });
+    expect((h.rows('sce_tcsk_email_deliveries') as Array<{ status: string }>).map((d) => d.status)).toEqual(['sent']);
+    expect(await h.guest(eventId, g.id)).toMatchObject({ inviteStatus: 'pending' });
+    expect(h.audits().at(-1)!.summary).toContain('chưa cập nhật được trạng thái giấy mời của 1 khách, cần cập nhật thủ công');
   });
 });

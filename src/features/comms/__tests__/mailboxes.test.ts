@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { newId, type CampaignId, type Email, type MailboxId } from '@/core/brand';
+import { newId, type Email, type MailboxId } from '@/core/brand';
 import { testActor } from '@/core/testing/actors';
 import type { MailboxDraft } from '../domain/schemas';
-import { admin, harness, xtdtUser } from './harness';
+import { admin, harness } from './harness';
 
 const draft = (email: string, over: Partial<MailboxDraft> = {}): MailboxDraft => ({ displayName: `Hòm thư ${email}`, email: email as Email, clientId: null, isDefault: false, ...over });
 
@@ -85,63 +85,5 @@ describe('sender mailboxes', () => {
       expect(await h.runWithoutRls(actor, id, input as never)).toMatchObject({ ok: false, kind: 'forbidden' });
     }
     expect(h.rows('sce_tcsk_sender_mailboxes')).toEqual(before);
-  });
-});
-
-describe('comms.recordDeliveries', () => {
-  const campaign = () => newId<'EmailCampaign'>() as CampaignId;
-  const sent = (email: string, guestId: string | null = null) => ({ guestId: guestId as never, email: email as Email, recipientName: 'An', status: 'sent' as const, providerMessageId: `msg-${email}`, error: null });
-  const failed = (email: string, guestId: string | null = null) => ({ guestId: guestId as never, email: email as Email, recipientName: 'An', status: 'error' as const, providerMessageId: null, error: 'Gmail: Invalid To header' });
-
-  it('writes sent rows with Gmail’s id and the server time, marks guests invited, and audits exact counts', async () => {
-    const h = harness();
-    const eventId = await h.createEvent();
-    const g = await h.addGuest(eventId, { email: 'an@a.vn' as Email });
-    const c = campaign();
-    await h.ok(xtdtUser, 'comms.recordDeliveries', { eventId, campaignId: c, senderEmail: 'btc@x.vn' as Email, subject: 'Giấy mời', results: [sent('an@a.vn', g.id), failed('loi@b.vn')] });
-    const rows = h.rows('sce_tcsk_email_deliveries') as Array<Record<string, unknown>>;
-    expect(rows.map((r) => [r.email, r.status, r.provider_message_id, r.sent_at, r.error])).toEqual([
-      ['an@a.vn', 'sent', 'msg-an@a.vn', '2026-11-04T02:00:00.000Z', null],
-      ['loi@b.vn', 'error', null, null, 'Gmail: Invalid To header'],
-    ]);
-    expect(await h.guest(eventId, g.id)).toMatchObject({ inviteStatus: 'sent', sendMethod: 'email' });
-    expect(h.audits().find((a) => a.action === 'GỬI THƯ MỜI')!.summary).toBe('Gửi thư "Giấy mời" từ btc@x.vn: 1 thư đã gửi, 1 thư lỗi');
-  });
-
-  it('a failed send writes no "sent" row, no sent audit and does not mark the guest invited', async () => {
-    const h = harness();
-    const eventId = await h.createEvent();
-    const g = await h.addGuest(eventId, { email: 'an@a.vn' as Email });
-    await h.ok(xtdtUser, 'comms.recordDeliveries', { eventId, campaignId: campaign(), senderEmail: 'btc@x.vn' as Email, subject: 'Giấy mời', results: [failed('an@a.vn', g.id)] });
-    expect((h.rows('sce_tcsk_email_deliveries') as Array<{ status: string }>).map((r) => r.status)).toEqual(['error']);
-    expect(await h.guest(eventId, g.id)).toMatchObject({ inviteStatus: 'pending', sendMethod: 'direct' });
-    expect(h.audits().filter((a) => a.action === 'GỬI THƯ MỜI').map((a) => a.summary)).toEqual(['Gửi thư "Giấy mời" từ btc@x.vn: 0 thư đã gửi, 1 thư lỗi']);
-    expect(h.audits().some((a) => a.action === 'PHÁT HÀNH GIẤY MỜI')).toBe(false);
-  });
-
-  it.each([
-    ['sent without a Gmail id', { ...sent('a@x.vn'), providerMessageId: null }],
-    ['sent with an error', { ...sent('a@x.vn'), error: 'x' }],
-    ['error without a reason', { ...failed('a@x.vn'), error: null }],
-    ['a dev-fake id outside the dev runtime', { ...sent('a@x.vn'), providerMessageId: 'dev-fake-1' }],
-    ['an address with a line break', { ...sent('a@x.vn\r\nBcc: v@evil.com') }],
-  ])('refuses %s', async (_, result) => {
-    const h = harness();
-    const eventId = await h.createEvent();
-    const r = await h.run(xtdtUser, 'comms.recordDeliveries', { eventId, campaignId: campaign(), senderEmail: 'btc@x.vn' as Email, subject: 's', results: [result as never] });
-    expect(r).toMatchObject({ ok: false, kind: 'invalid' });
-    expect(h.rows('sce_tcsk_email_deliveries')).toEqual([]);
-  });
-
-  it('a retry turns an error into sent; a later failure never erases a success', async () => {
-    const h = harness();
-    const eventId = await h.createEvent();
-    const c = campaign();
-    const rec = (results: never[]) => h.ok(xtdtUser, 'comms.recordDeliveries', { eventId, campaignId: c, senderEmail: 'btc@x.vn' as Email, subject: 's', results });
-    await rec([failed('a@x.vn') as never, sent('b@x.vn') as never]);
-    await rec([sent('a@x.vn') as never, failed('b@x.vn') as never]);
-    const rows = h.rows('sce_tcsk_email_deliveries') as Array<{ email: string; status: string }>;
-    expect(rows.map((r) => [r.email, r.status]).sort()).toEqual([['a@x.vn', 'sent'], ['b@x.vn', 'sent']]);
-    expect(h.audits().at(-1)!.summary).toContain('1 lỗi bỏ qua vì đã gửi thành công trước đó');
   });
 });

@@ -17,7 +17,7 @@ import { buildMatchIndex, matchResponse, type MatchIndex } from '../domain/match
 import { parseColumnMap, parseResponseRow } from '../domain/responses';
 import type { SyncReport } from '../domain/sync-report';
 import { columnMapSchema, eventIdSchema, formConfigSchema, guestIdSchema, responseIdSchema, versionSchema } from '../domain/schemas';
-import { asSchema, audit, inverse } from './command-kit';
+import { asSchema, audit, auditPartial, failureReason, inverse } from './command-kit';
 import type { SheetSource } from './sheet-source';
 import { formsTable, responsesTable, type FormRow, type ResponseRow } from './tables';
 
@@ -237,16 +237,29 @@ export const syncFormWith = (sheets: SheetSource): CommandSpec<InputOf<'comms.sy
     const t: Tally = { applied: 0, stale: 0, noAnswer: 0, review: 0, created: 0, failed: 0, failures: [] };
     const work = [...existing.filter((r) => r.applyStatus === 'pending' || (r.applyStatus === 'no_time' && UNRESOLVED.has(r.match))), ...inserted]
       .sort((a, b) => Date.parse(a.respondedAt) - Date.parse(b.respondedAt));
-    // Oldest first, so when one guest answered twice the later answer is the one that stays.
-    const index = targetsOf(await readRoster(ctx, eventId));
-    const toAdd: ResponseRow[] = [];
-    for (const row of work) {
-      const add = await place(ctx, row, index, form.autoAddNewGuests, t);
-      if (add) toAdd.push(add);
+    try {
+      // Oldest first, so when one guest answered twice the later answer is the one that stays.
+      const index = targetsOf(await readRoster(ctx, eventId));
+      const toAdd: ResponseRow[] = [];
+      for (const row of work) {
+        const add = await place(ctx, row, index, form.autoAddNewGuests, t);
+        if (add) toAdd.push(add);
+      }
+      if (toAdd.length > 0) await autoAdd(ctx, eventId, toAdd, t);
+      await ctx.db.table(formsTable).update(form.id, { lastSyncAt: ctx.now, lastAttemptAt: ctx.now, lastSyncError: null, sheetHeaders: headers }, { overwrite: 'idempotent-set' });
+    } catch (e) {
+      // The new responses are stored and what was applied stays applied; the rest waits as pending for the next sync.
+      if (inserted.length > 0 || t.applied + t.created + t.stale + t.noAnswer + t.review > 0) {
+        const reason = failureReason(e);
+        await auditPartial(
+          ctx,
+          manage.perm,
+          audit('ĐỒNG BỘ GOOGLE FORM', `Đồng bộ Google Form dừng giữa chừng (${reason}): lưu ${inserted.length} phản hồi mới; áp dụng ${t.applied}, thêm khách mới ${t.created}; phần còn lại chờ lần đồng bộ sau`, eventId, 'rsvp_form', form.id),
+        );
+        throw new CommandError('conflict', `Đồng bộ dừng giữa chừng: đã áp dụng ${t.applied} phản hồi và thêm ${t.created} khách mới. Bấm "Đồng bộ ngay" để xử lý phần còn lại.`);
+      }
+      throw e;
     }
-    if (toAdd.length > 0) await autoAdd(ctx, eventId, toAdd, t);
-
-    await ctx.db.table(formsTable).update(form.id, { lastSyncAt: ctx.now, lastAttemptAt: ctx.now, lastSyncError: null, sheetHeaders: headers }, { overwrite: 'idempotent-set' });
     const report: SyncReport = { status: 'ok', rows: parsed.size, fresh: inserted.length, ...t, failures: t.failures.slice(0, 10) };
     const summary =
       `Đồng bộ Google Form: ${parsed.size} phản hồi, ${inserted.length} mới; áp dụng ${t.applied}, bỏ qua ${t.stale} (cũ hơn thay đổi gần nhất), ` +
@@ -324,7 +337,13 @@ export const resolveResponse: CommandSpec<InputOf<'comms.resolveResponse'>, Outp
     const guestId = newId<'Guest'>();
     const { added } = await ctx.call('guests.upsertMany', { eventId, items: [{ id: guestId, draft: draftFromResponse(row) }], onExisting: 'skip' });
     if (added === 0) throw new CommandError('conflict', 'Đã có khách mời trùng email, số điện thoại hoặc họ tên và cơ quan. Hãy chọn ghép với khách mời đó.');
-    const after = await ctx.db.table(responsesTable).update(id, { matchedGuestId: guestId, match: 'created', candidateGuestIds: [], applyStatus: 'applied', appliedAt: ctx.now }, { expectedVersion: version });
+    let after: ResponseRow;
+    try {
+      after = await ctx.db.table(responsesTable).update(id, { matchedGuestId: guestId, match: 'created', candidateGuestIds: [], applyStatus: 'applied', appliedAt: ctx.now }, { expectedVersion: version });
+    } catch {
+      await auditPartial(ctx, manage.perm, audit('XỬ LÝ PHẢN HỒI FORM', `Thêm khách mời mới từ phản hồi Google Form của "${who}", nhưng chưa ghi được phản hồi là đã xử lý; lần đồng bộ sau sẽ ghép phản hồi với khách mới này`, eventId, 'rsvp_response', id));
+      throw new CommandError('conflict', `Đã thêm khách mời "${who}" nhưng chưa ghi được phản hồi là đã xử lý. Tải lại trang để xem.`);
+    }
     return {
       value: { applyStatus: after.applyStatus },
       audit: audit('XỬ LÝ PHẢN HỒI FORM', `Thêm khách mời mới từ phản hồi Google Form của "${who}"`, eventId, 'rsvp_response', id),

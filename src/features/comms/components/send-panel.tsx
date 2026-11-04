@@ -4,13 +4,13 @@
 // state, so nothing is left over from an earlier run (m4c B49).
 
 import { Alert, Button, ProgressBar, SectionCard } from '@/components/ui';
-import type { DispatchReport } from '../domain/dispatcher';
+import type { CampaignReport } from '../domain/campaign';
 import type { Recipient } from '../domain/compose';
 
 export type RunState =
   | { kind: 'idle' }
   | { kind: 'running'; total: number; done: number; current: Recipient | null; stopping: boolean }
-  | { kind: 'finished'; report: DispatchReport<Recipient> };
+  | { kind: 'finished'; report: CampaignReport };
 
 export interface LogLine {
   id: number;
@@ -62,8 +62,12 @@ export function SendPanel(props: {
         )}
         {report && (
           <Alert
-            tone={report.failed.length || report.unrecorded.length ? 'warning' : report.skipped.length ? 'info' : 'success'}
-            title={`Hoàn tất: ${report.sent.length} thành công, ${report.failed.length} lỗi${report.skipped.length ? `, ${report.skipped.length} chưa gửi` : ''}.`}
+            tone={report.claimFailed || report.failed.length || report.unrecorded.length ? 'warning' : report.skipped.length ? 'info' : 'success'}
+            title={
+              report.claimFailed
+                ? 'Chưa gửi thư nào.'
+                : `Hoàn tất: ${report.sent.length} thành công, ${report.failed.length} lỗi${report.skipped.length ? `, ${report.skipped.length} chưa gửi` : ''}${report.alreadySent.length ? `, ${report.alreadySent.length} đã nhận thư này nên không gửi lại` : ''}${report.inFlight.length ? `, ${report.inFlight.length} đang được gửi ở phiên khác` : ''}.`
+            }
             action={
               report.failed.length > 0 ? (
                 <Button variant="secondary" icon="refresh" onClick={props.onRetryFailed}>Gửi lại thư lỗi</Button>
@@ -72,7 +76,7 @@ export function SendPanel(props: {
               ) : undefined
             }
           >
-            {report.stoppedBy ? STOP_REASON[report.stoppedBy] : 'Kết quả từng thư được ghi ở Nhật ký gửi.'}
+            {report.claimFailed ? 'Không giữ chỗ được người nhận cho đợt gửi. Kiểm tra kết nối rồi bấm gửi lại.' : report.stoppedBy ? STOP_REASON[report.stoppedBy] : 'Kết quả từng thư được ghi ở Nhật ký gửi.'}
             {report.unrecorded.length > 0 && ` Đã gửi nhưng chưa ghi nhật ký: ${report.unrecorded.map((u) => u.recipient.email).join(', ')}.`}
           </Alert>
         )}
