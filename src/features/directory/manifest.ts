@@ -14,7 +14,7 @@ export const directoryManifest = defineFeature({
     {
       id: 'admin-guests', section: 'admin', order: 50, label: 'CSDL Khách & DN', icon: 'contact', accent: 'emerald',
       tooltip: 'Quản trị CSDL khách & doanh nghiệp dùng chung (Master Directory)',
-      href: { kind: 'static', path: '/admin/directory' }, permission: 'directory.admin', legacyTabIds: ['tab-admin-guests'],
+      href: { kind: 'static', path: '/admin/directory' }, permission: 'directory.read', legacyTabIds: ['tab-admin-guests'],
       header: {
         title: 'Cơ Sở Dữ Liệu Khách Mời & Doanh Nghiệp',
         subtitle: 'CSDL danh bạ dùng chung 5 nhóm đối tượng chuẩn hóa phục vụ tra cứu và tự động gợi ý.',
@@ -23,7 +23,9 @@ export const directoryManifest = defineFeature({
     },
   ],
   subTabs: [],
-  routes: [{ dir: '(app)/admin/directory', permission: 'directory.admin' }],
+  // Everyone may open the list to look people up and copy them into their events; the editing controls and every
+  // write command are directory.admin only (the screen hides them, the commands refuse them).
+  routes: [{ dir: '(app)/admin/directory', permission: 'directory.read' }],
   tables: ['sce_tcsk_master_contacts'],
   legacyBlobKeys: ['masterGuestDb'],
 });
