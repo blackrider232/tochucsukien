@@ -22,9 +22,11 @@ describe('cron route auth', () => {
     ['missing', undefined, 401],
     ['wrong', `Bearer ${SECRET}x`, 401],
     ['without Bearer', SECRET, 401],
+    ['under another 7-character scheme', `Token: ${SECRET}`, 401],
+    ['with a lower-case scheme', `bearer ${SECRET}`, 401],
     ['empty bearer', 'Bearer ', 401],
     ['right', `Bearer ${SECRET}`, 200],
-  ])('%s secret -> %i', async (_, auth, status) => {
+  ])('%s secret (header %j) -> %i', async (_, auth, status) => {
     const h = harness();
     const sync = vi.fn(async () => ({ ok: true as const, value: { status: 'error' as const, message: 'x' } }));
     const res = await handleCronSync(req(auth), deps(h, sync));

@@ -45,6 +45,7 @@ describe('renderMail', () => {
 
   it('flattens line breaks in the subject so a value cannot open a new header', () => {
     expect(renderMail({ subject: 'Mời {ho_ten}', html: '' }, data({ name: 'An\r\nBcc: v@evil.com' })).subject).toBe('Mời An Bcc: v@evil.com');
+    for (const brk of ['\n', '\r', '\t']) expect(renderMail({ subject: 'Mời {ho_ten}', html: '' }, data({ name: `An${brk}Bcc: v@evil.com` })).subject).toBe('Mời An Bcc: v@evil.com');
   });
 
   it('reports unknown tags and tags with no value for the recipient', () => {

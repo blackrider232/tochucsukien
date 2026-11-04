@@ -69,6 +69,15 @@ describe('comms.syncForm', () => {
     expect(responses()).toHaveLength(3);
   });
 
+  it('"Cử người đi thay" without a name is no answer: the guest is left as is, nothing fails', async () => {
+    const { h, eventId, sync, responses } = await setup();
+    const g = await h.addGuest(eventId, { email: 'an@a.vn' as Email, rsvpStatus: 'confirmed' });
+    sheet.text = csv('04/11/2026 10:00:00,Nguyễn Văn An,Công ty A,an@a.vn,,Cử người đi thay,,');
+    expect(await sync()).toMatchObject({ noAnswer: 1, failed: 0, applied: 0 });
+    expect(responses()[0]).toMatchObject({ rsvp: 'substituted', apply_status: 'no_answer' });
+    expect(await h.guest(eventId, g.id)).toMatchObject({ rsvpStatus: 'confirmed', substituteName: '' });
+  });
+
   it('names a failed guest update in words a person can read, never the raw error', async () => {
     const { h, eventId } = await setup();
     await h.addGuest(eventId, { email: 'an@a.vn' as Email, name: 'Nguyễn Văn An' });
@@ -275,6 +284,14 @@ describe('comms.resolveResponse', () => {
     const other = await h.createEvent();
     const r = await h.run(admin, 'comms.resolveResponse', { eventId: other as EventId, id: row.id, version: row.version, action: { kind: 'match', guestId: a.id } });
     expect(r).toMatchObject({ ok: false, kind: 'not_found' });
+  });
+
+  it('a dismiss under another event is refused too, though it needs no guest of that event', async () => {
+    const { h, row } = await ambiguous();
+    const other = await h.createEvent();
+    const before = h.rows('sce_tcsk_rsvp_responses');
+    expect(await h.run(admin, 'comms.resolveResponse', { eventId: other as EventId, id: row.id, version: row.version, action: { kind: 'dismiss' } })).toMatchObject({ ok: false, kind: 'not_found' });
+    expect(h.rows('sce_tcsk_rsvp_responses')).toEqual(before);
   });
 
   it('"create" adds the newcomer once and refuses a duplicate identity', async () => {
