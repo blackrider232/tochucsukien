@@ -106,6 +106,7 @@ Other choices. Declined guests get no tent or badge. The xlsx signature title us
 3. **Kit file input and print assets.** A custom tent or badge background (legacy theme 6, B52, Q14) and the Đông Sơn motif need a kit file picker and somewhere to keep an image. The four tone-based tent themes and five badge themes ship. The legacy gradients need print palette tokens if the exact look is wanted.
 4. **Walk-in substitute (B55).** Live's walk-in needs `substitutesForGuestId`, which `GuestDraft` does not have.
 5. **Legacy event id.** Live's `matchScan` keys legacy badges by `legacyScanKey(legacyEvent, legacyGuest)`. `readLegacyGuestIds` gives the guest half, but progress does not expose an event's `legacy_id`.
+6. **Audit on a thrown `CommandError`.** core (`src/core/commands`): `CommandError` takes an optional `audit: AuditEntry`, and when `run()` throws one that carries it, the pipeline writes it through `sce_tcsk_audit_command` with `spec.authorize.perm` before it returns the failure. A decline whose seat venue could not release (`releaseSeat` in `server/commands.ts`) then throws its entry, and the feature no longer names its permission a second time. Until then it calls `sce_tcsk_audit_command` itself with `writeOnEvent.perm`, the row the pipeline would write. The raw `sce_tcsk_write_audit` it used before is no longer executable by users (core finding 2).
 
 ## Foundation feedback
 

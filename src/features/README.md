@@ -46,3 +46,32 @@ export async function rosterOf(ctx: RequestContext, eventId: EventId): Promise<U
 ```
 
 On `ready: false`, render a Vietnamese "chưa sẵn sàng" state, for example `<EmptyState icon="users" title="Danh sách khách mời chưa sẵn sàng" />`. Never show it as an empty list, zero counts or a success toast. A command that depends on it throws `CommandError('conflict', 'Chức năng … chưa sẵn sàng.')`.
+
+## Audit rows for partial failures
+
+The pipeline writes a command's audit row only when `run()` returns. Commands have no transaction, so `run()` can throw after a write has already stuck: a decline saved before venue refused to free the seat, or a seat batch that could not put back a seat someone else took. Record what really happened before you throw.
+
+1. Never call `sce_tcsk_write_audit`. It is not in `RpcMap`, and users cannot execute it.
+2. Write the row with `ctx.db.rpc('sce_tcsk_audit_command', …)`, the writer the pipeline itself uses. Pass the `perm` of the `authorize` rule of the command whose `run()` you are in, through its constant, never a literal. Inside a command reached by `ctx.call`, that is the inner command's permission. The database refuses the row when the caller lacks that permission on the event's departments, and it refuses core actions and entities.
+3. Say in the summary what stuck, what did not, and what a person must do.
+4. Write it only on the path that throws. A path that returns gets its row from the pipeline, so writing one there too logs the change twice. A failure that changed nothing, or was rolled back completely, writes no row.
+5. Then throw `CommandError` with a message that names the same loss.
+
+```ts
+const writeOnEvent = { perm: 'guests.write', event: (i: { eventId: EventId }) => i.eventId } as const;
+
+async function releaseSeat(ctx: CommandContext, eventId: EventId, guestId: GuestId, seat: SeatCode, saved: AuditEntry) {
+  try {
+    await ctx.call('venue.releaseGuestSeat', { eventId, guestId });
+  } catch {
+    await ctx.db.rpc('sce_tcsk_audit_command', {
+      ...saved,
+      perm: writeOnEvent.perm,
+      summary: `${saved.summary}; chưa giải phóng được ghế ${seat}, cần giải phóng thủ công`,
+    });
+    throw new CommandError('conflict', `Đã ghi nhận báo vắng nhưng chưa giải phóng được ghế ${seat}. Vui lòng giải phóng ghế này thủ công ở sơ đồ chỗ ngồi.`);
+  }
+}
+```
+
+A test asserts the failure kind and that the last audit row names the loss, as `src/features/guests/__tests__/rsvp.test.ts` does. A change request (guests status, change request 6) asks core to take an audit entry on `CommandError` and write it in the pipeline. Once that lands, throw the entry instead and delete the direct call.
