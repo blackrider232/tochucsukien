@@ -319,17 +319,19 @@ export const renewClaims: CommandSpec<InputOf<'comms.renewClaims'>, OutputOf<'co
 
 /**
  * Marks this run's claim of one address 'sending', just before the message is handed to Gmail, so a run that dies
- * after Gmail took it never leaves a claim another run would send again.
+ * after Gmail took it never leaves a claim another run would send again. Declared a query so the pipeline writes no
+ * audit row: the mark is transient, once per message, and the message's record (or "Không rõ đã gửi") follows it.
+ * A row per mark doubled a campaign's audit log. The permission, the token and the database guard apply as to a write.
  */
 export const markSending: CommandSpec<InputOf<'comms.markSending'>, OutputOf<'comms.markSending'>> = {
-  kind: 'mutation',
+  kind: 'query',
   input: asSchema(z.object({ eventId: eventIdSchema, campaignId: campaignIdSchema, runToken: runTokenSchema, email: requiredEmailSchema })),
   authorize: send,
   async run(ctx, { eventId, campaignId, runToken, email }) {
     const d = (await byEmail(ctx, eventId, campaignId)).get(email);
     if (!d || !heldBy(d, claimHash(runToken))) throw new CommandError('conflict', `Thư tới ${email} không còn do phiên gửi này giữ chỗ (đã có kết quả, hoặc một phiên khác đã tiếp quản). Kiểm tra Nhật ký gửi trước khi gửi tiếp.`);
     if (d.status === 'queued') await ctx.db.table(deliveriesTable).update(d.id, { status: 'sending', claimProof: runToken }, { expectedVersion: d.version });
-    return { value: null, audit: audit('ĐANG GỬI THƯ', `Bắt đầu gửi thư "${d.subject}" tới ${email}`, eventId, 'email_campaign', campaignId) };
+    return { value: null, audit: null };
   },
 };
 

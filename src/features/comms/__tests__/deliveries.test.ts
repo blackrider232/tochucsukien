@@ -392,6 +392,21 @@ describe('a send whose answer was lost', () => {
   });
 });
 
+describe('comms.markSending', () => {
+  it('marks this run’s claim without an audit row of its own: the record that follows, or "Không rõ", tells the story', async () => {
+    const h = harness();
+    const eventId = await h.createEvent();
+    const { campaignId } = await start(h, eventId, [to('a@x.vn')]);
+    const audits = h.audits().length;
+    expect(await marking(h, eventId, campaignId, 'a@x.vn')).toMatchObject({ ok: true });
+    expect(deliveries(h)).toEqual([['a@x.vn', 'sending']]);
+    // Marked again on a retry of the same message: nothing changes.
+    expect(await marking(h, eventId, campaignId, 'a@x.vn')).toMatchObject({ ok: true });
+    expect(await marking(h, eventId, campaignId, 'a@x.vn', TAB_B)).toMatchObject({ ok: false, kind: 'conflict' });
+    expect(h.audits()).toHaveLength(audits);
+  });
+});
+
 describe('comms.releaseDeliveries', () => {
   it('frees this run’s unused claims only: recorded results and other runs’ claims stay', async () => {
     const h = harness();
@@ -533,10 +548,6 @@ describe('audit rows of commands that write more than once', () => {
         input: { eventId, senderEmail: SENDER, ...MESSAGE, attachQr: false, runToken: TAB_A, takeOver: false, recipients: [to('a@x.vn')] },
         after: [['a@x.vn', 'queued']],
       })],
-      ['comms.markSending', async (h, eventId) => {
-        const { campaignId } = await start(h, eventId, [to('a@x.vn')]);
-        return { input: { eventId, campaignId, runToken: TAB_A, email: 'a@x.vn' }, after: [['a@x.vn', 'sending']] };
-      }],
       ['comms.recordDeliveries', async (h, eventId) => {
         const g = await h.addGuest(eventId, { email: 'a@x.vn' as Email });
         const { campaignId } = await start(h, eventId, [to('a@x.vn', g.id), to('b@x.vn')]);

@@ -321,6 +321,20 @@ describe('comms in the dev memory runtime, end to end', () => {
     }
   });
 
+  it('ten recipients and one rate limit write one audit row per message, plus the claim', async () => {
+    const s = await scenario();
+    const manual = Array.from({ length: 8 }, (_, n) => fromManual({ email: `nguoi.${n}@example.com` as Email, name: `Người ${n}`, organization: '' }));
+    const before = (await s.audits()).length;
+    const gmail = scripted(s.devGmail, { [manual[0]!.email]: [{ kind: 'rate', message: 'Gmail: rate limit', retryAfterMs: 1 }] });
+    const report = await s.send(gmail, [...s.guests, ...manual]);
+    expect(report.sent).toHaveLength(10);
+    const rows = (await s.audits()).slice(before);
+    const count = (action: string) => rows.filter((a) => a.action === action).length;
+    expect({ start: count('BẮT ĐẦU GỬI THƯ'), records: count('GỬI THƯ MỜI'), marks: count('ĐANG GỬI THƯ') }).toEqual({ start: 1, records: 10, marks: 0 });
+    // Besides those, only guests' own rows for the two invitations it marked.
+    expect(rows.length - 11).toBeLessThanOrEqual(2);
+  });
+
   it('a rate limit whose retry falls due for a renewal goes on: the message being sent is still this run’s', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     try {
