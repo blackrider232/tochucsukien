@@ -150,8 +150,11 @@ export interface DeliveryRow extends BaseRow {
   recipientName: string;
   subject: string;
   senderEmail: string;
-  /** 'queued' is a claim: the run named by claimToken is about to send, or is sending, this message. */
-  status: DeliveryStatus | 'queued';
+  /**
+   * 'queued' is a claim: the run named by claimToken is about to send this message. 'sending': that run handed it to
+   * Gmail, or is about to; if the run dies there, the row becomes 'unknown' (202611041400_comms_delivery_sending_status.sql).
+   */
+  status: DeliveryStatus | 'queued' | 'sending';
   /** The run that claimed the row last (202611041300_comms_delivery_claim_token.sql). */
   claimToken: RunToken | null;
   sentAt: Instant | null;
@@ -174,7 +177,7 @@ export const deliveriesTable = defineTable<DeliveryRow>({
     recipientName: z.string(),
     subject: z.string(),
     senderEmail: z.string(),
-    status: z.enum(['queued', 'sent', 'error', 'unknown']),
+    status: z.enum(['queued', 'sending', 'sent', 'error', 'unknown']),
     claimToken: z.string().nullable().transform((v) => v as RunToken | null),
     sentAt: instant.nullable(),
     error: z.string().nullable(),

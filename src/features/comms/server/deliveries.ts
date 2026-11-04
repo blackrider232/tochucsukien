@@ -8,7 +8,11 @@
 // address that already received this message, or that another run holds, is
 // refused, so nobody gets the same message twice. Another run means another
 // token: a second tab or a reload of the same officer is one too, and may
-// only take over the claims explicitly. Each outcome then completes its claim
+// only take over the claims explicitly. Just before handing a message to
+// Gmail the run marks its claim 'sending' (markSending). A run that dies there
+// leaves the row 'sending', which nobody claims again: once the lease runs
+// out (or the officer takes the run over), it becomes 'unknown' for a person
+// to check the Sent folder. Each outcome then completes its claim
 // (recordDeliveries), only from the run that holds it: 'sent' only with
 // Gmail's message id, 'error' with Gmail's reason, and a later failure never
 // erases a success. Claims a stopped run did not use are released.
@@ -21,7 +25,7 @@ import { CommandError, type CommandContext, type CommandSpec, type InputOf, type
 import { DbError } from '@/core/db';
 import { devMemoryEnabled } from '@/core/dev/mode';
 import { CLAIM_LEASE_MS } from '../domain/campaign';
-import { campaignIdSchema, deliveryResultSchema, eventIdSchema, guestIdSchema, MAX_CLAIM_BATCH, requiredEmailSchema, runTokenSchema } from '../domain/schemas';
+import { campaignIdSchema, deliveryResultSchema, eventIdSchema, guestIdSchema, MAX_CLAIM_BATCH, requiredEmailSchema, runTokenSchema, type RunToken } from '../domain/schemas';
 import { DEV_FAKE_ID_PREFIX } from '../domain/transport';
 import { asSchema, audit, auditPartial } from './command-kit';
 import { campaignsTable, deliveriesTable, type DeliveryRow } from './tables';
@@ -44,6 +48,9 @@ const byEmail = async (ctx: CommandContext, eventId: EventId, campaignId: Campai
   new Map((await ctx.db.table(deliveriesTable).list({ eventId, campaignId })).map((d) => [d.email, d]));
 
 const leaseExpired = (ctx: CommandContext, d: DeliveryRow) => Date.parse(ctx.now) - Date.parse(d.updatedAt) >= CLAIM_LEASE_MS;
+/** Held by the run `runToken` names: claimed, or being sent. */
+const heldBy = (d: DeliveryRow, runToken: RunToken) => (d.status === 'queued' || d.status === 'sending') && d.claimToken === runToken;
+const IN_FLIGHT_LOST = 'Phiên gửi đã dừng khi đang gửi thư này, nên chưa rõ thư đã đi hay chưa. Kiểm tra mục Đã gửi của Gmail.';
 
 const recipientSchema = z.object({ guestId: guestIdSchema.nullable(), email: requiredEmailSchema, recipientName: z.string().trim().max(300) });
 
@@ -73,6 +80,7 @@ export const startCampaign: CommandSpec<InputOf<'comms.startCampaign'>, OutputOf
     const ownInFlight: Email[] = [];
     const unclear: Email[] = [];
     let takenOver = 0;
+    let orphaned = 0;
     const seen = new Set<string>();
     try {
       for (const r of recipients) {
@@ -80,11 +88,21 @@ export const startCampaign: CommandSpec<InputOf<'comms.startCampaign'>, OutputOf
         seen.add(r.email);
         const before = existing.get(r.email);
         const mine = before?.updatedBy === ctx.actor.profile.id;
-        const heldElsewhere = before?.status === 'queued' && before.claimToken !== runToken && !leaseExpired(ctx, before);
+        const heldElsewhere = (before?.status === 'queued' || before?.status === 'sending') && before.claimToken !== runToken && !leaseExpired(ctx, before);
         if (before?.status === 'sent') alreadySent.push(r.email);
         else if (before?.status === 'unknown') unclear.push(r.email);
         else if (heldElsewhere && !(takeOver && mine)) (mine ? ownInFlight : inFlight).push(r.email);
-        else {
+        else if (before?.status === 'sending') {
+          // Its run died, or was taken over, with this message handed to Gmail or about to be: maybe sent.
+          try {
+            await ctx.db.table(deliveriesTable).update(before.id, { status: 'unknown', error: IN_FLIGHT_LOST }, { expectedVersion: before.version });
+            orphaned += 1;
+            unclear.push(r.email);
+          } catch (e) {
+            if (e instanceof DbError && e.kind === 'conflict') inFlight.push(r.email);
+            else throw e;
+          }
+        } else {
           const row = { guestId: r.guestId, recipientName: r.recipientName, subject, senderEmail, status: 'queued' as const, claimToken: runToken, sentAt: null, error: null, providerMessageId: null, imported: false };
           try {
             if (before) await ctx.db.table(deliveriesTable).update(before.id, row, { expectedVersion: before.version });
@@ -99,8 +117,8 @@ export const startCampaign: CommandSpec<InputOf<'comms.startCampaign'>, OutputOf
         }
       }
     } catch (e) {
-      if (claimed.length > 0) {
-        await auditPartial(ctx, send.perm, audit('BẮT ĐẦU GỬI THƯ', `Bắt đầu đợt gửi "${subject}" từ ${senderEmail}: đã giữ chỗ ${claimed.length} người nhận rồi dừng vì lỗi; các thư đó chưa được gửi`, eventId, 'email_campaign', campaignId));
+      if (claimed.length > 0 || orphaned > 0) {
+        await auditPartial(ctx, send.perm, audit('BẮT ĐẦU GỬI THƯ', `Bắt đầu đợt gửi "${subject}" từ ${senderEmail}: đã giữ chỗ ${claimed.length} người nhận${orphaned ? `, chuyển ${orphaned} thư đang gửi dở sang "Không rõ đã gửi"` : ''} rồi dừng vì lỗi; các thư đã giữ chỗ chưa được gửi`, eventId, 'email_campaign', campaignId));
         throw new CommandError('conflict', `Đã giữ chỗ ${claimed.length} người nhận nhưng không giữ được những người còn lại. Hãy bấm gửi lại sau ít phút.`);
       }
       throw e;
@@ -109,6 +127,7 @@ export const startCampaign: CommandSpec<InputOf<'comms.startCampaign'>, OutputOf
       `giữ chỗ ${claimed.length} người nhận`,
       ...(takenOver ? [`trong đó tiếp quản ${takenOver} người từ một phiên gửi khác của bạn`] : []),
       ...(alreadySent.length ? [`bỏ qua ${alreadySent.length} người đã nhận thư này`] : []),
+      ...(orphaned ? [`${orphaned} người có thư đang gửi dở khi phiên gửi trước dừng, chuyển sang "Không rõ đã gửi"`] : []),
       ...(unclear.length ? [`bỏ qua ${unclear.length} người chưa rõ đã nhận thư này hay chưa`] : []),
       ...(ownInFlight.length ? [`bỏ qua ${ownInFlight.length} người đang được gửi ở một phiên khác của bạn`] : []),
       ...(inFlight.length ? [`bỏ qua ${inFlight.length} người đang được gửi ở phiên khác`] : []),
@@ -141,9 +160,12 @@ export const recordDeliveries: CommandSpec<InputOf<'comms.recordDeliveries'>, Ou
     const existing = await byEmail(ctx, eventId, campaignId);
     const unclaimed = results.find((r) => !existing.has(r.email));
     if (unclaimed) throw new CommandError('conflict', `Thư tới ${unclaimed.email} chưa được giữ chỗ trong đợt gửi này. Hãy bắt đầu lại đợt gửi.`);
+    // This run's own row: held (claimed or being sent), already holding this very result (an answer lost on the way
+    // back), or turned unknown after the run lost touch, which Gmail's message id settles.
+    const recorded = (r: (typeof results)[number], d: DeliveryRow) => d.claimToken === runToken && d.status === r.status;
     const notHeld = results.find((r) => {
       const d = existing.get(r.email)!;
-      return d.status !== 'sent' && (d.status !== 'queued' || d.claimToken !== runToken);
+      return d.status !== 'sent' && !heldBy(d, runToken) && !recorded(r, d) && !(d.status === 'unknown' && d.claimToken === runToken && r.status === 'sent');
     });
     if (notHeld) throw new CommandError('conflict', `Thư tới ${notHeld.email} không còn do phiên gửi này giữ chỗ (đã có kết quả, hoặc một phiên khác đã tiếp quản). Kiểm tra Nhật ký gửi trước khi gửi tiếp.`);
 
@@ -156,7 +178,7 @@ export const recordDeliveries: CommandSpec<InputOf<'comms.recordDeliveries'>, Ou
       for (const r of results) {
         const before = existing.get(r.email)!;
         // A success stays: a later failure, or a second success after a run that died mid-message, changes nothing.
-        if (before.status === 'sent') {
+        if (before.status === 'sent' || recorded(r, before)) {
           kept += 1;
           continue;
         }
@@ -261,7 +283,26 @@ export const renewClaims: CommandSpec<InputOf<'comms.renewClaims'>, OutputOf<'co
   },
 };
 
-/** Frees the claims of addresses a stopped run never sent to. Only this run's 'queued' rows go; a result already recorded stays. */
+/**
+ * Marks this run's claim of one address 'sending', just before the message is handed to Gmail, so a run that dies
+ * after Gmail took it never leaves a claim another run would send again.
+ */
+export const markSending: CommandSpec<InputOf<'comms.markSending'>, OutputOf<'comms.markSending'>> = {
+  kind: 'mutation',
+  input: asSchema(z.object({ eventId: eventIdSchema, campaignId: campaignIdSchema, runToken: runTokenSchema, email: requiredEmailSchema })),
+  authorize: send,
+  async run(ctx, { eventId, campaignId, runToken, email }) {
+    const d = (await byEmail(ctx, eventId, campaignId)).get(email);
+    if (!d || !heldBy(d, runToken)) throw new CommandError('conflict', `Thư tới ${email} không còn do phiên gửi này giữ chỗ (đã có kết quả, hoặc một phiên khác đã tiếp quản). Kiểm tra Nhật ký gửi trước khi gửi tiếp.`);
+    if (d.status === 'queued') await ctx.db.table(deliveriesTable).update(d.id, { status: 'sending' }, { expectedVersion: d.version });
+    return { value: null, audit: audit('ĐANG GỬI THƯ', `Bắt đầu gửi thư "${d.subject}" tới ${email}`, eventId, 'email_campaign', campaignId) };
+  },
+};
+
+/**
+ * Frees the claims of addresses a stopped run never handed to Gmail. Only this run's 'queued' or 'sending' rows go (the
+ * run knows which messages it never sent); a result already recorded stays.
+ */
 export const releaseDeliveries: CommandSpec<InputOf<'comms.releaseDeliveries'>, OutputOf<'comms.releaseDeliveries'>> = {
   kind: 'mutation',
   input: asSchema(z.object({ eventId: eventIdSchema, campaignId: campaignIdSchema, runToken: runTokenSchema, emails: z.array(requiredEmailSchema).min(1).max(MAX_CLAIM_BATCH) })),
@@ -272,7 +313,7 @@ export const releaseDeliveries: CommandSpec<InputOf<'comms.releaseDeliveries'>, 
     try {
       for (const email of new Set(emails)) {
         const d = existing.get(email);
-        if (d?.status !== 'queued' || d.claimToken !== runToken) continue;
+        if (!d || !heldBy(d, runToken)) continue;
         await ctx.db.table(deliveriesTable).remove(d.id, { expectedVersion: d.version });
         released += 1;
       }

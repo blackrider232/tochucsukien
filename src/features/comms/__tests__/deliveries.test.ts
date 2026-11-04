@@ -31,6 +31,12 @@ const start = async (h: H, eventId: EventId, recipients: ReturnType<typeof to>[]
   (await h.ok(actor, 'comms.startCampaign', { eventId, senderEmail: SENDER, attachQr: false, ...message, runToken, takeOver, recipients })).value;
 const record = (h: H, eventId: EventId, campaignId: CampaignId, results: ReadonlyArray<ReturnType<typeof sent> | ReturnType<typeof failed> | ReturnType<typeof lost>>, actor = xtdtUser, runToken = TAB_A) =>
   h.run(actor, 'comms.recordDeliveries', { eventId, campaignId, runToken, senderEmail: SENDER, subject: 'Giấy mời', results });
+const marking = (h: H, eventId: EventId, campaignId: CampaignId, email: string, runToken = TAB_A, actor = xtdtUser) =>
+  h.run(actor, 'comms.markSending', { eventId, campaignId, runToken, email: email as Email });
+const after = (h: H, email: string, ms: number) => {
+  const row = (h.rows('sce_tcsk_email_deliveries') as Array<{ email: string; updated_at: string }>).find((r) => r.email === email)!;
+  h.clock.now = new Date(Date.parse(row.updated_at) + ms).toISOString() as Instant;
+};
 const deliveries = (h: H) =>
   (h.rows('sce_tcsk_email_deliveries') as Array<Record<string, unknown>>).map((r) => [r.email, r.status]).sort((a, b) => String(a[0]).localeCompare(String(b[0])));
 
@@ -136,6 +142,75 @@ describe('comms.startCampaign', () => {
     expect(r).toMatchObject({ ok: false, kind: 'conflict', message: expect.stringContaining('Đã giữ chỗ 1 người nhận') });
     expect(deliveries(h)).toEqual([['a@x.vn', 'queued']]);
     expect(h.audits().at(-1)).toMatchObject({ action: 'BẮT ĐẦU GỬI THƯ', summary: expect.stringContaining('đã giữ chỗ 1 người nhận rồi dừng vì lỗi') });
+  });
+});
+
+describe('a message being sent', () => {
+  it('only the run that holds the claim marks it as being sent', async () => {
+    const h = harness();
+    const eventId = await h.createEvent();
+    const { campaignId } = await start(h, eventId, [to('a@x.vn'), to('b@x.vn')]);
+    expect(await marking(h, eventId, campaignId, 'a@x.vn', TAB_B)).toMatchObject({ ok: false, kind: 'conflict' });
+    expect(await marking(h, eventId, campaignId, 'a@x.vn')).toMatchObject({ ok: true });
+    expect(deliveries(h)).toEqual([['a@x.vn', 'sending'], ['b@x.vn', 'queued']]);
+    expect(await record(h, eventId, campaignId, [sent('a@x.vn')])).toMatchObject({ ok: true });
+    expect(deliveries(h)).toEqual([['a@x.vn', 'sent'], ['b@x.vn', 'queued']]);
+  });
+
+  it('a dead run’s message in flight is never claimed again: after the lease it becomes unknown, for a person to check', async () => {
+    const h = harness();
+    const eventId = await h.createEvent();
+    const { campaignId } = await start(h, eventId, [to('a@x.vn')]);
+    await marking(h, eventId, campaignId, 'a@x.vn');
+    after(h, 'a@x.vn', 60_000);
+    expect(await start(h, eventId, [to('a@x.vn')], colleague, MESSAGE, TAB_B)).toMatchObject({ claimed: [], inFlight: ['a@x.vn'] });
+    after(h, 'a@x.vn', 2 * CLAIM_LEASE_MS);
+    expect(await start(h, eventId, [to('a@x.vn')], colleague, MESSAGE, TAB_B)).toMatchObject({ claimed: [], unclear: ['a@x.vn'] });
+    expect(deliveries(h)).toEqual([['a@x.vn', 'unknown']]);
+    expect(h.audits().at(-1)!.summary).toContain('1 người có thư đang gửi dở khi phiên gửi trước dừng, chuyển sang "Không rõ đã gửi"');
+    expect((await deliveryLogData(h.ctx(xtdtUser), eventId))!.rows[0]).toMatchObject({ status: 'unknown', error: expect.stringContaining('Kiểm tra mục Đã gửi') });
+  });
+
+  it('taking over a run of one’s own never sends its message in flight again: it becomes unknown', async () => {
+    const h = harness();
+    const eventId = await h.createEvent();
+    const { campaignId } = await start(h, eventId, [to('a@x.vn'), to('b@x.vn')]);
+    await marking(h, eventId, campaignId, 'a@x.vn');
+    expect(await start(h, eventId, [to('a@x.vn'), to('b@x.vn')], xtdtUser, MESSAGE, TAB_B, true)).toMatchObject({ claimed: ['b@x.vn'], unclear: ['a@x.vn'] });
+    expect(deliveries(h)).toEqual([['a@x.vn', 'unknown'], ['b@x.vn', 'queued']]);
+  });
+
+  it('the run that sent it may still record what Gmail answered, even once it is unknown; nobody else may', async () => {
+    const h = harness();
+    const eventId = await h.createEvent();
+    const { campaignId } = await start(h, eventId, [to('a@x.vn'), to('b@x.vn')]);
+    await marking(h, eventId, campaignId, 'a@x.vn');
+    await marking(h, eventId, campaignId, 'b@x.vn');
+    after(h, 'a@x.vn', 2 * CLAIM_LEASE_MS);
+    await start(h, eventId, [to('a@x.vn'), to('b@x.vn')], colleague, MESSAGE, TAB_B);
+    expect(deliveries(h)).toEqual([['a@x.vn', 'unknown'], ['b@x.vn', 'unknown']]);
+    expect(await record(h, eventId, campaignId, [sent('a@x.vn')], colleague, TAB_B)).toMatchObject({ ok: false, kind: 'conflict' });
+    expect(await record(h, eventId, campaignId, [failed('b@x.vn')])).toMatchObject({ ok: false, kind: 'conflict' });
+    expect(await record(h, eventId, campaignId, [sent('a@x.vn')])).toMatchObject({ ok: true });
+    expect(deliveries(h)).toEqual([['a@x.vn', 'sent'], ['b@x.vn', 'unknown']]);
+  });
+
+  it('recording the same result twice (an answer lost on the way back) is not an error', async () => {
+    const h = harness();
+    const eventId = await h.createEvent();
+    const { campaignId } = await start(h, eventId, [to('a@x.vn'), to('b@x.vn')]);
+    await record(h, eventId, campaignId, [failed('a@x.vn'), sent('b@x.vn')]);
+    expect(await record(h, eventId, campaignId, [failed('a@x.vn'), sent('b@x.vn')])).toMatchObject({ ok: true, value: { recorded: 0 } });
+  });
+
+  it('a stopped run frees the message it marked but never handed to Gmail', async () => {
+    const h = harness();
+    const eventId = await h.createEvent();
+    const { campaignId } = await start(h, eventId, [to('a@x.vn')]);
+    await marking(h, eventId, campaignId, 'a@x.vn');
+    expect((await h.ok(xtdtUser, 'comms.releaseDeliveries', { eventId, campaignId, runToken: TAB_B, emails: ['a@x.vn'] as Email[] })).value).toEqual({ released: 0 });
+    expect((await h.ok(xtdtUser, 'comms.releaseDeliveries', { eventId, campaignId, runToken: TAB_A, emails: ['a@x.vn'] as Email[] })).value).toEqual({ released: 1 });
+    expect(deliveries(h)).toEqual([]);
   });
 });
 

@@ -4,14 +4,16 @@
 // sent, failed, unknown or skipped (m4a B28, m4c B45, B49). A send whose
 // answer never came (the connection dropped) may have gone: it is never
 // retried, it is recorded as unknown for a person to check, and the run stops. Each outcome is recorded
-// before the next message goes, so a closed tab loses at most the message in
-// flight. No sleep after the last message.
+// before the next message goes (a record that fails is tried again, with the
+// same backoff), so a closed tab loses at most the message in flight. No
+// sleep after the last message.
 
 /**
  * claim_lost: the run no longer holds the next recipient's claim (another run took it over), so nothing more may go.
+ * not_marked: the claim could not be marked as being sent, so the message was not handed to Gmail.
  * network: no usable answer from Gmail, so the message may or may not have been sent.
  */
-export type SendFailureKind = 'auth' | 'quota' | 'claim_lost' | 'rate' | 'server' | 'network' | 'invalid' | 'too_large';
+export type SendFailureKind = 'auth' | 'quota' | 'claim_lost' | 'not_marked' | 'rate' | 'server' | 'network' | 'invalid' | 'too_large';
 export interface SendFailure {
   kind: SendFailureKind;
   message: string;
@@ -24,7 +26,7 @@ export class TransportError extends Error {
   }
 }
 
-export type SkipReason = 'cancelled' | 'auth' | 'quota' | 'claim_lost' | 'unknown' | 'not_recorded';
+export type SkipReason = 'cancelled' | 'auth' | 'quota' | 'claim_lost' | 'not_marked' | 'unknown' | 'not_recorded';
 export type DispatchOutcome<R> =
   | { kind: 'sent'; recipient: R; messageId: string }
   | { kind: 'failed'; recipient: R; failure: SendFailure; attempts: number }
@@ -36,7 +38,7 @@ export interface DispatchReport<R> {
   /** Gmail's answer was lost: maybe sent. Recorded as such and never sent again without a person's check. */
   unknown: ReadonlyArray<{ recipient: R; failure: SendFailure }>;
   skipped: ReadonlyArray<{ recipient: R; reason: SkipReason }>;
-  /** Sent, but recording the result failed; the loop stopped there (sending more would leave more unrecorded). */
+  /** Sent, but recording the result failed, again after retries; the loop stopped there (sending more would leave more unrecorded). */
   unrecorded: ReadonlyArray<{ recipient: R; messageId: string }>;
   stoppedBy: Exclude<SkipReason, 'not_recorded'> | 'record' | null;
 }
@@ -58,8 +60,8 @@ export interface DispatchOptions<R> {
 
 export const SEND_SPACING_MS = 1200;
 const RETRYABLE: ReadonlySet<SendFailureKind> = new Set(['rate', 'server']);
-const STOPPING: ReadonlySet<SendFailureKind> = new Set(['auth', 'quota', 'claim_lost']);
-type Stop = 'auth' | 'quota' | 'claim_lost';
+const STOPPING: ReadonlySet<SendFailureKind> = new Set(['auth', 'quota', 'claim_lost', 'not_marked']);
+type Stop = 'auth' | 'quota' | 'claim_lost' | 'not_marked';
 
 function failureOf(e: unknown): SendFailure {
   if (e instanceof TransportError) return e.failure;
@@ -131,7 +133,15 @@ export async function dispatch<R>(o: DispatchOptions<R>): Promise<DispatchReport
       else (done.kind === 'unknown' ? unknown : failed).push({ recipient, failure: done.failure });
     };
     try {
-      await o.record(done);
+      for (let attempt = 1; ; attempt += 1) {
+        try {
+          await o.record(done);
+          break;
+        } catch (e) {
+          if (attempt > maxRetries) throw e;
+          await o.sleep(Math.min(maxBackoff, base * 2 ** (attempt - 1)), o.signal);
+        }
+      }
     } catch {
       if (done.kind === 'sent') unrecorded.push({ recipient, messageId: done.messageId });
       else keep();

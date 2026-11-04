@@ -63,6 +63,14 @@ describe('sce_tcsk_email_deliveries on Postgres', () => {
     await expect(as(OFFICER, () => delivery(', sent_at, provider_message_id', `'d@x.vn', 'sent', now(), 'msg-1'`))).resolves.toBeDefined();
   });
 
+  it('a claim being sent keeps the token of the run that holds it', async () => {
+    const own = await as(OFFICER, () => delivery(', claim_token', `'s@x.vn', 'queued', '${RUN}'`));
+    const id = own.rows[0]!.id;
+    await expect(as(OFFICER, () => db.query(`update public.sce_tcsk_email_deliveries set status = 'sending', claim_token = null where id = '${id}'`))).rejects.toThrow(/queued_has_token/);
+    await expect(as(OFFICER, () => db.query(`update public.sce_tcsk_email_deliveries set status = 'sending' where id = '${id}'`))).resolves.toBeDefined();
+    await expect(as(OFFICER, () => db.query(`update public.sce_tcsk_email_deliveries set status = 'parked' where id = '${id}'`))).rejects.toThrow(/status_check/);
+  });
+
   it('a send whose answer was lost is stored as unknown, with the reason', async () => {
     await expect(as(OFFICER, () => delivery(', error', `'e@x.vn', 'unknown', 'Không kết nối được Gmail.'`))).resolves.toBeDefined();
     await expect(as(OFFICER, () => delivery('', `'f@x.vn', 'unknown'`))).rejects.toThrow(/unknown_has_text/);

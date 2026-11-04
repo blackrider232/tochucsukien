@@ -44,8 +44,10 @@ afterEach(() => {
 
 async function scenario() {
   const ctx = (await cronSystemContext())!;
+  /** The context of a request made now: the clock moves on between requests, as in the app. */
+  const at = () => ({ ...ctx, now: new Date().toISOString() as Instant });
   const run = async <K extends CommandId>(id: K, input: InputOf<K>): Promise<OutputOf<K>> => {
-    const r = await runCommand(ctx, lookup, id, input);
+    const r = await runCommand(at(), lookup, id, input);
     if (!r.ok) throw new Error(`${id}: ${r.kind} ${r.message}`);
     return r.value as OutputOf<K>;
   };
@@ -75,13 +77,17 @@ async function scenario() {
       const result = o.kind === 'sent'
         ? { guestId: o.recipient.guestId, email: o.recipient.email, recipientName: o.recipient.name, status: 'sent' as const, providerMessageId: o.messageId, error: null }
         : { guestId: o.recipient.guestId, email: o.recipient.email, recipientName: o.recipient.name, status: o.kind === 'unknown' ? ('unknown' as const) : ('error' as const), providerMessageId: null, error: o.failure.message };
-      const r = await runCommand(ctx, lookup, 'comms.recordDeliveries', { eventId, campaignId, runToken, senderEmail: mctx.from.email, subject: invitationMessage(o.recipient, compose, mctx, null).subject, results: [result] });
+      const r = await runCommand(at(), lookup, 'comms.recordDeliveries', { eventId, campaignId, runToken, senderEmail: mctx.from.email, subject: invitationMessage(o.recipient, compose, mctx, null).subject, results: [result] });
       return r.ok;
     },
     async release(campaignId, runToken, emails) {
       await run('comms.releaseDeliveries', { eventId, campaignId, runToken, emails });
     },
     renew: async (campaignId, runToken) => (await run('comms.renewClaims', { eventId, campaignId, runToken })).held,
+    async markSending(campaignId, runToken, email) {
+      const r = await runCommand(at(), lookup, 'comms.markSending', { eventId, campaignId, runToken, email });
+      return r.ok ? true : r.kind === 'conflict' ? false : null;
+    },
   });
   /** One press of "Bắt đầu gửi" (or of "Tiếp quản phiên gửi" with takeOver), in a tab of its own. */
   const send = (transport: GmailTransport, recipients: ReadonlyArray<Recipient>, o: { takeOver?: boolean; recordFails?: ReadonlySet<string> } = {}) =>
@@ -101,7 +107,7 @@ async function scenario() {
   });
   /** The event's audit rows, oldest first, read as the admin reads the audit screen. */
   const audits = async () => [...(await ctx.db.rpc('sce_tcsk_list_audit', { eventId, limit: 200 }))].reverse();
-  return { ctx, run, eventId, guests, devGmail, send, raws, sentTo, audits };
+  return { ctx, at, run, eventId, guests, devGmail, send, raws, sentTo, audits };
 }
 
 /** Fails the listed addresses as Gmail would, in order, then delivers through `inner`. */
@@ -165,7 +171,7 @@ describe('comms in the dev memory runtime, end to end', () => {
     expect(again.failed.map((f) => f.recipient.email)).toEqual(['loi.dia.chi@example.com']);
     expect(delivered()).toHaveLength(2);
     expect(s.sentTo.filter((e) => e === typo.email)).toHaveLength(2);
-    expect((await s.audits()).at(-2)!.summary).toContain('bỏ qua 2 người đã nhận thư này');
+    expect((await s.audits()).filter((a) => a.action === 'BẮT ĐẦU GỬI THƯ').at(-1)!.summary).toContain('bỏ qua 2 người đã nhận thư này');
   });
 
   it('retries a rate limit by itself, records a refusal as an error, and stops on an expired token, freeing what it did not send', async () => {
@@ -242,7 +248,7 @@ describe('comms in the dev memory runtime, end to end', () => {
     expect(s.sentTo.sort()).toEqual(s.guests.map((g) => g.email).sort());
   });
 
-  it('a crash between Gmail’s answer and the record: the next run does not mail that guest again; only an explicit take-over does', async () => {
+  it('a crash between Gmail’s answer and the record: the next run does not mail that guest again, nor does a take-over', async () => {
     const s = await scenario();
     const [a, b] = s.guests as [Recipient, Recipient];
     // Gmail accepts a's message, then the tab dies before the result is written.
@@ -254,10 +260,30 @@ describe('comms in the dev memory runtime, end to end', () => {
     expect(reloaded.ownInFlight.map((r) => r.email)).toEqual([a.email]);
     expect(reloaded.sent.map((x) => x.recipient.email)).toEqual([b.email]);
     expect(s.sentTo.filter((e) => e === a.email)).toHaveLength(1);
-    // Taking over is the officer's explicit choice (the page warns it may mail a twice) and is audited.
+    // Taking over is the officer's explicit choice and is audited; a's message was in flight, so it waits as unknown.
     const taken = await s.send(s.devGmail, [a], { takeOver: true });
-    expect(taken.sent.map((x) => x.recipient.email)).toEqual([a.email]);
-    expect((await s.audits()).some((x) => x.action === 'BẮT ĐẦU GỬI THƯ' && x.summary.includes('tiếp quản 1 người'))).toBe(true);
+    expect(taken.unclear.map((r) => r.email)).toEqual([a.email]);
+    expect(s.sentTo.filter((e) => e === a.email)).toHaveLength(1);
+    expect((await s.audits()).some((x) => x.action === 'BẮT ĐẦU GỬI THƯ' && x.summary.includes('chuyển sang "Không rõ đã gửi"'))).toBe(true);
+  });
+
+  it('a message Gmail accepted but the app never recorded is not mailed again after the lease: it waits as unknown', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      const s = await scenario();
+      const [a, b] = s.guests as [Recipient, Recipient];
+      const crashed = await s.send(s.devGmail, [a, b], { recordFails: new Set([a.email]) });
+      expect(crashed.unrecorded.map((u) => u.recipient.email)).toEqual([a.email]);
+      // The tab is gone; an hour later someone sends the same message again.
+      vi.setSystemTime(Date.now() + 60 * 60_000);
+      const later = await s.send(s.devGmail, [a, b]);
+      expect(later.unclear.map((r) => r.email)).toEqual([a.email]);
+      expect(s.sentTo.filter((e) => e === a.email)).toHaveLength(1);
+      const log = (await deliveryLogData(s.at(), s.eventId))!.rows.find((r) => r.email === a.email)!;
+      expect(log).toMatchObject({ status: 'unknown' });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('a long run renews its claims, so a run started after the lease sends nothing of its unsent tail', async () => {

@@ -27,7 +27,7 @@ export async function invitationScreenData(ctx: RequestContext, eventId: EventId
   const [roster, mailboxes, form, deliveries] = await Promise.all([readRoster(ctx, eventId), listMailboxes(ctx), readForm(ctx, eventId), listDeliveries(ctx, eventId)]);
   // Newest first, so the first row per guest is the latest result.
   const lastOf = new Map<GuestId, 'sent' | 'error' | 'unknown'>();
-  for (const d of deliveries) if (d.guestId && d.status !== 'queued' && !lastOf.has(d.guestId)) lastOf.set(d.guestId, d.status);
+  for (const d of deliveries) if (d.guestId && d.status !== 'queued' && d.status !== 'sending' && !lastOf.has(d.guestId)) lastOf.set(d.guestId, d.status);
   const campaignId = parseUuid<'EmailCampaign'>(retryCampaign);
   const failed = campaignId ? deliveries.filter((d) => d.campaignId === campaignId && d.status === 'error') : [];
   const campaign = campaignId && failed.length > 0 ? await readCampaign(ctx, eventId, campaignId) : null;

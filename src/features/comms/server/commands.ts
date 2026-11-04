@@ -7,7 +7,7 @@ import { defineCommands, type Sig } from '@/core/commands';
 import type { SenderMailbox } from '../contract';
 import type { ColumnMap } from '../domain/columns';
 import type { DeliveryResult, FormConfig, MailboxDraft, RunToken } from '../domain/schemas';
-import { markNotSent, recordDeliveries, releaseDeliveries, renewClaims, startCampaign } from './deliveries';
+import { markNotSent, markSending, recordDeliveries, releaseDeliveries, renewClaims, startCampaign } from './deliveries';
 import type { SyncReport } from '../domain/sync-report';
 import { resolveResponse, saveColumnMap, saveForm, syncFormWith } from './form';
 import { deleteMailbox, restoreMailbox, saveMailbox } from './mailboxes';
@@ -40,7 +40,8 @@ declare module '@/core/commands' {
      * the subject and body templates, so the same message composed again is the same campaign, and an address that
      * already received it is refused. A fresh claim of another run is left alone: `inFlight` when another officer
      * holds it, `ownInFlight` when another run of this officer does, which `takeOver` claims for this run instead.
-     * `unclear` addresses had a send whose answer was lost; they wait for comms.markNotSent.
+     * `unclear` addresses had a send whose answer was lost, or a dead run's message in flight (which the claim turns
+     * unknown); they wait for comms.markNotSent.
      */
     'comms.startCampaign': Sig<
       {
@@ -58,6 +59,8 @@ declare module '@/core/commands' {
     'comms.markNotSent': Sig<{ eventId: EventId; campaignId: CampaignId; emails: ReadonlyArray<Email> }, { marked: number }>;
     /** A live run's heartbeat: keeps its claims from looking like a dead run's, and names those it still holds. */
     'comms.renewClaims': Sig<{ eventId: EventId; campaignId: CampaignId; runToken: RunToken }, { held: ReadonlyArray<Email> }>;
+    /** Marks this run's claim of one address as being sent, just before the message goes to Gmail. */
+    'comms.markSending': Sig<{ eventId: EventId; campaignId: CampaignId; runToken: RunToken; email: Email }, null>;
     /** Frees the claims a stopped run did not use. */
     'comms.releaseDeliveries': Sig<{ eventId: EventId; campaignId: CampaignId; runToken: RunToken; emails: ReadonlyArray<Email> }, { released: number }>;
   }
@@ -80,6 +83,7 @@ export const createCommands = (deps: CommsDeps) =>
     startCampaign,
     recordDeliveries,
     renewClaims,
+    markSending,
     releaseDeliveries,
     markNotSent,
   });

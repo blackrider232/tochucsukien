@@ -1,6 +1,7 @@
 // One run of a campaign, as the browser runs it: claim the addresses under
-// the run's token, send to the claimed ones through the dispatcher, record
-// each outcome on its claim, and release the claims the run did not use.
+// the run's token, mark each claim 'sending' just before its message goes to
+// Gmail, send through the dispatcher, record each outcome on its claim, and
+// release the claims the run did not use.
 // A long run renews its claims well inside the lease, so its unsent tail is
 // never taken for a dead run's; if they were taken anyway, it stops.
 // Pure: the commands and the transport are passed in, so tests run exactly
@@ -40,6 +41,8 @@ export interface CampaignApi {
   release(campaignId: CampaignId, token: RunToken, emails: ReadonlyArray<Email>): Promise<void>;
   /** comms.renewClaims: the addresses this run still holds, or null when the renewal failed. */
   renew(campaignId: CampaignId, token: RunToken): Promise<ReadonlyArray<Email> | null>;
+  /** comms.markSending: true when marked, false when this run no longer holds the claim, null when it failed. */
+  markSending(campaignId: CampaignId, token: RunToken, email: Email): Promise<boolean | null>;
 }
 
 export interface CampaignReport extends DispatchReport<Recipient> {
@@ -100,6 +103,10 @@ export async function runCampaign(
           if (!held.includes(r.email)) throw new TransportError({ kind: 'claim_lost', message: 'Một phiên gửi khác đã tiếp quản những người nhận còn lại.' });
         }
       }
+      // Marked before Gmail is asked: a run that dies past this point leaves no claim another run would send again.
+      const marked = await o.api.markSending(id, token, r.email).catch(() => null);
+      if (marked === false) throw new TransportError({ kind: 'claim_lost', message: 'Một phiên gửi khác đã tiếp quản những người nhận còn lại.' });
+      if (marked === null) throw new TransportError({ kind: 'not_marked', message: 'Không đánh dấu được thư là đang gửi.' });
       return o.send(r);
     },
     async record(outcome) {

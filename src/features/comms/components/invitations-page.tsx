@@ -161,6 +161,7 @@ export function InvitationsPage({ data }: { data: InvitationScreenData }) {
           await run('comms.releaseDeliveries', { eventId: data.event.id, campaignId, runToken, emails });
         },
         renew: async (campaignId, runToken) => (await run('comms.renewClaims', { eventId: data.event.id, campaignId, runToken }))?.held ?? null,
+        markSending: async (campaignId, runToken, email) => ((await run('comms.markSending', { eventId: data.event.id, campaignId, runToken, email })) === undefined ? null : true),
       },
       async send(r) {
         let message: MailMessage;
@@ -200,7 +201,7 @@ export function InvitationsPage({ data }: { data: InvitationScreenData }) {
   const takeOver = async (list: ReadonlyArray<Recipient>) => {
     const ok = await dialogs.confirm({
       title: 'Tiếp quản phiên gửi khác?',
-      text: `${list.length} người nhận đang được giữ chỗ bởi một phiên gửi khác của bạn (một tab khác, hoặc trang này trước khi tải lại). Chỉ tiếp quản khi chắc chắn phiên đó đã đóng hoặc đã dừng. Nếu phiên đó vẫn đang gửi, hoặc đã gửi một thư mà chưa kịp ghi nhật ký, người nhận có thể nhận thư này hai lần.`,
+      text: `${list.length} người nhận đang được giữ chỗ bởi một phiên gửi khác của bạn (một tab khác, hoặc trang này trước khi tải lại). Chỉ tiếp quản khi chắc chắn phiên đó đã đóng hoặc đã dừng. Thư mà phiên đó đang gửi dở không được gửi lại: nó chuyển sang "Không rõ đã gửi" để bạn kiểm tra mục Đã gửi của Gmail.`,
       confirmLabel: 'Tiếp quản và gửi',
       cancelLabel: 'Để phiên kia gửi',
       tone: 'warning',

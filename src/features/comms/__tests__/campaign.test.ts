@@ -20,6 +20,7 @@ function fakeApi() {
     }),
     release: vi.fn<CampaignApi['release']>(async () => undefined),
     renew: vi.fn<CampaignApi['renew']>(async () => [...held] as Email[]),
+    markSending: vi.fn<CampaignApi['markSending']>(async (_c, _t, email) => held.has(email)),
   };
   return { api, held };
 }
@@ -88,5 +89,53 @@ describe('runCampaign keeps its claims alive', () => {
     });
     expect(report.sent).toHaveLength(3);
     expect(api.renew).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('runCampaign marks each message as being sent before Gmail is asked', () => {
+  const go = (api: CampaignApi, sent: string[]) =>
+    runCampaign({
+      recipients: people(3),
+      api,
+      run: { token: newId<'CampaignRun'>(), takeOver: false },
+      signal: new AbortController().signal,
+      sleep: async () => undefined,
+      send: async (r) => {
+        sent.push(r.email);
+        return { messageId: 'm' };
+      },
+    });
+
+  it('marks, then sends, one message at a time', async () => {
+    const { api } = fakeApi();
+    const order: string[] = [];
+    api.markSending.mockImplementation(async (_c, _t, email) => {
+      order.push(`mark ${email}`);
+      return true;
+    });
+    const sent: string[] = [];
+    const report = await go({ ...api, record: async (_c, _t, o) => (order.push(`record ${o.recipient.email}`), true) }, sent);
+    expect(report.sent).toHaveLength(3);
+    expect(order).toEqual(['mark p0@x.vn', 'record p0@x.vn', 'mark p1@x.vn', 'record p1@x.vn', 'mark p2@x.vn', 'record p2@x.vn']);
+  });
+
+  it('a claim no longer held stops the run before Gmail is asked', async () => {
+    const { api, held } = fakeApi();
+    api.markSending.mockImplementation(async (_c, _t, email) => email !== 'p1@x.vn' && held.has(email));
+    const sent: string[] = [];
+    const report = await go(api, sent);
+    expect(sent).toEqual(['p0@x.vn']);
+    expect(report).toMatchObject({ stoppedBy: 'claim_lost' });
+    expect(api.release).toHaveBeenCalledWith(CAMPAIGN, expect.anything(), ['p1@x.vn', 'p2@x.vn']);
+  });
+
+  it('a mark that fails (network) stops the run unsent and frees the rest', async () => {
+    const { api } = fakeApi();
+    api.markSending.mockResolvedValueOnce(true).mockResolvedValueOnce(null);
+    const sent: string[] = [];
+    const report = await go(api, sent);
+    expect(sent).toEqual(['p0@x.vn']);
+    expect(report).toMatchObject({ stoppedBy: 'not_marked' });
+    expect(report.skipped.map((s) => [s.recipient.email, s.reason])).toEqual([['p1@x.vn', 'not_marked'], ['p2@x.vn', 'not_marked']]);
   });
 });

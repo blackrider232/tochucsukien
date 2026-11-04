@@ -61,7 +61,7 @@ export interface DeliveryLogRow {
   email: Email;
   subject: string;
   senderEmail: string;
-  status: 'sent' | 'error' | 'unknown' | 'queued';
+  status: 'sent' | 'error' | 'unknown' | 'queued' | 'sending';
   sentAt: Instant | null;
   updatedAt: Instant;
   error: string | null;

@@ -30,6 +30,7 @@ const EVENT_COMMANDS = {
   startCampaign: 'comms.send',
   recordDeliveries: 'comms.send',
   renewClaims: 'comms.send',
+  markSending: 'comms.send',
   releaseDeliveries: 'comms.send',
   markNotSent: 'comms.send',
 } as const;
@@ -49,6 +50,7 @@ async function fixture() {
     startCampaign: { eventId, senderEmail: 'btc@x.vn' as Email, subject: 's', body: '<p>b</p>', attachQr: false, runToken: RUN, takeOver: false, recipients: [{ guestId: null, email: 'b@x.vn', recipientName: '' }] },
     recordDeliveries: { eventId, campaignId: claim.campaignId, runToken: RUN, senderEmail: 'btc@x.vn' as Email, subject: 's', results: [{ guestId: null, email: 'a@x.vn', recipientName: '', status: 'error', providerMessageId: null, error: 'x' }] },
     renewClaims: { eventId, campaignId: claim.campaignId, runToken: RUN },
+    markSending: { eventId, campaignId: claim.campaignId, runToken: RUN, email: 'a@x.vn' },
     markNotSent: { eventId, campaignId: claim.campaignId, emails: ['a@x.vn'] },
     releaseDeliveries: { eventId, campaignId: claim.campaignId, runToken: RUN, emails: ['a@x.vn'] },
   };

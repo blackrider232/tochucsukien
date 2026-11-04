@@ -10,7 +10,8 @@ afterEach(() => vi.useRealTimers());
 const fail = (kind: SendFailureKind, retryAfterMs?: number) => new TransportError({ kind, message: kind, retryAfterMs });
 
 /** Runs a dispatch to its end while advancing fake time; returns the report and the instants each send happened. */
-async function run(recipients: string[], behaviour: (r: string, attempt: number) => 'ok' | TransportError, opts: { cancelAfter?: number; recordFails?: string } = {}) {
+async function run(recipients: string[], behaviour: (r: string, attempt: number) => 'ok' | TransportError, opts: { cancelAfter?: number; recordFails?: string; recordFailsOnce?: string } = {}) {
+  const failedOnce = new Set<string>();
   const attempts = new Map<string, number>();
   const sendTimes: Array<[string, number]> = [];
   const recorded: DispatchOutcome<string>[] = [];
@@ -31,6 +32,10 @@ async function run(recipients: string[], behaviour: (r: string, attempt: number)
     },
     async record(o) {
       if (o.recipient === opts.recordFails) throw new Error('db down');
+      if (o.recipient === opts.recordFailsOnce && !failedOnce.has(o.recipient)) {
+        failedOnce.add(o.recipient);
+        throw new Error('db down');
+      }
       recorded.push(o);
     },
   });
@@ -101,6 +106,14 @@ describe('dispatch', () => {
     expect(report.stoppedBy).toBe('unknown');
     const all = [...report.sent, ...report.failed, ...report.unknown, ...report.skipped, ...report.unrecorded].map((x) => x.recipient).sort();
     expect(all).toEqual([...recipients].sort());
+  });
+
+  it('tries again to record a send it knows went, and carries on when that works', async () => {
+    const { report, recorded } = await run(['a', 'b', 'c'], () => 'ok', { recordFailsOnce: 'b' });
+    expect(report.sent.map((s) => s.recipient)).toEqual(['a', 'b', 'c']);
+    expect(report.unrecorded).toEqual([]);
+    expect(recorded.map((o) => o.recipient)).toEqual(['a', 'b', 'c']);
+    expect(report.stoppedBy).toBeNull();
   });
 
   it('stops when a result cannot be recorded, and names the sent-but-unrecorded recipient', async () => {

@@ -24,7 +24,7 @@ const STATUS_OPTIONS = [
 
 function StatusCell({ row }: { row: DeliveryLogRow }) {
   if (row.status === 'sent') return <Badge tone={row.imported ? 'slate' : 'emerald'} icon="circle-check">{row.imported ? 'Đã gửi (phần mềm cũ)' : 'Đã gửi'}</Badge>;
-  if (row.status === 'queued') return <Badge tone="amber" icon="clock">Đang gửi</Badge>;
+  if (row.status === 'queued' || row.status === 'sending') return <Badge tone="amber" icon="clock">Đang gửi</Badge>;
   if (row.status === 'unknown') return <Badge tone="amber" icon="alert-triangle">Không rõ đã gửi</Badge>;
   return <Badge tone="rose" icon="circle-x">Lỗi gửi</Badge>;
 }
@@ -35,7 +35,7 @@ export function DeliveryLog({ data }: { data: DeliveryLogData }) {
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('all');
   const [campaign, setCampaign] = useState('all');
-  const rows = data.rows.filter((r) => (status === 'all' || r.status === status) && (campaign === 'all' || r.campaignId === campaign) && matchesQuery(q, r.recipientName, r.email, r.subject, r.error));
+  const rows = data.rows.filter((r) => (status === 'all' || r.status === status || (status === 'queued' && r.status === 'sending')) && (campaign === 'all' || r.campaignId === campaign) && matchesQuery(q, r.recipientName, r.email, r.subject, r.error));
   const failedCampaign = campaign !== 'all' && data.rows.some((r) => r.campaignId === campaign && r.status === 'error') ? campaign : null;
   const sent = data.rows.filter((r) => r.status === 'sent').length;
   const failed = data.rows.filter((r) => r.status === 'error').length;
