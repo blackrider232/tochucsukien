@@ -3,7 +3,8 @@
 // Gmail, send through the dispatcher, record each outcome on its claim, and
 // release the claims the run did not use.
 // A long run renews its claims well inside the lease, so its unsent tail is
-// never taken for a dead run's; if they were taken anyway, it stops.
+// never taken for a dead run's; if they were taken anyway, or renewals keep
+// failing until the claims could run out, it stops.
 // Pure: the commands and the transport are passed in, so tests run exactly
 // this with the fakes.
 
@@ -16,6 +17,11 @@ import { MAX_CLAIM_BATCH, type RunToken } from './schemas';
 export const CLAIM_LEASE_MS = 30 * 60_000;
 /** A live run renews its claims this often, before its next message. */
 export const CLAIM_RENEW_MS = 5 * 60_000;
+/**
+ * A run whose last good renewal is this old sends nothing more: renewals keep failing, and its unsent claims must not
+ * run out while it still sends. The margin covers a message's own retries and a clock that runs apart from the server's.
+ */
+export const CLAIM_STALE_MS = CLAIM_LEASE_MS - 10 * 60_000;
 
 export interface ClaimResult {
   campaignId: CampaignId;
@@ -97,12 +103,13 @@ export async function runCampaign(
     async send(r) {
       if (now() - renewedAt >= CLAIM_RENEW_MS) {
         const held = await o.api.renew(id, token).catch(() => null);
-        // A failed renewal leaves the lease running; the next message tries again.
+        // A failed renewal leaves the lease running; the next message tries again, until the claims are too old.
         if (held) {
           renewedAt = now();
           if (!held.includes(r.email)) throw new TransportError({ kind: 'claim_lost', message: 'Một phiên gửi khác đã tiếp quản những người nhận còn lại.' });
         }
       }
+      if (now() - renewedAt >= CLAIM_STALE_MS) throw new TransportError({ kind: 'claim_stale', message: 'Không gia hạn được giữ chỗ người nhận.' });
       // Marked before Gmail is asked: a run that dies past this point leaves no claim another run would send again.
       const marked = await o.api.markSending(id, token, r.email).catch(() => null);
       if (marked === false) throw new TransportError({ kind: 'claim_lost', message: 'Một phiên gửi khác đã tiếp quản những người nhận còn lại.' });

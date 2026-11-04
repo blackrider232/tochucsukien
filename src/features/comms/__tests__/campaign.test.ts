@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { newId, type CampaignId, type Email } from '@/core/brand';
-import { CLAIM_LEASE_MS, CLAIM_RENEW_MS, runCampaign, type CampaignApi } from '../domain/campaign';
+import { CLAIM_LEASE_MS, CLAIM_RENEW_MS, CLAIM_STALE_MS, runCampaign, type CampaignApi } from '../domain/campaign';
 import { fromManual, type Recipient } from '../domain/compose';
 
 const CAMPAIGN = '0b0e0b0e-0000-5000-8000-000000000001' as CampaignId;
@@ -89,6 +89,53 @@ describe('runCampaign keeps its claims alive', () => {
     });
     expect(report.sent).toHaveLength(3);
     expect(api.renew).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('runCampaign stops before its claims could run out', () => {
+  it('a renewal that keeps failing stops the run before the last good renewal is older than the lease allows', async () => {
+    const { api } = fakeApi();
+    api.renew.mockResolvedValue(null);
+    let clock = 0;
+    const sent: number[] = [];
+    const report = await runCampaign({
+      recipients: people(4),
+      api,
+      run: { token: newId<'CampaignRun'>(), takeOver: false },
+      now: () => clock,
+      signal: new AbortController().signal,
+      sleep: async () => undefined,
+      send: async () => {
+        sent.push(clock);
+        clock += 12 * 60_000;
+        return { messageId: 'm' };
+      },
+    });
+    // Claimed at 0 and never renewed: the message due at 24 minutes is not sent, the rest are freed.
+    expect(sent).toEqual([0, 12 * 60_000]);
+    expect(report).toMatchObject({ stoppedBy: 'claim_stale' });
+    expect(report.skipped.map((s) => [s.recipient.email, s.reason])).toEqual([['p2@x.vn', 'claim_stale'], ['p3@x.vn', 'claim_stale']]);
+    expect(api.release).toHaveBeenCalledWith(CAMPAIGN, expect.anything(), ['p2@x.vn', 'p3@x.vn']);
+    expect(CLAIM_STALE_MS).toBeLessThan(CLAIM_LEASE_MS);
+  });
+
+  it('a renewal that works again in time keeps the run going', async () => {
+    const { api } = fakeApi();
+    api.renew.mockResolvedValueOnce(null);
+    let clock = 0;
+    const report = await runCampaign({
+      recipients: people(4),
+      api,
+      run: { token: newId<'CampaignRun'>(), takeOver: false },
+      now: () => clock,
+      signal: new AbortController().signal,
+      sleep: async () => undefined,
+      send: async () => {
+        clock += 9 * 60_000;
+        return { messageId: 'm' };
+      },
+    });
+    expect(report.sent).toHaveLength(4);
   });
 });
 

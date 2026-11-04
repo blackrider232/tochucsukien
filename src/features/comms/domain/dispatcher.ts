@@ -11,9 +11,10 @@
 /**
  * claim_lost: the run no longer holds the next recipient's claim (another run took it over), so nothing more may go.
  * not_marked: the claim could not be marked as being sent, so the message was not handed to Gmail.
+ * claim_stale: the run could not renew its claims for so long that they could run out, so nothing more may go.
  * network: no usable answer from Gmail, so the message may or may not have been sent.
  */
-export type SendFailureKind = 'auth' | 'quota' | 'claim_lost' | 'not_marked' | 'rate' | 'server' | 'network' | 'invalid' | 'too_large';
+export type SendFailureKind = 'auth' | 'quota' | 'claim_lost' | 'claim_stale' | 'not_marked' | 'rate' | 'server' | 'network' | 'invalid' | 'too_large';
 export interface SendFailure {
   kind: SendFailureKind;
   message: string;
@@ -26,7 +27,7 @@ export class TransportError extends Error {
   }
 }
 
-export type SkipReason = 'cancelled' | 'auth' | 'quota' | 'claim_lost' | 'not_marked' | 'unknown' | 'not_recorded';
+export type SkipReason = 'cancelled' | 'auth' | 'quota' | 'claim_lost' | 'claim_stale' | 'not_marked' | 'unknown' | 'not_recorded';
 export type DispatchOutcome<R> =
   | { kind: 'sent'; recipient: R; messageId: string }
   | { kind: 'failed'; recipient: R; failure: SendFailure; attempts: number }
@@ -60,8 +61,8 @@ export interface DispatchOptions<R> {
 
 export const SEND_SPACING_MS = 1200;
 const RETRYABLE: ReadonlySet<SendFailureKind> = new Set(['rate', 'server']);
-const STOPPING: ReadonlySet<SendFailureKind> = new Set(['auth', 'quota', 'claim_lost', 'not_marked']);
-type Stop = 'auth' | 'quota' | 'claim_lost' | 'not_marked';
+const STOPPING: ReadonlySet<SendFailureKind> = new Set(['auth', 'quota', 'claim_lost', 'claim_stale', 'not_marked']);
+type Stop = 'auth' | 'quota' | 'claim_lost' | 'claim_stale' | 'not_marked';
 
 function failureOf(e: unknown): SendFailure {
   if (e instanceof TransportError) return e.failure;
