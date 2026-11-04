@@ -10,6 +10,8 @@
   },
   "scripts": {
     "dev": "next dev",
+    "dev:env": "infisical run --env=dev -- next dev",
+    "check:env": "node scripts/check-env.mjs",
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",
