@@ -1,10 +1,13 @@
 'use client';
 
 // "Gửi thư mời" (m4c §1.10). The sender, the recipients, the composer and the
-// send loop. Gmail is called from the browser with an in-memory token; each
-// outcome is recorded through comms.recordDeliveries as Gmail answered it.
-// There is no sandbox (decision 16): "Gửi thử cho tôi" really sends one
-// message to the signed-in officer.
+// send loop. Gmail is called from the browser with an in-memory token, as the
+// Google account signed in on this card. runCampaign claims the addresses
+// (comms.startCampaign), sends to the claimed ones, records each outcome as
+// Gmail answered it and releases what a stopped run did not use. There is no
+// sandbox (decision 16): "Gửi thử cho tôi" really sends one message to the
+// officer signed in to the app; the dev memory runtime swaps in the fake
+// transport and labels it.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWatch } from 'react-hook-form';
