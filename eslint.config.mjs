@@ -58,7 +58,7 @@ const syntaxRule = (...allowed) => [
 ];
 
 export default defineConfig([
-  globalIgnores(['.next/**', 'node_modules/**', 'legacy/**', 'docs/**', 'public/**', 'next-env.d.ts']),
+  globalIgnores(['.next/**', 'node_modules/**', 'legacy/**', 'docs/**', '.agents/**', '.claude/**', 'public/**', 'next-env.d.ts']),
   ...nextCoreWebVitals,
   ...nextTypescript,
   {
