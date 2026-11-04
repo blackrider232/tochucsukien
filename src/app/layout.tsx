@@ -4,7 +4,7 @@ import Script from 'next/script';
 import type { ReactNode } from 'react';
 import { SkipLink, UiProviders } from '@/components/ui';
 import { UpdatePrompt } from '@/components/shell/update-prompt';
-import { THEME_BOOT_SCRIPT } from '@/core/prefs';
+import { THEME_BOOT_SCRIPT } from '@/core/prefs/boot';
 import './globals.css';
 
 const inter = Inter({

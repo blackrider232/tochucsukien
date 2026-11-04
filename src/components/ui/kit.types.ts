@@ -21,7 +21,7 @@ export type IconName =
   | 'user-cog' | 'layout-template' | 'building' | 'contact' | 'bell' | 'printer' | 'cloud' | 'download'
   | 'undo' | 'redo' | 'moon' | 'sun' | 'plus' | 'pencil' | 'trash' | 'search' | 'x' | 'check' | 'qr-code'
   | 'mail' | 'file-spreadsheet' | 'file-text' | 'alert-triangle' | 'clock' | 'lock' | 'unlock' | 'shield'
-  | 'log-out' | 'chevron-down' | 'chevron-right' | 'copy' | 'external-link' | 'upload' | 'map' | 'armchair';
+  | 'log-out' | 'chevron-down' | 'chevron-right' | 'copy' | 'external-link' | 'upload' | 'map' | 'armchair' | 'menu';
 
 // ---------- actions ----------
 export interface ButtonProps {

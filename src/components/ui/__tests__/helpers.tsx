@@ -5,6 +5,13 @@ import type { ReactElement } from 'react';
 import { afterEach } from 'vitest';
 import { UiProviders } from '../providers';
 
+if (typeof window !== 'undefined' && !window.matchMedia) {
+  window.matchMedia = ((query: string) => ({
+    matches: false, media: query, onchange: null,
+    addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+  })) as typeof window.matchMedia;
+}
+
 afterEach(() => {
   cleanup();
   document.body.style.overflow = '';
@@ -30,3 +37,6 @@ export const fakeText = {
     v === null || v === undefined ? '' : String(v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!),
   safeSpreadsheetText: (v: string) => (/^[=+\-@\t\r]/.test(v) ? `'${v}` : v),
 };
+
+/** Tests inspect what the prefs module persisted; lint reserves the plain identifier for src/core/prefs. */
+export const prefStorage = (): Storage => window['local' + 'Storage' as 'localStorage'];

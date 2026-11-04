@@ -1,6 +1,8 @@
 // UI preferences, the only place localStorage is allowed (eslint enforces it).
 // Holds device settings only: theme, sidebar collapse, check-in beep. No user data.
 
+'use client';
+
 import { useCallback, useSyncExternalStore } from 'react';
 
 export type PrefKey = 'theme' | 'sce_sidebar_collapsed' | 'sce_beep';
@@ -53,7 +55,3 @@ export function useBoolPref(key: PrefKey, fallback: boolean): [boolean, (next: b
   const set = useCallback((next: boolean) => setRaw(next ? '1' : '0'), [setRaw]);
   return [raw === '1', set];
 }
-
-/** Inline script run before first paint so the saved theme never flashes. Contains no markup characters. */
-export const THEME_BOOT_SCRIPT =
-  '(function(){try{var t=localStorage.getItem("theme");if(t!=="light"&&t!=="dark"){t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)}catch(e){}})()';
