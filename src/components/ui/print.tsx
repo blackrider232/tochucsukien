@@ -41,10 +41,14 @@ export function PrintPage({ size, orientation, margins, children }: PrintPagePro
   );
 }
 
-const ISSUER_LINES = {
-  ubnd: (o: ReturnType<typeof orgIdentity>) => ({ top: 'ỦY BAN NHÂN DÂN', main: `THÀNH PHỐ ${o.city.toUpperCase()}` }),
-  so_tai_chinh: (o: ReturnType<typeof orgIdentity>) => ({ top: `UBND THÀNH PHỐ ${o.city.toUpperCase()}`, main: o.parentAgency }),
-  trung_tam: (o: ReturnType<typeof orgIdentity>) => ({ top: o.parentAgency, main: o.agencyName }),
+type Org = ReturnType<typeof orgIdentity>;
+
+// NĐ30 letterhead: the direct parent agency in regular capitals, then the issuing body in bold.
+// The Center and Sở Tài chính names come from settings (commit aff2037); UBND has no parent line.
+const ISSUER_LINES: Record<Nd30HeaderProps['issuer'], (o: Org) => { parent: string | null; name: ReadonlyArray<string> }> = {
+  ubnd: (o) => ({ parent: null, name: ['ỦY BAN NHÂN DÂN', `THÀNH PHỐ ${o.city.toUpperCase()}`] }),
+  so_tai_chinh: (o) => ({ parent: `ỦY BAN NHÂN DÂN THÀNH PHỐ ${o.city.toUpperCase()}`, name: [o.parentAgency] }),
+  trung_tam: (o) => ({ parent: o.parentAgency, name: [o.agencyName] }),
 };
 
 /** Quốc hiệu và Tiêu ngữ on the right, issuing body and document number on the left. */
@@ -55,8 +59,8 @@ export function Nd30Header({ issuer, documentNumber, date }: Nd30HeaderProps) {
   return (
     <header className="mb-4 grid grid-cols-[1fr_1.15fr] gap-4 text-center text-[13px]">
       <div>
-        <p className="uppercase">{lines.top}</p>
-        <p className="font-bold uppercase">{lines.main}</p>
+        {lines.parent && <p className="uppercase">{lines.parent}</p>}
+        {lines.name.map((line) => <p key={line} className="font-bold uppercase">{line}</p>)}
         <p aria-hidden="true" className="mx-auto mt-0.5 h-px w-20 bg-black" />
         <p className="mt-2">{documentNumber ?? `Số: ..... /${org.agencyShortName}`}</p>
       </div>

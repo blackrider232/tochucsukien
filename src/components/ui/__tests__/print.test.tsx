@@ -6,6 +6,12 @@ import type { IsoDate } from '@/core/brand';
 import { withAppContext } from './helpers';
 import { Nd30Header, PrintLink, PrintPage, SignatureBlock, pageCss } from '../print';
 
+const issuerLines = (issuer: 'ubnd' | 'so_tai_chinh' | 'trung_tam') => {
+  const { container } = render(withAppContext(<Nd30Header issuer={issuer} />));
+  const left = container.querySelector('header > div')!;
+  return [...left.querySelectorAll('p')].map((p) => [p.textContent, p.classList.contains('font-bold') ? 'bold' : 'regular']).filter(([t]) => t !== '' && !t!.startsWith('Số'));
+};
+
 describe('print primitives', () => {
   it('emits the @page rule for size, orientation and NĐ30 margins', () => {
     expect(pageCss({ size: 'A4', orientation: 'portrait', margins: 'nd30' })).toBe('@page { size: A4 portrait; margin: 20mm 15mm 20mm 30mm; }');
@@ -37,6 +43,21 @@ describe('print primitives', () => {
     render(withAppContext(<Nd30Header issuer="so_tai_chinh" />));
     expect(screen.getByText('Số: ..... /SCE')).toBeInTheDocument();
     expect(screen.getByText(/ngày \.\.\.\.\. tháng \.\.\.\.\. năm \.\.\.\.\./)).toBeInTheDocument();
+  });
+
+  it('Nd30Header names each issuer as NĐ30 prints it: parent agency regular, issuing body bold', () => {
+    expect(issuerLines('trung_tam')).toEqual([
+      ['SỞ TÀI CHÍNH HÀ NỘI', 'regular'],
+      ['TRUNG TÂM XÚC TIẾN ĐẦU TƯ VÀ HỖ TRỢ DOANH NGHIỆP HÀ NỘI', 'bold'],
+    ]);
+    expect(issuerLines('so_tai_chinh')).toEqual([
+      ['ỦY BAN NHÂN DÂN THÀNH PHỐ HÀ NỘI', 'regular'],
+      ['SỞ TÀI CHÍNH HÀ NỘI', 'bold'],
+    ]);
+    expect(issuerLines('ubnd')).toEqual([
+      ['ỦY BAN NHÂN DÂN', 'bold'],
+      ['THÀNH PHỐ HÀ NỘI', 'bold'],
+    ]);
   });
 
   it('SignatureBlock lists recipients and both signatories', () => {
