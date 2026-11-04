@@ -118,8 +118,15 @@ async function authorize(ctx: CommandContext, spec: AnyCommandSpec, input: unkno
   return can(ctx.actor, rule.perm, resource) ? null : failure('forbidden', MESSAGES.db.forbidden);
 }
 
+/** An audit entry reached the pipeline with no writer to take it (dispatch without a service key, on a query). */
+export class MissingAuditWriter extends Error {
+  constructor(readonly command: string) {
+    super(`command ${command}: no audit writer`);
+  }
+}
+
 async function auditRow(audit: AuditWriter | null, ctx: RequestContext, id: string, spec: AnyCommandSpec, entry: AuditEntry): Promise<void> {
-  if (!audit) throw new Error(`command ${id}: no audit writer`);
+  if (!audit) throw new MissingAuditWriter(id);
   await audit(ctx.actor, { ...entry, command: id, perm: spec.authorize.perm });
 }
 

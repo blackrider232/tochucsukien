@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { EventId, GuestId, Instant, Version } from '@/core/brand';
 import type { Actor, RequestContext } from '@/core/auth';
 import { CommandError, defineCommands, type CommandResult } from '@/core/commands';
-import { commandLookup, runCommand, type AnyCommandSpec, type CommandLookup } from '@/core/commands/pipeline';
+import { commandLookup, MissingAuditWriter, runCommand, type AnyCommandSpec, type CommandLookup } from '@/core/commands/pipeline';
 import { buildWorkCalendar } from '@/core/dates';
 import { DbError, memoryDb, type AuditWriter, type Db } from '@/core/db';
 import { inspectMemoryDb } from '@/core/db/memory';
@@ -72,6 +72,13 @@ const specs: Record<string, AnyCommandSpec> = {
     input: z.object({}),
     authorize: { perm: 'core.profile.edit', global: true },
     run: async () => ({ value: 1, audit: 'sql' }),
+  },
+  // A query that returns an entry by mistake still gets its row, so without a writer it is lost and logged.
+  'guests.testAuditedQuery': {
+    kind: 'query',
+    input: z.object({ eventId: z.string() }),
+    authorize: { perm: 'guests.read', event: (i) => (i as { eventId: EventId }).eventId },
+    run: async (_ctx, raw) => ({ value: 1, audit: { action: 'XEM KHÁCH MỜI', summary: '', eventId: (raw as { eventId: EventId }).eventId, entity: null, entityId: null } }),
   },
   'guests.testCount': {
     kind: 'query',
@@ -436,6 +443,20 @@ describe('pipeline: the audit writer', () => {
     const r = await runCommand(ctxWith(actor, db), lookup, 'progress.testDelete', { eventId: E1 });
     expect(failureOf(r)).toMatchObject({ kind: 'unavailable' });
     expect(run.mock.calls.length).toBe(calls);
+    spy.mockRestore();
+  });
+});
+
+describe('pipeline: no audit writer', () => {
+  it('an entry with no writer to take it is a MissingAuditWriter, logged, and the result is reported unaudited', async () => {
+    const actor = testActor('user', XTDT);
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const ctx: RequestContext = { actor, db: memoryDb({ sce_tcsk_events: eventRows() }, actor), settings: { ...DEFAULT_SETTINGS, version: 1 as Version }, calendar: buildWorkCalendar([]), now: '2026-11-04T01:00:00.000Z' as Instant };
+    const r = await runCommand(ctx, lookup, 'guests.testAuditedQuery', { eventId: E1 }, null);
+    expect(r).toMatchObject({ ok: true, value: 1, unaudited: expect.any(String) });
+    const error = spy.mock.calls[0]?.[2];
+    expect(error).toBeInstanceOf(MissingAuditWriter);
+    expect(error).toMatchObject({ command: 'guests.testAuditedQuery' });
     spy.mockRestore();
   });
 });
