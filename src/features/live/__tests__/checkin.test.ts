@@ -109,7 +109,7 @@ describe('declined guests (decision 7)', () => {
 });
 
 describe('cancel, restore and the welcome pack', () => {
-  it('cancel clears the check-in with its gift; restore refuses a time in the future or a guest checked in again', async () => {
+  it('cancel clears the check-in with its gift; its undo refuses a guest checked in again', async () => {
     const { h, eventId, guest } = await setup();
     await h.ok(desk, 'live.checkIn', { eventId, guestId: guest.id, desk: null });
     await h.ok(desk, 'live.setGift', { eventId, guestId: guest.id, given: true });
@@ -117,8 +117,6 @@ describe('cancel, restore and the welcome pack', () => {
     expect(await h.checkins(eventId)).toEqual([]);
     expect(h.audits().at(-1)!.summary).toBe('Hủy check-in lúc 07:45: Trần Văn Bình (Sở Công Thương), bỏ cả ghi nhận phát quà');
 
-    const future = await h.run(desk, 'live.restoreCheckIn', { eventId, guestId: guest.id, checkedInAt: '2026-12-16T00:00:00.000Z' as Instant, desk: null, giftGiven: false });
-    expect(future).toMatchObject({ ok: false, kind: 'invalid' });
 
     await h.ok(desk, 'live.checkIn', { eventId, guestId: guest.id, desk: null });
     expect(await h.undo(desk, cancel.inverse)).toMatchObject({ ok: false, kind: 'conflict' });
@@ -142,5 +140,82 @@ describe('cancel, restore and the welcome pack', () => {
     expect(again.inverse).toBeUndefined();
     await h.undo(desk, g.inverse);
     expect((await h.checkins(eventId))[0]!.giftGivenAt).toBeNull();
+  });
+});
+
+describe('the undo of a cancel restores what the server kept, once', () => {
+  const GIFT_AT = '2026-12-15T00:50:00.000Z' as Instant;
+  const CANCEL_AT = '2026-12-15T02:00:00.000Z' as Instant;
+  const restorer = testActor('user', XTDT);
+
+  async function cancelled() {
+    const s = await setup();
+    await s.h.ok(desk, 'live.checkIn', { eventId: s.eventId, guestId: s.guest.id, desk: 'Bàn 2' });
+    s.h.clock.now = GIFT_AT;
+    await s.h.ok(desk, 'live.setGift', { eventId: s.eventId, guestId: s.guest.id, given: true });
+    s.h.clock.now = CANCEL_AT;
+    const cancel = await s.h.ok(restorer, 'live.cancelCheckIn', { eventId: s.eventId, guestId: s.guest.id });
+    return { ...s, cancel };
+  }
+
+  it('brings back the original time, desk, gift time and actor, and the audit names them', async () => {
+    const { h, eventId, cancel } = await cancelled();
+    h.clock.now = '2026-12-15T02:05:00.000Z' as Instant;
+    const r = await h.undo(restorer, cancel.inverse);
+    expect(r.ok).toBe(true);
+    expect((await h.checkins(eventId))[0]).toMatchObject({ checkedInAt: NOW, desk: 'Bàn 2', giftGivenAt: GIFT_AT, checkedInBy: desk.profile.id });
+    expect(h.audits().at(-1)).toMatchObject({
+      action: 'KHÔI PHỤC CHECK-IN',
+      summary: 'Khôi phục check-in lúc 07:45 (hoàn tác): Trần Văn Bình (Sở Công Thương), đã phát quà lúc 07:50',
+    });
+  });
+
+  it('refuses a restore the client made up: a guest never checked in stays unchecked and nothing is audited', async () => {
+    const { h, eventId } = await setup();
+    const never = await h.addGuest(eventId, { name: 'Lê Thị Thật' });
+    const before = h.audits().length;
+    const forged = { eventId, guestId: never.id, checkedInAt: '2020-01-01T00:00:00.000Z', desk: 'forged', giftGiven: true };
+    const r = await h.run(desk, 'live.restoreCheckIn', forged as never);
+    expect(r.ok).toBe(false);
+    expect(await h.checkins(eventId)).toEqual([]);
+    expect(h.audits()).toHaveLength(before);
+  });
+
+  it('a token is single-use: an old undo cannot restore a check-in after a later cancel', async () => {
+    const { h, eventId, guest, cancel } = await cancelled();
+    await h.undo(restorer, cancel.inverse);
+    await h.ok(restorer, 'live.cancelCheckIn', { eventId, guestId: guest.id });
+    expect(await h.undo(restorer, cancel.inverse)).toMatchObject({ ok: false, kind: 'conflict' });
+    expect(await h.checkins(eventId)).toEqual([]);
+  });
+
+  it('an expired token is refused', async () => {
+    const { h, eventId, cancel } = await cancelled();
+    h.clock.now = '2026-12-15T02:16:00.000Z' as Instant;
+    const r = await h.undo(restorer, cancel.inverse);
+    expect(r).toMatchObject({ ok: false, kind: 'conflict' });
+    expect(r.ok ? '' : r.message).toContain('quá 15 phút');
+    expect(await h.checkins(eventId)).toEqual([]);
+  });
+
+  it('a token restores only its own guest of its own event', async () => {
+    const { h, eventId, cancel } = await cancelled();
+    const someone = await h.addGuest(eventId, { name: 'Phạm Thị Khác' });
+    const input = cancel.inverse!.input as Record<string, unknown>;
+    expect(await h.run(restorer, 'live.restoreCheckIn', { ...input, guestId: someone.id } as never)).toMatchObject({ ok: false });
+    const otherEvent = await h.createEvent();
+    const twin = await h.addGuest(otherEvent, { name: 'Trần Văn Bình', organization: 'Sở Công Thương' });
+    expect(await h.run(restorer, 'live.restoreCheckIn', { ...input, eventId: otherEvent, guestId: twin.id } as never)).toMatchObject({ ok: false });
+    expect(await h.checkins(eventId)).toEqual([]);
+    expect(await h.checkins(otherEvent)).toEqual([]);
+  });
+
+  it('undoing the cancel of a confirmed declined check-in needs no second confirmation (decision 7)', async () => {
+    const { h, eventId } = await setup();
+    const declined = await h.addGuest(eventId, { name: 'Lê Thị Vắng', rsvpStatus: 'declined' });
+    await h.ok(desk, 'live.checkInDeclined', { eventId, guestId: declined.id, desk: null });
+    const cancel = await h.ok(desk, 'live.cancelCheckIn', { eventId, guestId: declined.id });
+    expect(await h.undo(desk, cancel.inverse)).toMatchObject({ ok: true });
+    expect((await h.checkins(eventId))[0]).toMatchObject({ guestId: declined.id, checkedInAt: NOW });
   });
 });
