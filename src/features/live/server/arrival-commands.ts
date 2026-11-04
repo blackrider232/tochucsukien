@@ -100,10 +100,14 @@ export const walkIn: Spec<'live.walkIn'> = {
   async run(ctx, input) {
     const { eventId, guestId } = input;
     const roster = await readRoster(ctx, eventId);
-    const retry = roster.find((g) => g.id === guestId) ?? null;
     const draft = draftOf(input.guest);
+    const key = guestIdentityKey(draft);
+    const retry = roster.find((g) => g.id === guestId) ?? null;
+    // Only this dialog's own walk-in, pressed again, may reuse the id; any other guest's id is not a retry.
+    if (retry && (retry.rsvpSource !== 'walk_in' || guestIdentityKey(retry) !== key)) {
+      throw new CommandError('conflict', 'Mã khách này đã thuộc về một đại biểu khác trong danh sách. Đóng hộp thoại rồi mở lại để tiếp nhận khách mới.');
+    }
     if (!retry && !input.allowDuplicate) {
-      const key = guestIdentityKey(draft);
       const twin = roster.find((g) => guestIdentityKey(g) === key);
       if (twin) throw new CommandError('invalid', `Đã có ${who(twin)} trong danh sách khách mời. Check-in đại biểu đó, hoặc chọn "Vẫn tạo khách mới".`);
     }

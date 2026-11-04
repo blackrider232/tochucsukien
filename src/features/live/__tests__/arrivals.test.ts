@@ -81,6 +81,20 @@ describe('live.walkIn (decision 10)', () => {
     expect(await h.checkins(eventId)).toHaveLength(1);
   });
 
+  it('refuses the id of a guest who is not that walk-in: nobody else is checked in, seated or audited under a false name', async () => {
+    const { h, eventId } = await setup();
+    const real = await h.addGuest(eventId, { name: 'Lê Thị Thật', organization: 'Sở Thật' });
+    const before = h.audits().length;
+    const r = await h.run(desk, 'live.walkIn', walk(eventId, { guestId: real.id, zoneKey: 'B' }, { name: 'Người Giả', organization: 'X' }));
+    expect(r).toMatchObject({ ok: false, kind: 'conflict' });
+    expect(await h.entry(eventId, real.id)).toMatchObject({ checkedInAt: null, seatCode: null });
+    expect(h.audits()).toHaveLength(before);
+
+    const first = await h.ok(desk, 'live.walkIn', walk(eventId, {}, { name: 'Khách Phát Sinh', organization: 'Công ty A' }));
+    const other = await h.run(desk, 'live.walkIn', walk(eventId, { guestId: first.value.guestId }, { name: 'Người Khác', organization: 'Công ty B' }));
+    expect(other).toMatchObject({ ok: false, kind: 'conflict' });
+  });
+
   it('when another desk takes the picked seat first, the next free seat of the zone is used', async () => {
     const { h, eventId } = await setup();
     const rival = await h.addGuest(eventId, { name: 'Khách bàn khác', organization: 'Đơn vị khác' });
