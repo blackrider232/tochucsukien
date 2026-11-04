@@ -80,16 +80,24 @@ async function contactOf(ctx: CommandContext, id: ContactId): Promise<ContactRow
 const duplicateError = (other: ContactRow) =>
   new CommandError('conflict', `Đã có ${who(other)} trong CSDL (cùng email, số điện thoại hoặc họ tên và cơ quan). Xác nhận "Vẫn thêm" nếu đây là người khác.`);
 
-/** Inserts the drafts whose person the directory lacks and returns the rows it made; the rest are duplicates (m4c B28). */
+/**
+ * Inserts the drafts whose person the directory lacks and returns the rows it made; the rest are duplicates (m4c B28).
+ * A client id is only a hint: insertMany hands back the row already holding an id instead of failing, so an id that is
+ * taken, or repeated in the batch, gets a new one here. Otherwise that row would be counted as made and its undo would
+ * delete it.
+ */
 async function insertFresh(ctx: CommandContext, items: ReadonlyArray<{ id: ContactId; draft: ContactDraft }>): Promise<{ created: ContactRow[]; skipped: number }> {
   const known = await contactsByKey(ctx);
+  const usedIds = new Set<ContactId>((await contactsByIds(ctx, [...new Set(items.map((i) => i.id))])).map((r) => r.id));
   const fresh: DraftOf<ContactRow>[] = [];
   for (const { id, draft } of items) {
     const key = guestIdentityKey(draft);
     if (known.has(key)) continue;
     // Claimed here so a second item for the same person in this batch is skipped too.
     known.set(key, null as unknown as ContactRow);
-    fresh.push(draftRow(id, draft));
+    const freeId = usedIds.has(id) ? newId<'MasterContact'>() : id;
+    usedIds.add(freeId);
+    fresh.push(draftRow(freeId, draft));
   }
   const created = fresh.length > 0 ? await ctx.db.table(contactsTable).insertMany(fresh) : [];
   return { created, skipped: items.length - created.length };

@@ -167,6 +167,27 @@ describe('directory.importCsv', () => {
     expect(h.rows().map((x) => x.name)).toEqual(['Cũ']);
   });
 
+  it('gives a new row its own id when the client sent one that is taken, and its undo leaves the older contact alone', async () => {
+    const h = harness();
+    const old = await h.addContact({ name: 'Người cũ', organization: 'Sở A' });
+    const r = await h.ok(admin, 'directory.importCsv', { items: [{ id: old.id, draft: draft({ name: 'Người khác', organization: 'Sở B' }) }] });
+    expect(r.value).toEqual({ created: 1, skipped: 0 });
+    expect(h.rows().map((x) => x.name).sort()).toEqual(['Người cũ', 'Người khác']);
+    expect(last(h).entity_id).not.toContain(old.id);
+    expect((await h.undo(admin, r.inverse)).ok).toBe(true);
+    expect(h.rows().map((x) => [x.id, x.name])).toEqual([[old.id, 'Người cũ']]);
+  });
+
+  it('never counts or undoes a row that was there before, even when two items share an id', async () => {
+    const h = harness();
+    const id = cid();
+    const r = await h.ok(admin, 'directory.importCsv', { items: [{ id, draft: draft({ name: 'Một', organization: 'A' }) }, { id, draft: draft({ name: 'Hai', organization: 'B' }) }] });
+    expect(r.value).toEqual({ created: 2, skipped: 0 });
+    expect(h.rows()).toHaveLength(2);
+    expect((await h.undo(admin, r.inverse)).ok).toBe(true);
+    expect(h.rows()).toEqual([]);
+  });
+
   it('has no undo when it added nothing', async () => {
     const h = harness();
     await h.addContact({ name: 'Cũ' });
