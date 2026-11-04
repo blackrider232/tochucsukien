@@ -61,6 +61,17 @@ describe('dispatch', () => {
     expect(recorded.map((o) => [o.recipient, o.kind])).toEqual([['a', 'sent'], ['b', 'failed'], ['c', 'sent']]);
   });
 
+  it('never retries a send whose answer was lost: it may have gone, so it is recorded as unknown and the run stops', async () => {
+    const { report, attempts, recorded } = await run(['a', 'b', 'c'], (r) => (r === 'b' ? fail('network') : 'ok'));
+    expect(attempts.get('b')).toBe(1);
+    expect(report.sent.map((s) => s.recipient)).toEqual(['a']);
+    expect(report.unknown.map((u) => u.recipient)).toEqual(['b']);
+    expect(report.failed).toEqual([]);
+    expect(report.skipped).toEqual([{ recipient: 'c', reason: 'unknown' }]);
+    expect(report.stoppedBy).toBe('unknown');
+    expect(recorded.map((o) => [o.recipient, o.kind])).toEqual([['a', 'sent'], ['b', 'unknown']]);
+  });
+
   it('does not retry an invalid address or an oversize message', async () => {
     const { report, attempts } = await run(['a', 'b'], (r) => (r === 'a' ? fail('invalid') : fail('too_large')));
     expect([attempts.get('a'), attempts.get('b')]).toEqual([1, 1]);
@@ -86,8 +97,9 @@ describe('dispatch', () => {
 
   it('accounts for every recipient exactly once', async () => {
     const recipients = Array.from({ length: 30 }, (_, i) => `r${i}`);
-    const { report } = await run(recipients, (r, n) => (r === 'r3' ? fail('invalid') : r === 'r7' && n === 1 ? fail('network') : r === 'r20' ? fail('auth') : 'ok'));
-    const all = [...report.sent, ...report.failed, ...report.skipped, ...report.unrecorded].map((x) => x.recipient).sort();
+    const { report } = await run(recipients, (r, n) => (r === 'r3' ? fail('invalid') : r === 'r7' && n === 1 ? fail('rate') : r === 'r12' ? fail('network') : 'ok'));
+    expect(report.stoppedBy).toBe('unknown');
+    const all = [...report.sent, ...report.failed, ...report.unknown, ...report.skipped, ...report.unrecorded].map((x) => x.recipient).sort();
     expect(all).toEqual([...recipients].sort());
   });
 

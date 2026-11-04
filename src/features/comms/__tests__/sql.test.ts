@@ -63,6 +63,11 @@ describe('sce_tcsk_email_deliveries on Postgres', () => {
     await expect(as(OFFICER, () => delivery(', sent_at, provider_message_id', `'d@x.vn', 'sent', now(), 'msg-1'`))).resolves.toBeDefined();
   });
 
+  it('a send whose answer was lost is stored as unknown, with the reason', async () => {
+    await expect(as(OFFICER, () => delivery(', error', `'e@x.vn', 'unknown', 'Không kết nối được Gmail.'`))).resolves.toBeDefined();
+    await expect(as(OFFICER, () => delivery('', `'f@x.vn', 'unknown'`))).rejects.toThrow(/unknown_has_text/);
+  });
+
   it('the import script, which bypasses RLS (the owner role here), still writes imported rows', async () => {
     await expect(delivery(', imported', `'legacy@x.vn', 'sent', true`)).resolves.toBeDefined();
   });

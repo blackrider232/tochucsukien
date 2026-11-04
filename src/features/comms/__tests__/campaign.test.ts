@@ -12,7 +12,7 @@ function fakeApi() {
   const api = {
     claim: vi.fn<CampaignApi['claim']>(async (chunk) => {
       for (const r of chunk) held.add(r.email);
-      return { campaignId: CAMPAIGN, claimed: chunk.map((r) => r.email), alreadySent: [], inFlight: [], ownInFlight: [] };
+      return { campaignId: CAMPAIGN, claimed: chunk.map((r) => r.email), alreadySent: [], inFlight: [], ownInFlight: [], unclear: [] };
     }),
     record: vi.fn<CampaignApi['record']>(async (_c, _t, o) => {
       held.delete(o.recipient.email);

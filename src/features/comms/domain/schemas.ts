@@ -94,11 +94,12 @@ export const deliveryResultSchema = z
     guestId: guestIdSchema.nullable(),
     email: requiredEmailSchema,
     recipientName: z.string().trim().max(300),
-    status: z.enum(['sent', 'error']),
+    /** unknown: Gmail's answer was lost, so the message may have gone. */
+    status: z.enum(['sent', 'error', 'unknown']),
     providerMessageId: z.string().trim().min(1).max(200).nullable(),
     error: z.string().trim().min(1).max(500).nullable(),
   })
   .refine((r) => (r.status === 'sent' ? r.providerMessageId !== null && r.error === null : r.error !== null && r.providerMessageId === null), {
-    message: 'Thư đã gửi cần mã thư của Gmail; thư lỗi cần nội dung lỗi',
+    message: 'Thư đã gửi cần mã thư của Gmail; thư lỗi hoặc không rõ kết quả cần nội dung lỗi',
   });
 export type DeliveryResult = z.output<typeof deliveryResultSchema>;

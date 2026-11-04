@@ -30,6 +30,7 @@ const manualSchema = z.object({ emails: z.string(), name: z.string().trim().max(
 function DeliveryBadge({ status }: { status: GuestRecipient['lastDelivery'] }) {
   if (status === 'sent') return <Badge tone="emerald" icon="circle-check">Đã gửi</Badge>;
   if (status === 'error') return <Badge tone="rose" icon="circle-x">Lỗi gửi</Badge>;
+  if (status === 'unknown') return <Badge tone="amber" icon="alert-triangle">Không rõ</Badge>;
   return null;
 }
 

@@ -74,7 +74,7 @@ async function scenario() {
       if (recordFails.has(o.recipient.email)) return false;
       const result = o.kind === 'sent'
         ? { guestId: o.recipient.guestId, email: o.recipient.email, recipientName: o.recipient.name, status: 'sent' as const, providerMessageId: o.messageId, error: null }
-        : { guestId: o.recipient.guestId, email: o.recipient.email, recipientName: o.recipient.name, status: 'error' as const, providerMessageId: null, error: o.failure.message };
+        : { guestId: o.recipient.guestId, email: o.recipient.email, recipientName: o.recipient.name, status: o.kind === 'unknown' ? ('unknown' as const) : ('error' as const), providerMessageId: null, error: o.failure.message };
       const r = await runCommand(ctx, lookup, 'comms.recordDeliveries', { eventId, campaignId, runToken, senderEmail: mctx.from.email, subject: invitationMessage(o.recipient, compose, mctx, null).subject, results: [result] });
       return r.ok;
     },
@@ -189,6 +189,35 @@ describe('comms in the dev memory runtime, end to end', () => {
     expect(resumed.alreadySent.map((r) => r.email)).toEqual([a.email]);
     expect(resumed.sent.map((x) => x.recipient.email)).toEqual([b.email, c.email]);
     expect(s.sentTo.filter((e) => e === a.email)).toHaveLength(1);
+  });
+
+  it('a send whose answer was lost is not retried and not resent by the next run, until an officer says it did not go', async () => {
+    const s = await scenario();
+    const [a, b] = s.guests as [Recipient, Recipient];
+    // Gmail took a's message, then the connection dropped before its answer arrived.
+    const dropped: GmailTransport = {
+      kind: s.devGmail.kind,
+      async send(m) {
+        const r = await s.devGmail.send(m);
+        if (m.to[0]!.email === a.email) throw new TransportError({ kind: 'network', message: 'Không kết nối được Gmail.' });
+        return r;
+      },
+    };
+    const first = await s.send(dropped, [a, b]);
+    expect(first).toMatchObject({ stoppedBy: 'unknown', sent: [] });
+    expect(first.unknown.map((u) => u.recipient.email)).toEqual([a.email]);
+    expect(s.sentTo.filter((e) => e === a.email)).toHaveLength(1);
+    const log = (await deliveryLogData(s.ctx, s.eventId))!;
+    expect(log.rows.map((r) => [r.email, r.status])).toEqual([[a.email, 'unknown']]);
+
+    const again = await s.send(s.devGmail, [a, b]);
+    expect(again.unclear.map((r) => r.email)).toEqual([a.email]);
+    expect(again.sent.map((x) => x.recipient.email)).toEqual([b.email]);
+    expect(s.sentTo.filter((e) => e === a.email)).toHaveLength(1);
+
+    // The officer checked Gmail's Sent folder: it is not there.
+    await s.run('comms.markNotSent', { eventId: s.eventId, campaignId: log.rows[0]!.campaignId, emails: [a.email] });
+    expect((await s.send(s.devGmail, [a])).sent.map((x) => x.recipient.email)).toEqual([a.email]);
   });
 
   it('two tabs of the same officer: the second sends nothing the first holds, and every guest gets the message once', async () => {

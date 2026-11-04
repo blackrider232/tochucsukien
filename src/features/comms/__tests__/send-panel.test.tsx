@@ -9,7 +9,7 @@ import { fromManual, type Recipient } from '../domain/compose';
 const person = (email: string): Recipient => fromManual({ email: email as Email, name: `Người ${email}`, organization: '' });
 const report = (over: Partial<CampaignReport> = {}): CampaignReport => ({
   campaignId: '0b0e0b0e-0000-5000-8000-000000000001' as CampaignId,
-  sent: [], failed: [], skipped: [], unrecorded: [], stoppedBy: null, alreadySent: [], inFlight: [], ownInFlight: [], claimFailed: false,
+  sent: [], failed: [], unknown: [], skipped: [], unrecorded: [], stoppedBy: null, alreadySent: [], inFlight: [], ownInFlight: [], unclear: [], claimFailed: false,
   ...over,
 });
 const handlers = () => ({ onPreview: vi.fn(), onTest: vi.fn(), onStop: vi.fn(), onRetryFailed: vi.fn(), onResumeSkipped: vi.fn(), onTakeOver: vi.fn() });

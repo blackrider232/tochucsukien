@@ -22,6 +22,7 @@ export interface ClaimResult {
   alreadySent: ReadonlyArray<Email>;
   inFlight: ReadonlyArray<Email>;
   ownInFlight: ReadonlyArray<Email>;
+  unclear: ReadonlyArray<Email>;
 }
 
 /** Which run this is. A new token per run; `takeOver` claims what another run of the same officer still holds. */
@@ -49,6 +50,8 @@ export interface CampaignReport extends DispatchReport<Recipient> {
   inFlight: ReadonlyArray<Recipient>;
   /** Held by another run of this officer (another tab, or the page before a reload): not sent unless taken over. */
   ownInFlight: ReadonlyArray<Recipient>;
+  /** An earlier send of this message lost Gmail's answer: maybe received. Not sent until an officer marks it not sent. */
+  unclear: ReadonlyArray<Recipient>;
   /** The claim failed, so nothing was sent. */
   claimFailed: boolean;
 }
@@ -56,7 +59,7 @@ export interface CampaignReport extends DispatchReport<Recipient> {
 export async function runCampaign(
   o: { recipients: ReadonlyArray<Recipient>; api: CampaignApi; run: RunClaim; now?: () => number } & Omit<DispatchOptions<Recipient>, 'recipients' | 'record'>,
 ): Promise<CampaignReport> {
-  const empty = { sent: [], failed: [], skipped: [], unrecorded: [], stoppedBy: null, alreadySent: [], inFlight: [], ownInFlight: [] };
+  const empty = { sent: [], failed: [], unknown: [], skipped: [], unrecorded: [], stoppedBy: null, alreadySent: [], inFlight: [], ownInFlight: [], unclear: [] };
   if (o.recipients.length === 0) return { ...empty, campaignId: null, claimFailed: false };
   const token = o.run.token;
   const release = async (cid: CampaignId, emails: ReadonlyArray<Email>) => {
@@ -67,6 +70,7 @@ export async function runCampaign(
   const alreadySent = new Set<string>();
   const inFlight = new Set<string>();
   const ownInFlight = new Set<string>();
+  const unclear = new Set<string>();
   for (let i = 0; i < o.recipients.length; i += MAX_CLAIM_BATCH) {
     const r = await o.api.claim(o.recipients.slice(i, i + MAX_CLAIM_BATCH), o.run);
     if (!r || (campaignId !== null && r.campaignId !== campaignId)) {
@@ -78,6 +82,7 @@ export async function runCampaign(
     for (const e of r.alreadySent) alreadySent.add(e);
     for (const e of r.inFlight) inFlight.add(e);
     for (const e of r.ownInFlight) ownInFlight.add(e);
+    for (const e of r.unclear) unclear.add(e);
   }
   const id = campaignId!;
   const toSend = o.recipients.filter((r) => claimed.has(r.email));
@@ -108,6 +113,7 @@ export async function runCampaign(
     alreadySent: o.recipients.filter((r) => alreadySent.has(r.email)),
     inFlight: o.recipients.filter((r) => inFlight.has(r.email)),
     ownInFlight: o.recipients.filter((r) => ownInFlight.has(r.email)),
+    unclear: o.recipients.filter((r) => unclear.has(r.email)),
     claimFailed: false,
   };
 }

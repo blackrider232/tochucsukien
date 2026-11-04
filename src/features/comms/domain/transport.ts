@@ -71,7 +71,8 @@ export function gmailTransport(token: () => string | null, fetchImpl: typeof fet
       }
       if (!res.ok) throw new TransportError(await failureFromResponse(res));
       const body = (await res.json().catch(() => ({}))) as { id?: unknown };
-      if (typeof body.id !== 'string' || !body.id) throw new TransportError({ kind: 'server', message: 'Gmail không trả mã thư.' });
+      // Gmail accepted the request: the message has probably gone, so it must not be sent again on its own.
+      if (typeof body.id !== 'string' || !body.id) throw new TransportError({ kind: 'network', message: 'Gmail nhận yêu cầu nhưng không trả mã thư.' });
       return { messageId: body.id };
     },
   };

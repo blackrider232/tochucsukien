@@ -155,6 +155,19 @@ describe('comms screens render untrusted text as text', () => {
     expect(screen.queryByRole('option', { name: 'Giấy mời Nguyễn Văn An' })).toBeNull();
   });
 
+  it.each([true, false])('the delivery log asks for a check of a send whose answer was lost (may send: %s)', async (canSend) => {
+    dispatched.mockClear();
+    const row = { id: 'd1', campaignId: 'c1' as CampaignId, guestId: null, recipientName: 'An', email: 'a@x.vn' as Email, subject: 'Giấy mời An', senderEmail: 'b@x.vn', status: 'unknown' as const, sentAt: null, updatedAt: '2026-11-04T03:00:00.000Z' as Instant, error: 'Không kết nối được Gmail.', imported: false };
+    const { user } = renderUi(withAppContext(<DeliveryLog data={{ event, canSend, campaigns: [{ id: 'c1' as CampaignId, label: 'Giấy mời {ho_ten}' }], rows: [row] }} />));
+    expect(screen.getAllByText('Không rõ đã gửi').length).toBeGreaterThan(0);
+    expect(screen.getByText('1 thư không rõ đã gửi hay chưa')).toBeInTheDocument();
+    const button = screen.queryByRole('button', { name: 'Xác nhận chưa gửi' });
+    if (!canSend) return expect(button).toBeNull();
+    await user.click(button!);
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Xác nhận chưa gửi' }));
+    await vi.waitFor(() => expect(dispatched).toHaveBeenCalledWith('comms.markNotSent', { eventId: event.id, campaignId: 'c1', emails: ['a@x.vn'] }));
+  });
+
   it('the delivery log shows names and Gmail errors as text and marks imported rows', () => {
     const { container } = renderUi(
       withAppContext(

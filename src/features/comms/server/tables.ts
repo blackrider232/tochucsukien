@@ -139,7 +139,8 @@ export const responsesTable = defineTable<ResponseRow>({
   }),
 });
 
-export type DeliveryStatus = 'sent' | 'error';
+/** unknown: Gmail's answer to the send was lost; the message may have gone, so nothing sends it again on its own. */
+export type DeliveryStatus = 'sent' | 'error' | 'unknown';
 export interface DeliveryRow extends BaseRow {
   id: string;
   eventId: EventId;
@@ -173,7 +174,7 @@ export const deliveriesTable = defineTable<DeliveryRow>({
     recipientName: z.string(),
     subject: z.string(),
     senderEmail: z.string(),
-    status: z.enum(['queued', 'sent', 'error']),
+    status: z.enum(['queued', 'sent', 'error', 'unknown']),
     claimToken: z.string().nullable().transform((v) => v as RunToken | null),
     sentAt: instant.nullable(),
     error: z.string().nullable(),

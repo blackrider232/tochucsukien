@@ -25,10 +25,11 @@ type H = ReturnType<typeof harness>;
 const to = (email: string, guestId: GuestId | null = null) => ({ guestId, email: email as Email, recipientName: `Người ${email}` });
 const sent = (email: string, guestId: GuestId | null = null) => ({ ...to(email, guestId), status: 'sent' as const, providerMessageId: `msg-${email}`, error: null });
 const failed = (email: string, guestId: GuestId | null = null) => ({ ...to(email, guestId), status: 'error' as const, providerMessageId: null, error: 'Gmail: Invalid To header' });
+const lost = (email: string, guestId: GuestId | null = null) => ({ ...to(email, guestId), status: 'unknown' as const, providerMessageId: null, error: 'Không kết nối được Gmail.' });
 
 const start = async (h: H, eventId: EventId, recipients: ReturnType<typeof to>[], actor = xtdtUser, message: { subject: string; body: string; attachQr?: boolean } = MESSAGE, runToken = TAB_A, takeOver = false) =>
   (await h.ok(actor, 'comms.startCampaign', { eventId, senderEmail: SENDER, attachQr: false, ...message, runToken, takeOver, recipients })).value;
-const record = (h: H, eventId: EventId, campaignId: CampaignId, results: ReadonlyArray<ReturnType<typeof sent> | ReturnType<typeof failed>>, actor = xtdtUser, runToken = TAB_A) =>
+const record = (h: H, eventId: EventId, campaignId: CampaignId, results: ReadonlyArray<ReturnType<typeof sent> | ReturnType<typeof failed> | ReturnType<typeof lost>>, actor = xtdtUser, runToken = TAB_A) =>
   h.run(actor, 'comms.recordDeliveries', { eventId, campaignId, runToken, senderEmail: SENDER, subject: 'Giấy mời', results });
 const deliveries = (h: H) =>
   (h.rows('sce_tcsk_email_deliveries') as Array<Record<string, unknown>>).map((r) => [r.email, r.status]).sort((a, b) => String(a[0]).localeCompare(String(b[0])));
@@ -38,7 +39,7 @@ describe('comms.startCampaign', () => {
     const h = harness();
     const eventId = await h.createEvent();
     const r = await start(h, eventId, [to('a@x.vn'), to('b@x.vn'), to('a@x.vn')]);
-    expect(r).toEqual({ campaignId: campaignIdFor(eventId, MESSAGE.subject, MESSAGE.body), claimed: ['a@x.vn', 'b@x.vn'], alreadySent: [], inFlight: [], ownInFlight: [] });
+    expect(r).toEqual({ campaignId: campaignIdFor(eventId, MESSAGE.subject, MESSAGE.body), claimed: ['a@x.vn', 'b@x.vn'], alreadySent: [], inFlight: [], ownInFlight: [], unclear: [] });
     expect(deliveries(h)).toEqual([['a@x.vn', 'queued'], ['b@x.vn', 'queued']]);
     expect(h.audits().at(-1)).toMatchObject({ action: 'BẮT ĐẦU GỬI THƯ', summary: `Bắt đầu đợt gửi "${MESSAGE.subject}" từ btc@x.vn: giữ chỗ 2 người nhận` });
   });
@@ -223,6 +224,36 @@ describe('comms.recordDeliveries', () => {
     expect(r).toMatchObject({ ok: false, kind: 'conflict', message: 'Chỉ ghi được 1/2 kết quả gửi. Kiểm tra Nhật ký gửi trước khi gửi tiếp.' });
     expect(deliveries(h)).toEqual([['a@x.vn', 'sent'], ['b@x.vn', 'queued']]);
     expect(h.audits().at(-1)).toMatchObject({ action: 'GỬI THƯ MỜI', summary: 'Gửi thư "Giấy mời" từ btc@x.vn: ghi được 1 thư đã gửi, 0 thư lỗi rồi dừng vì lỗi; 1 kết quả chưa ghi' });
+  });
+});
+
+describe('a send whose answer was lost', () => {
+  it('is recorded as unknown, never claimed again by any run, until an officer marks it not sent', async () => {
+    const h = harness();
+    const eventId = await h.createEvent();
+    const g = await h.addGuest(eventId, { email: 'a@x.vn' as Email });
+    const { campaignId } = await start(h, eventId, [to('a@x.vn', g.id), to('b@x.vn')]);
+    expect(await record(h, eventId, campaignId, [lost('a@x.vn', g.id)])).toMatchObject({ ok: true, value: { recorded: 1 } });
+    expect(h.audits().at(-1)!.summary).toContain('1 thư không rõ đã gửi hay chưa');
+    // Not marked invited: nobody knows yet.
+    expect(await h.guest(eventId, g.id)).toMatchObject({ inviteStatus: 'pending' });
+    expect(await start(h, eventId, [to('a@x.vn', g.id)], xtdtUser, MESSAGE, TAB_B, true)).toMatchObject({ claimed: [], unclear: ['a@x.vn'] });
+    expect(await start(h, eventId, [to('a@x.vn', g.id)], colleague, MESSAGE, TAB_B)).toMatchObject({ claimed: [], unclear: ['a@x.vn'] });
+
+    const marked = await h.ok(xtdtUser, 'comms.markNotSent', { eventId, campaignId, emails: ['a@x.vn', 'b@x.vn'] as Email[] });
+    expect(marked.value).toEqual({ marked: 1 });
+    expect(h.audits().at(-1)).toMatchObject({ action: 'XÁC NHẬN THƯ CHƯA GỬI', summary: expect.stringContaining('1 thư') });
+    expect(deliveries(h)).toEqual([['a@x.vn', 'error'], ['b@x.vn', 'queued']]);
+    expect((await start(h, eventId, [to('a@x.vn', g.id)], xtdtUser, MESSAGE, TAB_B)).claimed).toEqual(['a@x.vn']);
+  });
+
+  it('an unknown result never overwrites a success', async () => {
+    const h = harness();
+    const eventId = await h.createEvent();
+    const { campaignId } = await start(h, eventId, [to('a@x.vn')]);
+    await record(h, eventId, campaignId, [sent('a@x.vn')]);
+    expect(await record(h, eventId, campaignId, [lost('a@x.vn')])).toMatchObject({ ok: true, value: { recorded: 0 } });
+    expect(deliveries(h)).toEqual([['a@x.vn', 'sent']]);
   });
 });
 

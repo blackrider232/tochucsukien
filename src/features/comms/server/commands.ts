@@ -7,7 +7,7 @@ import { defineCommands, type Sig } from '@/core/commands';
 import type { SenderMailbox } from '../contract';
 import type { ColumnMap } from '../domain/columns';
 import type { DeliveryResult, FormConfig, MailboxDraft, RunToken } from '../domain/schemas';
-import { recordDeliveries, releaseDeliveries, renewClaims, startCampaign } from './deliveries';
+import { markNotSent, recordDeliveries, releaseDeliveries, renewClaims, startCampaign } from './deliveries';
 import type { SyncReport } from '../domain/sync-report';
 import { resolveResponse, saveColumnMap, saveForm, syncFormWith } from './form';
 import { deleteMailbox, restoreMailbox, saveMailbox } from './mailboxes';
@@ -40,19 +40,22 @@ declare module '@/core/commands' {
      * the subject and body templates, so the same message composed again is the same campaign, and an address that
      * already received it is refused. A fresh claim of another run is left alone: `inFlight` when another officer
      * holds it, `ownInFlight` when another run of this officer does, which `takeOver` claims for this run instead.
+     * `unclear` addresses had a send whose answer was lost; they wait for comms.markNotSent.
      */
     'comms.startCampaign': Sig<
       {
         eventId: EventId; senderEmail: Email; subject: string; body: string; attachQr: boolean; runToken: RunToken; takeOver: boolean;
         recipients: ReadonlyArray<{ guestId: GuestId | null; email: Email; recipientName: string }>;
       },
-      { campaignId: CampaignId; claimed: ReadonlyArray<Email>; alreadySent: ReadonlyArray<Email>; inFlight: ReadonlyArray<Email>; ownInFlight: ReadonlyArray<Email> }
+      { campaignId: CampaignId; claimed: ReadonlyArray<Email>; alreadySent: ReadonlyArray<Email>; inFlight: ReadonlyArray<Email>; ownInFlight: ReadonlyArray<Email>; unclear: ReadonlyArray<Email> }
     >;
     /** Outcomes of real sends, recorded as Gmail answered them, each on the claim this run holds. */
     'comms.recordDeliveries': Sig<
       { eventId: EventId; campaignId: CampaignId; runToken: RunToken; senderEmail: Email; subject: string; results: ReadonlyArray<DeliveryResult> },
       { recorded: number; notInvited: number }
     >;
+    /** After a check of Gmail's Sent folder: messages whose answer was lost did not go, and may be sent again. */
+    'comms.markNotSent': Sig<{ eventId: EventId; campaignId: CampaignId; emails: ReadonlyArray<Email> }, { marked: number }>;
     /** A live run's heartbeat: keeps its claims from looking like a dead run's, and names those it still holds. */
     'comms.renewClaims': Sig<{ eventId: EventId; campaignId: CampaignId; runToken: RunToken }, { held: ReadonlyArray<Email> }>;
     /** Frees the claims a stopped run did not use. */
@@ -78,6 +81,7 @@ export const createCommands = (deps: CommsDeps) =>
     recordDeliveries,
     renewClaims,
     releaseDeliveries,
+    markNotSent,
   });
 
 export const commands = createCommands({ sheets: defaultSheetSource });

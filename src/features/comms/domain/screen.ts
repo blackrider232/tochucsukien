@@ -26,7 +26,7 @@ export interface GuestRecipient {
   rsvpStatus: RsvpStatus;
   seatCode: SeatCode | null;
   checkinCode: string;
-  lastDelivery: 'sent' | 'error' | null;
+  lastDelivery: 'sent' | 'error' | 'unknown' | null;
 }
 
 export interface InvitationScreenData {
@@ -61,7 +61,7 @@ export interface DeliveryLogRow {
   email: Email;
   subject: string;
   senderEmail: string;
-  status: 'sent' | 'error' | 'queued';
+  status: 'sent' | 'error' | 'unknown' | 'queued';
   sentAt: Instant | null;
   updatedAt: Instant;
   error: string | null;

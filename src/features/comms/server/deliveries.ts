@@ -71,6 +71,7 @@ export const startCampaign: CommandSpec<InputOf<'comms.startCampaign'>, OutputOf
     const alreadySent: Email[] = [];
     const inFlight: Email[] = [];
     const ownInFlight: Email[] = [];
+    const unclear: Email[] = [];
     let takenOver = 0;
     const seen = new Set<string>();
     try {
@@ -81,6 +82,7 @@ export const startCampaign: CommandSpec<InputOf<'comms.startCampaign'>, OutputOf
         const mine = before?.updatedBy === ctx.actor.profile.id;
         const heldElsewhere = before?.status === 'queued' && before.claimToken !== runToken && !leaseExpired(ctx, before);
         if (before?.status === 'sent') alreadySent.push(r.email);
+        else if (before?.status === 'unknown') unclear.push(r.email);
         else if (heldElsewhere && !(takeOver && mine)) (mine ? ownInFlight : inFlight).push(r.email);
         else {
           const row = { guestId: r.guestId, recipientName: r.recipientName, subject, senderEmail, status: 'queued' as const, claimToken: runToken, sentAt: null, error: null, providerMessageId: null, imported: false };
@@ -107,11 +109,12 @@ export const startCampaign: CommandSpec<InputOf<'comms.startCampaign'>, OutputOf
       `giữ chỗ ${claimed.length} người nhận`,
       ...(takenOver ? [`trong đó tiếp quản ${takenOver} người từ một phiên gửi khác của bạn`] : []),
       ...(alreadySent.length ? [`bỏ qua ${alreadySent.length} người đã nhận thư này`] : []),
+      ...(unclear.length ? [`bỏ qua ${unclear.length} người chưa rõ đã nhận thư này hay chưa`] : []),
       ...(ownInFlight.length ? [`bỏ qua ${ownInFlight.length} người đang được gửi ở một phiên khác của bạn`] : []),
       ...(inFlight.length ? [`bỏ qua ${inFlight.length} người đang được gửi ở phiên khác`] : []),
     ];
     return {
-      value: { campaignId, claimed, alreadySent, inFlight, ownInFlight },
+      value: { campaignId, claimed, alreadySent, inFlight, ownInFlight, unclear },
       audit: audit('BẮT ĐẦU GỬI THƯ', `Bắt đầu đợt gửi "${subject}" từ ${senderEmail}: ${parts.join(', ')}`, eventId, 'email_campaign', campaignId),
     };
   },
@@ -146,6 +149,7 @@ export const recordDeliveries: CommandSpec<InputOf<'comms.recordDeliveries'>, Ou
 
     let sent = 0;
     let failed = 0;
+    let unknown = 0;
     let kept = 0;
     const invited: GuestId[] = [];
     try {
@@ -171,14 +175,16 @@ export const recordDeliveries: CommandSpec<InputOf<'comms.recordDeliveries'>, Ou
         if (r.status === 'sent') {
           sent += 1;
           if (r.guestId) invited.push(r.guestId);
+        } else if (r.status === 'unknown') {
+          unknown += 1;
         } else {
           failed += 1;
         }
       }
     } catch (e) {
-      if (sent + failed > 0) {
-        await auditPartial(ctx, send.perm, audit('GỬI THƯ MỜI', `Gửi thư "${subject}" từ ${senderEmail}: ghi được ${sent} thư đã gửi, ${failed} thư lỗi rồi dừng vì lỗi; ${results.length - sent - failed - kept} kết quả chưa ghi`, eventId, 'email_campaign', campaignId));
-        throw new CommandError('conflict', `Chỉ ghi được ${sent + failed}/${results.length} kết quả gửi. Kiểm tra Nhật ký gửi trước khi gửi tiếp.`);
+      if (sent + failed + unknown > 0) {
+        await auditPartial(ctx, send.perm, audit('GỬI THƯ MỜI', `Gửi thư "${subject}" từ ${senderEmail}: ghi được ${sent} thư đã gửi, ${failed} thư lỗi${unknown ? `, ${unknown} thư không rõ đã gửi hay chưa` : ''} rồi dừng vì lỗi; ${results.length - sent - failed - unknown - kept} kết quả chưa ghi`, eventId, 'email_campaign', campaignId));
+        throw new CommandError('conflict', `Chỉ ghi được ${sent + failed + unknown}/${results.length} kết quả gửi. Kiểm tra Nhật ký gửi trước khi gửi tiếp.`);
       }
       throw e;
     }
@@ -194,13 +200,43 @@ export const recordDeliveries: CommandSpec<InputOf<'comms.recordDeliveries'>, Ou
     const parts = [
       `${sent} thư đã gửi`,
       `${failed} thư lỗi`,
+      ...(unknown ? [`${unknown} thư không rõ đã gửi hay chưa (mất kết nối khi chờ Gmail trả lời), cần kiểm tra mục Đã gửi của Gmail`] : []),
       ...(kept ? [`${kept} kết quả bỏ qua vì đã gửi thành công trước đó`] : []),
       ...(notInvited ? [`chưa cập nhật được trạng thái giấy mời của ${notInvited} khách, cần cập nhật thủ công`] : []),
     ];
     return {
-      value: { recorded: sent + failed, notInvited },
+      value: { recorded: sent + failed + unknown, notInvited },
       audit: audit('GỬI THƯ MỜI', `Gửi thư "${subject}" từ ${senderEmail}: ${parts.join(', ')}`, eventId, 'email_campaign', campaignId),
     };
+  },
+};
+
+/**
+ * The officer checked Gmail's Sent folder: these messages whose answer was lost did not go. They become errors, which
+ * "Gửi lại thư lỗi" or a new run of the message may send. A message that did go stays unknown, never sent again.
+ */
+export const markNotSent: CommandSpec<InputOf<'comms.markNotSent'>, OutputOf<'comms.markNotSent'>> = {
+  kind: 'mutation',
+  input: asSchema(z.object({ eventId: eventIdSchema, campaignId: campaignIdSchema, emails: z.array(requiredEmailSchema).min(1).max(MAX_CLAIM_BATCH) })),
+  authorize: send,
+  async run(ctx, { eventId, campaignId, emails }) {
+    const existing = await byEmail(ctx, eventId, campaignId);
+    let marked = 0;
+    try {
+      for (const email of new Set(emails)) {
+        const d = existing.get(email);
+        if (d?.status !== 'unknown') continue;
+        await ctx.db.table(deliveriesTable).update(d.id, { status: 'error', error: `Cán bộ đã kiểm tra: thư chưa được gửi (${d.error ?? 'mất kết nối'})`.slice(0, 500) }, { expectedVersion: d.version });
+        marked += 1;
+      }
+    } catch (e) {
+      if (marked > 0) {
+        await auditPartial(ctx, send.perm, audit('XÁC NHẬN THƯ CHƯA GỬI', `Xác nhận ${marked} thư không rõ kết quả là chưa gửi rồi dừng vì lỗi; các thư còn lại vẫn "Không rõ đã gửi"`, eventId, 'email_campaign', campaignId));
+        throw new CommandError('conflict', `Chỉ xác nhận được ${marked} thư là chưa gửi. Tải lại Nhật ký gửi.`);
+      }
+      throw e;
+    }
+    return { value: { marked }, audit: audit('XÁC NHẬN THƯ CHƯA GỬI', `Xác nhận ${marked} thư không rõ kết quả là chưa gửi, có thể gửi lại`, eventId, 'email_campaign', campaignId) };
   },
 };
 

@@ -23,6 +23,7 @@ const STOP_REASON: Record<string, string> = {
   cancelled: 'Đã dừng theo yêu cầu.',
   auth: 'Phiên đăng nhập Google hết hạn hoặc bị thu hồi. Đăng nhập lại rồi bấm "Gửi tiếp phần chưa gửi".',
   quota: 'Hòm thư đã hết hạn mức gửi trong ngày của Gmail. Gửi tiếp vào ngày mai.',
+  unknown: 'Mất kết nối khi chờ Gmail trả lời, nên không rõ thư đó đã được gửi hay chưa. Phiên gửi đã dừng và thư đó không được gửi lại tự động. Kiểm tra mục Đã gửi của Gmail, rồi xử lý ở Nhật ký gửi.',
   claim_lost: 'Một phiên gửi khác đã tiếp quản những người nhận còn lại, nên phiên này đã dừng để không gửi trùng. Xem Nhật ký gửi.',
   record: 'Không ghi được nhật ký gửi, nên đã dừng để tránh gửi trùng. Kiểm tra kết nối rồi gửi tiếp.',
 };
@@ -66,11 +67,11 @@ export function SendPanel(props: {
         )}
         {report && (
           <Alert
-            tone={report.claimFailed || report.failed.length || report.unrecorded.length ? 'warning' : report.skipped.length ? 'info' : 'success'}
+            tone={report.claimFailed || report.failed.length || report.unknown.length || report.unrecorded.length ? 'warning' : report.skipped.length ? 'info' : 'success'}
             title={
               report.claimFailed
                 ? 'Chưa gửi thư nào.'
-                : `Hoàn tất: ${report.sent.length} thành công, ${report.failed.length} lỗi${report.skipped.length ? `, ${report.skipped.length} chưa gửi` : ''}${report.alreadySent.length ? `, ${report.alreadySent.length} đã nhận thư này nên không gửi lại` : ''}${report.inFlight.length ? `, ${report.inFlight.length} đang được gửi ở phiên khác` : ''}.`
+                : `Hoàn tất: ${report.sent.length} thành công, ${report.failed.length} lỗi${report.unknown.length ? `, ${report.unknown.length} không rõ đã gửi chưa` : ''}${report.skipped.length ? `, ${report.skipped.length} chưa gửi` : ''}${report.alreadySent.length ? `, ${report.alreadySent.length} đã nhận thư này nên không gửi lại` : ''}${report.inFlight.length ? `, ${report.inFlight.length} đang được gửi ở phiên khác` : ''}.`
             }
             action={
               report.failed.length > 0 || report.skipped.length > 0 ? (
@@ -83,6 +84,8 @@ export function SendPanel(props: {
           >
             {report.claimFailed ? 'Không giữ chỗ được người nhận cho đợt gửi. Kiểm tra kết nối rồi bấm gửi lại.' : report.stoppedBy ? STOP_REASON[report.stoppedBy] : 'Kết quả từng thư được ghi ở Nhật ký gửi.'}
             {report.unrecorded.length > 0 && ` Đã gửi nhưng chưa ghi nhật ký: ${report.unrecorded.map((u) => u.recipient.email).join(', ')}.`}
+            {report.unknown.length > 0 && ` Không rõ đã gửi: ${report.unknown.map((u) => u.recipient.email).join(', ')}.`}
+            {report.unclear.length > 0 && ` Không gửi lại cho ${report.unclear.map((r) => r.email).join(', ')}: lần gửi trước không rõ kết quả; xác nhận ở Nhật ký gửi nếu thư chưa đi.`}
           </Alert>
         )}
         {report && report.ownInFlight.length > 0 && (
