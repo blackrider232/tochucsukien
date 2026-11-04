@@ -82,6 +82,64 @@ export function parseCatalog(files: ReadonlyArray<SqlFile>): ReadonlyMap<string,
   return tables;
 }
 
+/**
+ * A view memoryDb can emulate: `select f.*, j.col [as name], … from <table> f left join <table> j on j.a = f.b and …`,
+ * with security_invoker, so each table's RLS applies to the reader. Any other shape is `unsupported`, and reading
+ * it from memoryDb fails rather than returning a guess.
+ */
+export type CatalogView =
+  | {
+      name: string;
+      from: string;
+      /** `on` pairs are [joined column, from column]; `columns` pairs are [joined column, view column]. */
+      joins: ReadonlyArray<{ table: string; on: ReadonlyArray<readonly [string, string]>; columns: ReadonlyArray<readonly [string, string]> }>;
+    }
+  | { name: string; unsupported: true };
+
+export function parseViews(files: ReadonlyArray<SqlFile>): ReadonlyMap<string, CatalogView> {
+  const views = new Map<string, CatalogView>();
+  for (const file of files) {
+    const sql = stripComments(file.sql);
+    for (const m of sql.matchAll(new RegExp(String.raw`create (?:or replace )?view ${TABLE_REF}\s*(with \(([^)]*)\))?\s*as\s+([^;]+);`, 'gi'))) {
+      const name = m[1]!;
+      views.set(name, (/security_invoker\s*=\s*(true|on)/i.test(m[3] ?? '') && parseJoinView(name, m[4]!)) || { name, unsupported: true });
+    }
+  }
+  return views;
+}
+
+function parseJoinView(name: string, body: string): CatalogView | null {
+  const shape = /^select\s+(.+?)\s+from\s+(?:public\.)?(sce_tcsk_\w+)\s+(\w+)((?:\s+left join\s+(?:public\.)?sce_tcsk_\w+\s+\w+\s+on\s+.+?)*)\s*$/is.exec(body.trim());
+  if (!shape) return null;
+  const [, select, from, alias, joinText] = shape as unknown as [string, string, string, string, string];
+  const joins: Array<{ alias: string; table: string; on: Array<readonly [string, string]>; columns: Array<readonly [string, string]> }> = [];
+  for (const j of joinText.split(/\s+left join\s+/i).filter((t) => t.trim() !== '')) {
+    const head = /^(?:public\.)?(sce_tcsk_\w+)\s+(\w+)\s+on\s+(.+)$/is.exec(j.trim());
+    if (!head) return null;
+    const on: Array<readonly [string, string]> = [];
+    for (const cond of head[3]!.split(/\s+and\s+/i)) {
+      const eq = /^(\w+)\.(\w+)\s*=\s*(\w+)\.(\w+)$/.exec(cond.trim());
+      if (!eq) return null;
+      if (eq[1] === head[2] && eq[3] === alias) on.push([eq[2]!, eq[4]!]);
+      else if (eq[3] === head[2] && eq[1] === alias) on.push([eq[4]!, eq[2]!]);
+      else return null;
+    }
+    joins.push({ alias: head[2]!, table: head[1]!, on, columns: [] });
+  }
+  let star = false;
+  for (const item of select.split(',').map((c) => c.trim())) {
+    if (item === `${alias}.*`) {
+      star = true;
+      continue;
+    }
+    const col = /^(\w+)\.(\w+)(?:\s+as\s+(\w+))?$/i.exec(item);
+    const join = col && joins.find((jn) => jn.alias === col[1]);
+    if (!col || !join) return null;
+    join.columns.push([col[2]!, col[3] ?? col[2]!]);
+  }
+  return star ? { name, from, joins: joins.map(({ table, on, columns }) => ({ table, on, columns })) } : null;
+}
+
 /** Tables a migration creates or changes, for the "module migration touches another owner's table" rule. */
 export function tablesTouched(sql: string): ReadonlySet<string> {
   const out = new Set<string>();

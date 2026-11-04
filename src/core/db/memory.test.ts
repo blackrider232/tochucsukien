@@ -1,9 +1,10 @@
+import { z } from 'zod';
 import { describe, expect, it } from 'vitest';
-import type { GuestId, UserId, Version } from '@/core/brand';
-import { DbError, memoryDb, supabaseDb, type CommandAuditRow, type Db } from '@/core/db';
+import type { GuestId, Instant, UserId, Version } from '@/core/brand';
+import { DbError, defineTable, memoryDb, supabaseDb, type CommandAuditRow, type Db } from '@/core/db';
 import { inspectMemoryDb, memoryAuditWriter } from '@/core/db/memory';
 import { PTDN, testActor, XTDT } from '@/core/testing/actors';
-import { checkinsTable, contactsTable, E1, E2, E3, eventRows, eventsTable, guestsTable } from '@/core/testing/tables';
+import { checkinsTable, contactsTable, E1, E2, E3, eventRows, eventsTable, guestsTable, type TestGuest } from '@/core/testing/tables';
 
 const G = (n: number) => `aaaaaaaa-0000-4000-8000-${String(n).padStart(12, '0')}` as GuestId;
 const draft = (eventId: typeof E1, id: GuestId, name: string) => ({ id, eventId, name, group: 'VIP' as const, organization: 'UBND', rsvpStatus: 'pending', checkinCode: `C${id.slice(-5)}` });
@@ -185,6 +186,40 @@ describe('memoryDb foreign keys (the ON DELETE of the migrations)', () => {
     };
     await memoryDb(seed, testActor('admin', null)).table(contactsTable).remove(M);
     expect(inspectMemoryDb(seed, 'sce_tcsk_guests')[0]).toMatchObject({ id: G(1), master_contact_id: null });
+  });
+});
+
+describe('memoryDb views (sce_tcsk_guest_roster of 0002)', () => {
+  interface RosterRow extends TestGuest { seatCode: string | null; checkedInAt: string | null }
+  const rosterView = defineTable<RosterRow>({
+    name: 'sce_tcsk_guest_roster',
+    owner: 'guests',
+    eventScoped: true,
+    columns: { group: 'guest_group' },
+    orderBy: [{ column: 'name', ascending: true }],
+    row: z.object({
+      id: z.string(), eventId: z.string(), name: z.string(), group: z.string(), organization: z.string(), rsvpStatus: z.string(), checkinCode: z.string(),
+      version: z.number(), createdAt: z.string(), createdBy: z.string().nullable(), updatedAt: z.string(), updatedBy: z.string().nullable(),
+      seatCode: z.string().nullable(), checkedInAt: z.string().nullable(),
+    }).transform((r) => r as unknown as RosterRow),
+  });
+  const seat = { id: 'dddddddd-0000-4000-8000-000000000001', event_id: E1, guest_id: G(1), seat_code: 'A-01', version: 1 };
+
+  it('left joins seats and check-ins onto guests, each under its own RLS, and filters on the joined columns', async () => {
+    const seed = { sce_tcsk_events: eventRows(), sce_tcsk_seat_assignments: [seat] };
+    const [xtdt, ptdn] = [testActor('user', XTDT), testActor('user', PTDN)];
+    await memoryDb(seed, xtdt).table(guestsTable).insertMany([draft(E1, G(1), 'A'), draft(E1, G(2), 'B')]);
+    await memoryDb(seed, xtdt).table(checkinsTable).insert({ eventId: E1, guestId: G(2), desk: null, checkedInAt: '2026-12-15T01:00:00.000Z' as Instant });
+    const roster = memoryDb(seed, xtdt).table(rosterView);
+    expect((await roster.list({ eventId: E1 })).map((r) => [r.name, r.seatCode, r.checkedInAt])).toEqual([['A', 'A-01', null], ['B', null, '2026-12-15T01:00:00.000Z']]);
+    expect((await roster.list({ checkedInAt: null })).map((r) => r.name)).toEqual(['A']);
+    expect((await roster.get(G(2)))?.checkedInAt).toBe('2026-12-15T01:00:00.000Z');
+    expect(await memoryDb(seed, ptdn).table(rosterView).list({ eventId: E1 })).toEqual([]);
+  });
+
+  it('refuses writes, as Postgres refuses them on a join view', async () => {
+    const { as, xtdt } = setup();
+    await expect(as(xtdt).table(rosterView).insert({ ...draft(E1, G(1), 'A'), seatCode: null, checkedInAt: null })).rejects.toThrow(/is a view/);
   });
 });
 

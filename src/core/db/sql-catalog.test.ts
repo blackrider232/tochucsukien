@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseCatalog } from './sql-catalog';
+import { parseCatalog, parseViews } from './sql-catalog';
 
 describe('parseCatalog foreign keys', () => {
   const sql = `
@@ -27,5 +27,33 @@ end $$;`;
       { name: 'sce_tcsk_kids_event_id_parent_id_fkey', columns: ['event_id', 'parent_id'], table: 'sce_tcsk_parents', refColumns: ['event_id', 'id'], onDelete: 'cascade' },
       { name: 'sce_tcsk_kids_pin_fk', columns: ['parent_id'], table: 'sce_tcsk_parents', refColumns: ['id'], onDelete: 'restrict' },
     ]);
+  });
+});
+
+describe('parseViews', () => {
+  const roster = `
+create or replace view public.sce_tcsk_guest_roster with (security_invoker = true) as
+  select g.*,
+         s.seat_code,
+         c.checked_in_at as arrived_at
+    from public.sce_tcsk_guests g
+    left join public.sce_tcsk_seat_assignments s on s.event_id = g.event_id and s.guest_id = g.id
+    left join public.sce_tcsk_checkins c on c.event_id = g.event_id and c.guest_id = g.id;`;
+
+  it('reads a security_invoker view of one table and its left joins', () => {
+    expect(parseViews([{ name: '1_x.sql', sql: roster }]).get('sce_tcsk_guest_roster')).toEqual({
+      name: 'sce_tcsk_guest_roster',
+      from: 'sce_tcsk_guests',
+      joins: [
+        { table: 'sce_tcsk_seat_assignments', on: [['event_id', 'event_id'], ['guest_id', 'id']], columns: [['seat_code', 'seat_code']] },
+        { table: 'sce_tcsk_checkins', on: [['event_id', 'event_id'], ['guest_id', 'id']], columns: [['checked_in_at', 'arrived_at']] },
+      ],
+    });
+  });
+
+  it('marks any other view unsupported instead of guessing', () => {
+    const definer = roster.replace(' with (security_invoker = true)', '');
+    const inner = roster.replace('left join public.sce_tcsk_checkins', 'join public.sce_tcsk_checkins');
+    for (const sql of [definer, inner]) expect(parseViews([{ name: '1_x.sql', sql }]).get('sce_tcsk_guest_roster')).toEqual({ name: 'sce_tcsk_guest_roster', unsupported: true });
   });
 });

@@ -4,7 +4,9 @@
 // policies parsed from supabase/migrations, so a module's new table is covered
 // as soon as its migration exists. Two memoryDb calls on the same seed object
 // share one database, so a test can act as two users.
-// Foreign keys between app tables act on delete as the migrations declare
+// A security_invoker view of one table and its left joins is read as Postgres
+// reads it, each table under its own RLS (sce_tcsk_guest_roster); other views
+// fail on read. Foreign keys between app tables act on delete as the migrations declare
 // (cascade, set null, no action), past RLS as in Postgres. created_at is
 // strictly increasing per store, and one insertMany shares one timestamp, as
 // one statement does. Known gaps against Postgres: CHECK constraints, FK checks
@@ -22,7 +24,7 @@ import { ROLES, type Role } from '@/core/vocab';
 import { DbError } from './errors';
 import { draftMatches, filtersOf, fromColumns, toColumns, columnOf, type Filter } from './mapping';
 import { parseAuditRow, parseBackupRow, settingsPatchColumns } from './rpc';
-import { parseCatalog, type CatalogTable } from './sql-catalog';
+import { parseCatalog, parseViews, type CatalogTable, type CatalogView } from './sql-catalog';
 import type { AuditWriter, BaseRow, CommandAuditRow, Db, DraftOf, RpcMap, Table, TableDef, Where, WriteGuard } from './index';
 
 type Row = Record<string, unknown>;
@@ -80,19 +82,20 @@ function deleteRows(store: Store, table: string, doomed: ReadonlyArray<Row>): vo
 // On globalThis so the dev memory runtime (src/core/dev) keeps its data across a hot reload of this module.
 const STORES = Symbol.for('sce.memoryDb.stores');
 const stores: WeakMap<object, Store> = ((globalThis as { [STORES]?: WeakMap<object, Store> })[STORES] ??= new WeakMap());
-let catalog: ReadonlyMap<string, CatalogTable> | null = null;
+let catalog: { tables: ReadonlyMap<string, CatalogTable>; views: ReadonlyMap<string, CatalogView> } | null = null;
 
-function loadCatalog(): ReadonlyMap<string, CatalogTable> {
+function loadSchema() {
   if (!catalog) {
     const dir = join(process.cwd(), 'supabase', 'migrations');
     const files = readdirSync(dir)
       .filter((f) => /^\d+_.*\.sql$/.test(f))
       .sort()
       .map((name) => ({ name, sql: readFileSync(join(dir, name), 'utf8') }));
-    catalog = parseCatalog(files);
+    catalog = { tables: parseCatalog(files), views: parseViews(files) };
   }
   return catalog;
 }
+const loadCatalog = () => loadSchema().tables;
 
 function storeFor(seed: Seed): Store {
   let store = stores.get(seed);
@@ -201,12 +204,65 @@ class Rls {
 const STORE_PROBE = { name: 'sce_tcsk_audit_logs', owner: 'core', eventScoped: false, row: { parse: () => ({}) } } as unknown as TableDef<BaseRow>;
 const probedStores = new WeakMap<object, Store>();
 
+/** list(): the rows that match `where`, in the def's order and then by id, up to `limit`. */
+function listed<R extends BaseRow>(def: TableDef<R>, rows: ReadonlyArray<Row>, where?: Where<R>, opts?: { limit?: number }): Row[] {
+  const filters = filtersOf(def, where);
+  const hits = rows.filter((r) => matches(r, filters));
+  const order = [...(def.orderBy ?? []).map((o) => ({ column: columnOf(def, o.column), ascending: o.ascending })), { column: 'id', ascending: true }];
+  hits.sort((a, b) => {
+    for (const o of order) {
+      const [x, y] = [a[o.column], b[o.column]] as [string | number, string | number];
+      if (x !== y) return (x < y ? -1 : 1) * (o.ascending ? 1 : -1);
+    }
+    return 0;
+  });
+  return hits.slice(0, opts?.limit ?? hits.length);
+}
+
+/**
+ * A security_invoker view as parseViews reads it: the from table's visible rows, each left joined to the visible rows
+ * of every joined table (one output row per match, nulls without one). Writes fail, as on a join view in Postgres.
+ */
+function memoryView<R extends BaseRow>(store: Store, rls: Rls, def: TableDef<R>, view: CatalogView): Table<R> {
+  const rows = (): Row[] => {
+    if ('unsupported' in view) throw new Error(`${view.name}: memoryDb emulates only a security_invoker view of one table and its left joins on equal columns`);
+    const visibleIn = (table: string) => rowsOf(store, table).filter((r) => rls.allows(loadCatalog().get(table), 'read', r));
+    return view.joins.reduce<Row[]>((acc, j) => {
+      const byKey = new Map<string, Row[]>();
+      for (const r of visibleIn(j.table)) {
+        const k = keyOf(r, j.on.map(([col]) => col));
+        const same = byKey.get(k);
+        if (same) same.push(r);
+        else byKey.set(k, [r]);
+      }
+      return acc.flatMap((row) => {
+        const hits = byKey.get(keyOf(row, j.on.map(([, col]) => col))) ?? [null];
+        return hits.map((hit) => ({ ...row, ...Object.fromEntries(j.columns.map(([col, as]) => [as, hit?.[col] ?? null])) }));
+      });
+    }, visibleIn(view.from));
+  };
+  const parse = (r: Row) => fromColumns(def, structuredClone(r));
+  const readOnly = async (): Promise<never> => {
+    throw new Error(`${def.name} is a view: memoryDb, like Postgres for a join view, does not write through it`);
+  };
+  return {
+    list: async (where, opts) => listed(def, rows(), where, opts).map(parse),
+    get: async (id) => {
+      const row = rows().find((r) => r.id === id);
+      return row ? parse(row) : null;
+    },
+    insert: readOnly, insertMany: readOnly, upsertOn: readOnly, update: readOnly, remove: readOnly, removeWhere: readOnly,
+  };
+}
+
 function memoryTable<R extends BaseRow>(store: Store, actor: Actor, rls: Rls, def: TableDef<R>): Table<R> {
   if ((def as object) === STORE_PROBE) {
     const probe = {} as Table<R>;
     probedStores.set(probe, store);
     return probe;
   }
+  const view = loadSchema().views.get(def.name);
+  if (view) return memoryView(store, rls, def, view);
   const name = def.name;
   const meta = loadCatalog().get(name);
   const all = () => rowsOf(store, name);
@@ -299,18 +355,8 @@ function memoryTable<R extends BaseRow>(store: Store, actor: Actor, rls: Rls, de
   }
 
   return {
-    async list(where?: Where<R>, opts?: { limit?: number }) {
-      const filters = filtersOf(def, where);
-      const rows = visible().filter((r) => matches(r, filters));
-      const order = [...(def.orderBy ?? []).map((o) => ({ column: columnOf(def, o.column), ascending: o.ascending })), { column: 'id', ascending: true }];
-      rows.sort((a, b) => {
-        for (const o of order) {
-          const [x, y] = [a[o.column], b[o.column]] as [string | number, string | number];
-          if (x !== y) return (x < y ? -1 : 1) * (o.ascending ? 1 : -1);
-        }
-        return 0;
-      });
-      return rows.slice(0, opts?.limit ?? rows.length).map(parse);
+    async list(where, opts) {
+      return listed(def, visible(), where, opts).map(parse);
     },
     async get(id) {
       const row = visibleById(id);
