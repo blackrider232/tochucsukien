@@ -104,7 +104,8 @@ export class CommandError extends Error {
 
 export type CommandFailure = {
   ok: false;
-  kind: 'invalid' | 'conflict' | 'not_found' | 'forbidden' | 'constraint' | 'unavailable' | 'gate';
+  /** 'offline' comes from the client only: nothing was sent (decision 6). */
+  kind: 'invalid' | 'conflict' | 'not_found' | 'forbidden' | 'constraint' | 'unavailable' | 'gate' | 'offline';
   /** Already Vietnamese and plain text. */
   message: string;
   fieldErrors?: Readonly<Record<string, string>>;
@@ -122,11 +123,13 @@ export interface RunOptions {
   undoable?: boolean;
 }
 /**
- * Client hook. Calls dispatch, toasts failures (conflict -> "Dữ liệu đã được
- * người khác cập nhật. Đang tải lại…" + router.refresh()), pushes inverses,
- * refreshes the route on success. Returns the value or undefined on failure.
+ * Client hooks. Both call dispatch, toast failures (conflict -> "Dữ liệu đã được
+ * người khác cập nhật. Đang tải lại…" + router.refresh()), push inverses and
+ * refresh the route on success. Offline they send nothing and say "Ngoại tuyến"
+ * (decision 6). useCommand returns the value or undefined on failure;
+ * useCommandResult returns the whole CommandResult, failure kind included.
  */
-export { useCommand, useUndo, clearUndo, CommandFeedbackProvider, type CommandFeedback } from './client';
+export { useCommand, useCommandResult, useUndo, clearUndo, CommandFeedbackProvider, type CommandFeedback } from './client';
 
 /** Undo/redo stacks of Inverse, per tab session, cleared on sign-out (core §3.6 intended). */
 export interface UndoApi {

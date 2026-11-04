@@ -8,13 +8,15 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 const dispatch = vi.fn<(id: string, input: unknown) => Promise<CommandResult<unknown>>>();
 vi.mock('./dispatch', () => ({ dispatch: (id: string, input: unknown) => dispatch(id, input) }));
 
-const { CommandFeedbackProvider, clearUndo, useCommand, useUndo } = await import('./client');
+const { CommandFeedbackProvider, clearUndo, useCommand, useCommandResult, useUndo } = await import('./client');
 
 const notes: Array<[string, string]> = [];
 const wrapper = ({ children }: { children: ReactNode }) => (
   <CommandFeedbackProvider value={{ notify: (tone, text) => notes.push([tone, text]) }}>{children}</CommandFeedbackProvider>
 );
-const hooks = () => renderHook(() => ({ run: useCommand(), undo: useUndo() }), { wrapper });
+const hooks = () => renderHook(() => ({ run: useCommand(), result: useCommandResult(), undo: useUndo() }), { wrapper });
+const OFFLINE = 'Ngoại tuyến: chưa gửi được thay đổi. Chờ có mạng lại rồi thử lại.';
+const goOffline = () => vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
 const inverse = (label: string) => ({ command: 'guests.delete', input: { id: label }, label }) as never;
 
 beforeEach(() => {
@@ -22,6 +24,7 @@ beforeEach(() => {
   dispatch.mockReset();
   notes.length = 0;
   clearUndo();
+  vi.restoreAllMocks();
 });
 
 describe('useCommand', () => {
@@ -81,6 +84,48 @@ describe('useCommand', () => {
     await act(() => result.current.run('guests.update' as never, {} as never));
     expect(notes).toEqual([['error', 'Không kết nối được máy chủ. Vui lòng thử lại.']]);
   });
+
+  it('useCommandResult returns the whole result, so a caller tells a refusal from a failed request (live G)', async () => {
+    dispatch.mockResolvedValueOnce({ ok: false, kind: 'conflict', message: 'Đã có người check-in.' });
+    dispatch.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    dispatch.mockResolvedValueOnce({ ok: true, value: undefined });
+    const { result } = hooks();
+    const got: unknown[] = [];
+    await act(async () => {
+      got.push(await result.current.result('live.checkIn' as never, {} as never));
+      got.push(await result.current.result('live.checkIn' as never, {} as never));
+      got.push(await result.current.result('live.checkIn' as never, {} as never, { success: 'Đã check-in' }));
+    });
+    expect(got).toEqual([
+      { ok: false, kind: 'conflict', message: 'Đã có người check-in.' },
+      { ok: false, kind: 'unavailable', message: 'Không kết nối được máy chủ. Vui lòng thử lại.' },
+      { ok: true, value: undefined },
+    ]);
+    expect(notes).toEqual([
+      ['warning', 'Đã có người check-in.'],
+      ['error', 'Không kết nối được máy chủ. Vui lòng thử lại.'],
+      ['success', 'Đã check-in'],
+    ]);
+  });
+
+  it('offline (decision 6): sends nothing, says Ngoại tuyến and answers kind offline', async () => {
+    goOffline();
+    const { result } = hooks();
+    let value: unknown = 'unset';
+    let full: unknown;
+    await act(async () => {
+      value = await result.current.run('guests.update' as never, {} as never, { success: 'x' });
+      full = await result.current.result('guests.update' as never, {} as never);
+    });
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(value).toBeUndefined();
+    expect(full).toEqual({ ok: false, kind: 'offline', message: OFFLINE });
+    expect(notes).toEqual([
+      ['warning', OFFLINE],
+      ['warning', OFFLINE],
+    ]);
+    expect(refresh).not.toHaveBeenCalled();
+  });
 });
 
 describe('useUndo', () => {
@@ -108,6 +153,17 @@ describe('useUndo', () => {
     await act(() => result.current.undo.undo());
     expect(notes.at(-1)).toEqual(['error', 'Bạn không có quyền thực hiện thao tác này.']);
     expect(result.current.undo).toMatchObject({ canUndo: false, canRedo: false });
+  });
+
+  it('offline: an undo sends nothing, says Ngoại tuyến and keeps the inverse for later', async () => {
+    dispatch.mockResolvedValueOnce({ ok: true, value: 1, inverse: inverse('Thêm A') });
+    const { result } = hooks();
+    await act(() => result.current.run('guests.create' as never, {} as never));
+    goOffline();
+    await act(() => result.current.undo.undo());
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(notes.at(-1)).toEqual(['warning', OFFLINE]);
+    expect(result.current.undo).toMatchObject({ canUndo: true, undoLabel: 'Thêm A', canRedo: false });
   });
 
   it('a new command clears redo; undoable:false keeps it off the stack; the stack holds 30', async () => {
