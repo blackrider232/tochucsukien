@@ -187,7 +187,7 @@ export const restoreCheckIn: Spec<'live.restoreCheckIn'> = {
       if (lostRace(e)) throw new CommandError('conflict', NO_UNDO);
       throw e;
     }
-    const values = { checkedInAt: token.checkedInAt, checkedInBy: token.checkedInBy, desk: token.desk, giftGivenAt: token.giftGivenAt ?? existing?.giftGivenAt ?? null };
+    const values = { checkedInAt: token.checkedInAt, checkedInBy: token.checkedInBy, desk: token.desk, giftGivenAt: token.giftGivenAt };
     const table = ctx.db.table(checkinsTable);
     let row: CheckinRow;
     try {
