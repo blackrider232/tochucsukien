@@ -66,8 +66,9 @@ export const hallTemplateDraftSchema = z.object({
 });
 export type HallTemplateDraft = z.output<typeof hallTemplateDraftSchema>;
 
-export const ORPHAN_POLICIES = ['remap', 'release'] as const;
-export type OrphanPolicy = (typeof ORPHAN_POLICIES)[number];
+/** On a hall change: keep each seat's zone position and number where the new hall has it, or release every seat. */
+export const SEAT_POLICIES = ['remap', 'release'] as const;
+export type SeatPolicy = (typeof SEAT_POLICIES)[number];
 
 const departmentNames = DEPARTMENTS.map((d) => d.name) as [DepartmentName, ...DepartmentName[]];
 

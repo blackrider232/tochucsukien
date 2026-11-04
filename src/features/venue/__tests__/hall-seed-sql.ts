@@ -1,12 +1,10 @@
 // Renders the hall catalog seed migration from DEFAULT_HALL_TEMPLATES, so the
 // SQL and the typed table cannot drift (hall-seed.test.ts compares them).
 
-import { deterministicIds } from '@/core/legacy';
 import { DEFAULT_HALL_TEMPLATES } from '../domain/default-halls';
+import { defaultHallId } from '../server/default-hall-ids';
 
 export const HALL_SEED_MIGRATION = 'supabase/migrations/202611040900_venue_hall_templates_seed.sql';
-
-export const defaultHallId = (legacyId: string) => deterministicIds.idFor('HallTemplate', legacyId);
 
 const literal = (s: string) => `'${s.replace(/'/g, "''")}'`;
 

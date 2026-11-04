@@ -1,11 +1,9 @@
-// Public server entry: read functions (re-exported from the contract), the
-// commands record dispatch runs, and the legacy importer. Stubs until the
-// owning worker implements them; a missing command answers "chưa sẵn sàng".
+// Public server entry: read functions, the commands record dispatch runs,
+// the legacy importer and the dev fixture.
 
-import type { CommandsOf } from '@/core/commands';
-import type { LegacyImporter } from '@/core/legacy';
-
-export * from '../contract';
-
-export const commands: Partial<CommandsOf<'venue'>> = {};
-export const legacyImporter: LegacyImporter | null = null;
+export type * from '../contract';
+export { listHallTemplates, hallTemplateUsage, readEventHall, readSeating, readBooths, readBoothShifts } from './reads';
+export { rosterOf, type Upstream } from './upstream';
+export { commands } from './commands';
+export type { SeatChange, AutoAssignSummary } from './commands';
+export const legacyImporter = null;
