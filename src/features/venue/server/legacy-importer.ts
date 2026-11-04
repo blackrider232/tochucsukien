@@ -1,12 +1,17 @@
 // Imports legacy hallTemplates, eventHallConfig, eventSeating and eventBooths.
 // Pure and deterministic: every id is a uuid v5 of the legacy coordinates,
 // scoped by event where legacy ids repeat across events (bth_01, gst_vip_01).
-// totalSeats is dropped (capacity is derived); duplicate zone prefixes are
-// renamed and reported; seats outside the event hall are kept and reported as
-// orphans, which the seating screen then offers to release.
+// Events and guests are the ones the progress and guests importers write, read
+// from them, so every seat row keeps its foreign keys. totalSeats is dropped
+// (capacity is derived); duplicate zone prefixes are renamed and reported;
+// seats outside the event hall are kept and reported as orphans, which the
+// seating screen then offers to release; seats of declined guests are dropped.
 
-import { parseInstant, parseIsoDate } from '@/core/dates';
-import { isDemoLegacyEvent, isDemoLegacyId, type ImportContext, type ImportIssue, type LegacyBlob, type LegacyImporter } from '@/core/legacy';
+import type { EventId } from '@/core/brand';
+import { legacyScanKey } from '@/core/checkin-code';
+import { isDemoLegacyId, type ImportContext, type ImportIssue, type LegacyBlob, type LegacyImporter } from '@/core/legacy';
+import { legacyGuestIndex, legacyImporter as guestsImporter } from '@/features/guests/server';
+import { legacyImporter as progressImporter } from '@/features/progress/server';
 import type { HallZone } from '../contract';
 import { BOOTH_CODE_PATTERN, BOOTH_STATUS_VALUES, DEFAULT_BOOTH_SIZE, SUBSIDY_VALUES, boothRow } from '../domain/booths';
 import { DEFAULT_HALL_TEMPLATES } from '../domain/default-halls';
@@ -20,23 +25,10 @@ const oneOf = <T>(values: ReadonlyArray<T>, v: unknown): T | null => (values.inc
 const entries = (v: unknown): Array<[string, unknown]> => (isObj(v) ? Object.entries(v) : []);
 const TENT_CARD = 'Biển tên để bàn chữ A';
 
-/**
- * The legacy event ids progress imports: the first event of each id (a repeated id is re-keyed and owns nothing else),
- * with a date, and not a demo event unless --include-demo. Rows of any other event would break the FK, so they are reported.
- */
-function importedEvents(blob: LegacyBlob, ctx: ImportContext): ReadonlySet<string> {
-  const events = Array.isArray(blob.events) && blob.events.length > 0 ? blob.events : blob.programs;
-  const out = new Set<string>();
-  const seen = new Set<string>();
-  (Array.isArray(events) ? events : []).forEach((e: unknown) => {
-    if (!isObj(e)) return;
-    const id = str(e.id);
-    if (!id || seen.has(id)) return;
-    seen.add(id);
-    const dated = parseIsoDate(e.eventDate) ?? parseIsoDate(e.date) ?? parseInstant(e.created_at);
-    if (dated && (ctx.includeDemo || !isDemoLegacyEvent(e))) out.add(id);
-  });
-  return out;
+/** The events progress imports, by legacy id. Rows of any other event would break the FK, so they are reported. */
+function importedEvents(blob: LegacyBlob, ctx: ImportContext): ReadonlyMap<string, EventId> {
+  const rows = progressImporter.plan(blob, ctx).batches.find((b) => b.table === 'sce_tcsk_events')?.rows ?? [];
+  return new Map(rows.map((r) => [String(r.legacy_id), r.id as EventId]));
 }
 
 /** Valid, unique zones from a legacy zone list. Each change is reported; null when nothing usable is left. */
@@ -126,7 +118,7 @@ export const legacyImporter: LegacyImporter = {
       const zones = (isObj(cfg) ? normalizeZones(cfg.zones, `sự kiện "${legacyEventId}"`, 'eventHallConfig', legacyEventId, issue) : null) ?? template ?? null;
       if (!zones) continue;
       hallZones.set(legacyEventId, zones);
-      halls.push({ id: ctx.ids.idFor('EventHall', legacyEventId), event_id: ctx.ids.eventId(legacyEventId), template_id: template ? ctx.ids.idFor('HallTemplate', hallId) : null, zones });
+      halls.push({ id: ctx.ids.idFor('EventHall', legacyEventId), event_id: events.get(legacyEventId), template_id: template ? ctx.ids.idFor('HallTemplate', hallId) : null, zones });
     }
 
     // The legacy app showed the first template for an event that never saved a hall; keep that hall for its seats.
@@ -135,20 +127,20 @@ export const legacyImporter: LegacyImporter = {
       if (!events.has(legacyEventId) || hallZones.has(legacyEventId)) continue;
       issue('coerced', 'eventHallConfig', legacyEventId, `Sự kiện "${legacyEventId}" có xếp chỗ nhưng chưa lưu hội trường; dùng hội trường mẫu đầu tiên như ứng dụng cũ hiển thị.`);
       hallZones.set(legacyEventId, firstTemplate.zones);
-      halls.push({ id: ctx.ids.idFor('EventHall', legacyEventId), event_id: ctx.ids.eventId(legacyEventId), template_id: ctx.ids.idFor('HallTemplate', firstTemplate.legacyId), zones: firstTemplate.zones });
+      halls.push({ id: ctx.ids.idFor('EventHall', legacyEventId), event_id: events.get(legacyEventId), template_id: ctx.ids.idFor('HallTemplate', firstTemplate.legacyId), zones: firstTemplate.zones });
     }
 
     const notImported = (blobKey: string, legacyEventId: string) =>
       issue('orphan', blobKey, legacyEventId, `Dữ liệu ${blobKey} của sự kiện "${legacyEventId}" không được nhập vì sự kiện không được nhập.`);
 
+    const guestIndex = legacyGuestIndex(blob, ctx);
+    const guests = new Map<unknown, Readonly<Obj>>(guestsImporter.plan(blob, ctx).batches.flatMap((b) => b.rows).map((r) => [r.id, r]));
     const seats: Obj[] = [];
     for (const [legacyEventId, map] of entries(blob.eventSeating)) {
       if (!events.has(legacyEventId)) {
         notImported('eventSeating', legacyEventId);
         continue;
       }
-      const guestList = isObj(blob.eventGuests) && Array.isArray(blob.eventGuests[legacyEventId]) ? (blob.eventGuests[legacyEventId] as unknown[]) : [];
-      const guests = new Set(guestList.flatMap((g) => (isObj(g) && str(g.id) ? [str(g.id)] : [])));
       const hall = { zones: hallZones.get(legacyEventId) ?? [] };
       const seated = new Set<string>();
       for (const [rawCode, rawGuest] of entries(map)) {
@@ -162,8 +154,13 @@ export const legacyImporter: LegacyImporter = {
           issue('skipped_demo', 'eventSeating', legacyEventId, `Ghế ${seatCode} của khách mẫu "${guestId}" không được nhập.`);
           continue;
         }
-        if (!guests.has(guestId)) {
+        const guest = guests.get(guestIndex.get(legacyScanKey(legacyEventId, guestId)));
+        if (!guest) {
           issue('orphan', 'eventSeating', legacyEventId, `Ghế ${seatCode} trỏ tới khách "${guestId}" không có trong danh sách; đã bỏ.`);
+          continue;
+        }
+        if (guest.rsvp_status === 'declined') {
+          issue('coerced', 'eventSeating', legacyEventId, `Ghế ${seatCode} của "${str(guest.name)}" không được nhập vì đại biểu đã báo vắng.`);
           continue;
         }
         if (seated.has(guestId)) {
@@ -174,9 +171,9 @@ export const legacyImporter: LegacyImporter = {
         if (!zoneOfSeat(hall, seatCode)) issue('orphan', 'eventSeating', legacyEventId, `Ghế ${seatCode} không có trong sơ đồ hội trường của sự kiện; vẫn nhập để cán bộ giải phóng.`);
         seats.push({
           id: ctx.ids.idFor('SeatAssignment', seatCode, legacyEventId),
-          event_id: ctx.ids.eventId(legacyEventId),
+          event_id: events.get(legacyEventId),
           seat_code: seatCode,
-          guest_id: ctx.ids.idFor('Guest', guestId, legacyEventId),
+          guest_id: guest.id,
         });
       }
     }
@@ -213,7 +210,7 @@ export const legacyImporter: LegacyImporter = {
         if (subsidy !== Number(b.subsidyPercent)) issue('coerced', 'eventBooths', legacyId, `Mức hỗ trợ "${str(b.subsidyPercent)}" của gian ${code} không hợp lệ; đặt 50%.`);
         booths.push({
           id: ctx.ids.idFor('Booth', legacyId, legacyEventId),
-          event_id: ctx.ids.eventId(legacyEventId),
+          event_id: events.get(legacyEventId),
           legacy_id: legacyId,
           code,
           size: str(b.size) || DEFAULT_BOOTH_SIZE,
