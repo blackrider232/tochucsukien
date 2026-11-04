@@ -23,12 +23,15 @@ Frozen foundation code. Module workers import it and never edit it. The type ske
 
 Entry points added while implementing:
 
-- `@/core/auth/server`: `requestContext()`, `appContextValue()` and the service-role `createAuthUser()`. They read `next/headers`, which Next.js rejects in any module a client component or the proxy can reach, so they cannot live in `@/core/auth`. Client hooks (`useAppContext`, `useSettings`, `useCalendar`, `useEventChanges`, `AppContextProvider`) stay in `@/core/auth`.
-- `@/core/commands`: `CommandFeedbackProvider` (the (app) layout passes the kit toast to it) and `clearUndo()` (call on sign-out).
+- `@/core/auth/server`: `requestContext()`, `appContextValue()`, `signOut()` (called by `POST /auth/signout`) and the service-role `createAuthUser()`. They read `next/headers`, which Next.js rejects in any module a client component or the proxy can reach, so they cannot live in `@/core/auth`. Client hooks (`useAppContext`, `useSettings`, `useCalendar`, `useEventChanges`, `AppContextProvider`) stay in `@/core/auth`.
+- `@/core/commands`: `CommandFeedbackProvider` (the (app) layout wires it to the kit toast through `CommandToasts` in `src/components/shell`) and `clearUndo()` (the sign-out form calls it).
+- `@/core/prefs`: `usePref` and `useBoolPref` for the `theme`, `sce_sidebar_collapsed` and `sce_beep` keys, the only `localStorage` access. `@/core/prefs/boot` holds the inline theme script the root layout runs before first paint.
 - `@/core/db`: `defineTable({ columns })` maps fields whose column is not the snake_case name. Tests use `memoryDb(seed, actor)`: rows in column shape, RLS, defaults and unique keys read from `supabase/migrations`, and two `memoryDb` calls on the same seed object share one database. `inspectMemoryDb` (from `@/core/db/memory`) reads raw rows in tests.
 - `src/features/registry.ts` lists manifests (pure, used by the proxy). `registry-slots.ts` and `registry-server.ts` list slots and server records (`commands`, `legacyImporter`).
 
-Directories reserved with a `.gitkeep` and no sketch yet: `src/core/export/`, `src/core/prefs/` (the only place `localStorage` is allowed), `src/components/shell/`.
+`src/core/export/` is reserved with a `.gitkeep` and has no sketch yet.
+
+`/dev/kit` (`src/app/dev/kit`) is the kit gallery. It renders without a session on fixture app context and is a 404 in production.
 
 `src/features/<key>/index.ts` and `server/index.ts` re-export `contract.ts` for now; `server/index.ts` also exports `commands` and `legacyImporter`. The owning worker splits client-safe and server-only exports when it implements the feature.
 
