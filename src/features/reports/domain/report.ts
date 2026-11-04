@@ -8,6 +8,7 @@ import { calendarDaysBetween, formatVNDate } from '@/core/dates';
 import type { OrgIdentity } from '@/core/settings';
 import { formatVnd } from '@/core/text';
 import type { DailyReport } from '../contract';
+import { agencyName } from './agency-name';
 import { decodeFigures, formatPercent2, type DashboardFigures } from './figures';
 
 /** An issued report: the contract's snapshot plus the event and signer as they were at issue time. */
@@ -92,7 +93,7 @@ export function dailyReportDocument(r: Pick<IssuedReport, 'reportDate' | 'eventD
     title: 'BÁO CÁO',
     subject: `Tiến độ hằng ngày công tác chuẩn bị tổ chức ${r.eventName}`,
     milestone: `(${milestoneSentence(r)})`,
-    recipients: [`Ủy ban nhân dân Thành phố ${org.city};`, `${org.parentAgency};`, `Ban Giám đốc ${org.agencyName}.`],
+    recipients: [`Ủy ban nhân dân Thành phố ${org.city};`, `${agencyName(org.parentAgency, org.city)};`, `Ban Giám đốc ${agencyName(org.agencyName, org.city)}.`],
     sections: [
       {
         heading: 'I. Tình hình thực hiện kế hoạch',
