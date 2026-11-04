@@ -1,4 +1,4 @@
-import { act, screen, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { DutyStaffId, Email, EventId, GuestId, HHmm, IncidentId, Instant, IsoDate, SeatCode, Version } from '@/core/brand';
 import type { CheckinCode } from '@/core/checkin-code';
@@ -116,6 +116,25 @@ describe('scan dialog words what the check-in did (review MED-1)', () => {
     const g = guest({ name: 'Khách đúng giờ' });
     const { status } = await scanIn(g, { ok: true, value: { already: false, checkIn: { checkedInAt: AT } } });
     expect(await within(status()).findByText('Đã check-in: Khách đúng giờ')).toBeInTheDocument();
+  });
+});
+
+describe('scan dialog between openings', () => {
+  it('opens empty: the last result of the previous opening is not shown for the next guest', async () => {
+    const g = guest({ name: 'Khách lượt trước' });
+    dispatch.mockReset();
+    dispatch.mockImplementation(async (id: string) => (id === 'live.scan' ? { ok: true, value: { kind: 'ok', guest: g } } : { ok: true, value: { already: false, checkIn: { checkedInAt: AT } } }));
+    const { user } = show(data([g]), 'checkin');
+    await user.click(screen.getByRole('button', { name: 'Quét mã QR check-in' }));
+    const dialog = await screen.findByRole('dialog', { name: /Quét mã QR check-in/ });
+    await user.type(within(dialog).getByLabelText(/Hoặc nhập/), 'K7Q2ZX');
+    await user.click(within(dialog).getByRole('button', { name: 'Check-in' }));
+    expect(await within(dialog).findByText('Đã check-in: Khách lượt trước')).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /Quét mã QR check-in/ })).toBeNull());
+    await user.click(screen.getByRole('button', { name: 'Quét mã QR check-in' }));
+    const again = await screen.findByRole('dialog', { name: /Quét mã QR check-in/ });
+    expect(within(again).queryByText(/Khách lượt trước/)).toBeNull();
   });
 });
 

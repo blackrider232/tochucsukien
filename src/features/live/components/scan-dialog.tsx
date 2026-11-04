@@ -40,7 +40,14 @@ export function ScanDialog({ open, onClose }: { open: boolean; onClose: () => vo
   const desk = useDesk();
   const form = useZodForm(codeForm, { defaultValues: { code: '' } });
   const [last, setLast] = useState<Line | null>(null);
+  const [wasOpen, setWasOpen] = useState(open);
   const busy = useRef(false);
+
+  // This component outlives the dialog, so what the last opening said would greet the next guest at the desk.
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (!open) setLast(null);
+  }
 
   const handle = useCallback(async (raw: string) => {
     if (busy.current) return;
