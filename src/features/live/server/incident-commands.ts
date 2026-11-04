@@ -96,7 +96,10 @@ export const setIncidentStatus: Spec<'live.setIncidentStatus'> = {
   },
 };
 
-/** Only as the undo of a report nobody has acted on yet: an incident someone worked on stays in the log. */
+/**
+ * Only as the undo of a report nobody has acted on yet: the row is still at its first version and was reported here,
+ * not imported. An incident someone worked on stays in the log, also after it was reopened.
+ */
 export const deleteIncident: Spec<'live.deleteIncident'> = {
   kind: 'mutation',
   input: asSchema(z.object({ eventId: eventIdSchema, id: incidentIdSchema, version: versionSchema })),
@@ -104,7 +107,7 @@ export const deleteIncident: Spec<'live.deleteIncident'> = {
   async run(ctx, { eventId, id, version }) {
     const row = await incidentOf(ctx, eventId, id);
     const code = incidentCode(row.seq);
-    if (row.status !== 'open' || row.version !== version) {
+    if (row.version !== 1 || row.version !== version || row.legacyId !== null) {
       throw new CommandError('conflict', `Sự cố ${code} đã được cập nhật sau khi báo, nên giữ lại trong sổ. Đang tải lại…`);
     }
     await ctx.db.table(incidentsTable).remove(id, { expectedVersion: version });

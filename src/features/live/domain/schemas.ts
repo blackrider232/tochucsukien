@@ -8,12 +8,15 @@ import { normalizePhone } from '@/core/text';
 import { DEPARTMENTS, type DepartmentName, type GuestGroup } from '@/core/vocab';
 import type { DutyDesk, IncidentStatus, IncidentUrgency } from '../contract';
 
+export type UndoTokenId = Uuid<'CheckinUndoToken'>;
+
 const uuidOf = <E extends string>() =>
   z.string().refine((v) => parseUuid(v) !== null, 'Mã không hợp lệ').transform((v) => parseUuid<E>(v) as Uuid<E>);
 export const eventIdSchema = uuidOf<'Event'>() as z.ZodType<EventId, string>;
 export const guestIdSchema = uuidOf<'Guest'>() as z.ZodType<GuestId, string>;
 export const dutyIdSchema = uuidOf<'DutyStaff'>() as z.ZodType<DutyStaffId, string>;
 export const incidentIdSchema = uuidOf<'Incident'>() as z.ZodType<IncidentId, string>;
+export const undoTokenIdSchema = uuidOf<'CheckinUndoToken'>() as z.ZodType<UndoTokenId, string>;
 export const versionSchema = z.number().int().positive().transform((v) => v as Version);
 export const instantSchema = z.string().refine((v) => parseInstant(v) !== null, 'Thời điểm không hợp lệ').transform((v) => parseInstant(v) as Instant);
 /** The reception desk a check-in was made at; free text, absent on most devices. */

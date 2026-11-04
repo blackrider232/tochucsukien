@@ -81,6 +81,20 @@ describe('live.walkIn (decision 10)', () => {
     expect(await h.checkins(eventId)).toHaveLength(1);
   });
 
+  it('refuses the id of a guest who is not that walk-in: nobody else is checked in, seated or audited under a false name', async () => {
+    const { h, eventId } = await setup();
+    const real = await h.addGuest(eventId, { name: 'Lê Thị Thật', organization: 'Sở Thật' });
+    const before = h.audits().length;
+    const r = await h.run(desk, 'live.walkIn', walk(eventId, { guestId: real.id, zoneKey: 'B' }, { name: 'Người Giả', organization: 'X' }));
+    expect(r).toMatchObject({ ok: false, kind: 'conflict' });
+    expect(await h.entry(eventId, real.id)).toMatchObject({ checkedInAt: null, seatCode: null });
+    expect(h.audits()).toHaveLength(before);
+
+    const first = await h.ok(desk, 'live.walkIn', walk(eventId, {}, { name: 'Khách Phát Sinh', organization: 'Công ty A' }));
+    const other = await h.run(desk, 'live.walkIn', walk(eventId, { guestId: first.value.guestId }, { name: 'Người Khác', organization: 'Công ty B' }));
+    expect(other).toMatchObject({ ok: false, kind: 'conflict' });
+  });
+
   it('when another desk takes the picked seat first, the next free seat of the zone is used', async () => {
     const { h, eventId } = await setup();
     const rival = await h.addGuest(eventId, { name: 'Khách bàn khác', organization: 'Đơn vị khác' });
@@ -119,6 +133,15 @@ describe('live.walkIn (decision 10)', () => {
     expect(await h.checkins(eventId)).toHaveLength(1);
   });
 
+  it('undo of a walk-in refuses an invited guest even with its exact version and check-in time (review M18)', async () => {
+    const { h, eventId } = await setup();
+    const invitedGuest = await h.addGuest(eventId, { name: 'Khách mời thật' });
+    const c = await h.ok(desk, 'live.checkIn', { eventId, guestId: invitedGuest.id, desk: null });
+    const r = await h.run(desk, 'live.undoWalkIn', { eventId, guestId: invitedGuest.id, checkedInAt: c.value.checkIn.checkedInAt!, guestVersion: invitedGuest.version });
+    expect(r).toMatchObject({ ok: false, kind: 'invalid' });
+    expect(await h.entry(eventId, invitedGuest.id)).toMatchObject({ checkedInAt: c.value.checkIn.checkedInAt });
+  });
+
   it('a walk-in needs the guest and seating permissions too: venue refuses an actor of another department', async () => {
     const { h, eventId } = await setup();
     const r = await h.runWithoutRls(testActor('user', 'Phòng Tư vấn doanh nghiệp'), 'live.walkIn', walk(eventId));
@@ -149,6 +172,26 @@ describe('live.checkInSubstitute (m5 BUG-15)', () => {
     const r = await h.ok(desk, 'live.checkInSubstitute', { eventId, guestId: guest.id, version: guest.version, substituteName: 'Người thay', giftGiven: false, confirmDeclined: false, desk: null });
     expect((await h.undo(desk, r.inverse)).ok).toBe(true);
     expect(await h.entry(eventId, guest.id)).toMatchObject({ rsvpStatus: 'confirmed', substituteName: '', checkedInAt: null, seatCode: 'B-02' });
+  });
+
+  it('undo of a substitute is refused once the guest was edited after it (review M19)', async () => {
+    const { h, eventId, guest } = await invited();
+    const r = await h.ok(desk, 'live.checkInSubstitute', { eventId, guestId: guest.id, version: guest.version, substituteName: 'Người thay', giftGiven: false, confirmDeclined: false, desk: null });
+    const now = await h.entry(eventId, guest.id);
+    await h.ok(admin, 'guests.update', { eventId, id: guest.id, version: now.version, patch: { title: 'Giám đốc' } });
+    expect(await h.undo(desk, r.inverse)).toMatchObject({ ok: false, kind: 'conflict' });
+    expect(await h.entry(eventId, guest.id)).toMatchObject({ rsvpStatus: 'substituted', title: 'Giám đốc' });
+    expect((await h.entry(eventId, guest.id)).checkedInAt).not.toBeNull();
+  });
+
+  it('undo of a substitute refuses a plain check-in: no check-in removed, no RSVP rewritten (review LOW-1)', async () => {
+    const { h, eventId, guest } = await invited();
+    const c = await h.ok(desk, 'live.checkIn', { eventId, guestId: guest.id, desk: null });
+    const before = h.audits().length;
+    const r = await h.run(desk, 'live.undoSubstitute', { eventId, guestId: guest.id, checkedInAt: c.value.checkIn.checkedInAt!, guestVersion: guest.version, rsvpStatus: 'declined', substituteName: '' });
+    expect(r).toMatchObject({ ok: false, kind: 'conflict' });
+    expect(await h.entry(eventId, guest.id)).toMatchObject({ rsvpStatus: 'confirmed', checkedInAt: c.value.checkIn.checkedInAt });
+    expect(h.audits()).toHaveLength(before);
   });
 
   it('refuses a guest already checked in, and a declined guest without the confirmation', async () => {

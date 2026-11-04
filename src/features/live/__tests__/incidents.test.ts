@@ -36,6 +36,13 @@ describe('incident codes', () => {
     expect((await h.incidents(eventId)).map((i) => i.seq)).toEqual([1, 2]);
   });
 
+  it('five desks reporting in parallel get five distinct codes (review LOW-5)', async () => {
+    const { h, eventId } = await setup();
+    const results = await Promise.all([1, 2, 3, 4, 5].map((n) => h.run(desk, 'live.createIncident', { eventId, id: newId<'Incident'>(), draft: draft(`Sự cố ${n}`) })));
+    expect(results.map((r) => r.ok)).toEqual([true, true, true, true, true]);
+    expect((await h.incidents(eventId)).map((i) => i.seq).sort()).toEqual([1, 2, 3, 4, 5]);
+  });
+
   it('a retried report with the same id is the same incident', async () => {
     const { h, eventId, report } = await setup();
     const id = newId<'Incident'>();
@@ -82,6 +89,17 @@ describe('incident lifecycle', () => {
     const r = await report(draft('Mất micro'));
     await h.ok(desk, 'live.setIncidentStatus', { eventId, id: r.value.id, version: r.value.version, status: 'in_progress', note: '' });
     expect(await h.undo(desk, r.inverse)).toMatchObject({ ok: false, kind: 'conflict' });
+    expect(await h.incidents(eventId)).toHaveLength(1);
+  });
+
+  it('deleting is refused for an incident someone acted on, even when the caller sends its current version (review M23)', async () => {
+    const { h, eventId, report } = await setup();
+    const r = await report(draft('Mất micro'));
+    const working = await h.ok(desk, 'live.setIncidentStatus', { eventId, id: r.value.id, version: r.value.version, status: 'in_progress', note: '' });
+    expect(await h.run(desk, 'live.deleteIncident', { eventId, id: r.value.id, version: working.value.version })).toMatchObject({ ok: false, kind: 'conflict' });
+    const reopened = await h.ok(desk, 'live.setIncidentStatus', { eventId, id: r.value.id, version: working.value.version, status: 'open', note: '' });
+    expect(reopened.value.status).toBe('open');
+    expect(await h.run(desk, 'live.deleteIncident', { eventId, id: r.value.id, version: reopened.value.version })).toMatchObject({ ok: false, kind: 'conflict' });
     expect(await h.incidents(eventId)).toHaveLength(1);
   });
 

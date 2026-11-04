@@ -1,4 +1,4 @@
-// The three tables live owns (0002_domain_tables.sql). A check-in is its own
+// The tables live owns (0002_domain_tables.sql, 202611041500). A check-in is its own
 // row, unique on (event, guest): desks write it without touching the guest.
 
 import { z } from 'zod';
@@ -7,7 +7,7 @@ import { parseInstant } from '@/core/dates';
 import { defineTable, type BaseRow } from '@/core/db';
 import type { DepartmentName } from '@/core/vocab';
 import type { DutyDesk, DutyStaff, Incident } from '../contract';
-import { INCIDENT_STATUS_VALUES, URGENCY_VALUES } from '../domain/schemas';
+import { INCIDENT_STATUS_VALUES, URGENCY_VALUES, type UndoTokenId } from '../domain/schemas';
 
 const instant = z.string().transform((v) => (parseInstant(v) ?? v) as Instant);
 const managed = {
@@ -41,6 +41,41 @@ export const checkinsTable = defineTable<CheckinRow>({
     checkedInBy: z.string().nullable().transform((v) => v as UserId | null),
     desk: z.string().nullable(),
     giftGivenAt: instant.nullable(),
+  }),
+});
+
+/** A removed check-in kept for one undo (202611041500_live_checkin_undo_tokens.sql). */
+export interface UndoTokenRow extends BaseRow {
+  id: UndoTokenId;
+  eventId: EventId;
+  guestId: GuestId;
+  checkedInAt: Instant;
+  checkedInBy: UserId | null;
+  desk: string | null;
+  giftGivenAt: Instant | null;
+  /** The guest had declined and was checked in all the same: the decision-7 confirmation was already given. */
+  declinedConfirmed: boolean;
+  expiresAt: Instant;
+  consumedAt: Instant | null;
+  consumedBy: UserId | null;
+}
+export const undoTokensTable = defineTable<UndoTokenRow>({
+  name: 'sce_tcsk_checkin_undo_tokens',
+  owner: 'live',
+  eventScoped: true,
+  row: z.object({
+    ...managed,
+    id: z.string().transform((v) => v as UndoTokenId),
+    eventId,
+    guestId: z.string().transform((v) => v as GuestId),
+    checkedInAt: instant,
+    checkedInBy: z.string().nullable().transform((v) => v as UserId | null),
+    desk: z.string().nullable(),
+    giftGivenAt: instant.nullable(),
+    declinedConfirmed: z.boolean(),
+    expiresAt: instant,
+    consumedAt: instant.nullable(),
+    consumedBy: z.string().nullable().transform((v) => v as UserId | null),
   }),
 });
 

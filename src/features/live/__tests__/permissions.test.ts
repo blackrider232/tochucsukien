@@ -4,7 +4,7 @@ import type { CommandId, InputOf } from '@/core/commands';
 import { testActor, XTDT } from '@/core/testing/actors';
 import { admin, desk, harness, other } from './harness';
 
-const TABLES = ['sce_tcsk_checkins', 'sce_tcsk_duty_staff', 'sce_tcsk_incidents', 'sce_tcsk_guests', 'sce_tcsk_seat_assignments'];
+const TABLES = ['sce_tcsk_checkins', 'sce_tcsk_checkin_undo_tokens', 'sce_tcsk_duty_staff', 'sce_tcsk_incidents', 'sce_tcsk_guests', 'sce_tcsk_seat_assignments'];
 
 async function setup() {
   const h = harness();
@@ -23,7 +23,7 @@ async function setup() {
     'live.checkInDeclined': { eventId, guestId: guest.id, desk: null },
     'live.cancelCheckIn': { eventId, guestId: checked.id },
     'live.undoCheckIn': { eventId, guestId: checked.id, checkedInAt: at },
-    'live.restoreCheckIn': { eventId, guestId: guest.id, checkedInAt: at, desk: null, giftGiven: false },
+    'live.restoreCheckIn': { eventId, guestId: guest.id, tokenId: newId<'CheckinUndoToken'>() },
     'live.setGift': { eventId, guestId: checked.id, given: false },
     'live.scan': { eventId, raw: guest.checkinCode },
     'live.walkIn': { eventId, guestId: newId<'Guest'>(), guest: { name: 'Khách mới', group: 'BaoChi', title: '', organization: 'Báo', phone: '', hasBanquet: false }, zoneKey: null, confirmVipZone: false, giftGiven: false, allowDuplicate: false, desk: null },

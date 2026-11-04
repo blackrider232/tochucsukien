@@ -6,7 +6,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Badge, Button, KpiCard, PrintLink, useEventChanges } from '@/components/ui';
+import { Alert, Badge, Button, KpiCard, PrintLink, useEventChanges } from '@/components/ui';
 import { liveKpis } from '../domain/desk';
 import type { LiveScreenData, LiveTab } from '../domain/screen';
 import { CheckinDesk } from './checkin-desk';
@@ -15,26 +15,32 @@ import { DutyRoster } from './duty-roster';
 import { IncidentDialog, IncidentLog } from './incident-log';
 import { ScanDialog } from './scan-dialog';
 import { SeatMonitor } from './seat-monitor';
+import { useOnline } from './use-online';
 import { WalkInDialog } from './walk-in-dialog';
 
 const LIVE_TABLES = ['sce_tcsk_checkins', 'sce_tcsk_guests', 'sce_tcsk_seat_assignments', 'sce_tcsk_duty_staff', 'sce_tcsk_incidents'] as const;
 
 type Open = 'scan' | 'walkin' | 'incident' | null;
+const NO_WRITES: LiveScreenData['can'] = { checkIn: false, manage: false, walkIn: false };
 
-export function LiveScreen({ data, tab }: { data: LiveScreenData; tab: LiveTab }) {
-  const { event, can } = data;
+export function LiveScreen({ data: loaded, tab }: { data: LiveScreenData; tab: LiveTab }) {
+  const online = useOnline();
+  // Offline, the sub-tabs render as for a reader: no row writes until the network is back.
+  const data = online ? loaded : { ...loaded, can: NO_WRITES };
+  const { event } = data;
+  const can = loaded.can;
   const router = useRouter();
   const { connected } = useEventChanges(event.id, LIVE_TABLES);
   const [open, setOpen] = useState<Open>(null);
   const k = liveKpis(data.roster, event.targetGuests, data.staff, data.incidents);
 
   return (
-    <DeskProvider eventId={event.id} hall={data.hall}>
+    <DeskProvider eventId={event.id} hall={data.hall} online={online}>
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
-          {can.checkIn && <Button icon="qr-code" onClick={() => setOpen('scan')}>Quét mã QR check-in</Button>}
-          {can.walkIn && <Button variant="secondary" icon="users" onClick={() => setOpen('walkin')}>Khách phát sinh</Button>}
-          {can.manage && <Button variant="secondary" icon="siren" onClick={() => setOpen('incident')}>Báo sự cố</Button>}
+          {can.checkIn && <Button icon="qr-code" disabled={!online} onClick={() => setOpen('scan')}>Quét mã QR check-in</Button>}
+          {can.walkIn && <Button variant="secondary" icon="users" disabled={!online} onClick={() => setOpen('walkin')}>Khách phát sinh</Button>}
+          {can.manage && <Button variant="secondary" icon="siren" disabled={!online} onClick={() => setOpen('incident')}>Báo sự cố</Button>}
           <PrintLink href={`/events/${event.id}/live/car-pass`} label="In thẻ xe VIP" />
           <span className="ml-auto flex items-center gap-2 text-xs text-ink-muted">
             {connected
@@ -42,6 +48,12 @@ export function LiveScreen({ data, tab }: { data: LiveScreenData; tab: LiveTab }
               : <Button variant="ghost" icon="refresh" onClick={() => router.refresh()}>Tải lại số liệu</Button>}
           </span>
         </div>
+
+        {!online && (
+          <Alert tone="warning" title="Ngoại tuyến">
+            Mất kết nối mạng. Check-in, tiếp nhận khách, phân công trực và báo sự cố tạm khóa cho đến khi có mạng lại; chưa có thao tác nào được lưu khi ngoại tuyến.
+          </Alert>
+        )}
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <KpiCard

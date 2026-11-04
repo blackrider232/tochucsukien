@@ -7,7 +7,7 @@ import type { DutyStaffId, EventId, GuestId, IncidentId, Instant, Version } from
 import { defineCommands, type CommandsOf, type Sig } from '@/core/commands';
 import type { RsvpStatus } from '@/core/vocab';
 import type { CheckIn, DutyStaff, Incident, IncidentStatus, ScanOutcome } from '../contract';
-import type { DutyDraft, IncidentDraft } from '../domain/schemas';
+import type { DutyDraft, IncidentDraft, UndoTokenId } from '../domain/schemas';
 import { checkInSubstitute, undoSubstitute, undoWalkIn, walkIn, type SubstituteInput, type WalkInInput, type WalkInResult } from './arrival-commands';
 import { cancelCheckIn, checkIn, checkInDeclined, restoreCheckIn, scan, setGift, undoCheckIn } from './checkin-commands';
 import { createDuty, deleteDuty, setDutyPresence, updateDuty } from './duty-commands';
@@ -17,7 +17,7 @@ declare module '@/core/commands' {
   interface CommandMap {
     'live.checkInDeclined': Sig<{ eventId: EventId; guestId: GuestId; desk: string | null }, { already: boolean; checkIn: CheckIn }>;
     'live.undoCheckIn': Sig<{ eventId: EventId; guestId: GuestId; checkedInAt: Instant }, null>;
-    'live.restoreCheckIn': Sig<{ eventId: EventId; guestId: GuestId; checkedInAt: Instant; desk: string | null; giftGiven: boolean }, CheckIn>;
+    'live.restoreCheckIn': Sig<{ eventId: EventId; guestId: GuestId; tokenId: UndoTokenId }, CheckIn>;
     'live.setGift': Sig<{ eventId: EventId; guestId: GuestId; given: boolean }, CheckIn | null>;
     'live.scan': Sig<{ eventId: EventId; raw: string }, ScanOutcome>;
     'live.walkIn': Sig<WalkInInput, WalkInResult>;

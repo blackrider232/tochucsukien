@@ -4,9 +4,10 @@
 // earlier time (BUG-05). Nothing here writes the guest row.
 
 import { z } from 'zod';
-import type { EventId, GuestId } from '@/core/brand';
+import { newId, type EventId, type GuestId } from '@/core/brand';
 import { legacyScanKey, parseScannedCode } from '@/core/checkin-code';
 import { CommandError, type CommandContext } from '@/core/commands';
+import { addHours } from '@/core/dates';
 import { DbError } from '@/core/db';
 import { deterministicIds } from '@/core/legacy';
 import type { RosterEntry } from '@/features/guests';
@@ -14,10 +15,10 @@ import { readLegacyGuestIds, readRoster } from '@/features/guests/server';
 import { readEvent } from '@/features/progress/server';
 import { matchScan, type ScanOutcome } from '../contract';
 import { formatAt } from '../domain/desk';
-import { deskSchema, eventIdSchema, guestIdSchema, instantSchema } from '../domain/schemas';
+import { deskSchema, eventIdSchema, guestIdSchema, instantSchema, undoTokenIdSchema, type UndoTokenId } from '../domain/schemas';
 import { asSchema, audit, checkinWrite, declinedMessage, guestOf, inverse, readLive, who, type Spec } from './command-kit';
 import { toCheckIn } from './reads';
-import { checkinsTable, type CheckinRow } from './tables';
+import { checkinsTable, undoTokensTable, type CheckinRow } from './tables';
 
 const currentCheckin = async (ctx: CommandContext, eventId: EventId, guestId: GuestId): Promise<CheckinRow | null> =>
   (await ctx.db.table(checkinsTable).list({ eventId, guestId }))[0] ?? null;
@@ -85,10 +86,39 @@ export const checkInDeclined: Spec<'live.checkInDeclined'> = {
   },
 };
 
-async function removeCheckin(ctx: CommandContext, row: CheckinRow) {
-  await ctx.db.table(checkinsTable).remove(row.id, { expectedVersion: row.version });
-  return { eventId: row.eventId, guestId: row.guestId, checkedInAt: row.checkedInAt!, desk: row.desk, giftGiven: row.giftGivenAt !== null };
+/** How long the undo of a removed check-in stays possible. */
+export const UNDO_MINUTES = 15;
+
+/**
+ * Removes a check-in and keeps a copy of it as a one-time undo token, so the undo restores what the server saw and the
+ * inverse carries only the token id. A newer removal of the same guest replaces an older token.
+ */
+async function removeCheckin(ctx: CommandContext, row: CheckinRow, guest: RosterEntry): Promise<{ eventId: EventId; guestId: GuestId; tokenId: UndoTokenId }> {
+  const tokens = ctx.db.table(undoTokensTable);
+  await tokens.removeWhere({ eventId: row.eventId, guestId: row.guestId });
+  const token = await tokens.insert({
+    id: newId<'CheckinUndoToken'>(),
+    eventId: row.eventId,
+    guestId: row.guestId,
+    checkedInAt: row.checkedInAt!,
+    checkedInBy: row.checkedInBy,
+    desk: row.desk,
+    giftGivenAt: row.giftGivenAt,
+    declinedConfirmed: guest.rsvpStatus === 'declined',
+    expiresAt: addHours(ctx.now, UNDO_MINUTES / 60),
+    consumedAt: null,
+    consumedBy: null,
+  });
+  try {
+    await ctx.db.table(checkinsTable).remove(row.id, { expectedVersion: row.version });
+  } catch (e) {
+    await tokens.remove(token.id).catch(() => undefined);
+    throw e;
+  }
+  return { eventId: row.eventId, guestId: row.guestId, tokenId: token.id };
 }
+
+const giftText = (row: Pick<CheckinRow, 'giftGivenAt'>) => (row.giftGivenAt ? ', bỏ cả ghi nhận phát quà' : '');
 
 /** "Hủy check-in" from the desk table, after a confirm (BUG-09). Clears the check-in and its welcome pack (BUG-30). */
 export const cancelCheckIn: Spec<'live.cancelCheckIn'> = {
@@ -99,11 +129,11 @@ export const cancelCheckIn: Spec<'live.cancelCheckIn'> = {
     const guest = await guestOf(ctx, eventId, guestId);
     const row = await currentCheckin(ctx, eventId, guestId);
     if (!row?.checkedInAt) return { value: null, audit: audit('HỦY CHECK-IN', `${who(guest)} chưa check-in; không có gì để hủy`, eventId, 'checkin', guestId) };
-    const removed = await removeCheckin(ctx, row);
+    const token = await removeCheckin(ctx, row, guest);
     return {
       value: null,
-      audit: audit('HỦY CHECK-IN', `Hủy check-in lúc ${formatAt(row.checkedInAt, ctx.now)}: ${who(guest)}${removed.giftGiven ? ', bỏ cả ghi nhận phát quà' : ''}`, eventId, 'checkin', guestId),
-      inverse: inverse('live.restoreCheckIn', removed, `Hủy check-in ${guest.name}`),
+      audit: audit('HỦY CHECK-IN', `Hủy check-in lúc ${formatAt(row.checkedInAt, ctx.now)}: ${who(guest)}${giftText(row)}`, eventId, 'checkin', guestId),
+      inverse: inverse('live.restoreCheckIn', token, `Hủy check-in ${guest.name}`),
     };
   },
 };
@@ -119,30 +149,45 @@ export const undoCheckIn: Spec<'live.undoCheckIn'> = {
     if (row?.checkedInAt !== checkedInAt) {
       throw new CommandError('conflict', `Check-in của ${guest.name} đã thay đổi sau đó (đã hủy hoặc check-in lại), nên không hoàn tác được. Đang tải lại…`);
     }
-    const removed = await removeCheckin(ctx, row);
+    const token = await removeCheckin(ctx, row, guest);
     return {
       value: null,
-      audit: audit('HOÀN TÁC CHECK-IN', `Hoàn tác check-in lúc ${formatAt(checkedInAt, ctx.now)}: ${who(guest)}${removed.giftGiven ? ', bỏ cả ghi nhận phát quà' : ''}`, eventId, 'checkin', guestId),
-      inverse: inverse('live.restoreCheckIn', removed, `Hoàn tác check-in ${guest.name}`),
+      audit: audit('HOÀN TÁC CHECK-IN', `Hoàn tác check-in lúc ${formatAt(checkedInAt, ctx.now)}: ${who(guest)}${giftText(row)}`, eventId, 'checkin', guestId),
+      inverse: inverse('live.restoreCheckIn', token, `Hoàn tác check-in ${guest.name}`),
     };
   },
 };
 
+const NO_UNDO = 'Không còn gì để hoàn tác: thao tác này đã được hoàn tác, hoặc đã có thay đổi khác sau đó. Đang tải lại…';
+
 /**
- * The undo of a cancel. The rules of a check-in still hold: the guest is in the event, has not declined since, and has
- * no check-in now. The time comes back from the undo payload, so it may not lie in the future, and the audit names it.
+ * The undo of a removal. The token is the only source of what comes back: time, desk, gift time and the person who
+ * checked the guest in. It is used once, within UNDO_MINUTES, for its own guest, and only while the guest has no
+ * check-in. A guest who declined after the removal is refused unless the removed check-in was itself a confirmed one.
  */
 export const restoreCheckIn: Spec<'live.restoreCheckIn'> = {
   kind: 'mutation',
-  input: asSchema(z.object({ eventId: eventIdSchema, guestId: guestIdSchema, checkedInAt: instantSchema, desk: deskSchema, giftGiven: z.boolean() })),
+  input: asSchema(z.object({ eventId: eventIdSchema, guestId: guestIdSchema, tokenId: undoTokenIdSchema })),
   authorize: checkinWrite,
-  async run(ctx, { eventId, guestId, checkedInAt, desk, giftGiven }) {
+  async run(ctx, { eventId, guestId, tokenId }) {
     const guest = await guestOf(ctx, eventId, guestId);
-    if (Date.parse(checkedInAt) > Date.parse(ctx.now)) throw new CommandError('invalid', 'Giờ check-in không thể ở tương lai.');
-    if (guest.rsvpStatus === 'declined') throw new CommandError('conflict', declinedMessage(guest));
+    const tokens = ctx.db.table(undoTokensTable);
+    const token = await tokens.get(tokenId);
+    if (!token || token.eventId !== eventId || token.guestId !== guestId || token.consumedAt) throw new CommandError('conflict', NO_UNDO);
+    if (Date.parse(token.expiresAt) <= Date.parse(ctx.now)) {
+      await tokens.remove(token.id, { expectedVersion: token.version }).catch(() => undefined);
+      throw new CommandError('conflict', `Đã quá ${UNDO_MINUTES} phút nên không hoàn tác được. Check-in lại cho ${guest.name} nếu đại biểu vẫn có mặt.`);
+    }
     const existing = await currentCheckin(ctx, eventId, guestId);
     if (existing?.checkedInAt) throw new CommandError('conflict', `${guest.name} đã được check-in lại lúc ${formatAt(existing.checkedInAt, ctx.now)}; giữ nguyên lần check-in đó.`);
-    const values = { checkedInAt, checkedInBy: ctx.actor.profile.id, desk, giftGivenAt: giftGiven ? ctx.now : (existing?.giftGivenAt ?? null) };
+    if (guest.rsvpStatus === 'declined' && !token.declinedConfirmed) throw new CommandError('conflict', declinedMessage(guest));
+    try {
+      await tokens.update(token.id, { consumedAt: ctx.now, consumedBy: ctx.actor.profile.id }, { expectedVersion: token.version });
+    } catch (e) {
+      if (lostRace(e)) throw new CommandError('conflict', NO_UNDO);
+      throw e;
+    }
+    const values = { checkedInAt: token.checkedInAt, checkedInBy: token.checkedInBy, desk: token.desk, giftGivenAt: token.giftGivenAt };
     const table = ctx.db.table(checkinsTable);
     let row: CheckinRow;
     try {
@@ -151,10 +196,12 @@ export const restoreCheckIn: Spec<'live.restoreCheckIn'> = {
       if (lostRace(e)) throw new CommandError('conflict', `${guest.name} vừa được check-in ở bàn khác. Đang tải lại…`);
       throw e;
     }
+    await tokens.remove(token.id).catch(() => undefined);
+    const gift = row.giftGivenAt ? `, đã phát quà lúc ${formatAt(row.giftGivenAt, ctx.now)}` : '';
     return {
       value: toCheckIn(row),
-      audit: audit('KHÔI PHỤC CHECK-IN', `Khôi phục check-in lúc ${formatAt(checkedInAt, ctx.now)} (hoàn tác hủy): ${who(guest)}${giftGiven ? ', đã phát quà' : ''}`, eventId, 'checkin', guestId),
-      inverse: inverse('live.undoCheckIn', { eventId, guestId, checkedInAt }, `Khôi phục check-in ${guest.name}`),
+      audit: audit('KHÔI PHỤC CHECK-IN', `Khôi phục check-in lúc ${formatAt(token.checkedInAt, ctx.now)} (hoàn tác): ${who(guest)}${gift}`, eventId, 'checkin', guestId),
+      inverse: inverse('live.undoCheckIn', { eventId, guestId, checkedInAt: token.checkedInAt }, `Khôi phục check-in ${guest.name}`),
     };
   },
 };

@@ -32,7 +32,7 @@ export const liveManifest = defineFeature({
     { dir: '(app)/events/[eventId]/live', permission: 'live.read' },
     { dir: '(print)/events/[eventId]/live', permission: 'live.read' },
   ],
-  tables: ['sce_tcsk_checkins', 'sce_tcsk_duty_staff', 'sce_tcsk_incidents'],
+  tables: ['sce_tcsk_checkins', 'sce_tcsk_checkin_undo_tokens', 'sce_tcsk_duty_staff', 'sce_tcsk_incidents'],
   // Check-in fields of eventGuests move to sce_tcsk_checkins.
   legacyBlobKeys: ['eventDutyRoster', 'eventIncidents', 'eventGuests'],
 });

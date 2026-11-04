@@ -5,35 +5,49 @@
 // (keyboard wedge: code then Enter) fills. Never a fake viewfinder (m5 BUG-10).
 // The dialog stays open between scans so a queue moves quickly.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { z } from 'zod';
 import { Alert, Button, Dialog, Form, FormField, TextInput, useZodForm } from '@/components/ui';
-import type { ScanOutcome } from '../contract';
-import { useDesk } from './desk-actions';
+import { useDesk, type CheckInDone, type ScanDone } from './desk-actions';
 
 const codeForm = z.object({ code: z.string().trim().min(1, 'Nhập hoặc quét mã') });
 
-const RESULT: { [K in ScanOutcome['kind']]: { tone: 'success' | 'warning' | 'danger' | 'info'; text: (o: Extract<ScanOutcome, { kind: K }>) => string } } = {
-  ok: { tone: 'success', text: (o) => `Đã xử lý: ${o.guest.name}` },
-  already: { tone: 'warning', text: (o) => `${o.guest.name} đã check-in từ trước` },
-  ambiguous: { tone: 'info', text: (o) => `${o.candidates.length} đại biểu khớp mã; chọn đúng người` },
-  other_event: { tone: 'danger', text: (o) => `Mã thuộc sự kiện khác${o.eventName ? ` (${o.eventName})` : ''}` },
-  not_found: { tone: 'danger', text: () => 'Không tìm thấy đại biểu khớp mã' },
+type Line = { tone: 'success' | 'warning' | 'danger' | 'info'; text: string };
+
+const CHECK_IN: Record<CheckInDone, (name: string) => Line> = {
+  checked_in: (name) => ({ tone: 'success', text: `Đã check-in: ${name}` }),
+  already: (name) => ({ tone: 'warning', text: `${name} đã check-in từ trước` }),
+  skipped_by_staff: (name) => ({ tone: 'info', text: `Không check-in: ${name} (đại biểu đã báo vắng)` }),
+  failed: (name) => ({ tone: 'danger', text: `Chưa check-in được: ${name}. Xem thông báo lỗi rồi thử lại.` }),
 };
-const describe = (o: ScanOutcome) => ({ tone: RESULT[o.kind].tone, text: (RESULT[o.kind].text as (x: ScanOutcome) => string)(o) });
+
+function describe({ outcome, checkIn }: ScanDone): Line {
+  switch (outcome.kind) {
+    case 'ok':
+      return CHECK_IN[checkIn ?? 'failed'](outcome.guest.name);
+    case 'already':
+      return CHECK_IN.already(outcome.guest.name);
+    case 'ambiguous':
+      return { tone: 'info', text: `${outcome.candidates.length} đại biểu khớp mã; chọn đúng người` };
+    case 'other_event':
+      return { tone: 'danger', text: `Mã thuộc sự kiện khác${outcome.eventName ? ` (${outcome.eventName})` : ''}` };
+    case 'not_found':
+      return { tone: 'danger', text: 'Không tìm thấy đại biểu khớp mã' };
+  }
+}
 
 export function ScanDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const desk = useDesk();
   const form = useZodForm(codeForm, { defaultValues: { code: '' } });
-  const [last, setLast] = useState<{ tone: 'success' | 'warning' | 'danger' | 'info'; text: string } | null>(null);
+  const [last, setLast] = useState<Line | null>(null);
   const busy = useRef(false);
 
   const handle = useCallback(async (raw: string) => {
     if (busy.current) return;
     busy.current = true;
     try {
-      const outcome = await desk.scan(raw);
-      setLast(outcome ? describe(outcome) : null);
+      const done = await desk.scan(raw);
+      setLast(done ? describe(done) : null);
     } finally {
       busy.current = false;
     }
@@ -80,6 +94,14 @@ function detectorCtor(): DetectorCtor | null {
   return typeof window === 'undefined' ? null : ((window as unknown as { BarcodeDetector?: DetectorCtor }).BarcodeDetector ?? null);
 }
 
+/** What rules the camera out before anyone asks for it, so the dialog says so on opening. */
+function cameraBlocked(): 'insecure' | 'unsupported' | null {
+  if (!window.isSecureContext) return 'insecure';
+  if (!detectorCtor() || !navigator.mediaDevices?.getUserMedia) return 'unsupported';
+  return null;
+}
+const noSubscription = () => () => undefined;
+
 const MESSAGES: Partial<Record<CameraState, { tone: 'info' | 'warning' | 'danger'; text: string }>> = {
   unsupported: { tone: 'info', text: 'Trình duyệt này chưa hỗ trợ quét mã bằng camera. Dùng máy quét USB/Bluetooth hoặc nhập mã bên dưới.' },
   insecure: { tone: 'info', text: 'Camera chỉ dùng được khi mở ứng dụng qua kết nối an toàn (https). Dùng máy quét hoặc nhập mã bên dưới.' },
@@ -94,7 +116,9 @@ function CameraScanner({ onCode }: { onCode: (raw: string) => void }) {
   const stream = useRef<MediaStream | null>(null);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const seen = useRef<{ code: string; at: number } | null>(null);
-  const [state, setState] = useState<CameraState>('idle');
+  const [tried, setState] = useState<CameraState>('idle');
+  const blocked = useSyncExternalStore(noSubscription, cameraBlocked, () => null);
+  const state = blocked ?? tried;
 
   const stop = useCallback(() => {
     if (timer.current) clearInterval(timer.current);
@@ -107,9 +131,7 @@ function CameraScanner({ onCode }: { onCode: (raw: string) => void }) {
   useEffect(() => stop, [stop]);
 
   const start = async () => {
-    const Ctor = detectorCtor();
-    if (!window.isSecureContext) return setState('insecure');
-    if (!Ctor || !navigator.mediaDevices?.getUserMedia) return setState('unsupported');
+    const Ctor = detectorCtor()!;
     setState('starting');
     try {
       const supported = Ctor.getSupportedFormats ? await Ctor.getSupportedFormats() : WANTED;
@@ -153,7 +175,7 @@ function CameraScanner({ onCode }: { onCode: (raw: string) => void }) {
           <Button variant="secondary" icon="x" onClick={() => { stop(); setState('idle'); }}>Tắt camera</Button>
         </div>
       ) : (
-        <Button variant="secondary" icon="qr-code" onClick={() => void start()}>Bật camera</Button>
+        !blocked && <Button variant="secondary" icon="qr-code" onClick={() => void start()}>Bật camera</Button>
       )}
       {message && <Alert tone={message.tone}>{message.text}</Alert>}
     </div>
