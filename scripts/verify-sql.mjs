@@ -384,6 +384,22 @@ assert.deepEqual((await db.query(`select has_table_privilege('authenticated', 'p
   { t: false, a: false }, 'a table a later migration creates gets no TRUNCATE for authenticated and nothing for anon');
 await db.exec(`drop table public.sce_tcsk_later_probe`);
 
+// The audit log is append-only for every role, the owner and the service role included (202611041310_core_audit_append_only.sql).
+const auditRowsBefore = await auditCount();
+for (const role of ['service_role', null]) {
+  // The service role also lost the grants, so it may stop at either; the owner keeps every grant and meets the trigger.
+  const [who, refused] = role ? [role, /append-only|permission denied/] : ['the table owner', /append-only/];
+  if (role) await db.exec(`set role ${role}`);
+  try {
+    await assert.rejects(db.exec(`update public.sce_tcsk_audit_logs set summary = 'sửa'`), refused, `${who} cannot edit audit rows`);
+    await assert.rejects(db.exec(`delete from public.sce_tcsk_audit_logs`), refused, `${who} cannot delete audit rows`);
+    await assert.rejects(db.exec(`truncate public.sce_tcsk_audit_logs`), refused, `${who} cannot truncate the audit log`);
+  } finally {
+    await db.exec(`reset role`);
+  }
+}
+assert.equal(await auditCount(), auditRowsBefore, 'the audit log keeps every row');
+
 // Holidays carry the list the editor saw (202611041200_core_holidays_guard.sql).
 const year2031 = async () => (await db.query(`select holiday_date::text as date, name, kind from public.sce_tcsk_holidays where holiday_date between '2031-01-01' and '2031-12-31' order by 1`)).rows;
 const seen2031 = JSON.stringify(await year2031());
