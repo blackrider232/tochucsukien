@@ -381,6 +381,32 @@ describe('a send whose answer was lost', () => {
     expect((await start(h, eventId, [to('a@x.vn', g.id)], xtdtUser, MESSAGE, TAB_B)).claimed).toEqual(['a@x.vn']);
   });
 
+  it('a message a take-over turned unknown is not confirmed unsent while its first run may still answer; that run’s late "sent" stands', async () => {
+    const h = harness();
+    const eventId = await h.createEvent();
+    const { campaignId } = await start(h, eventId, [to('a@x.vn')]);
+    await marking(h, eventId, campaignId, 'a@x.vn');
+    // The officer takes over while the first tab still waits for Gmail.
+    expect(await start(h, eventId, [to('a@x.vn')], xtdtUser, MESSAGE, TAB_B, true)).toMatchObject({ unclear: ['a@x.vn'] });
+    const audits = h.audits().length;
+    const early = await h.run(xtdtUser, 'comms.markNotSent', { eventId, campaignId, emails: ['a@x.vn'] as Email[] });
+    expect(early).toMatchObject({ ok: false, kind: 'conflict', message: expect.stringContaining('phiên gửi trước có thể vẫn đang chờ Gmail trả lời') });
+    expect(h.audits()).toHaveLength(audits);
+    expect(deliveries(h)).toEqual([['a@x.vn', 'unknown']]);
+    expect(await record(h, eventId, campaignId, [sent('a@x.vn')])).toMatchObject({ ok: true });
+    expect(deliveries(h)).toEqual([['a@x.vn', 'sent']]);
+  });
+
+  it('once that run’s lease is over, the officer may confirm it unsent', async () => {
+    const h = harness();
+    const eventId = await h.createEvent();
+    const { campaignId } = await start(h, eventId, [to('a@x.vn')]);
+    await marking(h, eventId, campaignId, 'a@x.vn');
+    await start(h, eventId, [to('a@x.vn')], xtdtUser, MESSAGE, TAB_B, true);
+    after(h, 'a@x.vn', CLAIM_LEASE_MS + CLAIM_SKEW_MS);
+    expect((await h.ok(xtdtUser, 'comms.markNotSent', { eventId, campaignId, emails: ['a@x.vn'] as Email[] })).value).toEqual({ marked: 1 });
+  });
+
   it('marking not sent touches only unknown rows: a sent, failed, claimed or in-flight message stays as it is', async () => {
     const h = harness();
     const eventId = await h.createEvent();

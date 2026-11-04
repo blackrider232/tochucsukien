@@ -26,6 +26,7 @@ import { z } from 'zod';
 import type { CampaignId, Email, EventId, GuestId, Instant } from '@/core/brand';
 import { CommandError, type CommandContext, type CommandSpec, type InputOf, type OutputOf } from '@/core/commands';
 import { DbError } from '@/core/db';
+import { formatVNTime } from '@/core/dates';
 import { devMemoryEnabled } from '@/core/dev/mode';
 import { CLAIM_LEASE_MS, CLAIM_SKEW_MS } from '../domain/campaign';
 import { campaignIdSchema, deliveryResultSchema, eventIdSchema, guestIdSchema, MAX_CLAIM_BATCH, requiredEmailSchema, runTokenSchema, type RunToken } from '../domain/schemas';
@@ -65,6 +66,8 @@ const leaseExpired = (ctx: CommandContext, d: DeliveryRow) => Date.parse(ctx.now
 /** Held by the run whose token hashes to `claim`: claimed, or being sent. */
 const heldBy = (d: DeliveryRow, claim: ClaimHash) => (d.status === 'queued' || d.status === 'sending') && d.claimToken === claim;
 const IN_FLIGHT_LOST = 'Phiên gửi đã dừng khi đang gửi thư này, nên chưa rõ thư đã đi hay chưa. Kiểm tra mục Đã gửi của Gmail.';
+/** Taken over while its run may still be waiting for Gmail: that run may yet record the answer (markNotSent waits). */
+const IN_FLIGHT_TAKEN = 'Phiên gửi trước đã được tiếp quản khi đang gửi thư này, nên chưa rõ thư đã đi hay chưa. Kiểm tra mục Đã gửi của Gmail.';
 
 const recipientSchema = z.object({ guestId: guestIdSchema.nullable(), email: requiredEmailSchema, recipientName: z.string().trim().max(300) });
 
@@ -126,7 +129,7 @@ export const startCampaign: CommandSpec<InputOf<'comms.startCampaign'>, OutputOf
         else if (before?.status === 'sending') {
           // Its run died, or was taken over, with this message handed to Gmail or about to be: maybe sent.
           try {
-            await ctx.db.table(deliveriesTable).update(before.id, { status: 'unknown', error: IN_FLIGHT_LOST }, { expectedVersion: before.version });
+            await ctx.db.table(deliveriesTable).update(before.id, { status: 'unknown', error: heldElsewhere ? IN_FLIGHT_TAKEN : IN_FLIGHT_LOST }, { expectedVersion: before.version });
             orphaned += 1;
             unclear.push(r.email);
           } catch (e) {
@@ -275,6 +278,16 @@ export const markNotSent: CommandSpec<InputOf<'comms.markNotSent'>, OutputOf<'co
   authorize: send,
   async run(ctx, { eventId, campaignId, emails }) {
     const existing = await byEmail(ctx, eventId, campaignId);
+    // A take-over turned it unknown while its run waited for Gmail; until that run's lease is over it may still record
+    // "sent", and an error now would let the address be claimed and mailed again.
+    const answering = [...new Set(emails)].find((e) => {
+      const d = existing.get(e);
+      return d?.status === 'unknown' && d.error === IN_FLIGHT_TAKEN && !leaseExpired(ctx, d);
+    });
+    if (answering) {
+      const until = new Date(Date.parse(existing.get(answering)!.updatedAt) + CLAIM_LEASE_MS + CLAIM_SKEW_MS).toISOString() as Instant;
+      throw new CommandError('conflict', `Thư tới ${answering} vừa được tiếp quản khi đang gửi; phiên gửi trước có thể vẫn đang chờ Gmail trả lời. Hãy đợi tới ${formatVNTime(until)} rồi kiểm tra lại mục Đã gửi của Gmail.`);
+    }
     let marked = 0;
     try {
       for (const email of new Set(emails)) {
