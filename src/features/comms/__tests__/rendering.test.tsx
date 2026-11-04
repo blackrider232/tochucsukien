@@ -107,6 +107,42 @@ describe('comms screens render untrusted text as text', () => {
     noInjection(container);
   });
 
+  it('the review list shows the answer as typed, the matched guest and three decisions, each sent as a command', async () => {
+    dispatched.mockClear();
+    const waiting = response({ id: 'r3' as RsvpResponseId, version: 4 as Version, applyStatus: 'review', rsvp: null, match: 'email', matchedGuest: { id: 'g1' as GuestId, name: 'Trần Văn Bình' }, rsvpAnswer: `Tham dự ko đc ${XSS}` });
+    const data: FormScreenData = { event, form: null, responses: [waiting], guests: [], canManage: true, serverSync: false };
+    const { container, user } = renderUi(withAppContext(<FormPage data={data} />));
+    const list = screen.getByText('Câu trả lời cần xem lại').closest('section')!;
+    expect(within(list).getByText(`Tham dự ko đc ${XSS}`)).toBeInTheDocument();
+    expect(within(list).getByText(/Trần Văn Bình/)).toBeInTheDocument();
+    noInjection(container);
+    const sent = (action: unknown) => vi.waitFor(() => expect(dispatched).toHaveBeenLastCalledWith('comms.resolveResponse', { eventId: event.id, id: 'r3', version: 4, action }));
+    await user.click(within(list).getByRole('button', { name: 'Xác nhận tham dự' }));
+    await sent({ kind: 'answer', status: 'confirmed' });
+    // A decline frees the guest's seat, so it asks first.
+    dispatched.mockClear();
+    await user.click(within(list).getByRole('button', { name: 'Từ chối' }));
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent('ghế đã xếp (nếu có) được giải phóng');
+    expect(dispatched).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Ghi nhận từ chối' }));
+    await sent({ kind: 'answer', status: 'declined' });
+    await user.click(within(list).getByRole('button', { name: 'Bỏ qua' }));
+    await sent({ kind: 'dismiss' });
+    // At 360 px the buttons wrap below the answer and a long answer breaks inside its box.
+    const actions = within(list).getByRole('button', { name: 'Từ chối' }).parentElement!;
+    expect(actions.className).toContain('flex-wrap');
+    expect(within(list).getByText(`Tham dự ko đc ${XSS}`).className).toContain('break-words');
+    expect(list.querySelector('table')).toBeNull();
+  });
+
+  it('a read-only officer sees the answers waiting for review, with no decision buttons', () => {
+    const waiting = response({ applyStatus: 'review', rsvp: null, match: 'email', matchedGuest: { id: 'g1' as GuestId, name: 'Trần Văn Bình' }, rsvpAnswer: 'Bận đột xuất' });
+    renderUi(withAppContext(<FormPage data={{ event, form: null, responses: [waiting], guests: [], canManage: false, serverSync: false }} />));
+    const list = screen.getByText('Câu trả lời cần xem lại').closest('section')!;
+    expect(within(list).getByText('Bận đột xuất')).toBeInTheDocument();
+    expect(within(list).queryByRole('button')).toBeNull();
+  });
+
   it.each([
     [false, true, 'Tự động kiểm tra mỗi 5 phút (chưa hoạt động)', 'Tự động: chưa hoạt động'],
     [true, false, 'Tự động kiểm tra mỗi 5 phút', 'Tự động mỗi 5 phút'],

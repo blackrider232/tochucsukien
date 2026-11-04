@@ -7,7 +7,7 @@
 import { useMemo, useState } from 'react';
 import { z } from 'zod';
 import {
-  Alert, Badge, Button, DataTable, Dialog, FilterBar, Form, FormField, KpiCard, RowMenu, SectionCard, Select, downloadXlsx, useToast, useZodForm, xlsxSheet,
+  Alert, Badge, Button, DataTable, Dialog, FilterBar, Form, FormField, KpiCard, RowMenu, SectionCard, Select, downloadXlsx, useDialogs, useToast, useZodForm, xlsxSheet,
   type Column, type RowMenuItem,
 } from '@/components/ui';
 import type { GuestId } from '@/core/brand';
@@ -15,7 +15,7 @@ import { useCommand } from '@/core/commands';
 import { fileDateStamp, formatVNTime } from '@/core/dates';
 import { fileNameStem, matchesQuery } from '@/core/text';
 import { RSVP, type Tone } from '@/core/vocab';
-import { needsReview, type FormScreenData, type ResponseView } from '../domain/screen';
+import { awaitsDecision, needsReview, type FormScreenData, type ResponseView } from '../domain/screen';
 import { ColumnMapCard, FormConfigCard } from './form-config';
 
 const APPLY: Record<ResponseView['applyStatus'], { label: string; tone: Tone }> = {
@@ -58,6 +58,52 @@ function MatchDialog({ data, response, onClose }: { data: FormScreenData; respon
   );
 }
 
+/**
+ * Answers the reader would not apply ("Tham dự ko đc", "Không tham dự buổi chiều"): each with the answer as typed, the
+ * guest it matched and a person's decision, applied at the response's own time.
+ */
+function AnswersToDecide({ data, rows }: { data: FormScreenData; rows: ReadonlyArray<ResponseView> }) {
+  const run = useCommand();
+  const dialogs = useDialogs();
+  const decide = async (r: ResponseView, status: 'confirmed' | 'declined') => {
+    const guest = r.matchedGuest?.name ?? r.name;
+    if (status === 'declined') {
+      const ok = await dialogs.confirm({
+        title: `Ghi nhận ${guest} từ chối tham dự?`,
+        text: 'Khách mời chuyển sang Từ chối và ghế đã xếp (nếu có) được giải phóng. Chỉ áp dụng nếu câu trả lời mới hơn thay đổi RSVP gần nhất của khách.',
+        confirmLabel: 'Ghi nhận từ chối',
+        tone: 'danger',
+      });
+      if (!ok) return;
+    }
+    await run('comms.resolveResponse', { eventId: data.event.id, id: r.id, version: r.version, action: { kind: 'answer', status } }, { success: status === 'confirmed' ? 'Đã ghi nhận xác nhận tham dự' : 'Đã ghi nhận từ chối tham dự' });
+  };
+  const dismiss = (r: ResponseView) => void run('comms.resolveResponse', { eventId: data.event.id, id: r.id, version: r.version, action: { kind: 'dismiss' } }, { success: 'Đã bỏ qua phản hồi' });
+  return (
+    <SectionCard title="Câu trả lời cần xem lại" subtitle="Câu trả lời không trùng khớp một lựa chọn của Form nên chưa cập nhật khách mời. Hãy đọc và quyết định." icon="alert-triangle">
+      <ul className="divide-y divide-line">
+        {rows.map((r) => (
+          <li key={r.id} className="min-w-0 space-y-2 py-3 first:pt-0 last:pb-0">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+              <p className="min-w-0 font-semibold text-ink break-words">{r.matchedGuest?.name ?? r.name}</p>
+              <p className="text-xs text-ink-muted">{formatVNTime(r.respondedAt, { withDate: true })}</p>
+            </div>
+            <p className="text-xs text-ink-2 break-words">Người trả lời: {[r.name, r.organization, r.email].filter(Boolean).join(' · ')}</p>
+            <p className="rounded bg-surface-2 px-3 py-2 text-sm text-ink whitespace-pre-wrap break-words">{r.rsvpAnswer}</p>
+            {data.canManage && (
+              <div className="flex flex-wrap gap-2">
+                <Button variant="secondary" icon="circle-check" onClick={() => void decide(r, 'confirmed')}>Xác nhận tham dự</Button>
+                <Button variant="secondary" icon="circle-x" onClick={() => void decide(r, 'declined')}>Từ chối</Button>
+                <Button variant="ghost" icon="x" onClick={() => dismiss(r)}>Bỏ qua</Button>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    </SectionCard>
+  );
+}
+
 export function FormPage({ data }: { data: FormScreenData }) {
   const run = useCommand();
   const toast = useToast();
@@ -65,6 +111,7 @@ export function FormPage({ data }: { data: FormScreenData }) {
   const [matching, setMatching] = useState<ResponseView | null>(null);
   const [q, setQ] = useState('');
   const review = useMemo(() => data.responses.filter(needsReview), [data.responses]);
+  const toDecide = useMemo(() => data.responses.filter(awaitsDecision), [data.responses]);
   const shown = data.responses.filter((r) => matchesQuery(q, r.name, r.email, r.organization, r.phone));
   const form = data.form;
 
@@ -183,6 +230,7 @@ export function FormPage({ data }: { data: FormScreenData }) {
         <FormConfigCard key={form?.version ?? 0} eventId={data.event.id} form={form} canManage={data.canManage} serverSync={data.serverSync} />
         {form && form.sheetHeaders.length > 0 && <ColumnMapCard key={`map-${form.version}`} eventId={data.event.id} form={form} canManage={data.canManage} />}
       </div>
+      {toDecide.length > 0 && <AnswersToDecide data={data} rows={toDecide} />}
       {review.length > 0 && (
         <SectionCard title="Phản hồi cần xem lại" subtitle="Không khớp được khách mời nào, khớp nhiều khách, hoặc không đọc được thời gian" icon="alert-triangle">
           <DataTable rows={review} columns={columns} rowKey={(r) => r.id} empty={{ icon: 'check', title: 'Không có phản hồi chờ xem lại' }} />

@@ -126,6 +126,8 @@ export interface MailboxesScreenData {
   googleClientId: string | null;
 }
 
-/** A response no rule could place, waiting for a person: no guest, no readable time, or an answer a person must read. */
+/** A response no rule could place, waiting for a person: no guest, or no readable time. */
 export const needsReview = (r: Pick<ResponseView, 'applyStatus' | 'match'>) =>
-  r.applyStatus === 'no_time' || r.applyStatus === 'review' || (r.applyStatus === 'pending' && (r.match === 'none' || r.match === 'ambiguous'));
+  r.applyStatus === 'no_time' || (r.applyStatus === 'pending' && (r.match === 'none' || r.match === 'ambiguous'));
+/** A matched response whose answer is not a Form label or canonical answer: a person reads it and decides. */
+export const awaitsDecision = (r: Pick<ResponseView, 'applyStatus'>) => r.applyStatus === 'review';

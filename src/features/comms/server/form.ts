@@ -340,6 +340,7 @@ export const resolveResponse: CommandSpec<InputOf<'comms.resolveResponse'>, Outp
         z.object({ kind: z.literal('create') }),
         z.object({ kind: z.literal('dismiss') }),
         z.object({ kind: z.literal('reopen') }),
+        z.object({ kind: z.literal('answer'), status: z.enum(['confirmed', 'declined']) }),
       ]),
     }),
   ),
@@ -362,6 +363,17 @@ export const resolveResponse: CommandSpec<InputOf<'comms.resolveResponse'>, Outp
     }
     if (row.applyStatus === 'applied') throw new CommandError('invalid', 'Phản hồi này đã được áp dụng.');
     const t = emptyTally();
+    if (action.kind === 'answer') {
+      if (row.applyStatus !== 'review' || !row.matchedGuestId) throw new CommandError('invalid', 'Phản hồi này không chờ xác nhận câu trả lời.');
+      await applyToGuest(ctx, row, row.matchedGuestId, row.match, row.respondedAt, t, {}, action.status);
+      const decision = action.status === 'confirmed' ? 'Xác nhận tham dự' : 'Từ chối';
+      const outcome = t.applied ? 'áp dụng' : t.stale ? 'bỏ qua vì cũ hơn thay đổi gần nhất' : `lỗi: ${t.failures[0] ?? ''}`;
+      const after = await ctx.db.table(responsesTable).get(id);
+      return {
+        value: { applyStatus: after?.applyStatus ?? row.applyStatus },
+        audit: audit('XỬ LÝ PHẢN HỒI FORM', `${decision} theo phản hồi Google Form của "${who}" (câu trả lời chờ xem lại): ${outcome}`, eventId, 'rsvp_response', id),
+      };
+    }
     const labels = parseAnswerLabels((await formOf(ctx, eventId))?.answerLabels);
     if (action.kind === 'match') {
       const guest = (await readRoster(ctx, eventId)).find((g) => g.id === action.guestId);

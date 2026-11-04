@@ -31,7 +31,8 @@ declare module '@/core/commands' {
         eventId: EventId;
         id: RsvpResponseId;
         version: Version;
-        action: { kind: 'match'; guestId: GuestId } | { kind: 'create' } | { kind: 'dismiss' } | { kind: 'reopen' };
+        /** `answer`: a person read an answer waiting for review and decided it; applied at the response's own time. */
+        action: { kind: 'match'; guestId: GuestId } | { kind: 'create' } | { kind: 'dismiss' } | { kind: 'reopen' } | { kind: 'answer'; status: 'confirmed' | 'declined' };
       },
       { applyStatus: ApplyStatus }
     >;

@@ -319,6 +319,69 @@ describe('comms.syncForm', () => {
   });
 });
 
+describe('the review list: a person decides an answer the reader would not apply', () => {
+  async function waiting(answer = 'Tham dự ko đc', rsvpStatus: 'confirmed' | 'pending' = 'confirmed') {
+    const s = await setup();
+    const now = s.h.clock.now;
+    s.h.clock.now = '2026-11-01T00:00:00.000Z' as Instant;
+    const g = await s.h.addGuest(s.eventId, { email: 'an@a.vn' as Email, rsvpStatus, hasBanquet: false });
+    s.h.clock.now = now;
+    sheet.text = csv(`04/11/2026 10:00:00,Nguyễn Văn An,Công ty A,an@a.vn,,${cell(answer)},Có,`);
+    expect(await s.sync()).toMatchObject({ applied: 0, review: 1 });
+    const row = s.responses()[0]!;
+    expect(row).toMatchObject({ apply_status: 'review', rsvp_answer: answer, matched_guest_id: g.id });
+    return { ...s, g, row: { id: row.id as ResponseRow['id'], version: row.version as ResponseRow['version'] } };
+  }
+
+  it('"Từ chối" declines through guests.applyRsvp at the response’s own time, and is audited', async () => {
+    const { h, eventId, g, row, responses } = await waiting();
+    const r = await h.ok(xtdtUser, 'comms.resolveResponse', { eventId, id: row.id, version: row.version, action: { kind: 'answer', status: 'declined' } });
+    expect(r.value).toEqual({ applyStatus: 'applied' });
+    expect(await h.guest(eventId, g.id)).toMatchObject({ rsvpStatus: 'declined', rsvpSource: 'google_form', rsvpAt: '2026-11-04T03:00:00.000Z', hasBanquet: true });
+    expect(responses()[0]).toMatchObject({ apply_status: 'applied', rsvp: 'declined' });
+    expect(h.audits().at(-1)).toMatchObject({ action: 'XỬ LÝ PHẢN HỒI FORM', summary: expect.stringContaining('Từ chối theo phản hồi Google Form của "Nguyễn Văn An"') });
+  });
+
+  it('"Xác nhận tham dự" confirms the same way', async () => {
+    const { h, eventId, g, row } = await waiting('Có, nhưng đến muộn', 'pending');
+    const r = await h.ok(xtdtUser, 'comms.resolveResponse', { eventId, id: row.id, version: row.version, action: { kind: 'answer', status: 'confirmed' } });
+    expect(r.value).toEqual({ applyStatus: 'applied' });
+    expect(await h.guest(eventId, g.id)).toMatchObject({ rsvpStatus: 'confirmed', rsvpAt: '2026-11-04T03:00:00.000Z' });
+    expect(h.audits().at(-1)!.summary).toContain('Xác nhận tham dự theo phản hồi Google Form');
+  });
+
+  it('"Bỏ qua" sets the answer aside and changes no guest', async () => {
+    const { h, eventId, g, row, responses } = await waiting();
+    const before = await h.guest(eventId, g.id);
+    await h.ok(xtdtUser, 'comms.resolveResponse', { eventId, id: row.id, version: row.version, action: { kind: 'dismiss' } });
+    expect(responses()[0]).toMatchObject({ apply_status: 'dismissed' });
+    expect(await h.guest(eventId, g.id)).toEqual(before);
+  });
+
+  it('a decision older than the guest’s last change is stale and changes nothing', async () => {
+    const { h, eventId, g, row, responses } = await waiting();
+    const now = await h.guest(eventId, g.id);
+    // Staff called the guest after the answer and set the RSVP back to pending.
+    await h.ok(xtdtUser, 'guests.update', { eventId, id: g.id, version: now.version, patch: { rsvpStatus: 'pending' } });
+    const r = await h.ok(xtdtUser, 'comms.resolveResponse', { eventId, id: row.id, version: row.version, action: { kind: 'answer', status: 'declined' } });
+    expect(r.value).toEqual({ applyStatus: 'stale' });
+    expect((await h.guest(eventId, g.id)).rsvpStatus).toBe('pending');
+    expect(responses()[0]).toMatchObject({ apply_status: 'stale' });
+  });
+
+  it('is refused for a response that is not waiting for a decision, before any guest changes', async () => {
+    const s = await setup();
+    const a = await s.h.addGuest(s.eventId, { name: 'Lê Cường', organization: 'Công ty C' });
+    await s.h.addGuest(s.eventId, { name: 'Lê Cường', organization: 'Công ty D' });
+    sheet.text = csv('04/11/2026 10:00:00,Lê Cường,Công ty Z,,,Không,,');
+    await s.sync();
+    const row = s.responses()[0]!;
+    const r = await s.h.run(xtdtUser, 'comms.resolveResponse', { eventId: s.eventId, id: row.id as ResponseRow['id'], version: row.version as ResponseRow['version'], action: { kind: 'answer', status: 'declined' } });
+    expect(r).toMatchObject({ ok: false, kind: 'invalid' });
+    expect((await s.h.guest(s.eventId, a.id)).rsvpStatus).toBe('pending');
+  });
+});
+
 describe('comms.resolveResponse', () => {
   async function ambiguous() {
     const s = await setup();
