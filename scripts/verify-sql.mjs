@@ -346,6 +346,8 @@ const command = { actor: ids.xtdt, aal: 'aal1', command: 'progress.setStepDone',
 const writeCommandAudit = (row) => db.query(`select public.sce_tcsk_audit_command($1, $2, $3, $4, $5, 'tóm tắt', $6, $7, 'x')`,
   [row.actor, row.aal, row.command, row.perm, row.action, row.event, row.entity]);
 await as(ids.xtdt, 'aal1', () => assert.rejects(writeCommandAudit(command), /permission denied/, 'a signed-in user cannot write a command audit row'));
+assert.deepEqual((await db.query(`select p.priv from unnest(array['INSERT', 'UPDATE', 'DELETE', 'TRUNCATE']) p(priv)
+  where has_table_privilege('service_role', 'public.sce_tcsk_audit_logs', p.priv)`)).rows, [], 'the service role writes audit rows only through the writer (202611041370)');
 const asService = async (fn) => {
   await db.exec(`set role service_role`);
   try {
@@ -354,6 +356,8 @@ const asService = async (fn) => {
     await db.exec(`reset role`);
   }
 };
+await asService(() => assert.rejects(db.exec(`insert into public.sce_tcsk_audit_logs (actor_id, actor_email, action, summary) values ('${ids.admin}', 'admin@x.vn', 'PHÂN QUYỀN TÀI KHOẢN', 'giả')`),
+  /permission denied/, 'the service role cannot insert an audit row by hand'));
 const commandAuditCount = async () => (await db.query(`select count(*)::int as n from public.sce_tcsk_audit_logs`)).rows[0].n;
 async function refusedRow(label, patch) {
   const before = await commandAuditCount();
