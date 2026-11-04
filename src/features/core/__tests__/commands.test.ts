@@ -61,6 +61,24 @@ describe('permission denials at command level', () => {
   });
 });
 
+describe('one audit row per change', () => {
+  const backupNote = { note: 'Bản trước khi khôi phục' };
+  const prepare: Partial<Record<keyof typeof inputs, (h: ReturnType<typeof harness>) => Promise<unknown>>> = {
+    'core.users.create': async (h) => {
+      h.seed.sce_tcsk_profiles.push({ id: NEW_USER_ID, email: 'moi@sce.vn', fullname: 'Mới', role: 'user', department: null, status: 'pending', is_active: false, created_at: NOW, updated_at: NOW });
+    },
+    'core.backups.restore': (h) => h.ok(admin, 'core.backups.create', backupNote),
+  };
+  const mutations = (Object.keys(inputs) as Array<keyof typeof inputs>).filter((id) => id !== 'core.backups.download' && id !== 'core.audit.list');
+  it.each(mutations)('%s writes exactly one row, the SQL function’s', async (id) => {
+    const h = harness();
+    await prepare[id]?.(h);
+    const before = h.audits().length;
+    await h.ok(id === 'core.profile.updateName' ? xtdtUser : admin, id, inputs[id] as never);
+    expect(h.audits().slice(before)).toHaveLength(1);
+  });
+});
+
 describe('core.settings.update', () => {
   it('saves a typed patch, keeps every other field and audits old and new values (core B12, B15)', async () => {
     const h = harness();
@@ -136,8 +154,7 @@ describe('core.users.*', () => {
     const h = harness();
     const role = await h.ok(admin, 'core.users.setRole', { id: xtdtUser.profile.id, role: 'dept_leader' });
     expect(role.value).toMatchObject({ role: 'dept_leader' });
-    expect(h.audits().map((a) => a.action)).toEqual(['PHÂN QUYỀN TÀI KHOẢN', 'PHÂN QUYỀN TÀI KHOẢN']);
-    expect(h.audits()[1]!.summary).toBe(`${xtdtUser.profile.fullname} <${xtdtUser.profile.email}>: Chuyên viên → Lãnh đạo Phòng`);
+    expect(h.audits()).toMatchObject([{ action: 'PHÂN QUYỀN TÀI KHOẢN', summary: `${xtdtUser.profile.fullname} <${xtdtUser.profile.email}>: Chuyên viên → Lãnh đạo Phòng` }]);
     await h.undo(admin, role.inverse);
     expect(h.profile(xtdtUser).role).toBe('user');
 
@@ -228,7 +245,9 @@ describe('core.backups.*', () => {
     expect(h.holidays(2027)).toHaveLength(2);
     const notes = h.rows('sce_tcsk_backups').map((b) => b.note);
     expect(notes).toEqual(['Trước khi sửa', `Trước khi khôi phục #${created.value.id}`]);
-    expect(h.audits().filter((a) => a.action === 'KHÔI PHỤC SAO LƯU').at(-1)?.summary).toMatch(new RegExp(`^Khôi phục từ bản #${created.value.id} \\(\\d\\d:\\d\\d \\d\\d/\\d\\d/\\d{4}\\): Trước khi sửa$`));
+    const snapshot = h.rows('sce_tcsk_backups').at(-1)!.id;
+    expect(h.audits().at(-1)).toMatchObject({ action: 'KHÔI PHỤC SAO LƯU' });
+    expect(h.audits().at(-1)!.summary).toMatch(new RegExp(`^Khôi phục từ bản #${created.value.id} \\(\\d\\d:\\d\\d \\d\\d/\\d\\d/\\d{4}\\): Trước khi sửa\\. Dữ liệu trước đó lưu ở bản #${snapshot}$`));
   });
 
   it('leaves accounts as they are: roles, names and statuses changed after the backup survive a restore', async () => {

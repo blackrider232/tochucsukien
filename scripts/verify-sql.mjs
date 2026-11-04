@@ -274,4 +274,90 @@ await as(ids.admin, 'aal2', async () => {
   await assert.rejects(db.exec(`delete from public.sce_tcsk_audit_logs`), /permission denied/, 'admin cannot delete audit rows');
 });
 
+// Audit inside the functions (202611041100_core_audit_in_functions.sql): one readable row per change, none by hand.
+const auditCount = async () => (await db.query(`select count(*)::int as n from public.sce_tcsk_audit_logs`)).rows[0].n;
+const lastAudit = async () => (await db.query(`select actor_id, actor_email, action, summary, entity, entity_id from public.sce_tcsk_audit_logs order by id desc limit 1`)).rows[0];
+async function auditedOnce(label, user, aal, sql) {
+  const before = await auditCount();
+  await as(user, aal, () => db.query(sql));
+  assert.equal(await auditCount(), before + 1, `${label} writes exactly one audit row`);
+  return lastAudit();
+}
+const nameOf = async (id) => (await db.query(`select fullname, email from public.sce_tcsk_profiles where id = '${id}'`)).rows[0];
+
+const settingsRow = await auditedOnce('a settings change', ids.leader, 'aal2',
+  `select public.sce_tcsk_update_settings((select version from public.sce_tcsk_system_settings), '{"guest_quota_percent":155,"agency_short_name":"SCE"}')`);
+assert.deepEqual(settingsRow, {
+  actor_id: ids.leader, actor_email: 'bgd@x.vn', action: 'CẬP NHẬT THAM SỐ HỆ THỐNG', entity: 'settings', entity_id: '1',
+  summary: 'Tên viết tắt: SCE HN → SCE; Tỷ lệ danh sách khách mời tối thiểu (nhóm 1a): 150% → 155%',
+}, 'the settings function audits old and new values with their labels');
+const holidayRow = await auditedOnce('a holiday change', ids.leader, 'aal2',
+  `select public.sce_tcsk_replace_holidays(2031, '[{"date":"2031-01-23","name":"Tết Nguyên đán"},{"date":"2031-02-01","name":"Làm bù Tết","kind":"compensatory_workday"}]')`);
+assert.deepEqual([holidayRow.action, holidayRow.entity, holidayRow.entity_id, holidayRow.summary],
+  ['CẬP NHẬT NGÀY NGHỈ LỄ', 'holidays', '2031', 'Năm 2031: thêm 23/01/2031 Tết Nguyên đán, 01/02/2031 Làm bù Tết (ngày làm bù)'], 'the holiday function audits what it added');
+const holidayDrop = await auditedOnce('a holiday removal', ids.leader, 'aal2', `select public.sce_tcsk_replace_holidays(2031, '[{"date":"2031-01-23","name":"Tết Nguyên đán"}]')`);
+assert.equal(holidayDrop.summary, 'Năm 2031: bỏ 01/02/2031 Làm bù Tết (ngày làm bù)', 'and what it removed');
+const xtdtName = (await nameOf(ids.xtdt)).fullname;
+const renamed = await auditedOnce('a name change', ids.xtdt, 'aal1', `select public.sce_tcsk_update_profile_name('Nguyễn Văn A')`);
+assert.deepEqual([renamed.actor_id, renamed.action, renamed.summary], [ids.xtdt, 'CẬP NHẬT HỒ SƠ', `Tên hiển thị: "${xtdtName}" → "Nguyễn Văn A"`], 'the rename function audits old and new names');
+const b = await nameOf(ids.ptdn);
+const roleRow = await auditedOnce('a role change', ids.admin, 'aal2', `select public.sce_tcsk_set_profile_role('${ids.ptdn}', 'dept_leader')`);
+assert.equal(roleRow.summary, `${b.fullname} <${b.email}>: Chuyên viên → Lãnh đạo Phòng`, 'a role change is audited with role labels');
+const deptRow = await auditedOnce('a department change', ids.admin, 'aal2', `select public.sce_tcsk_set_profile_department('${ids.ptdn}', 'Phòng Tư vấn doanh nghiệp')`);
+assert.equal(deptRow.summary, `${b.fullname} <${b.email}>: Phòng Phát triển doanh nghiệp → Phòng Tư vấn doanh nghiệp`, 'a department change names both departments');
+const lockRow = await auditedOnce('a lock', ids.admin, 'aal2', `select public.sce_tcsk_set_profile_status(array['${ids.ptdn}']::uuid[], 'locked')`);
+assert.deepEqual([lockRow.action, lockRow.summary], ['KHÓA TÀI KHOẢN', `Khóa ${b.fullname} <${b.email}>`], 'a lock names the account');
+const unlockRow = await auditedOnce('an unlock', ids.admin, 'aal2', `select public.sce_tcsk_set_profile_status(array['${ids.ptdn}']::uuid[], 'active')`);
+assert.equal(unlockRow.summary, `Mở khóa ${b.fullname} <${b.email}>`, 'an unlock names the account');
+await as(ids.admin, 'aal2', () => db.exec(`select public.sce_tcsk_set_profile_role('${ids.ptdn}', 'user'), public.sce_tcsk_set_profile_department('${ids.ptdn}', 'Phòng Phát triển doanh nghiệp')`));
+
+const newcomer = '00000000-0000-0000-0000-0000000000f1';
+await db.exec(`insert into auth.users (id, email, raw_user_meta_data) values ('${newcomer}', 'moi@x.vn', '{"fullname":"Người Mới"}')`);
+const admitted = await auditedOnce('an admin-created account', ids.admin, 'aal2', `select public.sce_tcsk_admit_profile('${newcomer}', 'dept_leader', 'Phòng Xúc tiến đầu tư')`);
+assert.deepEqual([admitted.action, admitted.entity_id, admitted.summary], ['TẠO TÀI KHOẢN', newcomer, 'Người Mới <moi@x.vn>, Lãnh đạo Phòng, Phòng Xúc tiến đầu tư'], 'admitting a new account is one readable row');
+assert.deepEqual((await db.query(`select role, department, status from public.sce_tcsk_profiles where id = '${newcomer}'`)).rows[0], { role: 'dept_leader', department: 'Phòng Xúc tiến đầu tư', status: 'active' }, 'the new account is active with its role and department');
+await as(ids.admin, 'aal2', () => assert.rejects(db.query(`select public.sce_tcsk_admit_profile('${ids.xtdt}', 'admin', 'Phòng Xúc tiến đầu tư')`), /not_pending/, 'only a pending account is admitted'));
+await as(ids.leader, 'aal2', () => assert.rejects(db.query(`select public.sce_tcsk_admit_profile('${newcomer}', 'admin', 'Phòng Xúc tiến đầu tư')`), /forbidden/, 'a leader cannot admit accounts'));
+
+const backupRow = await auditedOnce('a manual backup', ids.leader, 'aal2', `select public.sce_tcsk_create_backup('Ghi chú', 'manual')`);
+const backupId = Number(backupRow.entity_id);
+assert.equal(backupRow.summary, `Bản #${backupId}: Ghi chú`, 'a manual backup is audited with its number and note');
+const restoreRow = await auditedOnce('a restore, its snapshot included', ids.admin, 'aal2', `select public.sce_tcsk_restore_backup(${backupId})`);
+const snapshotId = (await as(ids.admin, 'aal2', () => db.query(`select id from public.sce_tcsk_list_backups(1)`))).rows[0].id;
+assert.match(restoreRow.summary, new RegExp(`^Khôi phục từ bản #${backupId} \\(\\d\\d:\\d\\d \\d\\d/\\d\\d/\\d{4}\\): Ghi chú\\. Dữ liệu trước đó lưu ở bản #${snapshotId}$`), 'a restore is one row naming both backups');
+
+await as(ids.xtdt, 'aal1', () => assert.rejects(
+  db.query(`select public.sce_tcsk_write_audit('PHÂN QUYỀN TÀI KHOẢN', 'Chuyên viên → Quản trị viên', null, 'profile', '${ids.xtdt}')`),
+  /permission denied/, 'a user cannot call the raw audit writer'));
+const forge = (perm, action, eventSql = 'null', entity = 'step') =>
+  `select public.sce_tcsk_audit_command('${perm}', '${action}', 'giả mạo', ${eventSql}, '${entity}', 'x')`;
+await as(ids.xtdt, 'aal1', () => assert.rejects(db.query(forge('core.users.manage', 'PHÂN QUYỀN TÀI KHOẢN', 'null', 'profile')), /forbidden/, 'a user cannot audit an action it may not perform'));
+await as(ids.admin, 'aal2', () => assert.rejects(db.query(forge('core.users.manage', 'PHÂN QUYỀN TÀI KHOẢN', 'null', 'profile')), /forbidden/, 'core actions are audited only by their own functions, even for an admin'));
+await as(ids.xtdt, 'aal1', () => assert.rejects(db.query(forge('progress.write', 'PHÂN QUYỀN TÀI KHOẢN')), /forbidden/, 'a held permission cannot carry a core action'));
+await as(ids.xtdt, 'aal1', () => assert.rejects(db.query(forge('progress.write', 'CẬP NHẬT TIẾN ĐỘ', 'null', 'profile')), /forbidden/, 'a held permission cannot carry a core entity'));
+const tvdnEvent = (await as(ids.admin, 'aal2', () => db.query(`insert into public.sce_tcsk_events (name, type, event_date, department) values ('HN TVDN', 'hoi_nghi', '2026-12-21', 'Phòng Tư vấn doanh nghiệp') returning id`))).rows[0].id;
+await as(ids.xtdt, 'aal1', () => assert.rejects(db.query(forge('progress.write', 'CẬP NHẬT TIẾN ĐỘ', `'${tvdnEvent}'`)), /forbidden/, 'a user cannot audit another department’s event'));
+await as(ids.pending, 'aal1', () => assert.rejects(db.query(forge('progress.write', 'CẬP NHẬT TIẾN ĐỘ', `'${eventId}'`)), /forbidden/, 'a pending account cannot audit'));
+const ownRow = await auditedOnce('a command audit', ids.xtdt, 'aal1', forge('progress.write', 'CẬP NHẬT TIẾN ĐỘ', `'${eventId}'`));
+assert.deepEqual([ownRow.actor_id, ownRow.actor_email, ownRow.action], [ids.xtdt, 'a@x.vn', 'CẬP NHẬT TIẾN ĐỘ'], 'a command audit carries the caller as actor, from the session');
+
+await as(ids.xtdt, 'aal1', () => assert.rejects(db.query(`select public.sce_tcsk_create_backup('x', 'auto')`), /forbidden/, 'a user cannot take an auto backup'));
+await as(ids.admin, 'aal1', () => assert.rejects(db.query(`select public.sce_tcsk_create_backup('x', 'auto')`), /forbidden/, 'an admin at aal1 cannot take an auto backup'));
+const autoRow = await auditedOnce('an auto backup', ids.leader, 'aal2', `select public.sce_tcsk_create_backup('Tự động', 'auto')`);
+assert.equal(autoRow.action, 'TẠO BẢN SAO LƯU', 'an auto backup is audited');
+
+const denied = (user, aal, sql, label) => as(user, aal, () => assert.rejects(db.query(sql), /permission denied/, label));
+await denied(ids.leader, 'aal2', `update public.sce_tcsk_system_settings set guest_quota_percent = 199 where id = 1`, 'settings change only through the audited function');
+await denied(ids.leader, 'aal2', `insert into public.sce_tcsk_holidays (holiday_date, name) values ('2031-09-03', 'x')`, 'holidays are added only through the audited function');
+await denied(ids.leader, 'aal2', `update public.sce_tcsk_holidays set name = 'x' where holiday_date = '2031-01-23'`, 'holidays change only through the audited function');
+await denied(ids.leader, 'aal2', `delete from public.sce_tcsk_holidays where holiday_date = '2031-01-23'`, 'holidays are removed only through the audited function');
+await denied(ids.xtdt, 'aal1', `update public.sce_tcsk_profiles set fullname = 'Ẩn danh' where id = '${ids.xtdt}'`, 'a name changes only through the audited function');
+
+const anonCallable = await db.query(`select p.oid::regprocedure::text as f from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+  where n.nspname in ('public', 'tcsk') and has_function_privilege('anon', p.oid, 'execute') order by 1`);
+assert.deepEqual(anonCallable.rows.map((r) => r.f), [], 'anon executes no function of public or tcsk');
+const internal = await db.query(`select p.oid::regprocedure::text as f from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'tcsk' and p.prosecdef and p.proname in ('take_snapshot', 'role_label', 'bootstrap_first_admin') and has_function_privilege('authenticated', p.oid, 'execute') order by 1`);
+assert.deepEqual(internal.rows.map((r) => r.f), [], 'authenticated executes no internal owner-rights helper');
+
 console.log('all RLS and function checks passed');
