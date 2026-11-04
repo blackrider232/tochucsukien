@@ -384,6 +384,9 @@ await refusedRow('an event that does not exist, even for an admin', { actor: ids
 await refusedRow('an event permission without an event, even for an admin', { actor: ids.admin, aal: 'aal2', event: null });
 await refusedRow('a global permission on an event', { actor: ids.admin, aal: 'aal2', command: 'templates.create', perm: 'templates.admin' });
 await refusedRow('another department’s event', { event: tvdnEvent });
+// design.md, RBAC matrix: an 'all' grant (admin, leader) covers every department's event; a 'D' grant only its own.
+await writtenRow('an all grant on another department’s event', { actor: ids.leader, aal: 'aal2', event: tvdnEvent });
+await refusedRow('a department grant on another department’s event, for its leader', { actor: ids.xtdtLead, event: tvdnEvent });
 await refusedRow('a pending account', { actor: ids.pending });
 await db.exec(`update public.sce_tcsk_profiles set status = 'locked' where id = '${ids.xtdt}'`);
 await refusedRow('a locked account that otherwise holds the permission', {});
@@ -459,6 +462,13 @@ await db.exec(`create table public.sce_tcsk_later_probe (id int)`);
 assert.deepEqual((await db.query(`select has_table_privilege('authenticated', 'public.sce_tcsk_later_probe', 'TRUNCATE') as t, has_table_privilege('anon', 'public.sce_tcsk_later_probe', 'SELECT') as a`)).rows[0],
   { t: false, a: false }, 'a table a later migration creates gets no TRUNCATE for authenticated and nothing for anon');
 await db.exec(`drop table public.sce_tcsk_later_probe`);
+// A feature table created by a migration sorted before 202611041300 without tcsk.register_table keeps Supabase's
+// grants for anon; 202611041300 is what takes them back.
+await db.exec(`create table public.sce_tcsk_early_probe (id int); grant all on public.sce_tcsk_early_probe to anon, authenticated`);
+await db.exec(readFileSync(join(sqlDir, '202611041300_core_table_privileges.sql'), 'utf8'));
+assert.deepEqual((await db.query(`select has_table_privilege('anon', 'public.sce_tcsk_early_probe', 'SELECT') as a, has_table_privilege('authenticated', 'public.sce_tcsk_early_probe', 'TRUNCATE') as t`)).rows[0],
+  { a: false, t: false }, 'the privilege migration takes anon and TRUNCATE off a table an earlier migration left open');
+await db.exec(`drop table public.sce_tcsk_early_probe`);
 
 // Sequences (202611041360_core_sequence_privileges.sql): only owner-rights functions draw ids, so no API role holds one.
 const sequences = (await db.query(`select c.oid::regclass::text as s from pg_catalog.pg_class c join pg_catalog.pg_namespace n on n.oid = c.relnamespace

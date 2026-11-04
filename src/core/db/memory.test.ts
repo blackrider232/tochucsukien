@@ -273,7 +273,9 @@ describe('memoryAuditWriter (sce_tcsk_audit_command, 202611041320_core_audit_wri
     await write(testActor('user', XTDT, { aal: 'aal2', hasVerifiedTotp: true }), row);
     await write(testActor('user', XTDT), { ...row, command: 'directory.importToEvent' });
     await write(testActor('user', XTDT), { ...row, action: 'XÓA/KHÔI PHỤC KHÁCH (LẦN 2): "VIP", 50% - ỔN?', entity: 'master_contact' });
-    expect(inspectMemoryDb(seed, 'sce_tcsk_audit_logs')).toHaveLength(4);
+    // An 'all' grant covers every department's event (design.md, RBAC matrix).
+    await write(testActor('leader', 'Ban Giám đốc'), row);
+    expect(inspectMemoryDb(seed, 'sce_tcsk_audit_logs')).toHaveLength(5);
   });
 });
 
