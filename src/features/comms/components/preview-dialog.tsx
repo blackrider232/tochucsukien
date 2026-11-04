@@ -5,7 +5,8 @@ import type { SanitizedHtml } from '@/core/brand';
 import type { MailMessage } from '../domain/mime';
 
 /** The message exactly as it would leave: the sanitized, merged body through the kit's RichHtml (m4a B03). */
-export function PreviewDialog({ message, onClose, onTest, testing }: { message: MailMessage; onClose: () => void; onTest: () => void; testing: boolean }) {
+/** `onTest` is null when the officer may not send (no permission, or sending is not set up). */
+export function PreviewDialog({ message, onClose, onTest, testing }: { message: MailMessage; onClose: () => void; onTest: (() => void) | null; testing: boolean }) {
   const to = message.to[0];
   const rows: Array<[string, string]> = [
     ['Người gửi', `${message.from.name} <${message.from.email}>`],
@@ -23,7 +24,7 @@ export function PreviewDialog({ message, onClose, onTest, testing }: { message: 
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>Đóng xem trước</Button>
-          <Button icon="mail" loading={testing} onClick={onTest}>Gửi thử nội dung này đến tôi</Button>
+          {onTest && <Button icon="mail" loading={testing} onClick={onTest}>Gửi thử nội dung này đến tôi</Button>}
         </>
       }
     >

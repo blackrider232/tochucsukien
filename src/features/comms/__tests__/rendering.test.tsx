@@ -7,6 +7,7 @@ import { DeliveryLog } from '../components/delivery-log';
 import { FormPage } from '../components/form-page';
 import { InvitationsPage } from '../components/invitations-page';
 import { MailboxesAdmin } from '../components/mailboxes-admin';
+import { PreviewDialog } from '../components/preview-dialog';
 import type { FormScreenData, InvitationScreenData, ResponseView } from '../domain/screen';
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }), usePathname: () => '/' }));
@@ -58,6 +59,23 @@ describe('comms screens render untrusted text as text', () => {
     renderUi(withAppContext(<InvitationsPage data={invitationData({ retry: { campaignId: '0b0e0b0e-0000-5000-8000-000000000001' as CampaignId, guestIds: ['g1' as GuestId], manual: [], message } })} />));
     expect(screen.getByDisplayValue('Thư mời riêng {ho_ten}')).toBeInTheDocument();
     expect(screen.getByText(/Đã chọn lại 1 người nhận bị lỗi/)).toBeInTheDocument();
+  });
+
+  it('a read-only officer cannot send the test mail either', () => {
+    renderUi(withAppContext(<InvitationsPage data={invitationData({ canSend: false, devTransport: true })} />));
+    expect(screen.getByRole('button', { name: 'Gửi thử cho tôi' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Bắt đầu gửi/ })).toBeDisabled();
+  });
+
+  it('the preview offers no test mail to an officer who may not send', () => {
+    const message = { from: { name: 'A', email: 'a@x.vn' as Email }, to: [{ name: 'B', email: 'b@x.vn' as Email }], subject: 'S', html: '<p>x</p>' };
+    renderUi(withAppContext(<PreviewDialog message={message as never} onClose={() => undefined} onTest={null} testing={false} />));
+    expect(screen.queryByRole('button', { name: 'Gửi thử nội dung này đến tôi' })).toBeNull();
+  });
+
+  it('an officer who may send can send the test mail', () => {
+    renderUi(withAppContext(<InvitationsPage data={invitationData({ devTransport: true })} />));
+    expect(screen.getByRole('button', { name: 'Gửi thử cho tôi' })).toBeEnabled();
   });
 
   it('says plainly that sending is not set up without a Client ID: no sandbox fallback', () => {

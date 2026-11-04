@@ -14,7 +14,7 @@ const report = (over: Partial<CampaignReport> = {}): CampaignReport => ({
 });
 const handlers = () => ({ onPreview: vi.fn(), onTest: vi.fn(), onStop: vi.fn(), onRetryFailed: vi.fn(), onResumeSkipped: vi.fn(), onTakeOver: vi.fn() });
 const panel = (r: CampaignReport, h = handlers()) => (
-  <SendPanel run={{ kind: 'finished', report: r }} log={[]} recipients={1} canStart blocker={null} testing={false} {...h} />
+  <SendPanel run={{ kind: 'finished', report: r }} log={[]} recipients={1} canStart canTest blocker={null} testing={false} {...h} />
 );
 
 describe('SendPanel', () => {

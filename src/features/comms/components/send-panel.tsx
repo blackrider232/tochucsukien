@@ -32,6 +32,8 @@ export function SendPanel(props: {
   log: ReadonlyArray<LogLine>;
   recipients: number;
   canStart: boolean;
+  /** "Gửi thử cho tôi" writes no data but sends mail, so it needs the send permission like a run. */
+  canTest: boolean;
   blocker: string | null;
   testing: boolean;
   onPreview: () => void;
@@ -50,7 +52,7 @@ export function SendPanel(props: {
         {props.blocker && !running && <Alert tone="warning">{props.blocker}</Alert>}
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" icon="eye" disabled={running} onClick={props.onPreview}>Xem trước thư</Button>
-          <Button variant="secondary" icon="mail" loading={props.testing} disabled={running || Boolean(props.blocker)} onClick={props.onTest}>Gửi thử cho tôi</Button>
+          <Button variant="secondary" icon="mail" loading={props.testing} disabled={running || !props.canTest} onClick={props.onTest}>Gửi thử cho tôi</Button>
           {running ? (
             <Button variant="danger" icon="x" loading={run.stopping} onClick={props.onStop}>Dừng gửi</Button>
           ) : (

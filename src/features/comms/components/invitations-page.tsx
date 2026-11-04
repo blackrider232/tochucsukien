@@ -206,6 +206,7 @@ export function InvitationsPage({ data }: { data: InvitationScreenData }) {
   };
 
   const sendTest = async () => {
+    if (!data.canSend) return;
     const valid = await form.trigger();
     if (!valid || !ctx) return;
     setTesting(true);
@@ -308,6 +309,7 @@ export function InvitationsPage({ data }: { data: InvitationScreenData }) {
             log={log}
             recipients={recipients.length}
             canStart={data.canSend && !blocker && recipients.length > 0 && !running}
+            canTest={data.canSend && !blocker}
             blocker={data.canSend ? blocker : null}
             testing={testing}
             onPreview={() => void openPreview()}
@@ -322,7 +324,7 @@ export function InvitationsPage({ data }: { data: InvitationScreenData }) {
           />
         </Form>
       </div>
-      {preview && <PreviewDialog message={preview} onClose={() => setPreview(null)} testing={testing} onTest={() => void sendTest()} />}
+      {preview && <PreviewDialog message={preview} onClose={() => setPreview(null)} testing={testing} onTest={data.canSend && !blocker ? () => void sendTest() : null} />}
     </div>
   );
 }
