@@ -65,9 +65,9 @@ describe('can() mirrors tcsk.has_perm / can_on_departments', () => {
 });
 
 describe('permissionMatrix()', () => {
-  it('merges all nine manifests: 34 permissions, prefixed by their feature', () => {
+  it('merges all nine manifests: 35 permissions, prefixed by their feature', () => {
     const keys = [...permissionMatrix().keys()];
-    expect(keys).toHaveLength(34);
+    expect(keys).toHaveLength(35);
     expect(keys[0]).toBe('core.settings.edit');
     expect(keys.at(-1)).toBe('reports.issue');
   });

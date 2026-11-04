@@ -174,4 +174,96 @@ await as(ids.xtdtLead, 'aal1', () => db.exec(`update public.sce_tcsk_events set 
 assert.equal((await purge(ids.admin, 'aal2')).rows.length, 1, 'admin hard-purges a deleted event');
 assert.equal(await visibleTo(ids.admin, 'aal2', softGuests), 0, 'hard purge cascades to children');
 
+// Core admin functions (202611041000_core_admin_functions.sql).
+const settingsVersion = async () => (await db.query(`select version from public.sce_tcsk_system_settings where id = 1`)).rows[0].version;
+const v0 = await settingsVersion();
+await as(ids.admin, 'aal1', () => assert.rejects(db.query(`select public.sce_tcsk_update_settings(${v0}, '{"guest_quota_percent":150}')`), /forbidden/, 'admin at aal1 cannot edit settings'));
+await as(ids.xtdtLead, 'aal1', () => assert.rejects(db.query(`select public.sce_tcsk_update_settings(${v0}, '{"guest_quota_percent":150}')`), /forbidden/, 'dept_leader cannot edit settings'));
+const saved = await as(ids.leader, 'aal2', () => db.query(`select public.sce_tcsk_update_settings(${v0}, '{"guest_quota_percent":150,"agency_short_name":" SCE HN "}') as s`));
+assert.equal(saved.rows[0].s.guest_quota_percent, 150, 'leader at aal2 saves a typed patch');
+assert.equal(saved.rows[0].s.agency_short_name, 'SCE HN', 'text settings are trimmed');
+assert.equal(saved.rows[0].s.badge_quota_percent, 120, 'keys outside the patch are kept (core B12)');
+assert.equal(saved.rows[0].s.version, v0 + 1, 'settings version bumps');
+const staleSettings = await as(ids.admin, 'aal2', () => db.query(`select public.sce_tcsk_update_settings(${v0}, '{"guest_quota_percent":160}') as s`));
+assert.equal(staleSettings.rows[0].s, null, 'a stale settings version updates nothing');
+await as(ids.admin, 'aal2', () => assert.rejects(db.query(`select public.sce_tcsk_update_settings(${v0 + 1}, '{"guest_quota_percent":250}')`), /check constraint/, 'quota outside 100..200 is refused'));
+await as(ids.admin, 'aal2', () => assert.rejects(db.query(`select public.sce_tcsk_update_settings(${v0 + 1}, '{"version":1}')`), /unknown_setting/, 'a patch cannot name other columns'));
+
+const year2028 = `'[{"date":"2028-01-01","name":"Tết Dương lịch"},{"date":"2028-01-26","name":"Tết Nguyên đán"},{"date":"2028-01-29","name":"Làm bù","kind":"compensatory_workday"}]'`;
+await as(ids.xtdt, 'aal1', () => assert.rejects(db.query(`select public.sce_tcsk_replace_holidays(2028, ${year2028})`), /forbidden/, 'user cannot edit holidays'));
+await as(ids.admin, 'aal1', () => assert.rejects(db.query(`select public.sce_tcsk_replace_holidays(2028, ${year2028})`), /forbidden/, 'admin at aal1 cannot edit holidays'));
+const holidays2028 = () => db.query(`select holiday_date::text as d, name, kind from public.sce_tcsk_holidays where holiday_date between '2028-01-01' and '2028-12-31' order by 1`);
+await as(ids.leader, 'aal2', () => db.query(`select public.sce_tcsk_replace_holidays(2028, ${year2028})`));
+const once = (await holidays2028()).rows;
+await as(ids.leader, 'aal2', () => db.query(`select public.sce_tcsk_replace_holidays(2028, ${year2028})`));
+const replaced = await as(ids.leader, 'aal2', () => db.query(`select public.sce_tcsk_replace_holidays(2028, ${year2028}) as prev`));
+assert.deepEqual(replaced.rows[0].prev.map((h) => h.date), ['2028-01-01', '2028-01-26', '2028-01-29'], 'replace returns the rows it replaced');
+assert.deepEqual((await holidays2028()).rows, once, 'replacing a year twice with the same list converges');
+assert.equal(once.length, 3, 'the fixed-date 2028 rows are replaced by the given list');
+assert.equal((await db.query(`select count(*)::int as n from public.sce_tcsk_holidays where holiday_date between '2027-01-01' and '2027-12-31'`)).rows[0].n, 4, 'other years are untouched');
+await as(ids.leader, 'aal2', () => assert.rejects(db.query(`select public.sce_tcsk_replace_holidays(2028, '[{"date":"2029-01-01","name":"x"}]')`), /holiday_outside_year/, 'a date outside the year is refused'));
+await as(ids.leader, 'aal2', () => assert.rejects(db.query(`select public.sce_tcsk_replace_holidays(2028, '[{"date":"2028-05-01","name":"a"},{"date":"2028-05-01","name":"b"}]')`), /duplicate key/, 'one row per date'));
+assert.deepEqual((await holidays2028()).rows, once, 'a refused replace leaves the year as it was');
+
+const xss = `<img src=x onerror=alert(1)>`;
+const named = await as(ids.xtdt, 'aal1', () => db.query(`select public.sce_tcsk_update_profile_name('  ${xss}   Nguyễn  ') as p`));
+assert.equal(named.rows[0].p.fullname, `${xss} Nguyễn`, 'profile name is stored as text, whitespace collapsed');
+await as(ids.pending, 'aal1', () => assert.rejects(db.query(`select public.sce_tcsk_update_profile_name('Tên mới')`), /forbidden/, 'pending user cannot rename'));
+await as(ids.xtdt, 'aal1', () => assert.rejects(db.query(`select public.sce_tcsk_update_profile_name('   ')`), /invalid_fullname/, 'empty name refused'));
+await as(ids.xtdt, 'aal1', () => assert.rejects(db.query(`update public.sce_tcsk_profiles set role = 'admin' where id = '${ids.xtdt}'`), /permission denied/, 'a user cannot write its own role'));
+
+const listed = async (user, aal) => (await as(user, aal, () => db.query(`select email from public.sce_tcsk_list_profiles()`))).rows.map((r) => r.email).sort();
+assert.deepEqual(await listed(ids.xtdt, 'aal1'), ['a@x.vn'], 'a user lists only itself');
+assert.deepEqual(await listed(ids.xtdtLead, 'aal1'), ['a@x.vn', 'tp.xtdt@x.vn'], 'a dept_leader lists its own department');
+assert.equal((await listed(ids.leader, 'aal2')).length, 8, 'leader lists every profile');
+assert.deepEqual(await listed(ids.admin, 'aal1'), ['admin@x.vn'], 'admin at aal1 lists only itself');
+
+await as(ids.admin, 'aal2', () => db.exec(`select public.sce_tcsk_set_profile_role('${ids.ptdnLead}', 'admin')`));
+await as(ids.ptdnLead, 'aal2', () => db.exec(`select public.sce_tcsk_set_profile_status(array['${ids.admin}']::uuid[], 'locked')`));
+await as(ids.ptdnLead, 'aal2', () => assert.rejects(db.query(`select public.sce_tcsk_set_profile_role('${ids.ptdnLead}', 'user')`), /last_admin/, 'the last active admin cannot step down'));
+await as(ids.ptdnLead, 'aal2', () => assert.rejects(db.query(`select public.sce_tcsk_set_profile_status(array['${ids.ptdnLead}']::uuid[], 'locked')`), /cannot_lock_self/, 'an admin cannot lock itself'));
+await as(ids.ptdnLead, 'aal2', () => db.exec(`select public.sce_tcsk_set_profile_status(array['${ids.admin}']::uuid[], 'active')`));
+await as(ids.admin, 'aal2', () => db.exec(`select public.sce_tcsk_set_profile_role('${ids.ptdnLead}', 'dept_leader')`));
+
+await as(ids.admin, 'aal2', () => db.exec(`update public.sce_tcsk_events set name = 'Trước sao lưu' where id = '${eventId}'`));
+const roundTrip = await as(ids.admin, 'aal2', () => db.query(`select public.sce_tcsk_create_backup('Vòng khôi phục', 'manual') as id`));
+const rtId = roundTrip.rows[0].id;
+await as(ids.admin, 'aal2', async () => {
+  await db.exec(`update public.sce_tcsk_events set name = 'Sau sao lưu' where id = '${eventId}'`);
+  await db.exec(`select public.sce_tcsk_update_settings((select version from public.sce_tcsk_system_settings), '{"guest_quota_percent":170}')`);
+  await db.exec(`select public.sce_tcsk_replace_holidays(2028, '[]')`);
+});
+const backupsBefore = (await as(ids.admin, 'aal2', () => db.query(`select id from public.sce_tcsk_list_backups(200)`))).rows.length;
+await as(ids.leader, 'aal2', () => assert.rejects(db.query(`select public.sce_tcsk_restore_backup(${rtId})`), /forbidden/, 'leader cannot restore'));
+await as(ids.admin, 'aal2', () => db.query(`select public.sce_tcsk_restore_backup(${rtId})`));
+const back = await as(ids.admin, 'aal2', () => db.query(`select (select name from public.sce_tcsk_events where id = '${eventId}') as name, (select guest_quota_percent from public.sce_tcsk_system_settings) as quota, (select count(*)::int from public.sce_tcsk_holidays where holiday_date between '2028-01-01' and '2028-12-31') as h2028`));
+assert.deepEqual(back.rows[0], { name: 'Trước sao lưu', quota: 150, h2028: 3 }, 'restore round trip brings back events, settings and holidays');
+const backupsAfter = await as(ids.admin, 'aal2', () => db.query(`select note, created_by_email from public.sce_tcsk_list_backups(200)`));
+assert.equal(backupsAfter.rows.length, backupsBefore + 1, 'restore takes one snapshot first');
+assert.equal(backupsAfter.rows[0].note, `Trước khi khôi phục #${rtId}`, 'the pre-restore snapshot is the newest and says so');
+assert.equal(backupsAfter.rows[0].created_by_email, 'admin@x.vn', 'the snapshot names who restored');
+await as(ids.xtdtLead, 'aal1', () => assert.rejects(db.query(`select public.sce_tcsk_list_backups(10)`).then((r) => { if (r.rows.length === 0) throw new Error('row-level security: 0 rows'); }), /row-level security/, 'dept_leader sees no backups'));
+await as(ids.leader, 'aal2', () => assert.rejects(db.query(`select data from public.sce_tcsk_backups`), /permission denied/, 'backup data is not readable directly'));
+const exported = await as(ids.leader, 'aal2', () => db.query(`select public.sce_tcsk_backup_data(${rtId}) as d`));
+assert.ok(exported.rows[0].d['public.sce_tcsk_events'] ?? exported.rows[0].d.sce_tcsk_events, 'leader downloads a snapshot');
+await as(ids.xtdt, 'aal1', () => assert.rejects(db.query(`select public.sce_tcsk_backup_data(${rtId})`), /forbidden/, 'user cannot download a snapshot'));
+
+const auditRows = (user, aal, args) => as(user, aal, () => db.query(`select id, action, actor_email from public.sce_tcsk_list_audit(${args})`));
+const page1 = (await auditRows(ids.leader, 'aal2', `lim => 3`)).rows;
+assert.equal(page1.length, 3, 'audit pages by limit');
+const page2 = (await auditRows(ids.leader, 'aal2', `before_id => ${page1[2].id}, lim => 3`)).rows;
+assert.ok(page2.every((r) => r.id < page1[2].id), 'the next page starts below the cursor');
+assert.ok((await auditRows(ids.leader, 'aal2', `filter_action => 'TẢI BẢN SAO LƯU'`)).rows.every((r) => r.action === 'TẢI BẢN SAO LƯU'), 'audit filters by action');
+assert.equal((await auditRows(ids.leader, 'aal2', `filter_action => 'TẢI BẢN SAO LƯU'`)).rows.length, 1, 'a snapshot download is audited');
+assert.ok((await auditRows(ids.leader, 'aal2', `filter_actor => 'bgd@'`)).rows.every((r) => r.actor_email === 'bgd@x.vn'), 'audit filters by actor');
+assert.equal((await auditRows(ids.leader, 'aal2', `filter_actor => '%'`)).rows.length, 0, 'a wildcard in the actor filter is literal');
+assert.equal((await auditRows(ids.xtdtLead, 'aal1', `lim => 10`)).rows.length, 0, 'dept_leader reads no audit rows');
+const facets = (await as(ids.leader, 'aal2', () => db.query(`select public.sce_tcsk_audit_facets() as f`))).rows[0].f;
+assert.ok(facets.actions.includes('KHÔI PHỤC SAO LƯU') && facets.entities.includes('backup'), 'audit facets list actions and entities');
+assert.deepEqual((await as(ids.xtdt, 'aal1', () => db.query(`select public.sce_tcsk_audit_facets() as f`))).rows[0].f, { actions: [], entities: [] }, 'a user gets no facets');
+await as(ids.admin, 'aal2', async () => {
+  await assert.rejects(db.exec(`update public.sce_tcsk_audit_logs set summary = 'sửa'`), /permission denied/, 'admin cannot edit audit rows');
+  await assert.rejects(db.exec(`delete from public.sce_tcsk_audit_logs`), /permission denied/, 'admin cannot delete audit rows');
+});
+
 console.log('all RLS and function checks passed');

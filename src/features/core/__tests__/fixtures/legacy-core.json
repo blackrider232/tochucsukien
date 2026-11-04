@@ -1,0 +1,17 @@
+{
+  "systemSettings": {
+    "agencyName": "  TRUNG TÂM XÚC TIẾN ĐẦU TƯ VÀ HỖ TRỢ   DOANH NGHIỆP HÀ NỘI (SCE)",
+    "parentAgency": "SỞ TÀI CHÍNH HÀ NỘI",
+    "dailyReportThresholdDays": "12",
+    "fieldPresenceHours": 0,
+    "guestQuotaPercent": 140,
+    "badgeQuotaPercent": 250,
+    "googleClientId": "",
+    "unitSenderEmails": [
+      { "id": "gmail_cfg_1", "displayName": "Hòm thư Ban Tổ Chức Sự Kiện", "email": "hanoi.sce.event@gmail.com", "clientId": "", "isDefault": true }
+    ]
+  },
+  "departments": ["Phòng Hành chính - Tổ chức", "Phòng Phát triển doanh nghiệp", "Phòng Xúc tiến đầu tư", "Phòng Tư vấn doanh nghiệp"],
+  "events": [],
+  "programs": []
+}

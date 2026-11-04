@@ -25,7 +25,7 @@ describe('check:contract on the repo', () => {
     expect(real.pages).toContain('(app)');
     const keys = real.augmentations.flatMap((a) => a.keys);
     expect(keys).toEqual(expect.arrayContaining(['guests.applyRsvp', 'core.users.create', 'venue.halls.admin', 'live.checkIn']));
-    expect(real.commandVerbs.core).toEqual(['users.create']);
+    expect(real.commandVerbs.core).toContain('users.create');
     expect(real.migrations.map((m) => m.name)).toContain('0002_domain_tables.sql');
   });
 });

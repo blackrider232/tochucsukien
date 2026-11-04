@@ -1,12 +1,7 @@
-// Public server entry of feature `core`: the commands record dispatch runs and
-// the legacy importer (settings).
+// Public server entry of feature `core`: read functions, the commands record
+// dispatch runs and the legacy importer.
 
-import type { CommandsOf } from '@/core/commands';
-import type { LegacyImporter } from '@/core/legacy';
-import { coreCommands } from './commands';
-import { coreLegacyImporter } from './legacy';
-
-export * from '../contract';
-
-export const commands: Partial<CommandsOf<'core'>> = coreCommands;
-export const legacyImporter: LegacyImporter | null = coreLegacyImporter;
+export type * from '../contract';
+export { listProfiles, readProfile, listBackups, readAuditPage, auditFacets, type AuditEntry, type AuditFilter, type AuditPage } from './reads';
+export { commands } from './commands';
+export { legacyImporter } from './legacy-importer';
