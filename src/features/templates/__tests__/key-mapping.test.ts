@@ -2,7 +2,9 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { EventId, TemplateId } from '@/core/brand';
+import type { Instant, Version } from '@/core/brand';
 import { BUILTIN_IDS } from '../domain/builtin-templates';
+import { resolveCatalog, type StoredTemplate } from '../domain/catalog';
 import { resolveTemplateKey, STEP_TEMPLATE_KEYS, templateHref, templateKeyOptions, templatePrintHref } from '../domain/key-mapping';
 
 /** Every templateKey the standard SCE process (hội nghị and hội chợ) puts on a step, read from progress's generated table. */
@@ -62,6 +64,21 @@ describe('step templateKey -> template', () => {
     expect(resolveTemplateKey('2d1f6f3e-8f4a-4a53-9b0c-0a1f2b3c4d5e')).toBe('2d1f6f3e-8f4a-4a53-9b0c-0a1f2b3c4d5e');
   });
 
+  it('answers null for a custom template uuid that is not in the catalog (deleted), and keeps one that is', () => {
+    const live = '2d1f6f3e-8f4a-4a53-9b0c-0a1f2b3c4d5e';
+    const gone = '0a0a0a0a-0a0a-4a0a-8a0a-0a0a0a0a0a0a';
+    const catalog = [...BUILTIN_IDS, live].map((id) => ({ id }));
+    expect(resolveTemplateKey(live, catalog)).toBe(live);
+    expect(resolveTemplateKey(gone, catalog)).toBeNull();
+    expect(resolveTemplateKey('form_giaymoi', catalog)).toBe('form_giaymoi_vip');
+    expect(resolveTemplateKey('form_kh_ubnd', catalog)).toBe('form_kh_ubnd');
+    expect(resolveTemplateKey('form_bienten', catalog)).toBeNull();
+  });
+
+  it('answers null for a built-in that the catalog does not list', () => {
+    expect(resolveTemplateKey('form_kh_ubnd', [])).toBeNull();
+  });
+
   it('answers null for an empty, unknown or hostile key, including Object.prototype names', () => {
     for (const key of ['', ' ', 'form_khong_co', 'constructor', '__proto__', 'toString', 'hasOwnProperty', '<script>']) expect(resolveTemplateKey(key), key).toBeNull();
   });
@@ -78,6 +95,10 @@ describe('links', () => {
     expect(templateHref('form_kh_ubnd' as TemplateId, null)).toBe('/templates?t=form_kh_ubnd');
     expect(templatePrintHref('form_kh_ubnd' as TemplateId, eventId)).toBe(`/templates/print?t=form_kh_ubnd&event=${eventId}`);
   });
+  it('gives no link for a key that resolved to nothing', () => {
+    expect(templateHref(null, eventId)).toBeNull();
+    expect(templatePrintHref(null, eventId)).toBeNull();
+  });
   it('encodes the id', () => {
     expect(templateHref('a b&c' as TemplateId, null)).toBe('/templates?t=a+b%26c');
   });
@@ -89,5 +110,28 @@ describe('templateKeyOptions', () => {
     expect(options).toHaveLength(23);
     for (const o of options) expect(resolveTemplateKey(o.value)).toBe(o.value);
     expect(options[0]!.label).toBe('KH-UBND: Kế hoạch tổ chức chương trình sự kiện (UBND Thành phố Hà Nội)');
+    expect(options.every((o) => o.group === 'Biểu mẫu chuẩn')).toBe(true);
+  });
+
+  const custom: StoredTemplate = {
+    templateKey: '2d1f6f3e-8f4a-4a53-9b0c-0a1f2b3c4d5e', baseBuiltinKey: null, level: 'cap_trungtam', code: '', title: 'Phiếu đăng ký gian hàng', kind: 'grid',
+    description: '', contentHtml: '<p>x</p>', version: 1 as Version, updatedAt: '2026-11-01T00:00:00.000Z' as Instant,
+  };
+  const override: StoredTemplate = { ...custom, templateKey: 'form_kh_ubnd', baseBuiltinKey: 'form_kh_ubnd', code: 'KH-UBND', title: 'Kế hoạch UBND (đã sửa)' };
+
+  it('also lists the custom templates of the catalog, in their own group labelled "Tùy chỉnh", after the built-ins', () => {
+    const catalog = resolveCatalog([custom]);
+    const options = templateKeyOptions(catalog);
+    expect(options).toHaveLength(24);
+    expect(options.slice(0, 23).every((o) => o.group === 'Biểu mẫu chuẩn')).toBe(true);
+    expect(options[23]).toEqual({ value: custom.templateKey, label: 'Tùy chỉnh: Phiếu đăng ký gian hàng', group: 'Tùy chỉnh' });
+    for (const o of options) expect(resolveTemplateKey(o.value, catalog), o.value).toBe(o.value);
+  });
+
+  it('shows the title an admin gave a built-in, and no custom group when there is none', () => {
+    const options = templateKeyOptions(resolveCatalog([override]));
+    expect(options).toHaveLength(23);
+    expect(options[0]).toEqual({ value: 'form_kh_ubnd', label: 'KH-UBND: Kế hoạch UBND (đã sửa)', group: 'Biểu mẫu chuẩn' });
+    expect(options.some((o) => o.group === 'Tùy chỉnh')).toBe(false);
   });
 });

@@ -43,7 +43,7 @@ export const UBND_TEMPLATES: ReadonlyArray<BuiltinTemplate> = [
 
     <p style="font-weight: bold; margin-top: 15px;">II. QUY MÔ, THỜI GIAN VÀ ĐỊA ĐIỂM</p>
     <p style="text-indent: 30px; text-align: justify;">
-        - <strong>Thời gian tổ chức:</strong> Ngày {{NGAY_TO_CHUC}} (Khai mạc lúc {{GIO_KHAI_MAC}}).<br>
+        - <strong>Thời gian tổ chức:</strong> {{THU_TO_CHUC}}, ngày {{NGAY_TO_CHUC}} (Khai mạc lúc {{GIO_KHAI_MAC}}).<br>
         - <strong>Địa điểm:</strong> {{DIA_DIEM}}.<br>
         - <strong>Quy mô đại biểu:</strong> Dự kiến khoảng {{SO_KHACH_DU_KIEN}} đại biểu chính thức (trong đó có đại diện Chính phủ, các Bộ ngành, Đại sứ quán và cộng đồng doanh nghiệp).
     </p>
@@ -115,7 +115,7 @@ export const UBND_TEMPLATES: ReadonlyArray<BuiltinTemplate> = [
     </p>
 
     <p style="text-indent: 30px; text-align: justify;">
-        - <strong>Thời gian:</strong> Đúng <strong>{{GIO_KHAI_MAC}}</strong>, ngày <strong>{{NGAY_TO_CHUC}}</strong>.<br>
+        - <strong>Thời gian:</strong> Đúng <strong>{{GIO_KHAI_MAC}}</strong>, <strong>{{THU_TO_CHUC}}, ngày {{NGAY_TO_CHUC}}</strong>.<br>
         - <strong>Địa điểm:</strong> {{DIA_DIEM}}.<br>
         - <strong>Trang phục:</strong> Trang trọng (Nam: Comple, caravat; Nữ: Áo dài truyền thống hoặc công sở lịch sự).
     </p>
@@ -167,12 +167,12 @@ export const UBND_TEMPLATES: ReadonlyArray<BuiltinTemplate> = [
     </div>
 
     <p style="text-indent: 30px; text-align: justify;">
-        Để chương trình <strong>{{TEN_SU_KIEN}}</strong> diễn ra vào ngày <strong>{{NGAY_TO_CHUC}}</strong> tại <strong>{{DIA_DIEM}}</strong> được an toàn, chu đáo và thành công tốt đẹp, UBND Thành phố chỉ đạo:
+        Để chương trình <strong>{{TEN_SU_KIEN}}</strong> diễn ra vào <strong>{{THU_TO_CHUC}}, ngày {{NGAY_TO_CHUC}}</strong> tại <strong>{{DIA_DIEM}}</strong> được an toàn, chu đáo và thành công tốt đẹp, UBND Thành phố chỉ đạo:
     </p>
     <p style="text-indent: 30px; text-align: justify;">
         1. <strong>Công an Thành phố:</strong> Xây dựng phương án đảm bảo an ninh trật tự, an toàn phòng chống cháy nổ tại địa điểm tổ chức; phân luồng giao thông chống ùn tắc.<br>
         2. <strong>Sở Y tế:</strong> Bố trí 01 tổ y tế thường trực cùng xe cứu thương và trang thiết bị y tế tại hiện trường phục vụ đại biểu suốt thời gian diễn ra sự kiện.<br>
-        3. <strong>Sở Tài chính:</strong> Chỉ đạo Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp chủ động liên hệ, phối hợp chặt chẽ với các đơn vị để triển khai thực hiện./.
+        3. <strong>Sở Tài chính:</strong> Chỉ đạo Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp Hà Nội chủ động liên hệ, phối hợp chặt chẽ với các đơn vị để triển khai thực hiện./.
     </p>
 
     <table style="width: 100%; border-collapse: collapse; margin-top: 40px;">
@@ -217,7 +217,7 @@ export const UBND_TEMPLATES: ReadonlyArray<BuiltinTemplate> = [
     </p>
 
     <p style="text-indent: 30px; text-align: justify;">
-        Thực hiện Kế hoạch công tác năm, ngày {{NGAY_TO_CHUC}}, UBND Thành phố đã chỉ đạo Sở Tài chính và Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp Hà Nội tổ chức thành công chương trình <strong>{{TEN_SU_KIEN}}</strong> tại {{DIA_DIEM}}. UBND Thành phố báo cáo Thường trực Thành ủy kết quả như sau:
+        Thực hiện Kế hoạch công tác năm, {{THU_TO_CHUC}}, ngày {{NGAY_TO_CHUC}}, UBND Thành phố đã chỉ đạo Sở Tài chính và Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp Hà Nội tổ chức thành công chương trình <strong>{{TEN_SU_KIEN}}</strong> tại {{DIA_DIEM}}. UBND Thành phố báo cáo Thường trực Thành ủy kết quả như sau:
     </p>
     <p style="font-weight: bold;">1. Về công tác đón tiếp đại biểu:</p>
     <p style="text-indent: 30px; text-align: justify;">

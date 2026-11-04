@@ -12,6 +12,7 @@ import { MAX_CONTENT_CHARS } from '../domain/schemas';
 import { TEMPLATE_KIND_VALUES, TEMPLATE_LEVEL_VALUES } from '../domain/levels';
 import type { TemplateKind, TemplateLevel } from '../contract';
 import { overrideRowId } from './ids';
+import { dropDuplicatedNgay } from './legacy-content';
 import { LEGACY_BUILTIN_FINGERPRINTS } from './legacy-builtin-fingerprints';
 import { legacyFingerprint } from './legacy-fingerprint';
 
@@ -54,7 +55,7 @@ export const legacyImporter: LegacyImporter = {
       const kind: TemplateKind = oneOf(TEMPLATE_KIND_VALUES, raw.type) ?? builtin?.kind ?? 'doc';
       const code = str(raw.code).slice(0, 40);
       const description = str(raw.description).slice(0, 500);
-      const draft = { level, code, title: title.slice(0, 300), kind, description, content };
+      const draft = { level, code, title: title.slice(0, 300), kind, description, content: dropDuplicatedNgay(content) };
       if (DANGEROUS.test(content)) issue('coerced', legacyId, `Biểu mẫu "${title}" chứa mã script hoặc sự kiện; đã loại bỏ khi nhập.`);
 
       if (builtin && sameAsBuiltin(legacyId, draft)) return;
@@ -68,7 +69,7 @@ export const legacyImporter: LegacyImporter = {
         template_key: builtin ? legacyId : id,
         base_builtin_key: builtin ? legacyId : null,
         level, code, title: draft.title, kind, description,
-        content_html: sanitizeRichHtml(content),
+        content_html: sanitizeRichHtml(draft.content),
         legacy_id: legacyId,
         ...(updatedAt ? { updated_at: updatedAt } : {}),
       });

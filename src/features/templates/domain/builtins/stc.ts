@@ -39,7 +39,7 @@ export const STC_TEMPLATES: ReadonlyArray<BuiltinTemplate> = [
     </p>
     <p style="text-indent: 30px; text-align: justify;">
         1. <strong>Tên chương trình:</strong> {{TEN_SU_KIEN}}.<br>
-        2. <strong>Thời gian, địa điểm:</strong> Ngày {{NGAY_TO_CHUC}} tại {{DIA_DIEM}}.<br>
+        2. <strong>Thời gian, địa điểm:</strong> {{THU_TO_CHUC}}, ngày {{NGAY_TO_CHUC}} tại {{DIA_DIEM}}.<br>
         3. <strong>Dự toán kinh phí đề xuất:</strong> <strong>{{KINH_PHI_DU_TOAN}} đồng</strong> (Bằng chữ: Ba trăm năm mươi triệu đồng chẵn) từ nguồn kinh phí sự nghiệp xúc tiến thương mại, đầu tư năm 2026.<br>
         Sở Tài chính kính trình UBND Thành phố xem xét, phê duyệt để triển khai thực hiện./.
     </p>

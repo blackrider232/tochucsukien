@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Badge, Button, FilterBar, SectionCard, Tabs, useToast } from '@/components/ui';
+import { Alert, Badge, Button, FilterBar, SectionCard, Tabs, useToast } from '@/components/ui';
 import type { IsoDate, SanitizedHtml } from '@/core/brand';
 import { useSettings } from '@/core/auth';
 import { formatVNDate } from '@/core/dates';
@@ -10,7 +10,7 @@ import type { DocumentTemplate } from '../contract';
 import { catalogCounts, filterTemplates } from '../domain/catalog';
 import { templatePrintHref } from '../domain/key-mapping';
 import { TEMPLATE_LEVELS, TEMPLATE_LEVEL_VALUES } from '../domain/levels';
-import { initialState, NO_EVENT, pickTemplate, studioHref, type StudioParams, type StudioState } from '../domain/studio-state';
+import { DEFAULT_TEMPLATE_ID, initialState, NO_EVENT, pickTemplate, studioHref, type StudioParams, type StudioState } from '../domain/studio-state';
 import { renderTemplate } from '../domain/merge-tags';
 import { downloadCatalogExcel, downloadTemplateExcel, downloadTemplateWord, NO_TABLE_MESSAGE } from './studio-exports';
 import { TemplateList } from './template-list';
@@ -96,7 +96,17 @@ export function TemplateStudio({ templates, events, today, isAdmin, params }: St
           </SectionCard>
         </div>
         <div ref={preview} className="scroll-mt-4 lg:col-span-8">
-          {selected && <TemplatePreview template={selected} event={event} today={today} isAdmin={isAdmin} />}
+          {selected ? (
+            <TemplatePreview template={selected} event={event} today={today} isAdmin={isAdmin} />
+          ) : (
+            <Alert
+              tone="warning"
+              title="Biểu mẫu này không còn tồn tại"
+              action={<Button variant="secondary" onClick={() => change({ templateId: DEFAULT_TEMPLATE_ID })}>Về thư viện biểu mẫu</Button>}
+            >
+              Liên kết trỏ tới một biểu mẫu đã bị xóa hoặc không có trong danh mục. Chọn một biểu mẫu ở danh sách bên trái.
+            </Alert>
+          )}
         </div>
       </div>
     </div>

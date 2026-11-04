@@ -5,6 +5,7 @@
 
 import type { EventId, TemplateId } from '@/core/brand';
 import { parseUuid } from '@/core/brand';
+import type { DocumentTemplate } from '../contract';
 import type { BuiltinId } from './builtin-templates';
 import { BUILTIN_TEMPLATES, isBuiltinId } from './builtin-templates';
 
@@ -62,28 +63,57 @@ export const STEP_TEMPLATE_KEYS = {
 /**
  * Step templateKey -> template id. A built-in id maps to itself; a custom
  * template is addressed by its uuid; anything else is null ("Chưa gắn biểu mẫu").
+ * With `catalog` (the templates the actor can read) a result that is not in it is
+ * null too, so a step pointing at a deleted custom template shows no link (m3 B08).
+ * Without it the function is pure and cannot tell a deleted uuid from a live one.
  */
-export function resolveTemplateKey(key: string): TemplateId | null {
-  const k = key.trim();
-  if (isBuiltinId(k)) return k as TemplateId;
+export function resolveTemplateKey(key: string, catalog?: ReadonlyArray<{ readonly id: string }>): TemplateId | null {
+  const id = mapKey(key.trim());
+  if (id === null || !catalog) return id;
+  return catalog.some((t) => t.id === id) ? id : null;
+}
+
+function mapKey(k: string): TemplateId | null {
   if (Object.hasOwn(STEP_TEMPLATE_KEYS, k)) return (STEP_TEMPLATE_KEYS[k as keyof typeof STEP_TEMPLATE_KEYS].template as TemplateId | null);
+  if (isBuiltinId(k)) return k as TemplateId;
   return parseUuid<'Template'>(k) as TemplateId | null;
 }
 
-/** The only way other features link to a template. The event is optional: the library picks it from the page. */
-export function templateHref(id: TemplateId, eventId: EventId | null): string {
+const templateQuery = (id: TemplateId, eventId: EventId | null): URLSearchParams => {
   const q = new URLSearchParams({ t: id });
   if (eventId) q.set('event', eventId);
-  return `/templates?${q}`;
+  return q;
+};
+
+/** The only way other features link to a template; null when the key resolved to nothing. The event is optional: the library picks it from the page. */
+export function templateHref(id: TemplateId, eventId: EventId | null): string;
+export function templateHref(id: TemplateId | null, eventId: EventId | null): string | null;
+export function templateHref(id: TemplateId | null, eventId: EventId | null): string | null {
+  return id === null ? null : `/templates?${templateQuery(id, eventId)}`;
 }
 
-/** The print page of the same template and event. */
-export function templatePrintHref(id: TemplateId, eventId: EventId | null): string {
-  const q = new URLSearchParams({ t: id });
-  if (eventId) q.set('event', eventId);
-  return `/templates/print?${q}`;
+/** The print page of the same template and event; null when there is no template. */
+export function templatePrintHref(id: TemplateId, eventId: EventId | null): string;
+export function templatePrintHref(id: TemplateId | null, eventId: EventId | null): string | null;
+export function templatePrintHref(id: TemplateId | null, eventId: EventId | null): string | null {
+  return id === null ? null : `/templates/print?${templateQuery(id, eventId)}`;
 }
 
-/** The built-in forms a step can be attached to, for a Select in the step dialog instead of free text (m3 B08). */
-export const templateKeyOptions = (): ReadonlyArray<{ value: string; label: string }> =>
-  BUILTIN_TEMPLATES.map((t) => ({ value: t.id, label: t.code ? `${t.code}: ${t.title}` : t.title }));
+export interface TemplateKeyOption {
+  readonly value: string;
+  readonly label: string;
+  readonly group: typeof BUILTIN_GROUP | typeof CUSTOM_GROUP;
+}
+const BUILTIN_GROUP = 'Biểu mẫu chuẩn';
+const CUSTOM_GROUP = 'Tùy chỉnh';
+
+/**
+ * The forms a step can be attached to, for a Select in the step dialog instead of free text (m3 B08).
+ * With the readable catalog it also lists custom templates (value = their uuid), after the built-ins, in group "Tùy chỉnh";
+ * the label carries the group too because a flat Select does not show `group`.
+ */
+export const templateKeyOptions = (catalog: ReadonlyArray<Pick<DocumentTemplate, 'code' | 'title' | 'origin'> & { readonly id: string }> = BUILTIN_TEMPLATES.map((t) => ({ ...t, origin: 'builtin' as const }))): ReadonlyArray<TemplateKeyOption> =>
+  catalog.map((t): TemplateKeyOption => {
+    const name = t.code ? `${t.code}: ${t.title}` : t.title;
+    return t.origin === 'custom' ? { value: t.id, label: `${CUSTOM_GROUP}: ${name}`, group: CUSTOM_GROUP } : { value: t.id, label: name, group: BUILTIN_GROUP };
+  });
