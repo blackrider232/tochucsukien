@@ -61,8 +61,8 @@ export const issueDailyReport: Spec<'reports.issueDailyReport'> = {
         eventName: event.name, eventDate: event.eventDate, issuedAt: ctx.now, issuedBy: ctx.actor.profile.id,
       });
     } catch (e) {
-      // Another desk issued between our read and this insert, or the database's day is already tomorrow's: theirs stands.
-      const raced = e instanceof DbError && (e.kind === 'constraint' || e.kind === 'conflict') ? await issued(ctx, eventId, id, [today, addCalendarDays(today, 1)]) : null;
+      // Another desk issued between our read and this insert, or the database's day is one off ours (its clock a little behind or ahead at midnight): theirs stands.
+      const raced = e instanceof DbError && (e.kind === 'constraint' || e.kind === 'conflict') ? await issued(ctx, eventId, id, [addCalendarDays(today, 1), today, addCalendarDays(today, -1)]) : null;
       if (raced) return repeat(raced);
       throw e;
     }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { newId, type EventId, type Instant } from '@/core/brand';
+import { newId, type EventId, type Instant, type IsoDate } from '@/core/brand';
 import { DbError, type Db } from '@/core/db';
 import { decodeFigures } from '../domain/figures';
 import { readEvent } from '@/features/progress/server';
@@ -220,6 +220,63 @@ describe('reports.issueDailyReport', () => {
     const r = await h.runWith(head, wrap, 'reports.issueDailyReport', { eventId, id: newId<'DailyReport'>(), draft: ISSUE });
     expect(raced).toMatchObject({ ok: true, value: { already: false } });
     expect(r).toMatchObject({ ok: true, value: { already: true, report: { signatory: 'Bàn kia' } } });
+    expect(await h.reports(eventId)).toHaveLength(1);
+  });
+});
+
+describe('the races of the insert, as Supabase reports them', () => {
+  const raceThen = (h: ReturnType<typeof harness>, eventId: EventId, error: DbError | null, stamp?: IsoDate) => {
+    const seen: { raced?: unknown } = {};
+    const wrap = (db: Db): Db => ({
+      rpc: db.rpc.bind(db),
+      table(def) {
+        const t = db.table(def);
+        if (def.name !== 'sce_tcsk_daily_reports') return t;
+        return {
+          ...t,
+          insert: async (draft) => {
+            if (error) {
+              seen.raced ??= await h.issue(leader, eventId, { ...ISSUE, signatory: 'Bàn kia' });
+              throw error;
+            }
+            return t.insert(stamp ? ({ ...draft, reportDate: stamp } as typeof draft) : draft);
+          },
+        } as typeof t;
+      },
+    });
+    return { wrap, seen };
+  };
+
+  it('a same-id concurrent retry that the database reports as a conflict converges on the report that won', async () => {
+    const { h, eventId } = await seeded();
+    const { wrap, seen } = raceThen(h, eventId, new DbError('conflict'));
+    const r = await h.runWith(head, wrap, 'reports.issueDailyReport', { eventId, id: newId<'DailyReport'>(), draft: ISSUE });
+    expect(seen.raced).toMatchObject({ ok: true, value: { already: false } });
+    expect(r).toMatchObject({ ok: true, value: { already: true, report: { signatory: 'Bàn kia' } } });
+    expect(await h.reports(eventId)).toHaveLength(1);
+  });
+
+  it('a report id that belongs to another event is never returned as this event\'s report', async () => {
+    const { h, eventId } = await seeded();
+    const other = await h.createEvent({ eventDate: '2026-12-16' });
+    const id = newId<'DailyReport'>();
+    const first = await h.issue(head, eventId, ISSUE, id);
+    expect(first.ok).toBe(true);
+    const r = await h.issue(head, other, ISSUE, id);
+    expect(r.ok).toBe(false);
+    expect(await h.reports(other)).toEqual([]);
+    expect(await h.reports(eventId)).toHaveLength(1);
+  });
+
+  it('an app clock already past midnight while the database still stamps the day before returns the day\'s report that exists', async () => {
+    const { h, eventId } = await seeded();
+    h.clock.now = '2026-12-08T08:00:00.000Z' as Instant; // 15:00 on 08/12 in Hà Nội
+    const first = await h.issue(leader, eventId, { ...ISSUE, signatory: 'Bàn kia' });
+    h.clock.now = '2026-12-08T17:00:30.000Z' as Instant; // 00:00:30 on 09/12 for the app, still 08/12 for the database
+    const { wrap } = raceThen(h, eventId, null, '2026-12-08' as IsoDate);
+    const r = await h.runWith(head, wrap, 'reports.issueDailyReport', { eventId, id: newId<'DailyReport'>(), draft: ISSUE });
+    if (!first.ok) throw new Error(first.message);
+    expect(r).toMatchObject({ ok: true, value: { already: true, report: { id: first.value.report.id, reportDate: '2026-12-08', signatory: 'Bàn kia' } } });
     expect(await h.reports(eventId)).toHaveLength(1);
   });
 });
