@@ -25,7 +25,7 @@ async function as<T>(user: string, fn: () => Promise<T>): Promise<T> {
   }
 }
 const delivery = (over: string, values: string) =>
-  db.query(`insert into public.sce_tcsk_email_deliveries (event_id, campaign_id, email, status${over}) values ('${eventId}', '${CAMPAIGN}', ${values}) returning id`);
+  db.query<{ id: string }>(`insert into public.sce_tcsk_email_deliveries (event_id, campaign_id, email, status${over}) values ('${eventId}', '${CAMPAIGN}', ${values}) returning id`);
 
 beforeAll(async () => {
   db = new PGlite();
@@ -54,7 +54,7 @@ describe('sce_tcsk_email_deliveries on Postgres', () => {
   it('an officer who may send cannot pass a row off as imported from the old app (which skips the evidence check)', async () => {
     await expect(as(OFFICER, () => delivery(', imported', `'fake@x.vn', 'sent', true`))).rejects.toThrow(/row-level security/);
     const own = await as(OFFICER, () => delivery(', claim_token', `'a@x.vn', 'queued', '${RUN}'`));
-    await expect(as(OFFICER, () => db.query(`update public.sce_tcsk_email_deliveries set status = 'sent', imported = true where id = '${own.rows[0]!.id as string}'`))).rejects.toThrow(/row-level security/);
+    await expect(as(OFFICER, () => db.query(`update public.sce_tcsk_email_deliveries set status = 'sent', imported = true where id = '${own.rows[0]!.id}'`))).rejects.toThrow(/row-level security/);
   });
 
   it('a sent row needs Gmail’s id and a time, a queued one the run that holds it', async () => {
