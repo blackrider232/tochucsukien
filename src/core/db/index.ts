@@ -8,8 +8,11 @@
 //   memoryDb    tests and the dev memory runtime (SCE_DEV_MEMORY=1), emulates RLS with permissionMatrix()
 // There is no third way to touch data.
 
-import type { EventId, Instant, UserId, Uuid, Version } from '@/core/brand';
+import type { EventId, Instant, IsoDate, UserId, Uuid, Version } from '@/core/brand';
+import type { Profile } from '@/core/auth';
+import type { Holiday } from '@/core/dates';
 import type { FeatureKey } from '@/core/registry';
+import type { SettingsPatch, SystemSettings } from '@/core/settings';
 import { DbError, type DbErrorKind } from './errors';
 
 export { DbError, type DbErrorKind };
@@ -90,4 +93,46 @@ export interface RpcMap {
   sce_tcsk_set_profile_status: { args: { ids: ReadonlyArray<UserId>; status: 'active' | 'locked' }; result: number };
   /** Creates the caller's missing profile (users from the shared project's other apps). */
   sce_tcsk_ensure_profile: { args: Record<string, never>; result: void };
+  // The rest are core's (202611041000_core_admin_functions.sql): the tables behind them have no managed columns.
+  /** null when the row's version is no longer expectedVersion. */
+  sce_tcsk_update_settings: { args: { expectedVersion: Version; patch: SettingsPatch }; result: SystemSettings | null };
+  /** Replaces every row of that calendar year; returns the count written. */
+  sce_tcsk_replace_holidays: { args: { year: number; holidays: ReadonlyArray<Holiday> }; result: number };
+  sce_tcsk_update_profile_name: { args: { fullname: string }; result: Profile };
+  /** As the caller's RLS shows them: everyone for admin and leader, the own department for dept_leader, else only self. */
+  sce_tcsk_list_profiles: { args: Record<string, never>; result: Profile[] };
+  sce_tcsk_list_backups: { args: { limit: number }; result: BackupRow[] };
+  /** The snapshot JSON of one backup; the SQL function audits the download. */
+  sce_tcsk_backup_data: { args: { id: number }; result: unknown };
+  /** Newest first, keyed on id: pass the last id of a page as beforeId for the next one. Dates are VN days. */
+  sce_tcsk_list_audit: { args: AuditQuery; result: AuditLogRow[] };
+}
+
+export interface BackupRow {
+  id: number;
+  note: string;
+  kind: 'manual' | 'auto' | 'pre_migration';
+  format: 1 | 2;
+  createdByEmail: string | null;
+  createdAt: Instant;
+}
+export interface AuditQuery {
+  beforeId?: number;
+  limit: number;
+  action?: string;
+  entity?: string;
+  actor?: string;
+  eventId?: EventId;
+  from?: IsoDate;
+  to?: IsoDate;
+}
+export interface AuditLogRow {
+  id: number;
+  at: Instant;
+  actorEmail: string | null;
+  action: string;
+  summary: string;
+  eventId: EventId | null;
+  entity: string | null;
+  entityId: string | null;
 }

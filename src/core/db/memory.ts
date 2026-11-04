@@ -9,11 +9,15 @@
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { newId } from '@/core/brand';
+import { newId, type Instant } from '@/core/brand';
 import type { Actor } from '@/core/auth';
+import { parseProfileRow } from '@/core/auth/profile';
+import { todayVN } from '@/core/dates';
+import { parseSettingsRow } from '@/core/settings';
 import { aalOk, grantOf, permissionMatrix, type Permission } from '@/core/permissions';
 import { DbError } from './errors';
 import { draftMatches, filtersOf, fromColumns, toColumns, columnOf, type Filter } from './mapping';
+import { parseAuditRow, parseBackupRow, settingsPatchColumns } from './rpc';
 import { parseCatalog, type CatalogTable } from './sql-catalog';
 import type { BaseRow, Db, DraftOf, RpcMap, Table, TableDef, Where, WriteGuard } from './index';
 
@@ -100,6 +104,13 @@ class Rls {
     if (g !== 'department') return false;
     const dept = this.actor.profile.department;
     return dept !== null && (dept === lead || (Array.isArray(supporting) && supporting.includes(dept)));
+  }
+  /** The sce_read policy of sce_tcsk_profiles in 0001. */
+  seesProfile(row: Row): boolean {
+    if (row.id === this.actor.profile.id) return true;
+    if (!this.active || !aalOk(this.actor)) return false;
+    const g = this.grant('core.users.read');
+    return g === 'all' || (g === 'department' && this.actor.profile.department !== null && row.department === this.actor.profile.department);
   }
   hasEventPerm(perm: string, eventId: unknown): boolean {
     const ev = rowsOf(this.store, 'sce_tcsk_events').find((e) => e.id === eventId);
@@ -279,6 +290,10 @@ function memoryTable<R extends BaseRow>(store: Store, actor: Actor, rls: Rls, de
 }
 
 const PROFILE_TABLE = 'sce_tcsk_profiles';
+/** tcsk.backup_tables() in 0003: every owned table except core infrastructure and the legacy blob. */
+const NOT_BACKED_UP = new Set(['sce_tcsk_profiles', 'sce_tcsk_role_permissions', 'sce_tcsk_backups', 'sce_tcsk_audit_logs', 'sce_tcsk_departments', 'sce_tcsk_app_data']);
+const isBackedUp = (table: string) => Boolean(loadCatalog().get(table)?.owner) && !NOT_BACKED_UP.has(table);
+const vnDay = (at: unknown) => todayVN(String(at) as Instant);
 
 function rpcHandlers(store: Store, actor: Actor, rls: Rls): { readonly [K in keyof RpcMap]: (args: RpcMap[K]['args']) => RpcMap[K]['result'] } {
   const audit = (action: string, summary: string, eventId: string | null, entity: string | null, entityId: string | null) => {
@@ -312,22 +327,30 @@ function rpcHandlers(store: Store, actor: Actor, rls: Rls): { readonly [K in key
       throw e;
     }
   };
+  const createBackup = (note: string, kind: 'manual' | 'auto') => {
+    if (kind === 'manual' ? !rls.hasPerm('core.backups.create') : actor.profile.status !== 'active') throw new DbError('forbidden');
+    store.seq += 1;
+    const id = store.seq;
+    const data = Object.fromEntries([...store.tables].filter(([t]) => isBackedUp(t)).map(([t, rows]) => [t, structuredClone(rows)]));
+    rowsOf(store, 'sce_tcsk_backups').push({
+      id, data, note: note.trim() || 'Sao lưu', kind, format: 2, created_by: actor.profile.id, created_by_email: actor.profile.email, created_at: new Date().toISOString(),
+    });
+    if (kind === 'manual') audit('TẠO BẢN SAO LƯU', note, null, 'backup', String(id));
+    return { id };
+  };
   return {
     sce_tcsk_write_audit: (a) => audit(a.action, a.summary, a.eventId, a.entity, a.entityId),
-    sce_tcsk_create_backup: (a) => {
-      if (a.kind === 'manual' ? !rls.hasPerm('core.backups.create') : actor.profile.status !== 'active') throw new DbError('forbidden');
-      store.seq += 1;
-      const id = store.seq;
-      const data = Object.fromEntries([...store.tables].filter(([t]) => loadCatalog().get(t)?.policy || t === 'sce_tcsk_events').map(([t, rows]) => [t, structuredClone(rows)]));
-      rowsOf(store, 'sce_tcsk_backups').push({ id, data, note: a.note, kind: a.kind, format: 2, created_by: actor.profile.id, created_at: new Date().toISOString() });
-      if (a.kind === 'manual') audit('TẠO BẢN SAO LƯU', a.note, null, 'backup', String(id));
-      return { id };
-    },
+    sce_tcsk_create_backup: (a) => createBackup(a.note, a.kind),
     sce_tcsk_restore_backup: (a) => {
       if (!rls.hasPerm('core.backups.restore')) throw new DbError('forbidden');
       const backup = rowsOf(store, 'sce_tcsk_backups').find((b) => b.id === a.id);
       if (!backup) throw new DbError('not_found');
-      for (const [t, rows] of Object.entries(backup.data as Record<string, Row[]>)) store.tables.set(t, structuredClone(rows));
+      if (backup.format !== 2) throw new DbError('constraint', { constraint: 'legacy_format' });
+      const snapshot = structuredClone(backup.data) as Record<string, Row[]>;
+      createBackup(`Trước khi khôi phục #${a.id}`, 'manual');
+      for (const t of new Set([...store.tables.keys(), ...Object.keys(snapshot)])) {
+        if (isBackedUp(t)) store.tables.set(t, snapshot[t] ?? []);
+      }
       audit('KHÔI PHỤC SAO LƯU', `Khôi phục từ bản #${a.id}`, null, 'backup', String(a.id));
     },
     sce_tcsk_set_profile_role: (a) => {
@@ -357,6 +380,69 @@ function rpcHandlers(store: Store, actor: Actor, rls: Rls): { readonly [K in key
       return n;
     },
     sce_tcsk_ensure_profile: () => undefined,
+    sce_tcsk_update_settings: (a) => {
+      if (!rls.hasPerm('core.settings.edit')) throw new DbError('forbidden');
+      const row = rowsOf(store, 'sce_tcsk_system_settings')[0];
+      if (!row || row.version !== a.expectedVersion) return null;
+      const values = Object.fromEntries(Object.entries(settingsPatchColumns(a.patch)).map(([k, v]) => [k, typeof v === 'string' ? v.trim() || null : v]));
+      Object.assign(row, values, { version: Number(row.version) + 1, updated_at: new Date().toISOString(), updated_by: actor.profile.id });
+      return parseSettingsRow(row);
+    },
+    sce_tcsk_replace_holidays: (a) => {
+      if (!rls.hasPerm('core.holidays.edit')) throw new DbError('forbidden');
+      if (!Number.isInteger(a.year) || a.year < 2000 || a.year > 2100) throw new DbError('constraint', { constraint: 'invalid_year' });
+      const inYear = (date: unknown) => String(date).startsWith(`${a.year}-`);
+      if (a.holidays.some((h) => !inYear(h.date) || !h.name.trim())) throw new DbError('constraint', { constraint: 'holiday_outside_year' });
+      if (new Set(a.holidays.map((h) => h.date)).size !== a.holidays.length) throw new DbError('constraint', { constraint: 'sce_tcsk_holidays_pkey' });
+      const at = new Date().toISOString();
+      const kept = rowsOf(store, 'sce_tcsk_holidays').filter((h) => !inYear(h.holiday_date));
+      const added = a.holidays.map((h) => ({ holiday_date: h.date, name: h.name.trim().slice(0, 120), kind: h.kind, updated_at: at, updated_by: actor.profile.id }));
+      store.tables.set('sce_tcsk_holidays', [...kept, ...added].sort((x, y) => String(x.holiday_date).localeCompare(String(y.holiday_date))));
+      return added.length;
+    },
+    sce_tcsk_update_profile_name: (a) => {
+      if (actor.profile.status !== 'active') throw new DbError('forbidden');
+      const clean = a.fullname.replace(/\s+/g, ' ').trim();
+      if (!clean || clean.length > 120) throw new DbError('constraint', { constraint: 'invalid_fullname' });
+      const row = profile(actor.profile.id);
+      Object.assign(row, { fullname: clean, updated_at: new Date().toISOString() });
+      return parseProfileRow(row);
+    },
+    sce_tcsk_list_profiles: () =>
+      rowsOf(store, PROFILE_TABLE)
+        .filter((p) => rls.seesProfile(p))
+        .sort((x, y) => String(y.created_at).localeCompare(String(x.created_at)) || String(x.email).localeCompare(String(y.email)))
+        .map(parseProfileRow),
+    sce_tcsk_list_backups: (a) => {
+      if (!rls.hasPerm('core.backups.create')) return [];
+      return [...rowsOf(store, 'sce_tcsk_backups')]
+        .sort((x, y) => String(y.created_at).localeCompare(String(x.created_at)) || Number(y.id) - Number(x.id))
+        .slice(0, Math.min(Math.max(a.limit, 1), 200))
+        .map(parseBackupRow);
+    },
+    sce_tcsk_backup_data: (a) => {
+      if (!rls.hasPerm('core.backups.create')) throw new DbError('forbidden');
+      const backup = rowsOf(store, 'sce_tcsk_backups').find((b) => b.id === a.id);
+      if (!backup) throw new DbError('not_found');
+      audit('TẢI BẢN SAO LƯU', `Tải bản sao lưu #${a.id}`, null, 'backup', String(a.id));
+      return structuredClone(backup.data);
+    },
+    sce_tcsk_list_audit: (a) => {
+      if (!rls.hasPerm('core.audit.read')) return [];
+      const actorQuery = a.actor?.toLowerCase();
+      return rowsOf(store, 'sce_tcsk_audit_logs')
+        .filter((r) =>
+          (a.beforeId === undefined || Number(r.id) < a.beforeId) &&
+          (a.action === undefined || r.action === a.action) &&
+          (a.entity === undefined || r.entity === a.entity) &&
+          (actorQuery === undefined || String(r.actor_email ?? '').toLowerCase().includes(actorQuery)) &&
+          (a.eventId === undefined || r.event_id === a.eventId) &&
+          (a.from === undefined || vnDay(r.created_at) >= a.from) &&
+          (a.to === undefined || vnDay(r.created_at) <= a.to))
+        .sort((x, y) => Number(y.id) - Number(x.id))
+        .slice(0, Math.min(Math.max(a.limit, 1), 201))
+        .map(parseAuditRow);
+    },
   };
 }
 
