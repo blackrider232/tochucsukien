@@ -34,6 +34,8 @@ export interface ContractSnapshot {
   commandVerbs: Readonly<Record<string, ReadonlyArray<string>>>;
   permissionsSql: { onDisk: string; generated: string };
   migrations: ReadonlyArray<SqlFile>;
+  /** Non-test files that return `audit: 'sql'`, by feature. */
+  sqlAudits: ReadonlyArray<{ feature: string; file: string }>;
 }
 
 export const REQUIRED_FEATURE_FILES = ['manifest.ts', 'slots.tsx', 'index.ts', 'contract.ts', 'server/index.ts'] as const;
@@ -111,6 +113,10 @@ export function checkContract(s: ContractSnapshot): string[] {
     }
   }
 
+  for (const a of s.sqlAudits) {
+    if (a.feature !== 'core') errors.push(`${a.file} returns audit: 'sql'; only core's SQL functions write their own audit rows`);
+  }
+
   // 4. The generated permission seed is fresh.
   if (s.permissionsSql.onDisk !== s.permissionsSql.generated) {
     errors.push('supabase/migrations/0004_permissions_seed.sql is stale: run pnpm tsx scripts/gen-permissions-sql.ts');
@@ -182,11 +188,15 @@ export function collectSnapshot(root: string): ContractSnapshot {
     .map((f) => relative(appDir, f).split(sep).slice(0, -1).join('/'))
     .sort();
 
-  const augmentations = featureDirs.flatMap((feature) =>
+  const sources = featureDirs.flatMap((feature) =>
     walk(join(featuresDir, feature))
       .filter((f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f))
-      .flatMap((file) => augmentationsIn(readFileSync(file, 'utf8')).map((a) => ({ feature, file: relative(root, file), ...a }))),
+      .map((file) => ({ feature, file: relative(root, file), code: readFileSync(file, 'utf8') })),
   );
+  const augmentations = sources.flatMap(({ feature, file, code }) => augmentationsIn(code).map((a) => ({ feature, file, ...a })));
+  const sqlAudits = sources
+    .filter(({ file, code }) => !file.includes(`${sep}__tests__${sep}`) && /\baudit\s*:\s*['"]sql['"]/.test(code))
+    .map(({ feature, file }) => ({ feature, file }));
 
   const manifests = featureManifests();
   const migrationsDir = join(root, 'supabase', 'migrations');
@@ -208,6 +218,7 @@ export function collectSnapshot(root: string): ContractSnapshot {
       .filter((f) => f.endsWith('.sql'))
       .sort()
       .map((name) => ({ name, sql: readFileSync(join(migrationsDir, name), 'utf8') })),
+    sqlAudits,
   };
 }
 

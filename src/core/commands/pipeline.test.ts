@@ -67,6 +67,12 @@ const specs: Record<string, AnyCommandSpec> = {
     authorize: { perm: 'guests.read', global: true },
     run: async () => ({ value: 1, audit: 'sql' }),
   },
+  'core.testAuditedInSql': {
+    kind: 'mutation',
+    input: z.object({}),
+    authorize: { perm: 'core.profile.edit', global: true },
+    run: async () => ({ value: 1, audit: 'sql' }),
+  },
   'guests.testCount': {
     kind: 'query',
     input: z.object({ eventId: z.string() }),
@@ -214,10 +220,18 @@ describe('pipeline: input, audit, errors', () => {
     spy.mockRestore();
   });
 
-  it('a mutation whose SQL function wrote the audit row gets no second row', async () => {
+  it('a core mutation whose SQL function wrote the audit row gets no second row', async () => {
     const w = world();
-    expect(await w.run(testActor('user', XTDT), 'guests.testAuditedInSql', {})).toEqual({ ok: true, value: 1 });
+    expect(await w.run(testActor('user', XTDT), 'core.testAuditedInSql', {})).toEqual({ ok: true, value: 1 });
     expect(w.audit()).toEqual([]);
+  });
+
+  it("a command outside core cannot skip the pipeline's audit by saying 'sql'", async () => {
+    const w = world();
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(failureOf(await w.run(testActor('user', XTDT), 'guests.testAuditedInSql', {}))).toMatchObject({ kind: 'unavailable' });
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining("guests.testAuditedInSql returned audit 'sql'"));
+    spy.mockRestore();
   });
 
   it('the audit row is refused when the caller does not hold the command’s permission on that event', async () => {

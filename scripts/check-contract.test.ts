@@ -87,6 +87,13 @@ describe('each rule fails when broken', () => {
     expect(broken((s) => s.commandVerbs.live!.push('teleport'))).toEqual(["command live.teleport is implemented but not declared in live's CommandMap"]);
   });
 
+  it("a command outside core that says its SQL function wrote the audit row", () => {
+    expect(real.sqlAudits.map((a) => a.feature)).toEqual(expect.arrayContaining(['core']));
+    expect(broken((s) => s.sqlAudits.push({ feature: 'guests', file: 'src/features/guests/server/commands.ts' }))).toEqual([
+      "src/features/guests/server/commands.ts returns audit: 'sql'; only core's SQL functions write their own audit rows",
+    ]);
+  });
+
   it('a stale generated permission seed', () => {
     expect(broken((s) => (s.permissionsSql.onDisk = s.permissionsSql.onDisk.replace("('reports.issue', 'user', 'none'", "('reports.issue', 'user', 'department'")))).toEqual([
       'supabase/migrations/0004_permissions_seed.sql is stale: run pnpm tsx scripts/gen-permissions-sql.ts',

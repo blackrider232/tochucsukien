@@ -180,7 +180,11 @@ async function execute(ctx: RequestContext, lookup: CommandLookup, audit: AuditW
     if (denied) return denied;
     ran = true;
     const outcome = await spec.run(cmdCtx, parsed.value);
-    if (outcome.audit && outcome.audit !== 'sql') {
+    if (outcome.audit === 'sql' && !id.startsWith('core.')) {
+      // The change already committed: fail loudly rather than let it go unaudited.
+      console.error(`command ${id} returned audit 'sql'; only core's SQL functions write their own audit rows`);
+      return failure('unavailable', MESSAGES.internal);
+    } else if (outcome.audit && outcome.audit !== 'sql') {
       await auditRow(audit, ctx, id, spec, outcome.audit);
     } else if (!outcome.audit && spec.kind === 'mutation') {
       throw new Error(`mutation ${id} returned no audit entry`);
