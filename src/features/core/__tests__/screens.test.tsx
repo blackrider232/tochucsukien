@@ -8,6 +8,7 @@ import { RegisterForm } from '../components/auth-forms';
 import { AuditScreen } from '../components/audit-screen';
 import { TotpEnroll } from '../components/totp';
 import { UsersScreen } from '../components/users-screen';
+import { HolidaysEditor } from '../components/settings-screen';
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }) }));
 vi.mock('@/core/commands/dispatch', () => ({ dispatch: vi.fn() }));
@@ -101,5 +102,12 @@ describe('TOTP enrolment', () => {
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', '');
     renderUi(withAppContext(<TotpEnroll onEnrolled={vi.fn()} />));
     expect(screen.getByText(/Chưa kết nối máy chủ xác thực/)).toBeInTheDocument();
+  });
+});
+
+describe('holidays editor', () => {
+  it('warns an editor that a change moves the deadlines and countdowns of existing events', () => {
+    renderUi(withAppContext(<HolidaysEditor year={2027} years={[2027]} canEdit />));
+    expect(screen.getByText(/hạn chót và số ngày đếm ngược của các sự kiện đã có/)).toBeInTheDocument();
   });
 });
