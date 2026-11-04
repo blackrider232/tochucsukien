@@ -10,6 +10,7 @@ type SortState = { id: string; dir: 'asc' | 'desc' } | null;
 
 const ALIGN = { left: 'text-left', center: 'text-center', right: 'text-right' } as const;
 const JUSTIFY = { left: 'justify-start', center: 'justify-center', right: 'justify-end' } as const;
+const MD_JUSTIFY = { left: 'md:justify-start', center: 'md:justify-center', right: 'md:justify-end' } as const;
 
 function compare(a: string | number, b: string | number): number {
   if (typeof a === 'number' && typeof b === 'number') return a - b;
@@ -215,8 +216,9 @@ function Cell<Row>({ column, title, children }: { column: Column<Row>; title?: b
     <div
       role="cell"
       className={cn(
-        'min-w-0 text-ink md:px-3 md:py-2.5',
+        'min-w-0 text-ink md:flex md:items-center md:px-3 md:py-2.5',
         ALIGN[column.align ?? 'left'],
+        MD_JUSTIFY[column.align ?? 'left'],
         title ? 'max-md:flex-1 max-md:text-left max-md:font-semibold' : 'max-md:flex max-md:items-baseline max-md:justify-between max-md:gap-3 max-md:py-0.5',
         column.hideOnMobile && 'max-md:hidden',
       )}

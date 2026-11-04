@@ -10,8 +10,8 @@ const base =
 
 const VARIANT = {
   primary: 'bg-primary text-on-primary hover:bg-primary-hover active:bg-primary-hover',
-  secondary: 'border border-control-border bg-surface text-ink hover:bg-surface-3 active:bg-surface-3',
-  ghost: 'text-ink-2 hover:bg-surface-3 active:bg-surface-3',
+  secondary: 'border border-control-border bg-surface text-ink hover:bg-surface-3 active:bg-surface-3 aria-pressed:border-link aria-pressed:bg-selected aria-pressed:text-link',
+  ghost: 'text-ink-2 hover:bg-surface-3 active:bg-surface-3 aria-pressed:bg-selected aria-pressed:text-link',
   danger: 'bg-danger text-on-primary hover:bg-danger-hover active:bg-danger-hover',
 } as const;
 

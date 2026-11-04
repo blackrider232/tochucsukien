@@ -9,6 +9,7 @@ import { Icon } from './icons';
 
 const MENU_WIDTH = 224;
 const GAP = 4;
+const HIDDEN: CSSProperties = { position: 'fixed', top: 0, left: 0, visibility: 'hidden' };
 
 /** Below the trigger, right-aligned; above it when the viewport has no room below. */
 function place(trigger: DOMRect, menuHeight: number): CSSProperties {
@@ -21,26 +22,35 @@ function place(trigger: DOMRect, menuHeight: number): CSSProperties {
 /**
  * ARIA menu button: Enter, Space or ArrowDown opens on the first item, arrows and Home/End move,
  * Esc and Tab close, and focus goes back to the trigger. The menu is portalled so a scrolling table
- * never clips it; scrolling or resizing closes it.
+ * never clips it, and it follows the trigger when the page scrolls.
  */
 export function RowMenu({ items, label = 'Thao tác' }: RowMenuProps) {
   const [open, setOpen] = useState(false);
-  const [style, setStyle] = useState<CSSProperties>({ position: 'fixed', visibility: 'hidden' });
+  const [style, setStyle] = useState<CSSProperties>(HIDDEN);
   const trigger = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLUListElement>(null);
   const menuId = useId();
+  const focusFirst = useRef(false);
 
   const enabled = () => Array.from(menu.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not([aria-disabled="true"])') ?? []);
   const close = (refocus: boolean) => {
     setOpen(false);
+    setStyle(HIDDEN);
     if (refocus) trigger.current?.focus();
   };
 
   useLayoutEffect(() => {
     if (!open || !trigger.current || !menu.current) return;
     setStyle(place(trigger.current.getBoundingClientRect(), menu.current.offsetHeight));
-    enabled()[0]?.focus();
+    focusFirst.current = true;
   }, [open]);
+
+  // A hidden menu cannot take focus, so the first item is focused once the measured position is painted.
+  useEffect(() => {
+    if (!open || style.visibility === 'hidden' || !focusFirst.current) return;
+    focusFirst.current = false;
+    enabled()[0]?.focus({ preventScroll: true });
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -48,7 +58,12 @@ export function RowMenu({ items, label = 'Thao tác' }: RowMenuProps) {
       const t = e.target as Node;
       if (!menu.current?.contains(t) && !trigger.current?.contains(t)) setOpen(false);
     };
-    const onMove = () => setOpen(false);
+    // Follow the trigger while the page or a table scrolls; close once it leaves the viewport.
+    const onMove = () => {
+      const t = trigger.current?.getBoundingClientRect();
+      if (!t || t.bottom < 0 || t.top > window.innerHeight) setOpen(false);
+      else setStyle(place(t, menu.current?.offsetHeight ?? 0));
+    };
     document.addEventListener('pointerdown', onPointer);
     window.addEventListener('scroll', onMove, true);
     window.addEventListener('resize', onMove);
@@ -81,6 +96,9 @@ export function RowMenu({ items, label = 'Thao tác' }: RowMenuProps) {
     if (e.key === 'ArrowDown' && !open) {
       e.preventDefault();
       setOpen(true);
+    } else if (e.key === 'Escape' && open) {
+      e.preventDefault();
+      close(true);
     }
   };
 

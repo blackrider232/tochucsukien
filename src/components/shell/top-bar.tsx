@@ -17,7 +17,7 @@ export function TopBar({
   onOpenMenu: () => void;
 }) {
   return (
-    <header data-shell className="sticky top-0 z-30 border-b border-line bg-surface">
+    <header data-shell className="sticky top-0 z-30 bg-surface shadow-[inset_0_-1px_0_var(--line)]">
       {/* One 56 px row on every width: on phones the theme switch is in the drawer and redo hides. */}
       <div className="flex min-h-14 flex-nowrap items-center gap-2 px-3 py-1.5 sm:px-5">
         <div className="md:hidden">

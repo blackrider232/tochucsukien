@@ -27,7 +27,7 @@ const PAIRS: ReadonlyArray<{ fg: string; bg: ReadonlyArray<string>; min: number 
   { fg: 'ink', bg: [...SURFACES, 'selected'], min: 4.5 },
   { fg: 'ink-2', bg: [...SURFACES, 'selected'], min: 4.5 },
   { fg: 'ink-muted', bg: [...SURFACES, 'selected'], min: 4.5 },
-  { fg: 'link', bg: SURFACES, min: 4.5 },
+  { fg: 'link', bg: [...SURFACES, 'selected'], min: 4.5 },
   { fg: 'danger-ink', bg: SURFACES, min: 4.5 },
   { fg: 'success-ink', bg: SURFACES, min: 4.5 },
   { fg: 'warning-ink', bg: SURFACES, min: 4.5 },

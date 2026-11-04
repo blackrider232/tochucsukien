@@ -357,7 +357,7 @@ function Specimens() {
             <div className="h-112 w-64 shrink-0 overflow-hidden rounded-card bg-sidebar">
               <SidebarContent model={SHELL} pathname="/dev/kit" badges={{ guests: <Badge tone="amber">12</Badge> }} onClose={() => toast.info('Đóng menu')} />
             </div>
-            <div className="min-w-0 flex-1 rounded-card border border-line bg-surface p-4">
+            <div className="min-w-0 flex-1 self-start rounded-card border border-line bg-surface p-4">
               <EventHeader
                 title="Hội nghị Xúc tiến đầu tư 2026"
                 meta={['Thứ Ba, 15/12/2026, 08:00', 'Khách sạn Melia Hà Nội', 'Phòng Xúc tiến đầu tư']}
