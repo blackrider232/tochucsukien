@@ -1,0 +1,172 @@
+import { describe, expect, it } from 'vitest';
+import type { Vnd } from '@/core/brand';
+import {
+  escapeHtml,
+  fileNameStem,
+  foldVi,
+  formatVnd,
+  html,
+  matchesQuery,
+  normalizePhone,
+  parseEmail,
+  parseSafeUrl,
+  parseVnd,
+  safeSpreadsheetText,
+  sanitizeRichHtml,
+  toCsv,
+} from '@/core/text';
+
+describe('foldVi and matchesQuery', () => {
+  it('folds tones, đ, case and whitespace', () => {
+    expect(foldVi('  Nguyễn   Văn ĐỨC ')).toBe('nguyen van duc');
+    expect(foldVi('Hội chợ OCOP')).toBe('hoi cho ocop');
+  });
+
+  it('matches every token anywhere in the haystack', () => {
+    expect(matchesQuery('nguyen ubnd', 'Nguyễn Văn A', 'UBND Thành phố')).toBe(true);
+    expect(matchesQuery('nguyen sở', 'Nguyễn Văn A', 'UBND')).toBe(false);
+    expect(matchesQuery('', 'anything')).toBe(true);
+    expect(matchesQuery('a', null, undefined)).toBe(false);
+  });
+});
+
+describe('escapeHtml and html``', () => {
+  it('escapes all five characters and keeps falsy values (core B28)', () => {
+    expect(escapeHtml(`<a href="x" onclick='y'>&</a>`)).toBe('&lt;a href=&quot;x&quot; onclick=&#39;y&#39;&gt;&amp;&lt;/a&gt;');
+    expect(escapeHtml(0)).toBe('0');
+    expect(escapeHtml(false)).toBe('false');
+    expect(escapeHtml(null)).toBe('');
+    expect(escapeHtml(undefined)).toBe('');
+  });
+
+  it('escapes interpolations but nests trusted fragments', () => {
+    const name = '<img src=x onerror=alert(1)>';
+    const row = html`<td>${name}</td>`;
+    expect(row).toBe('<td>&lt;img src=x onerror=alert(1)&gt;</td>');
+    const table = html`<table><tr>${row}</tr>${[html`<tr><td>${0}</td></tr>`, html`<tr><td>${'a&b'}</td></tr>`]}</table>`;
+    expect(table).toBe('<table><tr><td>&lt;img src=x onerror=alert(1)&gt;</td></tr><tr><td>0</td></tr><tr><td>a&amp;b</td></tr></table>');
+  });
+
+  it('does not trust a plain string that merely looks like markup', () => {
+    expect(html`<p>${'<b>x</b>'}</p>`).toBe('<p>&lt;b&gt;x&lt;/b&gt;</p>');
+  });
+});
+
+describe('sanitizeRichHtml', () => {
+  it('keeps NĐ30 formatting: tables, alignment, inline styles', () => {
+    const input = '<table border="1"><tr><td colspan="2" style="text-align:center"><b>QUYẾT ĐỊNH</b></td></tr></table><p align="right"><i>Hà Nội</i></p>';
+    expect(sanitizeRichHtml(input)).toBe(input.replace('<tr>', '<tbody><tr>').replace('</table>', '</tbody></table>'));
+  });
+
+  it('removes scripts, event handlers and javascript:/data: URLs (m3 B02, m4a B03)', () => {
+    const out = sanitizeRichHtml(
+      '<p onclick="steal()">x</p><script>alert(1)</script><a href="javascript:alert(1)">a</a><a href="data:text/html,<script>">b</a><img src=x onerror=alert(1)><iframe src="https://evil"></iframe>',
+    );
+    expect(out).toBe('<p>x</p><a>a</a><a>b</a>');
+  });
+
+  it('drops styles that load remote resources and hardens target links', () => {
+    expect(sanitizeRichHtml('<span style="background:url(https://evil/x.png)">x</span>')).toBe('<span>x</span>');
+    expect(sanitizeRichHtml('<a href="https://sce.vn" target="_blank">x</a>')).toBe('<a href="https://sce.vn" target="_blank" rel="noopener noreferrer">x</a>');
+  });
+
+  it('is idempotent and its output nests in html`` unescaped', () => {
+    const once = sanitizeRichHtml('<p>Kính gửi <b>Ông A</b></p>');
+    expect(sanitizeRichHtml(once)).toBe(once);
+    expect(html`<div>${once}</div>`).toBe('<div><p>Kính gửi <b>Ông A</b></p></div>');
+  });
+});
+
+describe('parsers', () => {
+  it('parses emails, lowercased and trimmed', () => {
+    expect(parseEmail('  Ten.Nguoi@SCE.Hanoi.gov.vn ')).toBe('ten.nguoi@sce.hanoi.gov.vn');
+    expect(parseEmail('no-at-sign')).toBeNull();
+    expect(parseEmail('a@b')).toBeNull();
+    expect(parseEmail('a b@c.vn')).toBeNull();
+    expect(parseEmail('"x"@c.vn')).toBeNull();
+    expect(parseEmail(42)).toBeNull();
+  });
+
+  it('accepts only http(s) URLs', () => {
+    expect(parseSafeUrl('https://docs.google.com/forms/d/x')).toBe('https://docs.google.com/forms/d/x');
+    expect(parseSafeUrl('javascript:alert(1)')).toBeNull();
+    expect(parseSafeUrl(' JavaScript:alert(1)')).toBeNull();
+    expect(parseSafeUrl('data:text/html,x')).toBeNull();
+    expect(parseSafeUrl('www.sce.vn')).toBeNull();
+    expect(parseSafeUrl('')).toBeNull();
+  });
+
+  it('normalizes VN phone numbers', () => {
+    expect(normalizePhone('0913.210.001')).toBe('0913210001');
+    expect(normalizePhone('+84 913 210 001')).toBe('0913210001');
+    expect(normalizePhone('(024) 3825 1234')).toBe('02438251234');
+  });
+
+  it.each([
+    ['1.500.000', 1500000],
+    ['480.000.000', 480000000],
+    ['1500000', 1500000],
+    ['1 500 000 đ', 1500000],
+    ['1,500,000', 1500000],
+    ['1.500.000,00', 1500000],
+    ['350.000.000 VNĐ', 350000000],
+    ['0', 0],
+  ])('parseVnd(%s) = %i', (raw, expected) => {
+    expect(parseVnd(raw)).toBe(expected);
+  });
+
+  it.each(['1.500.000,50', '1,5', 'abc', '', '-5', '1.50.000', '12.5000'])('parseVnd(%s) is null (m6 BUG-34)', (raw) => {
+    expect(parseVnd(raw)).toBeNull();
+  });
+
+  it('formats VND in full and compact forms', () => {
+    expect(formatVnd(1500000 as Vnd)).toBe('1.500.000 đ');
+    expect(formatVnd(0 as Vnd)).toBe('0 đ');
+    expect(formatVnd(1500000 as Vnd, { compact: true })).toBe('1,5 tr');
+    expect(formatVnd(2_350_000_000 as Vnd, { compact: true })).toBe('2,4 tỷ');
+    expect(formatVnd(900 as Vnd, { compact: true })).toBe('900 đ');
+  });
+});
+
+describe('spreadsheet safety', () => {
+  it.each(['=HYPERLINK("http://evil")', '+1+1', '-2+3', '@SUM(A1)', '\tx', '\rx'])('neutralizes %j', (v) => {
+    expect(safeSpreadsheetText(v)).toBe(`'${v}`);
+  });
+
+  it('leaves ordinary text alone', () => {
+    expect(safeSpreadsheetText('Nguyễn Văn A')).toBe('Nguyễn Văn A');
+  });
+
+  it('writes RFC 4180 CSV with BOM, CRLF and formula injection blocked (m2 BUG-41, m4c B6)', async () => {
+    const blob = toCsv(
+      [
+        { name: 'Nguyễn "Bé" A', org: '=cmd|"/c calc"!A1', n: -3, ok: true, note: null },
+        { name: 'Line\nbreak', org: 'UBND, TP', n: 0, ok: false, note: ' padded' },
+      ],
+      [
+        { header: 'Họ tên', value: (r) => r.name },
+        { header: 'Đơn vị', value: (r) => r.org },
+        { header: 'Số', value: (r) => r.n },
+        { header: 'OK', value: (r) => r.ok },
+        { header: 'STT', value: (_r, i) => i + 1 },
+        { header: 'Ghi chú', value: (r) => r.note },
+      ],
+    );
+    expect(blob.type).toBe('text/csv;charset=utf-8');
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    expect([...bytes.slice(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
+    expect(new TextDecoder().decode(bytes.slice(3))).toBe(
+      'Họ tên,Đơn vị,Số,OK,STT,Ghi chú\r\n' +
+        `"Nguyễn ""Bé"" A","'=cmd|""/c calc""!A1",-3,true,1,\r\n` +
+        '"Line\nbreak","UBND, TP",0,false,2," padded"\r\n',
+    );
+  });
+});
+
+describe('fileNameStem', () => {
+  it('folds Vietnamese to an ASCII stem', () => {
+    expect(fileNameStem('Hội nghị Xúc tiến Đầu tư 2026 / Tokyo')).toBe('Hoi_nghi_Xuc_tien_Dau_tu_2026_Tokyo');
+    expect(fileNameStem('Đại biểu', 5)).toBe('Dai_b');
+    expect(fileNameStem('***')).toBe('file');
+  });
+});

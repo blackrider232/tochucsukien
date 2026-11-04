@@ -4,7 +4,8 @@
 
 import type { DutyStaffId, EventId, GuestId, IncidentId, Instant, UserId, Version } from '@/core/brand';
 import type { RequestContext } from '@/core/auth';
-import type { ScannedCode } from '@/core/checkin-code';
+import { legacyScanKey, type ScannedCode } from '@/core/checkin-code';
+import { normalizePhone } from '@/core/text';
 import type { SystemSettings } from '@/core/settings';
 import type { DepartmentName } from '@/core/vocab';
 import type { Sig } from '@/core/commands';
@@ -29,7 +30,29 @@ export type ScanOutcome =
   | { kind: 'ambiguous'; candidates: ReadonlyArray<RosterEntry> };
 /** Pure match of a parsed code against the roster; legacy ids resolved via legacyIds map. */
 export function matchScan(code: ScannedCode, eventId: EventId, roster: ReadonlyArray<RosterEntry>, legacyIds: ReadonlyMap<string, GuestId>): ScanOutcome {
-  throw new Error('not implemented');
+  const outcomeFor = (matches: ReadonlyArray<RosterEntry>): ScanOutcome => {
+    const [only] = matches;
+    if (!only) return { kind: 'not_found' };
+    if (matches.length > 1) return { kind: 'ambiguous', candidates: matches };
+    return only.checkedInAt ? { kind: 'already', guest: only, at: only.checkedInAt } : { kind: 'ok', guest: only };
+  };
+  switch (code.kind) {
+    case 'canonical':
+      if (code.eventId !== eventId) return { kind: 'other_event', eventName: null };
+      return outcomeFor(roster.filter((g) => g.id === code.guestId));
+    case 'legacy': {
+      const guestId = legacyIds.get(legacyScanKey(code.legacyEventId, code.legacyGuestId));
+      if (guestId) return outcomeFor(roster.filter((g) => g.id === guestId));
+      const elsewhere = [...legacyIds.keys()].some((k) => k.endsWith(`:${code.legacyGuestId}`));
+      return elsewhere ? { kind: 'other_event', eventName: null } : { kind: 'not_found' };
+    }
+    case 'human':
+      return outcomeFor(roster.filter((g) => g.checkinCode === code.code));
+    case 'phone':
+      return outcomeFor(roster.filter((g) => g.phone !== '' && normalizePhone(g.phone) === code.digits));
+    case 'invalid':
+      return { kind: 'not_found' };
+  }
 }
 
 export type DutyDesk = 1 | 2 | 3 | 4;
