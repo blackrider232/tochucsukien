@@ -229,8 +229,8 @@ describe('pipeline: input, audit, errors', () => {
   it("a command outside core cannot skip the pipeline's audit by saying 'sql'", async () => {
     const w = world();
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    expect(failureOf(await w.run(testActor('user', XTDT), 'guests.testAuditedInSql', {}))).toMatchObject({ kind: 'unavailable' });
-    expect(spy).toHaveBeenCalledWith(expect.stringContaining("guests.testAuditedInSql returned audit 'sql'"));
+    expect(await w.run(testActor('user', XTDT), 'guests.testAuditedInSql', {})).toMatchObject({ ok: true, unaudited: expect.any(String) });
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining("guests.testAuditedInSql returned audit 'sql'"), expect.objectContaining({ command: 'guests.testAuditedInSql' }));
     spy.mockRestore();
   });
 

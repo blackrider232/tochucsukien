@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { augmentationsIn, checkContract, collectSnapshot, type ContractSnapshot } from './check-contract';
+import { augmentationsIn, checkContract, collectSnapshot, sqlAuditIn, type ContractSnapshot } from './check-contract';
 
 let real: ContractSnapshot;
 beforeAll(() => {
@@ -92,6 +92,35 @@ describe('each rule fails when broken', () => {
     expect(broken((s) => s.sqlAudits.push({ feature: 'guests', file: 'src/features/guests/server/commands.ts' }))).toEqual([
       "src/features/guests/server/commands.ts returns audit: 'sql'; only core's SQL functions write their own audit rows",
     ]);
+  });
+
+  it.each([
+    ["return { value, audit: 'sql' };"],
+    ['return { value, audit: "sql" };'],
+    ['return { value, audit: `sql` };'],
+    ["return { value, audit: ('sql') };"],
+    ["return { value, 'audit': 'sql' };"],
+    ["return { value, ['audit']: 'sql' };"],
+    ["const said = 'sql';\nreturn { value, audit: said };"],
+    ["const audit = 'sql' as const;\nreturn { value, audit };"],
+    ["return { value, audit: `${'s'}ql` };"],
+    ["return { value, audit: 's' + 'ql' };"],
+    ["return { value, audit: ok ? null : ('s' + 'ql') };"],
+    ['return { value, audit: mine as never };'],
+    ['return { value, audit: <never>mine };'],
+  ])('sees audit: sql in %j', (body) => {
+    expect(sqlAuditIn(`async function run() {\n${body}\n}`)).toBe(true);
+  });
+
+  it.each([
+    ["return { value, audit: { action: 'CẬP NHẬT KHÁCH MỜI', summary: '', eventId, entity: 'guest', entityId } };"],
+    ['return { value, audit: null };'],
+    ['return { value, audit: entry };'],
+    ["return { value, audit: ok ? entry : null };"],
+    ["// a comment that says audit: 'sql'\nreturn { value, audit: null };"],
+    ["const note = 'no sql here';\nreturn { value, audit: null };"],
+  ])('lets %j pass', (body) => {
+    expect(sqlAuditIn(`async function run() {\n${body}\n}`)).toBe(false);
   });
 
   it('a stale generated permission seed', () => {

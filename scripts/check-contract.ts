@@ -6,6 +6,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import ts from 'typescript';
 import { permissionMatrix } from '@/core/permissions';
 import { parseCatalog, tablesTouched, type SqlFile } from '@/core/db/sql-catalog';
 import { featureManifests } from '@/features/registry';
@@ -177,6 +178,34 @@ export function augmentationsIn(source: string): Array<{ map: 'CommandMap' | 'Pe
   }));
 }
 
+const strip = (e: ts.Expression): ts.Expression => (ts.isParenthesizedExpression(e) ? strip(e.expression) : e);
+const isAuditKey = (name: ts.PropertyName) =>
+  (ts.isIdentifier(name) || ts.isStringLiteral(name) ? name.text : ts.isComputedPropertyName(name) && ts.isStringLiteralLike(name.expression) ? name.expression.text : '') === 'audit';
+/** An audit value no reader can check by eye: built from parts, or cast past the type of CommandOutcome. */
+function opaqueAudit(e: ts.Expression): boolean {
+  const v = strip(e);
+  if (ts.isConditionalExpression(v)) return opaqueAudit(v.whenTrue) || opaqueAudit(v.whenFalse);
+  return ts.isTemplateExpression(v) || ts.isBinaryExpression(v) || ts.isAsExpression(v) || ts.isTypeAssertionExpression(v);
+}
+
+/**
+ * Whether feature source can return `audit: 'sql'`: a 'sql' string anywhere (a variable may carry it), or an
+ * `audit` property whose value is concatenated, templated or cast. A heuristic over the syntax tree; the pipeline's
+ * runtime check is the control, and it catches what this misses after the change has saved.
+ */
+export function sqlAuditIn(code: string, fileName = 'feature.ts'): boolean {
+  const file = ts.createSourceFile(fileName, code, ts.ScriptTarget.Latest, true, fileName.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
+  let found = false;
+  const visit = (node: ts.Node): void => {
+    if (found) return;
+    if (ts.isStringLiteralLike(node) && node.text === 'sql' && !(ts.isPropertyAssignment(node.parent) && node.parent.name === node)) found = true;
+    else if (ts.isPropertyAssignment(node) && isAuditKey(node.name) && opaqueAudit(node.initializer)) found = true;
+    else ts.forEachChild(node, visit);
+  };
+  visit(file);
+  return found;
+}
+
 export function collectSnapshot(root: string): ContractSnapshot {
   const featuresDir = join(root, 'src', 'features');
   const featureDirs = readdirSync(featuresDir).filter((d) => statSync(join(featuresDir, d)).isDirectory()).sort();
@@ -195,7 +224,7 @@ export function collectSnapshot(root: string): ContractSnapshot {
   );
   const augmentations = sources.flatMap(({ feature, file, code }) => augmentationsIn(code).map((a) => ({ feature, file, ...a })));
   const sqlAudits = sources
-    .filter(({ file, code }) => !file.includes(`${sep}__tests__${sep}`) && /\baudit\s*:\s*['"]sql['"]/.test(code))
+    .filter(({ file, code }) => !file.includes(`${sep}__tests__${sep}`) && sqlAuditIn(code, file))
     .map(({ feature, file }) => ({ feature, file }));
 
   const manifests = featureManifests();

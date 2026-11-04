@@ -188,9 +188,10 @@ async function execute(ctx: RequestContext, lookup: CommandLookup, audit: AuditW
     ran = true;
     const outcome = await spec.run(cmdCtx, parsed.value);
     if (outcome.audit === 'sql' && !id.startsWith('core.')) {
-      // The change already committed: fail loudly rather than let it go unaudited.
-      console.error(`command ${id} returned audit 'sql'; only core's SQL functions write their own audit rows`);
-      return failure('unavailable', MESSAGES.internal);
+      // The real control behind check:contract's heuristic. It can only run once the change has saved, so the
+      // change is reported unaudited rather than as a failure a retry would repeat.
+      console.error(`command ${id} returned audit 'sql'; only core's SQL functions write their own audit rows`, { actorId: ctx.actor.profile.id, command: id, perm: spec.authorize.perm });
+      lost.audit = true;
     } else if (outcome.audit && outcome.audit !== 'sql') {
       try {
         await auditRow(audit, ctx, id, spec, outcome.audit);

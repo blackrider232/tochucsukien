@@ -59,7 +59,7 @@ export interface CommandContext extends RequestContext {
 /**
  * kind 'mutation' must return an audit entry, or 'sql' when the SQL function it
  * called wrote the row itself, so a change logs one row. Only core's commands may
- * return 'sql' (the pipeline fails any other, check:contract refuses the literal);
+ * return 'sql' (check:contract refuses it in feature source; the pipeline logs any other and reports it unaudited);
  * kind 'query' returns audit: null.
  * One interface (not a union) so run() gets contextual parameter types.
  */
