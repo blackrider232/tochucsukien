@@ -3,6 +3,7 @@
 import type { RefObject } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/components/ui/cn';
+import { clearUndo } from '@/core/commands';
 import type { ShellModel } from './nav-model';
 import { SIGN_OUT_PATH } from './session';
 
@@ -18,7 +19,7 @@ export function AccountMenu({ user, collapsed, formRef }: { user: ShellModel['us
           <p className="truncate text-2xs text-sidebar-muted">{user.roleLabel}{user.department ? ` · ${user.department}` : ''}</p>
         </div>
       )}
-      <form ref={formRef} method="post" action={SIGN_OUT_PATH}>
+      <form ref={formRef} method="post" action={SIGN_OUT_PATH} onSubmit={() => clearUndo()}>
         <button
           type="submit"
           aria-label="Đăng xuất"

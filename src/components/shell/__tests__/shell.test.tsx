@@ -9,11 +9,13 @@ import { IdleGuard } from '../idle-guard';
 import type { ShellModel } from '../nav-model';
 
 const nav = vi.hoisted(() => ({ path: '/events/e1/seating' }));
+const clearUndo = vi.hoisted(() => vi.fn());
 vi.mock('next/navigation', () => ({ usePathname: () => nav.path }));
 vi.mock('next/link', () => ({
   default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => <a href={href} {...rest}>{children}</a>,
 }));
 vi.mock('@/core/commands', () => ({
+  clearUndo,
   useUndo: () => ({ canUndo: true, canRedo: false, undoLabel: 'Sửa khách', redoLabel: null, undo: vi.fn(), redo: vi.fn() }),
 }));
 
@@ -111,6 +113,14 @@ describe('AppShell', () => {
     expect(screen.getByRole('button', { name: 'Hoàn tác: Sửa khách' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Làm lại' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Đăng xuất' }).closest('form')).toHaveAttribute('action', '/auth/signout');
+  });
+
+  it('clears the undo history when the sign-out form submits', () => {
+    mount();
+    const form = screen.getAllByRole('button', { name: 'Đăng xuất' })[0]!.closest('form')!;
+    form.addEventListener('submit', (e) => e.preventDefault());
+    fireEvent.submit(form);
+    expect(clearUndo).toHaveBeenCalledOnce();
   });
 
   it('never imports a feature: only load-shell reads the slots record', () => {

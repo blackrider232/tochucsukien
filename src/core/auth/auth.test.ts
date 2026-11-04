@@ -52,6 +52,12 @@ describe('decideProxy', () => {
     expect(decideProxy('/mfa', q(), signedIn(profileOf('admin', null), 'aal1', true))).toEqual({ kind: 'next' });
   });
 
+  it('lets any session sign out, finished or not', () => {
+    expect(decideProxy('/auth/signout', q(), signedIn({ ...profileOf('user', XTDT), status: 'pending' }))).toEqual({ kind: 'next' });
+    expect(decideProxy('/auth/signout', q(), signedIn(profileOf('admin', null)))).toEqual({ kind: 'next' });
+    expect(decideProxy('/auth/signout', q(), user)).toEqual({ kind: 'next' });
+  });
+
   it('bounces a finished session away from login and pending', () => {
     expect(decideProxy('/login', q(), user)).toEqual({ kind: 'redirect', to: '/events' });
     expect(decideProxy('/pending', q(), user)).toEqual({ kind: 'redirect', to: '/events' });

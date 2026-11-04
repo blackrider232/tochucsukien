@@ -16,12 +16,11 @@ import { parseHolidayRows, parseProfileRow } from './profile';
 
 type Loaded = { ok: true; ctx: RequestContext; holidays: ReadonlyArray<Holiday> } | { ok: false; gate: Exclude<Gate, { kind: 'ok' }> };
 
-/** Like requestContext(), but reports an unfinished session instead of redirecting (dispatch returns it as a failure). */
-export const loadRequestContext = cache(async (): Promise<Loaded> => {
+async function cookieClient() {
   // cookies() first: it marks the route dynamic, so a build never prerenders a page that needs a session.
   const cookieStore = await cookies();
   const env = requireSupabaseEnv();
-  const supabase = createServerClient(env.url, env.publishableKey, {
+  return createServerClient(env.url, env.publishableKey, {
     cookies: {
       getAll: () => cookieStore.getAll(),
       setAll: (list) => {
@@ -33,6 +32,11 @@ export const loadRequestContext = cache(async (): Promise<Loaded> => {
       },
     },
   });
+}
+
+/** Like requestContext(), but reports an unfinished session instead of redirecting (dispatch returns it as a failure). */
+export const loadRequestContext = cache(async (): Promise<Loaded> => {
+  const supabase = await cookieClient();
 
   const { data: userData } = await supabase.auth.getUser();
   const user = userData.user;
@@ -81,4 +85,10 @@ export async function appContextValue(): Promise<AppContextValue> {
   const ctx = await requestContext();
   const loaded = await loadRequestContext();
   return { profile: ctx.actor.profile, settings: ctx.settings, holidays: loaded.ok ? loaded.holidays : [] };
+}
+
+/** Ends this device's session and clears its cookies. Only a route handler may set cookies, so POST /auth/signout calls it. */
+export async function signOut(): Promise<void> {
+  const supabase = await cookieClient();
+  await supabase.auth.signOut({ scope: 'local' });
 }
