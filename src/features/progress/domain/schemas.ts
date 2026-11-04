@@ -2,8 +2,8 @@
 // parsing), so the browser and the server validate the same rules.
 
 import { z } from 'zod';
-import { parseUuid, type EventId, type GroupId, type HHmm, type Instant, type IsoDate, type SafeUrl, type StepId, type Uuid, type Vnd, type Version } from '@/core/brand';
-import { parseHHmm, parseInstant, parseIsoDate } from '@/core/dates';
+import { parseUuid, type EventId, type GroupId, type HHmm, type IsoDate, type SafeUrl, type StepId, type Uuid, type Vnd, type Version } from '@/core/brand';
+import { parseHHmm, parseIsoDate } from '@/core/dates';
 import { parseSafeUrl } from '@/core/text';
 import { DEPARTMENTS, type DepartmentName, type EventType } from '@/core/vocab';
 import type { DayType, GroupPhase, StepLink, StepPhase, SubTask } from '../contract';
@@ -87,16 +87,16 @@ export const groupFields = z.object({
 export type GroupDraft = z.output<typeof groupFields>;
 export const groupNoteFields = z.object({ note: groupFields.shape.note.min(1, 'Vui lòng nhập nội dung ghi chú') });
 
-const instantSchema = z.string().refine((v) => parseInstant(v) !== null, 'Thời điểm không hợp lệ').transform((v) => parseInstant(v) as Instant);
-
-/** A whole step as stored, for template instantiation and for undoing a delete. */
+/**
+ * A whole step as the commands take it, for template instantiation and for undoing a delete. `done` asks the server to stamp
+ * the step as completed by the caller now; who and when are never read from input (review finding 1).
+ */
 export const stepInputSchema = stepFields.extend({
   id: stepIdSchema,
   subTasks: z.array(subTaskSchema).max(100),
   links: z.array(stepLinkSchema).max(100),
   sort: z.number().int(),
-  completedAt: instantSchema.nullable(),
-  completedBy: z.string().max(200).nullable(),
+  done: z.boolean(),
 });
 export type StepInput = z.output<typeof stepInputSchema>;
 

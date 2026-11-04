@@ -4,7 +4,7 @@ import type { CommandId, InputOf } from '@/core/commands';
 import { testActor, PTDN, XTDT } from '@/core/testing/actors';
 import type { Step } from '../contract';
 import { commands } from '../server/commands';
-import { draft, harness } from './harness';
+import { draft, harness, NOW } from './harness';
 
 const admin = testActor('admin', null);
 const leader = testActor('leader', null);
@@ -151,11 +151,53 @@ describe('progress.setStepDone', () => {
   });
 });
 
+describe('completion is stamped by the server from the actor and the clock (review finding 1)', () => {
+  const forgery = { completedAt: '2020-01-01T00:00:00.000Z', completedBy: 'Giám đốc Trung tâm' };
+  const stepInput = (over: object = {}) => ({ id: newId<'Step'>(), name: 'Bước mới', requirement: '', targetPhase: 'before' as const, offsetDays: 4, dayType: 'workday' as const, assignee: '', templateKey: '', subTasks: [], links: [], sort: 99, done: false, ...over });
+
+  it('ignores a completion stamp sent with a new step', async () => {
+    const { h, eventId, group } = await setup();
+    const r = await h.ok(xtdtUser, 'progress.createStep', { eventId, groupId: group.id, step: stepInput(forgery) as never });
+    expect(r.value).toMatchObject({ completedAt: null, completedBy: null });
+    expect(h.rows('sce_tcsk_steps').find((s) => s.id === r.value.id)).toMatchObject({ completed_at: null, completed_by: null });
+  });
+
+  it('ignores a completion stamp sent with a new group step', async () => {
+    const { h, eventId } = await setup();
+    const step = stepInput(forgery);
+    await h.ok(xtdtUser, 'progress.createGroups', { eventId, groups: [{ id: newId<'TaskGroup'>(), phase: 'phase_prepare', name: 'Nhóm mới', leadPerson: '', note: '', sort: 9, steps: [step] }] as never });
+    expect(h.rows('sce_tcsk_steps').find((s) => s.id === step.id)).toMatchObject({ completed_at: null, completed_by: null });
+  });
+
+  it('a step created as done is stamped with the actor and the command clock, and the audit says so', async () => {
+    const { h, eventId, group } = await setup();
+    const r = await h.ok(xtdtUser, 'progress.createStep', { eventId, groupId: group.id, step: stepInput({ ...forgery, done: true }) as never });
+    expect(r.value).toMatchObject({ completedAt: NOW, completedBy: xtdtUser.profile.fullname });
+    expect(h.audits().at(-1)!.summary).toContain('đánh dấu hoàn thành');
+  });
+
+  it('undoing a delete re-completes the step as the person who undoes it, never as the original completer', async () => {
+    const { h, eventId, step } = await setup();
+    await h.ok(xtdtUser, 'progress.setStepDone', { eventId, stepId: step.id, done: true });
+    const current = (await h.plan(xtdtUser, eventId))!.groups[0]!.steps[0]!;
+    const deleted = await h.ok(xtdtUser, 'progress.deleteStep', { eventId, stepId: step.id, version: current.version });
+    const back = await h.undo(xtdtLeader, deleted.inverse);
+    expect(back.ok && back.value).toMatchObject({ completedAt: NOW, completedBy: xtdtLeader.profile.fullname });
+  });
+
+  it('an undone delete of an open step stays open', async () => {
+    const { h, eventId, step } = await setup();
+    const deleted = await h.ok(xtdtUser, 'progress.deleteStep', { eventId, stepId: step.id, version: step.version });
+    const back = await h.undo(xtdtUser, deleted.inverse);
+    expect(back.ok && back.value).toMatchObject({ completedAt: null, completedBy: null });
+  });
+});
+
 describe('steps, sub-tasks, links, notes and groups round-trip through undo', () => {
   it('createStep / updateStep / deleteStep', async () => {
     const { h, eventId, group } = await setup();
     const id = newId<'Step'>();
-    const input = { id, name: 'Bước mới', requirement: '', targetPhase: 'before' as const, offsetDays: 4, dayType: 'workday' as const, assignee: '', templateKey: '', subTasks: [], links: [], sort: 99, completedAt: null, completedBy: null };
+    const input = { id, name: 'Bước mới', requirement: '', targetPhase: 'before' as const, offsetDays: 4, dayType: 'workday' as const, assignee: '', templateKey: '', subTasks: [], links: [], sort: 99, done: false };
     const created = await h.ok(xtdtUser, 'progress.createStep', { eventId, groupId: group.id, step: input });
     const updated = await h.ok(xtdtUser, 'progress.updateStep', { eventId, stepId: id, version: created.value.version, patch: { name: 'Đổi tên', targetPhase: 'dday', offsetDays: 9 } });
     expect(updated.value).toMatchObject({ name: 'Đổi tên', targetPhase: 'dday', offsetDays: 0 });
@@ -232,7 +274,7 @@ describe('every command is denied to an actor outside the event department, with
       deleteEvent: { id: eventId, version: plan.event.version },
       restoreEvent: { id: eventId },
       setStepDone: { eventId, stepId: step.id, done: true },
-      createStep: { eventId, groupId: group.id, step: { ...(step as Step), subTasks: [], links: [], id: newId(), completedAt: null, completedBy: null } },
+      createStep: { eventId, groupId: group.id, step: { ...(step as Step), subTasks: [], links: [], id: newId(), done: false } },
       updateStep: { eventId, stepId: step.id, version: step.version, patch: { name: 'x' } },
       deleteStep: { eventId, stepId: step.id, version: step.version },
       addSubTask: { eventId, stepId: step.id, subTask: { id: 'n', name: 'x', completed: false } },

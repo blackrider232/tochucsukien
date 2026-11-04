@@ -7,7 +7,7 @@ import { defineTable, type BaseRow } from '@/core/db';
 import { parseSafeUrl } from '@/core/text';
 import { isDepartmentName, type DepartmentName } from '@/core/vocab';
 import type { SceEvent, Step, StepLink, SubTask, TaskGroup } from '../contract';
-import { DAY_TYPES, EVENT_TYPE_VALUES, GROUP_PHASES, STEP_PHASES } from '../domain/schemas';
+import { DAY_TYPES, EVENT_TYPE_VALUES, GROUP_PHASES, STEP_PHASES, type StepInput } from '../domain/schemas';
 
 const instant = z.string().transform((v) => (parseInstant(v) ?? v) as Instant);
 const managed = {
@@ -103,3 +103,15 @@ export const stepsTable = defineTable<StepRow>({
     sort: z.number(),
   }),
 });
+
+/** Who completed a step and when; always the acting user and the command clock. */
+export interface CompletionStamp {
+  at: Instant;
+  by: string;
+}
+
+/** The row a StepInput becomes. Completion comes from `stamp`, never from the input, so a client cannot forge it. */
+export function stepInsertRow(step: StepInput, eventId: EventId, groupId: GroupId, stamp: CompletionStamp) {
+  const { done, ...fields } = step;
+  return { ...fields, eventId, groupId, completedAt: done ? stamp.at : null, completedBy: done ? stamp.by : null };
+}

@@ -7,7 +7,7 @@ import type { DevSeed } from '@/core/dev/runtime';
 import { addWorkdays, buildWorkCalendar, todayVN } from '@/core/dates';
 import { DEFAULT_SETTINGS } from '@/core/settings';
 import { instantiateTemplate } from '../domain/instantiate';
-import { eventsTable, groupsTable, stepsTable } from './tables';
+import { eventsTable, groupsTable, stepInsertRow, stepsTable } from './tables';
 
 export const DEV_EVENT_NAME = '[DEV] Hội nghị thử nghiệm Tiến độ (dữ liệu giả)';
 
@@ -38,10 +38,11 @@ export const devSeed: DevSeed = async (db, { id, now }) => {
   });
   // The first two steps of Nhóm 1 are done; with T0 eight working days out the long-lead steps are late.
   const done = new Set(groups[0]!.steps.slice(0, 2).map((s) => s.id));
+  const stamp = { at: now, by: 'Cán bộ Dev' };
   await db.table(groupsTable).insertMany(groups.map((g) => ({ id: g.id, eventId, phase: g.phase, name: g.name, leadPerson: g.leadPerson, note: g.note, sort: g.sort })));
   await db.table(stepsTable).insertMany(
     groups.flatMap((g) =>
-      g.steps.map((s) => ({ ...s, eventId, groupId: g.id, ...(done.has(s.id) ? { completedAt: now, completedBy: 'Cán bộ Dev' } : {}) })),
+      g.steps.map((s) => stepInsertRow({ ...s, done: done.has(s.id) }, eventId, g.id, stamp)),
     ),
   );
 };

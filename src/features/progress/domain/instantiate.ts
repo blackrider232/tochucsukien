@@ -51,8 +51,7 @@ export function instantiateTemplate(type: EventType, input: { leadPerson: string
           subTasks: pick(s.subTasks, type).map((name, i) => ({ id: ids.subTask(s.key, i), name: fill(name, settings), completed: false })),
           links: [],
           sort: si,
-          completedAt: null,
-          completedBy: null,
+          done: false,
         };
       }),
   }));

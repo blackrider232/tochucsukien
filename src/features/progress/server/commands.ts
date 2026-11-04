@@ -18,7 +18,7 @@ import {
   stepIdSchema, stepInputSchema, stepLinkSchema, stepPatchSchema, subTaskSchema, versionSchema,
   type GroupDraft, type GroupInput, type StepDraft, type StepInput,
 } from '../domain/schemas';
-import { eventsTable, groupsTable, stepsTable, type EventRow, type GroupRow, type StepRow } from './tables';
+import { eventsTable, groupsTable, stepInsertRow, stepsTable, type CompletionStamp, type EventRow, type GroupRow, type StepRow } from './tables';
 
 declare module '@/core/commands' {
   interface CommandMap {
@@ -67,13 +67,16 @@ async function groupOf(ctx: CommandContext, eventId: EventId, groupId: GroupId):
   return { event, group };
 }
 
+/** The only source of a completion stamp: the acting user and the command clock. */
+const completionStamp = (ctx: CommandContext): CompletionStamp => ({ at: ctx.now, by: ctx.actor.profile.fullname || ctx.actor.profile.email });
+
 const toEvent = (row: EventRow, status: SceEvent['status'] = 'preparing'): SceEvent => ({ ...row, status });
 
 function stepSnapshot(s: Step): StepInput {
   return {
     id: s.id, name: s.name, requirement: s.requirement, targetPhase: s.targetPhase, offsetDays: s.offsetDays, dayType: s.dayType,
     assignee: s.assignee, templateKey: s.templateKey, subTasks: [...s.subTasks], links: [...s.links], sort: s.sort,
-    completedAt: s.completedAt, completedBy: s.completedBy,
+    done: s.completedAt !== null,
   };
 }
 
@@ -81,7 +84,8 @@ async function insertGroups(ctx: CommandContext, eventId: EventId, groups: Reado
   const created = await ctx.db.table(groupsTable).insertMany(
     groups.map((g) => ({ id: g.id, eventId, phase: g.phase, name: g.name, leadPerson: g.leadPerson, note: g.note, sort: g.sort })),
   );
-  await ctx.db.table(stepsTable).insertMany(groups.flatMap((g) => g.steps.map((s) => ({ ...s, eventId, groupId: g.id }))));
+  const stamp = completionStamp(ctx);
+  await ctx.db.table(stepsTable).insertMany(groups.flatMap((g) => g.steps.map((s) => stepInsertRow(s, eventId, g.id, stamp))));
   return created;
 }
 
@@ -171,8 +175,8 @@ const setStepDone: Spec<InputOf<'progress.setStepDone'>, Step> = {
   authorize: writeOnEvent,
   async run(ctx, { eventId, stepId, done }) {
     const { event, step } = await stepOf(ctx, eventId, stepId);
-    const by = ctx.actor.profile.fullname || ctx.actor.profile.email;
-    const next = done === (step.completedAt !== null) ? step : await ctx.db.table(stepsTable).update(stepId, done ? { completedAt: ctx.now, completedBy: by } : { completedAt: null, completedBy: null }, { overwrite: 'idempotent-set' });
+    const { at, by } = completionStamp(ctx);
+    const next = done === (step.completedAt !== null) ? step : await ctx.db.table(stepsTable).update(stepId, done ? { completedAt: at, completedBy: by } : { completedAt: null, completedBy: null }, { overwrite: 'idempotent-set' });
     return {
       value: next,
       audit: audit('CẬP NHẬT TIẾN ĐỘ', `Cập nhật tiến độ: ${done ? 'Hoàn thành' : 'Chưa xong'} bước "${step.name}" (${event.name})`, eventId, 'step', stepId),
@@ -187,10 +191,10 @@ const createStep: Spec<InputOf<'progress.createStep'>, Step> = {
   authorize: writeOnEvent,
   async run(ctx, { eventId, groupId, step }) {
     const { event } = await groupOf(ctx, eventId, groupId);
-    const row = await ctx.db.table(stepsTable).insert({ ...step, eventId, groupId });
+    const row = await ctx.db.table(stepsTable).insert(stepInsertRow(step, eventId, groupId, completionStamp(ctx)));
     return {
       value: row,
-      audit: audit('CẬP NHẬT BƯỚC VIỆC', `Thêm bước việc: "${row.name}" (${event.name})`, eventId, 'step', row.id),
+      audit: audit('CẬP NHẬT BƯỚC VIỆC', `Thêm bước việc: "${row.name}" (${event.name})${step.done ? ', đánh dấu hoàn thành' : ''}`, eventId, 'step', row.id),
       inverse: inverse('progress.deleteStep', { eventId, stepId: row.id, version: row.version }, `Thêm bước "${row.name}"`),
     };
   },
@@ -352,9 +356,10 @@ const createGroups: Spec<InputOf<'progress.createGroups'>, ReadonlyArray<TaskGro
     const event = await eventRow(ctx, eventId);
     const created = await insertGroups(ctx, eventId, groups);
     const label = groups.length === 1 ? `"${groups[0]!.name}"` : `${groups.length} nhóm việc`;
+    const completed = groups.reduce((n, g) => n + g.steps.filter((s) => s.done).length, 0);
     return {
       value: created,
-      audit: audit('CẬP NHẬT NHÓM VIỆC', `Thêm nhóm việc ${label} (${event.name})`, eventId, 'group', groups.map((g) => g.id).join(',')),
+      audit: audit('CẬP NHẬT NHÓM VIỆC', `Thêm nhóm việc ${label} (${event.name})${completed > 0 ? `, đánh dấu hoàn thành ${completed} bước` : ''}`, eventId, 'group', groups.map((g) => g.id).join(',')),
       inverse: inverse('progress.deleteGroups', { eventId, groupIds: groups.map((g) => g.id) }, `Thêm nhóm việc ${label}`),
     };
   },

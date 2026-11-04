@@ -41,7 +41,7 @@ export function StepDialog({ event, group, step, nextSort, onClose }: { event: S
       ? await run('progress.updateStep', { eventId: event.id, stepId: step.id, version: step.version, patch: draft }, { success: `Đã cập nhật bước "${draft.name}"` })
       : await run('progress.createStep', {
           eventId: event.id, groupId: group.id,
-          step: { ...draft, id: newId<'Step'>(), subTasks: [], links: [], sort: nextSort, completedAt: null, completedBy: null },
+          step: { ...draft, id: newId<'Step'>(), subTasks: [], links: [], sort: nextSort, done: false },
         }, { success: `Đã thêm bước "${draft.name}"` });
     if (done) onClose();
   };
