@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { newId, type ContactId, type Email, type EventId, type Instant, type Version } from '@/core/brand';
-import type { CheckinCode } from '@/core/checkin-code';
-import type { CommandId, InputOf } from '@/core/commands';
+import { newId, type ContactId, type Email, type Instant, type Version } from '@/core/brand';
+import type { CommandId } from '@/core/commands';
 import { testActor, PTDN, XTDT } from '@/core/testing/actors';
-import type { Guest } from '../contract';
 import { commands } from '../server/commands';
+import { inputs } from './command-inputs';
 import { draft, harness, NOW } from './harness';
 
 const admin = testActor('admin', null);
@@ -204,17 +203,6 @@ describe('guests.markInvited (asked by comms after a send)', () => {
 });
 
 describe('every command is denied to an actor outside the event department, with no write and no audit', () => {
-  const inputs = (eventId: EventId, guest: Guest) =>
-    ({
-      create: { eventId, id: newId<'Guest'>(), draft: draft({ name: 'X' }) },
-      update: { eventId, id: guest.id, version: guest.version, patch: { notes: 'x' } },
-      undoRsvp: { eventId, id: guest.id, version: guest.version, patch: { rsvpStatus: 'confirmed' }, seatCode: null },
-      delete: { eventId, id: guest.id, version: guest.version },
-      restore: { eventId, guest: { id: newId<'Guest'>(), draft: draft({ name: 'Y' }), checkinCode: 'ABCDEF' as CheckinCode, rsvpAt: null, seatCode: null } },
-      applyRsvp: { eventId, id: guest.id, status: 'declined', source: 'google_form', respondedAt: '2026-11-05T00:00:00.000Z' as Instant },
-      upsertMany: { eventId, items: [{ id: newId<'Guest'>(), draft: draft({ name: 'Z', organization: 'Khác' }) }], onExisting: 'fill_blanks' },
-      markInvited: { eventId, ids: [guest.id], method: 'email' },
-    }) satisfies { [K in CommandId as K extends `guests.${infer V}` ? V : never]: InputOf<K> };
   const snapshot = (h: ReturnType<typeof harness>) => ({ guests: h.rows('sce_tcsk_guests'), audits: h.audits().length });
 
   it.each(Object.keys(commands))('guests.%s', async (verb) => {

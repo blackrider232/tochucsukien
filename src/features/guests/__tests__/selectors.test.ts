@@ -22,6 +22,18 @@ describe('invite quota (decision 2): ceil(targetGuests x percent / 100), one sel
     expect(guestQuota(target, settings(percent))).toBe(quota);
   });
 
+  it('the quota of quotaProgress rounds up, where nearest and down would differ (7 x 130% = 9.1)', () => {
+    expect(quotaProgress(0, 7, settings()).quota).toBe(10);
+    expect(quotaProgress(0, 33, settings(135)).quota).toBe(45);
+    expect(quotaProgress(9, 7, settings())).toMatchObject({ quota: 10, reached: false, missing: 1 });
+    expect(quotaProgress(10, 7, settings())).toMatchObject({ quota: 10, reached: true, missing: 0 });
+  });
+
+  it('the percent invited rounds to the nearest whole number, not up or down (1/3 and 2/3)', () => {
+    expect(quotaProgress(1, 3, settings(100)).percent).toBe(33);
+    expect(quotaProgress(2, 3, settings(100)).percent).toBe(67);
+  });
+
   it('reports reached, missing, surplus and percent against the quota', () => {
     expect(quotaProgress(100, 100, settings())).toMatchObject({ quota: 130, reached: false, missing: 30, surplus: 0, percent: 77, target: 100, percentOfTarget: 130 });
     expect(quotaProgress(140, 100, settings())).toMatchObject({ quota: 130, reached: true, missing: 0, surplus: 10, percent: 108 });
