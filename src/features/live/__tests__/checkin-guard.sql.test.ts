@@ -147,3 +147,88 @@ describe('the command path still works under the guard', () => {
       select event_id, guest_id, checked_in_at, checked_in_by, desk from public.sce_tcsk_checkin_undo_tokens where id = '${token}'`)).rejects.toThrow(/signed-in user|current time/);
   });
 });
+
+// A token the user consumed: the check-in was made 1 hour ago with a desk and a gift, then removed under token `token`.
+async function consumedToken(name: string) {
+  const g = await addGuest(name);
+  await asB(`insert into public.sce_tcsk_checkins (event_id, guest_id, checked_in_at, checked_in_by, desk) values ('${eventId}', '${g}', now(), '${B}', 'Bàn 5')`);
+  await db.exec(`update public.sce_tcsk_checkins set checked_in_at = now() - interval '1 hour', gift_given_at = now() - interval '30 minutes' where guest_id = '${g}'`);
+  const token = (await asB(copyAsToken(g))).rows[0]!.id as string;
+  await asB(`delete from public.sce_tcsk_checkins where guest_id = '${g}'`);
+  await asB(`update public.sce_tcsk_checkin_undo_tokens set consumed_at = now() where id = '${token}'`);
+  return { g, token };
+}
+const restoreSql = (g: string, cols: { at?: string; by?: string; desk?: string; gift?: string }) =>
+  `insert into public.sce_tcsk_checkins (event_id, guest_id, checked_in_at, checked_in_by, desk, gift_given_at)
+   select event_id, guest_id, ${cols.at ?? 'checked_in_at'}, ${cols.by ?? 'checked_in_by'}, ${cols.desk ?? 'desk'}, ${cols.gift ?? 'gift_given_at'}
+     from public.sce_tcsk_checkin_undo_tokens where guest_id = '${g}'`;
+
+describe('an undo token is held to what it copies and to one use', () => {
+  const inserted = (g: string, cols: { at?: string; by?: string; desk?: string; gift?: string }) =>
+    `insert into public.sce_tcsk_checkin_undo_tokens (event_id, guest_id, checked_in_at, checked_in_by, desk, gift_given_at, expires_at)
+     select event_id, guest_id, ${cols.at ?? 'checked_in_at'}, ${cols.by ?? 'checked_in_by'}, ${cols.desk ?? 'desk'}, ${cols.gift ?? 'gift_given_at'}, now() + interval '15 minutes'
+       from public.sce_tcsk_checkins where guest_id = '${g}'`;
+
+  it('copies the time, actor, desk and gift of the check-in exactly', async () => {
+    const g = await addGuest('Bùi Văn Sao');
+    await asB(`insert into public.sce_tcsk_checkins (event_id, guest_id, checked_in_at, checked_in_by, desk, gift_given_at) values ('${eventId}', '${g}', now(), '${B}', 'Bàn 6', now())`);
+    const copy = /copies a current check-in/;
+    await expect(asB(inserted(g, { at: `checked_in_at - interval '1 hour'` }))).rejects.toThrow(copy);
+    await expect(asB(inserted(g, { at: `checked_in_at + interval '1 second'` }))).rejects.toThrow(copy);
+    await expect(asB(inserted(g, { by: `'${A}'::uuid` }))).rejects.toThrow(copy);
+    await expect(asB(inserted(g, { desk: `'Bàn 7'` }))).rejects.toThrow(copy);
+    await expect(asB(inserted(g, { gift: `null::timestamptz` }))).rejects.toThrow(copy);
+    await expect(asB(inserted(g, { gift: `gift_given_at - interval '1 hour'` }))).rejects.toThrow(copy);
+    await asB(inserted(g, {}));
+  });
+
+  it('clamps the expiry to 15 minutes, starts unconsumed', async () => {
+    const g = await addGuest('Đinh Thị Hạn');
+    await asB(`insert into public.sce_tcsk_checkins (event_id, guest_id, checked_in_at, checked_in_by) values ('${eventId}', '${g}', now(), '${B}')`);
+    await asB(`insert into public.sce_tcsk_checkin_undo_tokens (event_id, guest_id, checked_in_at, checked_in_by, expires_at, consumed_at, consumed_by)
+      select event_id, guest_id, checked_in_at, checked_in_by, now() + interval '1 day', now(), '${B}' from public.sce_tcsk_checkins where guest_id = '${g}'`);
+    const t = (await q(`select expires_at <= now() + interval '15 minutes' as clamped, consumed_at, consumed_by from public.sce_tcsk_checkin_undo_tokens where guest_id = '${g}'`)).rows[0];
+    expect(t).toEqual({ clamped: true, consumed_at: null, consumed_by: null });
+    // A token written already consumed would restore nothing: it is not consumed until a user consumes it.
+    await asB(`delete from public.sce_tcsk_checkins where guest_id = '${g}'`);
+    await expect(asB(`insert into public.sce_tcsk_checkins (event_id, guest_id, checked_in_at, checked_in_by) values ('${eventId}', '${g}', now() - interval '1 hour', '${B}')`)).rejects.toThrow(/current time/);
+  });
+
+  it('is only consumed: any other change to a live token is refused', async () => {
+    const g = await addGuest('Ông Văn Đổi');
+    await asB(`insert into public.sce_tcsk_checkins (event_id, guest_id, checked_in_at, checked_in_by, desk) values ('${eventId}', '${g}', now(), '${B}', 'Bàn 8')`);
+    const token = (await asB(copyAsToken(g))).rows[0]!.id as string;
+    const change = (set: string) => asB(`update public.sce_tcsk_checkin_undo_tokens set ${set} where id = '${token}'`);
+    for (const set of [
+      `desk = 'Bàn 9'`, `checked_in_at = checked_in_at - interval '1 hour'`, `checked_in_by = '${A}'`, `gift_given_at = now()`,
+      `declined_confirmed = true`, `expires_at = expires_at + interval '1 hour'`, `consumed_at = now(), desk = 'Bàn 9'`,
+    ]) await expect(change(set), set).rejects.toThrow(/only consumed/);
+    await change(`consumed_at = now()`);
+  });
+
+  it('restores only what the token holds: a different time, actor, desk or gift is refused', async () => {
+    const { g } = await consumedToken('Lương Văn Khớp');
+    const refused = /signed-in user|current time/;
+    await expect(asB(restoreSql(g, { at: `checked_in_at + interval '1 minute'` }))).rejects.toThrow(refused);
+    await expect(asB(restoreSql(g, { by: `'${A}'::uuid` }))).rejects.toThrow(refused);
+    await expect(asB(restoreSql(g, { desk: `'Bàn 99'` }))).rejects.toThrow(refused);
+    await expect(asB(restoreSql(g, { desk: `null` }))).rejects.toThrow(refused);
+    await expect(asB(restoreSql(g, { gift: `now()` }))).rejects.toThrow(refused);
+    await expect(asB(restoreSql(g, { gift: `null` }))).rejects.toThrow(refused);
+    expect(await checkinOf(g)).toBeUndefined();
+    await asB(restoreSql(g, {}));
+    expect(await checkinOf(g)).toMatchObject({ checked_in_by: B, desk: 'Bàn 5' });
+  });
+
+  it('restores within 2 minutes of the consume and not after', async () => {
+    const soon = await consumedToken('Trịnh Văn Sớm');
+    await db.exec(`update public.sce_tcsk_checkin_undo_tokens set consumed_at = now() - interval '90 seconds' where id = '${soon.token}'`);
+    await asB(restoreSql(soon.g, {}));
+    expect(await checkinOf(soon.g)).toMatchObject({ desk: 'Bàn 5' });
+
+    const late = await consumedToken('Quách Thị Muộn');
+    await db.exec(`update public.sce_tcsk_checkin_undo_tokens set consumed_at = now() - interval '150 seconds' where id = '${late.token}'`);
+    await expect(asB(restoreSql(late.g, {}))).rejects.toThrow(/current time/);
+    expect(await checkinOf(late.g)).toBeUndefined();
+  });
+});
