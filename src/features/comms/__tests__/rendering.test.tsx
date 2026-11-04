@@ -37,7 +37,7 @@ const invitationData = (over: Partial<InvitationScreenData> = {}): InvitationScr
 
 const response = (over: Partial<ResponseView> = {}): ResponseView => ({
   id: 'r1' as RsvpResponseId, version: 1 as Version, respondedAt: '2026-11-04T03:00:00.000Z' as Instant, name: XSS, organization: `<script>window.__pwned=3</script>`, title: '',
-  email: null, phone: `"><svg onload=window.__pwned=4>`, rsvp: 'confirmed', hasBanquet: true, substitute: '', notes: XSS, match: 'none', matchedGuest: null, candidates: [], applyStatus: 'pending', ...over,
+  email: null, phone: `"><svg onload=window.__pwned=4>`, rsvpAnswer: XSS, rsvp: 'confirmed', hasBanquet: true, substitute: '', notes: XSS, match: 'none', matchedGuest: null, candidates: [], applyStatus: 'pending', ...over,
 });
 
 const noInjection = (root: HTMLElement) => {

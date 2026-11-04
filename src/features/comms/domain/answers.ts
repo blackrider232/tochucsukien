@@ -1,173 +1,107 @@
-// Reads a Form answer as a definite RSVP or banquet choice, or as no answer.
-// The answer is cut into clauses (at punctuation and "nhưng"). A clause that
-// is one of the Form's choice labels ("Có", "Không", "Bận") reads as that
-// label. Any other clause is read as whole-word phrases on folded text
-// (m4c B23: "no" no longer matches "Hanoi"), longest phrase first. A negation
-// ("không", "ko", "chưa thể"…) turns the next phrase of its clause around
-// when it stands at most two words before it, and so does "… không được"
-// right after it. Every reading that could go either way is no answer: an
-// unsure word ("có thể", "nếu", "cố gắng"), a negation too far from its
-// phrase, a double negation, a question ("có tham dự không"), or clauses
-// that disagree ("Có, Không"). No answer never changes a guest (m4c B21): a
-// declined answer frees a seat, so only a clear one may. Folding makes
-// "vâng" (yes) and "vắng" (absent) one word, so those two, and "hông" (no),
-// are read on the accented text; typed without diacritics they are unclear.
+// Reads a Form answer conservatively. An RSVP answer changes a guest only when,
+// as a whole, it is one of the Form's own choice labels (saved per event) or one
+// of a short list of canonical answers ("Có", "Không tham dự", "Cử người đi
+// thay"). Any other answer is 'review': a person reads it on the Form screen
+// and decides. A declined answer frees a seat, so no sentence is read for its
+// meaning (m4c B21, B23). Three rounds of phrase rules each read new phrasings
+// wrongly; a whole-answer list cannot.
+//
+// Before the lookup an answer is put in NFC, lower case, old-style tone marks
+// ("uỷ" is "ủy"), single spaces, and loses the particles and full stops at its
+// end ("Có ạ.", "Không nhé!"). A question mark stays, so "Không?" is review.
+// Typed without diacritics, an answer is looked up in the plain forms of the
+// list, except those with "vang", which is vâng (yes) or vắng (absent). The
+// shorthand "ko", "k", "hok", "khg" stands for "không" inside a listed answer,
+// but a bare "k" is review: it is "ok" too.
 
 import type { RsvpStatus } from '@/core/vocab';
 import { words } from './columns';
 
-type Cue = 'yes' | 'no' | 'unsure' | 'substitute' | 'none';
-type Phrase = readonly [words: ReadonlyArray<string>, cue: Cue];
+export type AnswerStatus = Exclude<RsvpStatus, 'pending'>;
+/** What the RSVP cell says: an answer to apply, one for a person to read, or nothing at all. */
+export type RsvpReading = AnswerStatus | 'review' | 'empty';
+/** The Form's choice labels, each normalised (normalizeAnswer), with what it means. */
+export type AnswerLabels = Readonly<Record<string, AnswerStatus>>;
 
-/** Whole clauses, as the Form's choices are written. Single words like "có", "bận" are read only here. */
-const LABELS: ReadonlyMap<string, 'yes' | 'no'> = new Map([
-  ...['co', 'da co', 'yes', 'y', 'ok', 'dong y', 'xac nhan', 'chac chan', 'tham du', 'co tham du', 'se tham du', 'vâng', 'xin vâng', 'da vâng'].map((l) => [l, 'yes'] as const),
-  ...['khong', 'da khong', 'ko', 'kg', 'khg', 'khog', 'hok', 'hông', 'no', 'n', 'ban', 'toi ban', 'em ban', 'ban viec', 'vắng', 'vắng mat', 'vang mat', 'tu choi', 'khong tham du', 'khong co'].map(
-    (l) => [l, 'no'] as const,
-  ),
-]);
-/** Politeness at the end of a clause: "Có ạ", "Không nhé". */
-const PARTICLES: ReadonlySet<string> = new Set(['a', 'nhe', 'nha', 'nhen', 'ah', 'oi']);
+export const CANONICAL_ANSWERS: { readonly [S in AnswerStatus]: ReadonlyArray<string> } = {
+  confirmed: ['có', 'vâng', 'dạ', 'dạ có', 'dạ vâng', 'xin vâng', 'xác nhận', 'tham dự', 'sẽ tham dự', 'có tham dự', 'xác nhận tham dự', 'xin xác nhận tham dự', 'tôi sẽ tham dự', 'tôi tham dự'],
+  declined: [
+    'không', 'dạ không', 'không tham dự', 'không thể tham dự', 'không tham dự được', 'tôi không tham dự', 'tôi không thể tham dự', 'xin vắng', 'xin phép vắng', 'vắng mặt',
+    'xin vắng mặt', 'xin phép vắng mặt', 'từ chối',
+  ],
+  substituted: ['cử người thay', 'cử người đi thay', 'sẽ cử người đi thay', 'cử đại diện', 'cử đại diện tham dự', 'ủy quyền'],
+};
 
-const UNSURE = [
-  'co the', 'co le', 'chua chac', 'khong chac', 'not sure', 'chua biet', 'khong biet', 'chua ro', 'chua xac dinh', 'neu', 'co gang', 'can nhac', 'phan van',
-  'bao sau', 'bao lai', 'bao lai sau', 'maybe', 'perhaps',
-  // Typed plain, these could mean opposite things: vâng/vắng, hông/hồng.
-  'vang', 'hong',
-  // The one who answers goes in someone's place: whose RSVP that is, a person decides.
-  'toi di thay', 'em di thay', 'di thay cho',
-];
-const RSVP: ReadonlyArray<readonly [string, Cue]> = [
-  ...UNSURE.map((p) => [p, 'unsure'] as const),
-  ...['cu nguoi di thay', 'cu nguoi thay', 'nguoi di thay', 'di thay', 'nguoi thay', 'cu dai dien', 'cu can bo', 'substitute'].map((p) => [p, 'substitute'] as const),
-  // Banquet and organisation words are read, so that their "tham dự" or "có" is not taken for the RSVP.
-  ...['tham du tiec', 'du tiec', 'an tiec', 'co quan'].map((p) => [p, 'none'] as const),
-  ...['tham du', 'tham gia', 'se den', 'se du', 'di du', 'tu di', 'co mat', 'dong y', 'yes', 'attend', 'attending', 'vâng'].map((p) => [p, 'yes'] as const),
-  ...['tu choi', 'vắng', 'vang mat', 'xin phep vang', 'bao vang', 'ban cong tac', 'ban viec', 'ban lich', 'trung lich', 'decline', 'declined'].map((p) => [p, 'no'] as const),
-];
-const BANQUET: ReadonlyArray<readonly [string, Cue]> = [
-  ...UNSURE.map((p) => [p, 'unsure'] as const),
-  ...['co quan'].map((p) => [p, 'none'] as const),
-  ...['tham du tiec', 'du tiec', 'an tiec', 'tham du', 'tham gia', 'co mat', 'dong y', 'yes', 'attend', 'vâng'].map((p) => [p, 'yes'] as const),
-  ...['tu choi', 'vắng', 'vang mat', 'decline'].map((p) => [p, 'no'] as const),
-];
-/** Words that turn a phrase around, with the shorthand people type ("ko", "k", "khg", "hông"). */
-const NEGATIONS = [
-  'khong the', 'chua the', 'khong can', 'khong', 'chua', 'chang', 'ko', 'k', 'kg', 'khg', 'kh', 'khog', 'hk', 'hok', 'hông',
-  'cannot', 'can t', 'won t', 'will not', 'not', 'unable to',
-];
-/** How many words may stand between a negation and the phrase it turns around. */
-const NEGATION_REACH = 2;
+const BANQUET_ANSWERS: { readonly yes: ReadonlyArray<string>; readonly no: ReadonlyArray<string> } = {
+  yes: ['có', 'vâng', 'dạ có', 'có dự tiệc', 'dự tiệc', 'có tham dự tiệc', 'tham dự tiệc', 'tham dự', 'có tham dự'],
+  no: ['không', 'dạ không', 'không dự tiệc', 'không tham dự tiệc', 'không tham dự'],
+};
 
-/** Words kept as typed, since folding would make them another word: vâng is yes, vắng is absent, hông is no. */
-const ACCENTED: ReadonlySet<string> = new Set(['vâng', 'vắng', 'hông']);
-const tokens = (raw: string) =>
-  raw
-    .normalize('NFC')
-    .toLowerCase()
-    .split(/[^\p{L}\p{N}]+/u)
-    .flatMap((w) => (ACCENTED.has(w) ? [w] : words(w).trim().split(' ')))
-    .filter(Boolean);
+const PARTICLES = ['ạ', 'a', 'nhé', 'nhe', 'nha', 'nhen', 'ah', 'ạh', 'à'];
+const SHORTHAND_NO = ['ko', 'k', 'hok', 'khg'];
+/** New-style tone placement to the old style the lists are written in (ui-rules 18). */
+const OLD_STYLE: ReadonlyArray<readonly [RegExp, string]> = [
+  [/uỳ/g, 'ùy'], [/uý/g, 'úy'], [/uỷ/g, 'ủy'], [/uỹ/g, 'ũy'], [/uỵ/g, 'ụy'],
+  [/oà/g, 'òa'], [/oá/g, 'óa'], [/oả/g, 'ỏa'], [/oã/g, 'õa'], [/oạ/g, 'ọa'],
+  [/oè/g, 'òe'], [/oé/g, 'óe'], [/oẻ/g, 'ỏe'], [/oẽ/g, 'õe'], [/oẹ/g, 'ọe'],
+];
+const TRAILING = new RegExp(`(?:\\s*[.!…]+|\\s+(?:${PARTICLES.join('|')}))+$`, 'u');
 
-/** The answer's clauses: cut at punctuation, and at "nhưng" / "but". */
-function clauses(raw: string): string[][] {
-  const out: string[][] = [];
-  for (const part of raw.split(/[,.;:!?()/\-–—\n]+/)) {
-    let clause: string[] = [];
-    for (const t of tokens(part)) {
-      if (t === 'nhung' || t === 'but') {
-        out.push(clause);
-        clause = [];
-      } else clause.push(t);
-    }
-    out.push(clause);
+/** An answer as the lists compare it: NFC, lower case, old-style marks, single spaces, no trailing particle or full stop. */
+export function normalizeAnswer(raw: string): string {
+  let s = raw.normalize('NFC').toLowerCase();
+  for (const [from, to] of OLD_STYLE) s = s.replace(from, to);
+  s = s.replace(/\s+/g, ' ').trim();
+  if (PARTICLES.includes(s)) return s;
+  return s.replace(TRAILING, '').trim();
+}
+
+const fold = (s: string) => words(s).trim();
+const isPlain = (s: string) => fold(s) === s;
+/** Folded, these words are two answers (vâng is yes, vắng is absent), so a plain-typed answer with them is review. */
+const AMBIGUOUS_PLAIN = new Set(['vang']);
+
+function lookup<V>(table: ReadonlyArray<readonly [string, V]>): { accented: ReadonlyMap<string, V>; plain: ReadonlyMap<string, V> } {
+  const accented = new Map<string, V>();
+  for (const [text, v] of table) {
+    const forms = [text, ...(text.split(' ').includes('không') ? SHORTHAND_NO.map((k) => text.split(' ').map((w) => (w === 'không' ? k : w)).join(' ')) : [])];
+    // A bare "k" is "ok" as often as it is "không".
+    for (const f of forms) if (f !== 'k') accented.set(f, v);
   }
-  return out.filter((c) => c.length > 0);
-}
-
-const longestFirst = (table: ReadonlyArray<readonly [string, Cue]>): ReadonlyArray<Phrase> =>
-  table.map(([p, c]) => [p.split(' '), c] as const).sort((a, b) => b[0].length - a[0].length);
-const RSVP_PHRASES = longestFirst(RSVP);
-const BANQUET_PHRASES = longestFirst(BANQUET);
-const NEGATION_WORDS = NEGATIONS.map((n) => n.split(' ')).sort((a, b) => b.length - a.length);
-
-const at = (t: ReadonlyArray<string>, i: number, w: ReadonlyArray<string>) => w.every((x, k) => t[i + k] === x);
-const negationAt = (t: ReadonlyArray<string>, i: number) => NEGATION_WORDS.find((n) => at(t, i, n))?.length ?? 0;
-
-interface Hit {
-  cue: Cue;
-  negated: boolean;
-}
-
-/** The phrases of one clause, left to right, each with whether a negation turns it around. */
-function scan(t: ReadonlyArray<string>, table: ReadonlyArray<Phrase>): Hit[] {
-  const hits: Hit[] = [];
-  let negation = null as { end: number; double: boolean } | null;
-  for (let i = 0; i < t.length; ) {
-    const phrase = table.find(([p]) => at(t, i, p));
-    const neg = negationAt(t, i);
-    if (!phrase || neg > phrase[0].length) {
-      if (neg) negation = { end: i + neg, double: negation?.end === i };
-      i += neg || 1;
-      continue;
-    }
-    let end = i + phrase[0].length;
-    let negated = false;
-    let unsure = phrase[1] === 'unsure';
-    if (negation) {
-      negated = i - negation.end <= NEGATION_REACH;
-      // "không thể không tham dự", or "không … (many words) … tham dự": either reading is a guess.
-      if (phrase[1] !== 'none' && (negation.double || !negated)) unsure = true;
-      negation = null;
-    }
-    // After the phrase: "tham dự không được" turns it around; "tham dự không?" / "tham dự được không?" asks.
-    const afterDuoc = t[end] === 'duoc' ? negationAt(t, end + 1) : 0;
-    const after = negationAt(t, end);
-    if (afterDuoc && end + 1 + afterDuoc === t.length) {
-      unsure = true;
-      end += 1 + afterDuoc;
-    } else if (after && t[end + after] === 'duoc') {
-      if (negated) unsure = true;
-      negated = true;
-      end += after + 1;
-    } else if (after && end + after === t.length) {
-      unsure = true;
-      end += after;
-    }
-    // "không từ chối": a negated no is a guess too.
-    hits.push({ cue: unsure || (phrase[1] === 'no' && negated) ? 'unsure' : phrase[1], negated });
-    i = end;
+  const plain = new Map<string, V>();
+  for (const [text, v] of accented) {
+    const key = fold(text);
+    if (key === 'da' || key.split(' ').some((w) => AMBIGUOUS_PLAIN.has(w))) continue;
+    plain.set(key, v);
   }
-  return hits;
+  return { accented, plain };
 }
 
-function read(raw: string, table: ReadonlyArray<Phrase>): { yesNo: boolean | null; substitute: boolean } {
-  const hits = clauses(raw).flatMap((c): Hit[] => {
-    const end = c.length > 1 && PARTICLES.has(c[c.length - 1]!) ? c.length - 1 : c.length;
-    const label = LABELS.get(c.slice(0, end).join(' '));
-    return label ? [{ cue: label, negated: false }] : scan(c, table);
-  });
-  const yes = hits.some((h) => h.cue === 'yes' && !h.negated);
-  const no = hits.some((h) => (h.cue === 'yes' && h.negated) || (h.cue === 'no' && !h.negated));
-  if (hits.some((h) => h.cue === 'unsure') || (yes && no)) return { yesNo: null, substitute: false };
-  return { yesNo: yes === no ? null : yes, substitute: hits.some((h) => h.cue === 'substitute' && !h.negated) };
+const read = <V>(t: ReturnType<typeof lookup<V>>, n: string): V | undefined => t.accented.get(n) ?? (isPlain(n) ? t.plain.get(n) : undefined);
+
+const RSVP = lookup<AnswerStatus>((Object.keys(CANONICAL_ANSWERS) as AnswerStatus[]).flatMap((s) => CANONICAL_ANSWERS[s].map((a) => [a, s] as const)));
+const BANQUET = lookup<boolean>([...BANQUET_ANSWERS.yes.map((a) => [a, true] as const), ...BANQUET_ANSWERS.no.map((a) => [a, false] as const)]);
+
+/** The RSVP cell: a Form label (by identity) or a canonical answer applies; anything else is review. */
+export function readRsvpAnswer(raw: string, labels: AnswerLabels = {}): RsvpReading {
+  if (!raw.trim()) return 'empty';
+  const n = normalizeAnswer(raw);
+  return (Object.hasOwn(labels, n) ? labels[n] : undefined) ?? read(RSVP, n) ?? 'review';
 }
 
-/** true for yes, false for no, null when empty or unclear (a banquet answer). */
+/** The banquet cell: true or false for a canonical whole answer, null for anything else (the guest's banquet is left as is). */
 export function parseYesNo(raw: string): boolean | null {
-  return read(raw, BANQUET_PHRASES).yesNo;
-}
-
-export function parseRsvpAnswer(raw: string): Exclude<RsvpStatus, 'pending'> | null {
-  const { yesNo, substitute } = read(raw, RSVP_PHRASES);
-  if (substitute) return 'substituted';
-  return yesNo === null ? null : yesNo ? 'confirmed' : 'declined';
+  const n = normalizeAnswer(raw);
+  return n ? (read(BANQUET, n) ?? null) : null;
 }
 
 /** What people put in the substitute column to say there is none. */
-const NO_SUBSTITUTE: ReadonlySet<string> = new Set(['', 'khong', 'ko', 'k', 'kg', 'khg', 'khong co', 'khong co ai', 'khong ai', 'khong cu', 'none', 'no', 'n a', 'na', 'x', '0']);
+const NO_SUBSTITUTE: ReadonlySet<string> = new Set([
+  '', 'khong', 'ko', 'k', 'kg', 'khg', 'khong co', 'khong co ai', 'khong ai', 'khong ai ca', 'khong cu', 'khong co nguoi di thay', 'khong co nguoi thay', 'chua co', 'khong ro',
+  'tu di', 'none', 'no', 'n a', 'na', 'x', '0',
+]);
 
-/** The substitute's name as typed, or '' when the cell says there is none ("Không", "-", "n/a"). */
+/** The substitute's name as typed, or '' when the cell says there is none ("Không", "-", "n/a", "Tự đi"). */
 export function substituteName(raw: string): string {
   const name = raw.trim();
   return NO_SUBSTITUTE.has(words(name).trim()) ? '' : name;

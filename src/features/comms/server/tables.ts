@@ -57,6 +57,8 @@ export interface FormRow extends BaseRow {
   lastAttemptAt: Instant | null;
   lastSyncError: string | null;
   sheetHeaders: string[];
+  /** The Form's RSVP choice labels, parsed with parseAnswerLabels where it is read. */
+  answerLabels: unknown;
 }
 export const formsTable = defineTable<FormRow>({
   name: 'sce_tcsk_rsvp_forms',
@@ -75,6 +77,7 @@ export const formsTable = defineTable<FormRow>({
     lastAttemptAt: instant.nullable(),
     lastSyncError: z.string().nullable(),
     sheetHeaders: z.array(z.string()),
+    answerLabels: z.unknown(),
   }),
 });
 
@@ -82,10 +85,11 @@ export const MATCH_KINDS = ['email', 'phone', 'name', 'created', 'manual', 'ambi
 export type MatchKind = (typeof MATCH_KINDS)[number];
 /**
  * pending: not applied yet (unmatched, ambiguous, or matched and waiting). applied: guests.applyRsvp took it, or it
- * created the guest. stale: older than the guest's last RSVP change. no_answer: no definite RSVP in the row.
+ * created the guest. stale: older than the guest's last RSVP change. no_answer: the RSVP cell is empty (or there is no
+ * such column). review: matched, but the answer is not a Form label or canonical answer, so a person decides it.
  * no_time: the timestamp could not be read, so it is never applied on its own. dismissed: staff set it aside.
  */
-export const APPLY_STATUSES = ['pending', 'applied', 'stale', 'no_answer', 'no_time', 'dismissed'] as const;
+export const APPLY_STATUSES = ['pending', 'applied', 'stale', 'no_answer', 'review', 'no_time', 'dismissed'] as const;
 export type ApplyStatus = (typeof APPLY_STATUSES)[number];
 
 export interface ResponseRow extends BaseRow {
@@ -99,6 +103,9 @@ export interface ResponseRow extends BaseRow {
   title: string;
   email: Email | null;
   phone: string;
+  /** The RSVP cell as typed; every reading of the answer is made from it (readRsvpAnswer). */
+  rsvpAnswer: string;
+  /** What the answer read as when last read, for display; null when it waits for a person or is empty. */
   rsvp: RsvpStatus | null;
   hasBanquet: boolean | null;
   substitute: string;
@@ -126,6 +133,7 @@ export const responsesTable = defineTable<ResponseRow>({
     title: z.string(),
     email: email.nullable(),
     phone: z.string(),
+    rsvpAnswer: z.string(),
     rsvp: z.enum(['pending', 'confirmed', 'substituted', 'declined']).nullable(),
     hasBanquet: z.boolean().nullable(),
     substitute: z.string(),

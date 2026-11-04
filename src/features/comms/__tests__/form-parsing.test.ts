@@ -95,7 +95,7 @@ describe('parseResponseRow', () => {
     expect(r.raw['Họ và tên']).toBe('<img src=x onerror=alert(1)>');
   });
   it('gives no RSVP when the sheet has no RSVP column, rather than pending', () => {
-    expect(parseResponseRow(headers, ['04/11/2026 09:15:30', 'An', '', '', 'Có'], { timestamp: 0, name: 1 })!.rsvp).toBeNull();
+    expect(parseResponseRow(headers, ['04/11/2026 09:15:30', 'An', '', '', 'Có'], { timestamp: 0, name: 1 })!.rsvp).toBe('empty');
   });
   it('drops a row that identifies nobody', () => {
     expect(parseResponseRow(headers, ['04/11/2026', '', '', '', 'Có'], map)).toBeNull();

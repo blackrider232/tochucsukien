@@ -5,8 +5,7 @@
 import type { Email, Instant, IsoDate } from '@/core/brand';
 import { combineVN, parseHHmm, parseInstant, parseIsoDate } from '@/core/dates';
 import { parseEmail } from '@/core/text';
-import type { RsvpStatus } from '@/core/vocab';
-import { parseRsvpAnswer, parseYesNo } from './answers';
+import { normalizeAnswer, parseYesNo, readRsvpAnswer, type AnswerLabels, type AnswerStatus, type RsvpReading } from './answers';
 import { FORM_FIELDS, type ColumnMap, type FormField } from './columns';
 
 export interface ParsedResponse {
@@ -22,7 +21,10 @@ export interface ParsedResponse {
   title: string;
   email: Email | null;
   phone: string;
-  rsvp: Exclude<RsvpStatus, 'pending'> | null;
+  /** The RSVP cell as typed. */
+  rsvpAnswer: string;
+  /** How it reads with the Form's labels: 'empty' too when the sheet has no RSVP column. */
+  rsvp: RsvpReading;
   hasBanquet: boolean | null;
   substitute: string;
   notes: string;
@@ -94,7 +96,13 @@ function readTimestamp(raw: string, order: DateOrder): Instant | null {
   return parseInstant(new Date(base + Number(m[6] ?? 0) * 1000).toISOString());
 }
 
-export function parseResponseRow(headers: ReadonlyArray<string>, row: ReadonlyArray<string>, map: ColumnMap, time: { order?: DateOrder | null; now?: Instant } = {}): ParsedResponse | null {
+export function parseResponseRow(
+  headers: ReadonlyArray<string>,
+  row: ReadonlyArray<string>,
+  map: ColumnMap,
+  time: { order?: DateOrder | null; now?: Instant } = {},
+  labels: AnswerLabels = {},
+): ParsedResponse | null {
   const get = (f: FormField) => cellOf(row, map, f);
   const name = get('name');
   const email = parseEmail(get('email'));
@@ -111,7 +119,8 @@ export function parseResponseRow(headers: ReadonlyArray<string>, row: ReadonlyAr
     title: get('title'),
     email,
     phone,
-    rsvp: map.rsvp === undefined ? null : parseRsvpAnswer(rawRsvp),
+    rsvpAnswer: rawRsvp,
+    rsvp: readRsvpAnswer(rawRsvp, labels),
     hasBanquet: map.banquet === undefined ? null : parseYesNo(rawBanquet),
     substitute: get('substitute'),
     notes: get('notes'),
@@ -126,6 +135,19 @@ export function parseColumnMap(raw: unknown): ColumnMap | null {
   for (const f of FORM_FIELDS) {
     const v = (raw as Record<string, unknown>)[f];
     if (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < 200) out[f] = v;
+  }
+  return out;
+}
+
+const ANSWER_STATUSES: ReadonlySet<string> = new Set<AnswerStatus>(['confirmed', 'declined', 'substituted']);
+
+/** Saved Form labels from the database: each key normalised again, only the three answers, at most 50. */
+export function parseAnswerLabels(raw: unknown): AnswerLabels {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const out: Record<string, AnswerStatus> = {};
+  for (const [label, status] of Object.entries(raw as Record<string, unknown>).slice(0, 50)) {
+    const key = normalizeAnswer(label);
+    if (key && key.length <= 200 && typeof status === 'string' && ANSWER_STATUSES.has(status)) out[key] = status as AnswerStatus;
   }
   return out;
 }

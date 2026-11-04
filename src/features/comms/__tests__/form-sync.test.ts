@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Email, EventId } from '@/core/brand';
+import type { Email, EventId, Instant } from '@/core/brand';
 import { MESSAGES } from '@/core/commands/pipeline';
 import { DbError, type AuditWriter } from '@/core/db';
 import type { SyncReport } from '../domain/sync-report';
 import type { SheetSource } from '../server/sheet-source';
 import type { ResponseRow } from '../server/tables';
 import { admin, failingWrites, harness, xtdtUser } from './harness';
+import { REVIEWER } from './rsvp-corpus';
 
 const sheet = { text: '', result: null as null | { ok: false; message: string }, calls: [] as string[] };
 const sheets: SheetSource = {
@@ -19,6 +20,8 @@ const sheets: SheetSource = {
 const SHEET = 'https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789/edit#gid=0';
 const HEADER = 'Dấu thời gian,Họ và tên,Tên cơ quan,Email,Số điện thoại,Xác nhận tham dự,Anh/chị có dự tiệc chiêu đãi?,Họ tên người đi thay';
 const csv = (...lines: string[]) => [HEADER, ...lines].join('\r\n');
+const cell = (s: string) => `"${s.replace(/"/g, '""')}"`;
+const plainText = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
 
 beforeEach(() => {
   sheet.text = '';
@@ -46,6 +49,23 @@ describe('comms.syncForm', () => {
     expect(h.audits().map((a) => a.action)).toContain('CẬP NHẬT RSVP');
   });
 
+  it('an answer that is not a whole canonical answer or Form label goes to review and changes no guest', async () => {
+    const { h, eventId, sync, responses } = await setup();
+    const phrases = [...new Set(REVIEWER.flatMap((p) => [p, plainText(p)]))];
+    // The guests' own RSVP is older than the answers, so any answer read as definite would be applied.
+    const now = h.clock.now;
+    h.clock.now = '2026-11-01T00:00:00.000Z' as Instant;
+    for (const [i] of phrases.entries()) await h.addGuest(eventId, { email: `g${i}@a.vn` as Email, name: `Khách ${i}`, rsvpStatus: 'confirmed', hasBanquet: true });
+    h.clock.now = now;
+    const before = await h.roster(eventId);
+    sheet.text = csv(...phrases.map((p, i) => `04/11/2026 10:00:00,Khách ${i},Công ty,g${i}@a.vn,,${cell(p)},Có,`));
+    const report = await sync();
+    expect(report).toMatchObject({ fresh: phrases.length, applied: 0, review: phrases.length });
+    expect(responses().map((r) => r.apply_status)).toEqual(phrases.map(() => 'review'));
+    expect(await h.roster(eventId)).toEqual(before);
+    expect(h.audits().map((a) => a.action)).not.toContain('CẬP NHẬT RSVP');
+  });
+
   it('is idempotent: a second sync of the same sheet stores nothing new and changes no guest', async () => {
     const { h, eventId, sync, responses } = await setup();
     const g = await h.addGuest(eventId, { email: 'an@a.vn' as Email });
@@ -71,22 +91,22 @@ describe('comms.syncForm', () => {
     expect(responses()).toHaveLength(3);
   });
 
-  it('"Vâng" is yes: a confirmed guest who answers it stays confirmed; "Vang" typed plain changes nothing', async () => {
+  it('"Vâng" is yes: a confirmed guest who answers it stays confirmed; "Vang" typed plain waits for review', async () => {
     const { h, eventId, sync } = await setup();
     const g = await h.addGuest(eventId, { email: 'e@a.vn' as Email });
     sheet.text = csv('04/11/2026 10:00:00,Guest E,Công ty E,e@a.vn,,Có,,');
     await sync();
     sheet.text = csv('04/11/2026 10:00:00,Guest E,Công ty E,e@a.vn,,Có,,', '04/11/2026 11:00:00,Guest E,Công ty E,e@a.vn,,Vâng,,', '04/11/2026 12:00:00,Guest E,Công ty E,e@a.vn,,Vang,,');
-    expect(await sync()).toMatchObject({ fresh: 2, applied: 1, noAnswer: 1 });
+    expect(await sync()).toMatchObject({ fresh: 2, applied: 1, review: 1 });
     expect(await h.guest(eventId, g.id)).toMatchObject({ rsvpStatus: 'confirmed', rsvpAt: '2026-11-04T04:00:00.000Z' });
   });
 
-  it.each(['Không', 'ko', '-', 'n/a', 'None', 'Không có'])('"%s" in the substitute column is no substitute: a yes stays confirmed, "Cử người đi thay" is no answer', async (none) => {
+  it.each(['Không', 'ko', '-', 'n/a', 'None', 'Không có', 'Tự đi', 'Không rõ'])('"%s" in the substitute column is no substitute: a yes stays confirmed, "Cử người đi thay" waits for review', async (none) => {
     const { h, eventId, sync } = await setup();
     const yes = await h.addGuest(eventId, { email: 'yes@a.vn' as Email });
     const sub = await h.addGuest(eventId, { email: 'sub@a.vn' as Email, rsvpStatus: 'confirmed' });
     sheet.text = csv(`04/11/2026 10:00:00,Yes,Công ty A,yes@a.vn,,Có,,${none}`, `04/11/2026 10:00:00,Sub,Công ty A,sub@a.vn,,Cử người đi thay,,${none}`);
-    expect(await sync()).toMatchObject({ applied: 1, noAnswer: 1, failed: 0 });
+    expect(await sync()).toMatchObject({ applied: 1, review: 1, failed: 0 });
     expect(await h.guest(eventId, yes.id)).toMatchObject({ rsvpStatus: 'confirmed', substituteName: '' });
     expect(await h.guest(eventId, sub.id)).toMatchObject({ rsvpStatus: 'confirmed', substituteName: '' });
   });
@@ -101,12 +121,12 @@ describe('comms.syncForm', () => {
     expect(await h.guest(eventId, sub.id)).toMatchObject({ rsvpStatus: 'substituted', substituteName: 'Trần Văn Bình' });
   });
 
-  it('"Cử người đi thay" without a name is no answer: the guest is left as is, nothing fails', async () => {
+  it('"Cử người đi thay" without a name waits for review: the guest is left as is, nothing fails', async () => {
     const { h, eventId, sync, responses } = await setup();
     const g = await h.addGuest(eventId, { email: 'an@a.vn' as Email, rsvpStatus: 'confirmed' });
     sheet.text = csv('04/11/2026 10:00:00,Nguyễn Văn An,Công ty A,an@a.vn,,Cử người đi thay,,');
-    expect(await sync()).toMatchObject({ noAnswer: 1, failed: 0, applied: 0 });
-    expect(responses()[0]).toMatchObject({ rsvp: 'substituted', apply_status: 'no_answer' });
+    expect(await sync()).toMatchObject({ review: 1, failed: 0, applied: 0 });
+    expect(responses()[0]).toMatchObject({ rsvp: null, rsvp_answer: 'Cử người đi thay', apply_status: 'review' });
     expect(await h.guest(eventId, g.id)).toMatchObject({ rsvpStatus: 'confirmed', substituteName: '' });
   });
 

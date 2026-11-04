@@ -99,6 +99,8 @@ export interface ResponseView {
   title: string;
   email: Email | null;
   phone: string;
+  /** The RSVP cell as typed: public input, rendered as text. */
+  rsvpAnswer: string;
   rsvp: RsvpStatus | null;
   hasBanquet: boolean | null;
   substitute: string;
@@ -106,7 +108,7 @@ export interface ResponseView {
   match: 'email' | 'phone' | 'name' | 'created' | 'manual' | 'ambiguous' | 'none';
   matchedGuest: { id: GuestId; name: string } | null;
   candidates: ReadonlyArray<{ id: GuestId; name: string; organization: string }>;
-  applyStatus: 'pending' | 'applied' | 'stale' | 'no_answer' | 'no_time' | 'dismissed';
+  applyStatus: 'pending' | 'applied' | 'stale' | 'no_answer' | 'review' | 'no_time' | 'dismissed';
 }
 export interface FormScreenData {
   event: ScreenEvent;
@@ -124,6 +126,6 @@ export interface MailboxesScreenData {
   googleClientId: string | null;
 }
 
-/** A response no rule could place, waiting for a person. */
+/** A response no rule could place, waiting for a person: no guest, no readable time, or an answer a person must read. */
 export const needsReview = (r: Pick<ResponseView, 'applyStatus' | 'match'>) =>
-  r.applyStatus === 'no_time' || (r.applyStatus === 'pending' && (r.match === 'none' || r.match === 'ambiguous'));
+  r.applyStatus === 'no_time' || r.applyStatus === 'review' || (r.applyStatus === 'pending' && (r.match === 'none' || r.match === 'ambiguous'));

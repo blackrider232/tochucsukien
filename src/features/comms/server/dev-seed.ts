@@ -27,6 +27,6 @@ export const devSeed: DevSeed = async (db, { id }) => {
     lastSyncAt: null,
     lastAttemptAt: null,
     lastSyncError: null,
-    sheetHeaders: [],
+    sheetHeaders: [], answerLabels: {},
   });
 };

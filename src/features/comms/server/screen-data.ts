@@ -95,7 +95,7 @@ export async function formScreenData(ctx: RequestContext, eventId: EventId): Pro
     // Newest first on screen.
     responses: [...responses].reverse().map((r) => ({
       id: r.id, version: r.version, respondedAt: r.respondedAt, name: r.name, organization: r.organization, title: r.title, email: r.email, phone: r.phone,
-      rsvp: r.rsvp, hasBanquet: r.hasBanquet, substitute: r.substitute, notes: r.notes, match: r.match, applyStatus: r.applyStatus,
+      rsvpAnswer: r.rsvpAnswer, rsvp: r.rsvp, hasBanquet: r.hasBanquet, substitute: r.substitute, notes: r.notes, match: r.match, applyStatus: r.applyStatus,
       matchedGuest: r.matchedGuestId ? (ref(r.matchedGuestId) ?? null) : null,
       candidates: r.candidateGuestIds.flatMap((id) => { const c = ref(id); return c ? [c] : []; }),
     })),

@@ -11,11 +11,11 @@ import { CommandError, type CommandContext, type CommandSpec, type InputOf, type
 import { DbError, type DraftOf } from '@/core/db';
 import { normalizePhone } from '@/core/text';
 import { readRoster, type GuestDraft, type RosterEntry } from '@/features/guests/server';
-import { substituteName } from '../domain/answers';
+import { readRsvpAnswer, substituteName, type AnswerLabels, type AnswerStatus, type RsvpReading } from '../domain/answers';
 import { canIdentify, detectColumns, hasPhrase, words } from '../domain/columns';
 import { CsvError, parseCsv } from '../domain/csv';
 import { buildMatchIndex, matchResponse, type MatchIndex } from '../domain/matching';
-import { detectDateOrder, parseColumnMap, parseResponseRow } from '../domain/responses';
+import { detectDateOrder, parseAnswerLabels, parseColumnMap, parseResponseRow } from '../domain/responses';
 import type { SyncReport } from '../domain/sync-report';
 import { columnMapSchema, eventIdSchema, formConfigSchema, guestIdSchema, responseIdSchema, versionSchema } from '../domain/schemas';
 import { asSchema, audit, failureReason, inverse } from './command-kit';
@@ -40,7 +40,7 @@ export const saveForm: CommandSpec<InputOf<'comms.saveForm'>, FormRow> = {
     const sheetChanged = before !== null && before.sheetCsvUrl !== config.sheetUrl;
     const row = before
       ? await ctx.db.table(formsTable).update(before.id, { ...fields, ...(sheetChanged ? { columnMap: null, sheetHeaders: [] } : {}) }, { expectedVersion: before.version })
-      : await ctx.db.table(formsTable).insert({ ...fields, eventId, columnMap: null, lastSyncAt: null, lastAttemptAt: null, lastSyncError: null, sheetHeaders: [] });
+      : await ctx.db.table(formsTable).insert({ ...fields, eventId, columnMap: null, lastSyncAt: null, lastAttemptAt: null, lastSyncError: null, sheetHeaders: [], answerLabels: {} });
     const parts = [config.formUrl ? 'link Form' : 'chưa có link Form', config.sheetUrl ? 'Sheet phản hồi' : 'chưa gắn Sheet', `tự đồng bộ ${config.autoSync ? 'bật' : 'tắt'}`, `tự nạp khách mới ${config.autoAddNewGuests ? 'bật' : 'tắt'}`];
     return {
       value: row,
@@ -95,16 +95,25 @@ async function holdsAnswer(ctx: CommandContext, eventId: EventId, guestId: Guest
   return guest?.rsvpSource === 'google_form' && guest.rsvpAt !== null && Date.parse(guest.rsvpAt) === Date.parse(respondedAt);
 }
 
-/** Gives a response to a guest: claim the row against its version first, then ask guests, then record the outcome. */
-async function applyToGuest(ctx: CommandContext, row: ResponseRow, guestId: GuestId, match: ResponseRow['match'], respondedAt: Instant, t: Tally): Promise<void> {
+const isAnswer = (r: RsvpReading): r is AnswerStatus => r !== 'review' && r !== 'empty';
+
+/**
+ * Gives a response to a guest: claim the row against its version first, then ask guests, then record the outcome. The
+ * answer is the cell read with the Form's labels, or `decided` when a person read it on the review list.
+ */
+async function applyToGuest(
+  ctx: CommandContext, row: ResponseRow, guestId: GuestId, match: ResponseRow['match'], respondedAt: Instant, t: Tally, labels: AnswerLabels, decided?: AnswerStatus,
+): Promise<void> {
   const claimed = await ctx.db.table(responsesTable).update(row.id, { matchedGuestId: guestId, match, candidateGuestIds: [] }, { expectedVersion: row.version });
+  const reading = decided ?? readRsvpAnswer(row.rsvpAnswer, labels);
   // A name goes with a substitution only (guests makes any answer with a name 'substituted'), and a substitution
-  // needs one (guests refuses it otherwise): without a name the answer is unclear.
-  const substitute = row.rsvp === 'substituted' ? substituteName(row.substitute) : '';
-  const status = row.rsvp === 'substituted' && !substitute ? null : row.rsvp;
-  if (status === null || status === 'pending') {
-    await ctx.db.table(responsesTable).update(row.id, { applyStatus: 'no_answer' }, { expectedVersion: claimed.version });
-    t.noAnswer += 1;
+  // needs one (guests refuses it otherwise): without a name a person decides.
+  const substitute = reading === 'substituted' ? substituteName(row.substitute) : '';
+  const status = reading === 'substituted' && !substitute ? 'review' : reading;
+  if (!isAnswer(status)) {
+    await ctx.db.table(responsesTable).update(row.id, { applyStatus: status === 'empty' ? 'no_answer' : 'review', rsvp: null }, { expectedVersion: claimed.version });
+    if (status === 'empty') t.noAnswer += 1;
+    else t.review += 1;
     return;
   }
   try {
@@ -118,13 +127,13 @@ async function applyToGuest(ctx: CommandContext, row: ResponseRow, guestId: Gues
       ...(row.hasBanquet === null ? {} : { hasBanquet: row.hasBanquet }),
     });
     const done = applied || (await holdsAnswer(ctx, row.eventId, guestId, respondedAt));
-    await ctx.db.table(responsesTable).update(row.id, done ? { applyStatus: 'applied', appliedAt: ctx.now } : { applyStatus: 'stale' }, { expectedVersion: claimed.version });
+    await ctx.db.table(responsesTable).update(row.id, { rsvp: status, ...(done ? { applyStatus: 'applied', appliedAt: ctx.now } : { applyStatus: 'stale' }) }, { expectedVersion: claimed.version });
     if (done) t.applied += 1;
     else t.stale += 1;
   } catch (e) {
     // guests may have saved the RSVP and then failed on the seat; the guest row tells which.
     const saved = await holdsAnswer(ctx, row.eventId, guestId, respondedAt);
-    if (saved) await ctx.db.table(responsesTable).update(row.id, { applyStatus: 'applied', appliedAt: ctx.now }, { expectedVersion: claimed.version });
+    if (saved) await ctx.db.table(responsesTable).update(row.id, { rsvp: status, applyStatus: 'applied', appliedAt: ctx.now }, { expectedVersion: claimed.version });
     if (saved) t.applied += 1;
     else t.failed += 1;
     t.failures.push(`${row.name || row.email || 'Phản hồi'}: ${failureReason(e)}`);
@@ -168,7 +177,7 @@ function draftFromResponse(r: ResponseRow): GuestDraft {
 const targetsOf = (roster: ReadonlyArray<RosterEntry>) => buildMatchIndex(roster.map((g) => ({ id: g.id, name: g.name, organization: g.organization, email: g.email, phone: g.phone })));
 
 /** Matches or parks one unresolved response; returns the row when it should be auto-added. */
-async function place(ctx: CommandContext, row: ResponseRow, index: MatchIndex, autoAdd: boolean, t: Tally): Promise<ResponseRow | null> {
+async function place(ctx: CommandContext, row: ResponseRow, index: MatchIndex, autoAdd: boolean, t: Tally, labels: AnswerLabels): Promise<ResponseRow | null> {
   const m = matchResponse(index, row);
   if (m.kind === 'email' || m.kind === 'phone' || m.kind === 'name') {
     if (row.applyStatus === 'no_time') {
@@ -176,7 +185,7 @@ async function place(ctx: CommandContext, row: ResponseRow, index: MatchIndex, a
       t.review += 1;
       return null;
     }
-    await applyToGuest(ctx, row, m.guestId, m.kind, row.respondedAt, t);
+    await applyToGuest(ctx, row, m.guestId, m.kind, row.respondedAt, t, labels);
     return null;
   }
   if (m.kind === 'none' && autoAdd && row.name.trim() && row.applyStatus === 'pending') return row;
@@ -216,10 +225,11 @@ export const syncFormWith = (sheets: SheetSource): CommandSpec<InputOf<'comms.sy
     const map = parseColumnMap(form.columnMap) ?? detectColumns(headers);
     if (!canIdentify(map)) return syncError(ctx, form, 'Không nhận diện được cột Họ và tên, Email hoặc Số điện thoại. Hãy ghép cột ở mục "Ghép cột".');
 
+    const labels = parseAnswerLabels(form.answerLabels);
     const parsed = new Map<string, NonNullable<ReturnType<typeof parseResponseRow>>>();
     const time = { order: detectDateOrder(map.timestamp === undefined ? [] : rows.slice(1).map((r) => r[map.timestamp!] ?? ''), ctx.now), now: ctx.now };
     for (const cells of rows.slice(1)) {
-      const r = parseResponseRow(headers, cells, map, time);
+      const r = parseResponseRow(headers, cells, map, time, labels);
       if (r) parsed.set(rowHashOf(r.rowKey), r);
     }
     const existing = await ctx.db.table(responsesTable).list({ eventId });
@@ -234,7 +244,8 @@ export const syncFormWith = (sheets: SheetSource): CommandSpec<InputOf<'comms.sy
       title: r.title,
       email: r.email,
       phone: r.phone,
-      rsvp: r.rsvp,
+      rsvpAnswer: r.rsvpAnswer,
+      rsvp: isAnswer(r.rsvp) ? r.rsvp : null,
       hasBanquet: r.hasBanquet,
       substitute: r.substitute,
       notes: r.notes,
@@ -255,17 +266,19 @@ export const syncFormWith = (sheets: SheetSource): CommandSpec<InputOf<'comms.sy
     }
 
     const t = emptyTally();
-    const work = [...existing.filter((r) => r.applyStatus === 'pending' || (r.applyStatus === 'no_time' && UNRESOLVED.has(r.match))), ...inserted]
+    // An answer waiting for a person comes back when a Form label saved since reads it.
+    const relabelled = (r: ResponseRow) => r.applyStatus === 'review' && isAnswer(readRsvpAnswer(r.rsvpAnswer, labels));
+    const work = [...existing.filter((r) => r.applyStatus === 'pending' || relabelled(r) || (r.applyStatus === 'no_time' && UNRESOLVED.has(r.match))), ...inserted]
       .sort((a, b) => Date.parse(a.respondedAt) - Date.parse(b.respondedAt));
     try {
       // Oldest first, so when one guest answered twice the later answer is the one that stays.
       const index = targetsOf(await readRoster(ctx, eventId));
       const toAdd: ResponseRow[] = [];
       for (const row of work) {
-        const add = await place(ctx, row, index, form.autoAddNewGuests, t);
+        const add = await place(ctx, row, index, form.autoAddNewGuests, t, labels);
         if (add) toAdd.push(add);
       }
-      if (toAdd.length > 0) await autoAdd(ctx, eventId, toAdd, t);
+      if (toAdd.length > 0) await autoAdd(ctx, eventId, toAdd, t, labels);
       await ctx.db.table(formsTable).update(form.id, { lastSyncAt: ctx.now, lastAttemptAt: ctx.now, lastSyncError: null, sheetHeaders: headers }, { overwrite: 'idempotent-set' });
     } catch (e) {
       // The new responses are stored and what was applied stays applied; the rest waits as pending for the next sync.
@@ -284,13 +297,13 @@ export const syncFormWith = (sheets: SheetSource): CommandSpec<InputOf<'comms.sy
     const report: SyncReport = { status: 'ok', rows: parsed.size, fresh: inserted.length, ...t, failures: t.failures.slice(0, 10), dateOrderUnclear };
     const summary =
       `Đồng bộ Google Form: ${parsed.size} phản hồi, ${inserted.length} mới; áp dụng ${t.applied}, bỏ qua ${t.stale} (cũ hơn thay đổi gần nhất), ` +
-      `chưa có câu trả lời rõ ${t.noAnswer}, cần xem lại ${t.review}, thêm khách mới ${t.created}${t.failed ? `, lỗi ${t.failed}` : ''}` +
+      `không có câu trả lời ${t.noAnswer}, cần xem lại ${t.review}, thêm khách mới ${t.created}${t.failed ? `, lỗi ${t.failed}` : ''}` +
       (dateOrderUnclear ? '; không xác định được ngày/tháng trong cột thời gian của Sheet nên các phản hồi chờ xem lại' : '');
     return { value: report, audit: audit('ĐỒNG BỘ GOOGLE FORM', summary, eventId, 'rsvp_form', form.id) };
   },
 });
 
-async function autoAdd(ctx: CommandContext, eventId: EventId, rows: ReadonlyArray<ResponseRow>, t: Tally): Promise<void> {
+async function autoAdd(ctx: CommandContext, eventId: EventId, rows: ReadonlyArray<ResponseRow>, t: Tally, labels: AnswerLabels): Promise<void> {
   const ids = new Map(rows.map((r) => [r.id, newId<'Guest'>()]));
   await ctx.call('guests.upsertMany', { eventId, items: rows.map((r) => ({ id: ids.get(r.id)!, draft: draftFromResponse(r) })), onExisting: 'skip' });
   const roster = await readRoster(ctx, eventId);
@@ -301,13 +314,14 @@ async function autoAdd(ctx: CommandContext, eventId: EventId, rows: ReadonlyArra
     if (present.has(id)) {
       // A newcomer counts as created, whatever became of its answer; only a failure to apply it is reported.
       const own = emptyTally();
-      await applyToGuest(ctx, r, id, 'created', r.respondedAt, own);
+      await applyToGuest(ctx, r, id, 'created', r.respondedAt, own, labels);
       t.created += 1;
+      t.review += own.review;
       t.failed += own.failed;
       t.failures.push(...own.failures);
     } else {
       // guests skipped it as a person already on the list (two responses of one newcomer, or a guest added meanwhile).
-      await place(ctx, r, index, false, t);
+      await place(ctx, r, index, false, t, labels);
     }
   }
 }
@@ -348,12 +362,13 @@ export const resolveResponse: CommandSpec<InputOf<'comms.resolveResponse'>, Outp
     }
     if (row.applyStatus === 'applied') throw new CommandError('invalid', 'Phản hồi này đã được áp dụng.');
     const t = emptyTally();
+    const labels = parseAnswerLabels((await formOf(ctx, eventId))?.answerLabels);
     if (action.kind === 'match') {
       const guest = (await readRoster(ctx, eventId)).find((g) => g.id === action.guestId);
       if (!guest) throw new CommandError('not_found', 'Không tìm thấy khách mời này trong sự kiện.');
       // A response whose time could not be read counts from the moment staff place it.
-      await applyToGuest(ctx, row, guest.id, 'manual', row.applyStatus === 'no_time' ? ctx.now : row.respondedAt, t);
-      const outcome = t.applied ? 'áp dụng' : t.stale ? 'bỏ qua vì cũ hơn thay đổi gần nhất' : t.noAnswer ? 'chưa có câu trả lời rõ' : `lỗi: ${t.failures[0] ?? ''}`;
+      await applyToGuest(ctx, row, guest.id, 'manual', row.applyStatus === 'no_time' ? ctx.now : row.respondedAt, t, labels);
+      const outcome = t.applied ? 'áp dụng' : t.stale ? 'bỏ qua vì cũ hơn thay đổi gần nhất' : t.noAnswer ? 'không có câu trả lời' : t.review ? 'câu trả lời chờ xem lại' : `lỗi: ${t.failures[0] ?? ''}`;
       const after = await ctx.db.table(responsesTable).get(id);
       return {
         value: { applyStatus: after?.applyStatus ?? row.applyStatus },
@@ -365,12 +380,12 @@ export const resolveResponse: CommandSpec<InputOf<'comms.resolveResponse'>, Outp
     if (added === 0) throw new CommandError('conflict', 'Đã có khách mời trùng email, số điện thoại hoặc họ tên và cơ quan. Hãy chọn ghép với khách mời đó.');
     let after: ResponseRow | null;
     try {
-      await applyToGuest(ctx, row, guestId, 'created', row.applyStatus === 'no_time' ? ctx.now : row.respondedAt, t);
+      await applyToGuest(ctx, row, guestId, 'created', row.applyStatus === 'no_time' ? ctx.now : row.respondedAt, t, labels);
       after = await ctx.db.table(responsesTable).get(id);
     } catch {
       throw new CommandError('conflict', `Đã thêm khách mời "${who}" nhưng chưa ghi được phản hồi là đã xử lý. Tải lại trang để xem.`, undefined, audit('XỬ LÝ PHẢN HỒI FORM', `Thêm khách mời mới từ phản hồi Google Form của "${who}", nhưng chưa ghi được phản hồi là đã xử lý; lần đồng bộ sau sẽ ghép phản hồi với khách mới này`, eventId, 'rsvp_response', id));
     }
-    const outcome = t.applied ? '' : t.noAnswer ? ', chưa có câu trả lời rõ' : t.failures.length ? `, chưa áp dụng được câu trả lời: ${t.failures[0]}` : '';
+    const outcome = t.applied ? '' : t.noAnswer ? ', không có câu trả lời' : t.review ? ', câu trả lời chờ xem lại' : t.failures.length ? `, chưa áp dụng được câu trả lời: ${t.failures[0]}` : '';
     return {
       value: { applyStatus: after?.applyStatus ?? row.applyStatus },
       audit: audit('XỬ LÝ PHẢN HỒI FORM', `Thêm khách mời mới từ phản hồi Google Form của "${who}"${outcome}`, eventId, 'rsvp_response', id),

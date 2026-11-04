@@ -22,7 +22,8 @@ const APPLY: Record<ResponseView['applyStatus'], { label: string; tone: Tone }> 
   pending: { label: 'Chờ xử lý', tone: 'amber' },
   applied: { label: 'Đã cập nhật khách mời', tone: 'emerald' },
   stale: { label: 'Bỏ qua: cũ hơn thay đổi gần nhất', tone: 'slate' },
-  no_answer: { label: 'Không có câu trả lời rõ', tone: 'slate' },
+  no_answer: { label: 'Không có câu trả lời', tone: 'slate' },
+  review: { label: 'Cần xem lại câu trả lời', tone: 'amber' },
   no_time: { label: 'Không đọc được thời gian', tone: 'amber' },
   dismissed: { label: 'Đã bỏ qua', tone: 'slate' },
 };
