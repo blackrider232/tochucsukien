@@ -10,7 +10,11 @@ import { parseRsvpAnswer, parseYesNo } from './answers';
 import { FORM_FIELDS, type ColumnMap, type FormField } from './columns';
 
 export interface ParsedResponse {
-  /** The row's cells joined with a unit separator; its hash is the response's identity (contract rowHash). */
+  /**
+   * Who answered when, joined with a unit separator; its hash is the response's identity (contract rowHash). Only
+   * the timestamp and the identifying answers count, so a column added to the sheet or a corrected answer does not
+   * make every row a new response. Without a timestamp, the answers count too.
+   */
   rowKey: string;
   respondedAt: Instant | null;
   name: string;
@@ -90,7 +94,7 @@ export function parseResponseRow(headers: ReadonlyArray<string>, row: ReadonlyAr
   const rawBanquet = get('banquet');
   const raw = Object.fromEntries(headers.map((h, i) => [h || `Cột ${i + 1}`, (row[i] ?? '').trim().slice(0, MAX_CELL)]));
   return {
-    rowKey: row.map((c) => c.trim()).join('\u001f'),
+    rowKey: [get('timestamp'), email ?? '', phone, name, ...(get('timestamp') ? [] : [rawRsvp, rawBanquet, get('substitute'), get('notes')])].join('\u001f'),
     respondedAt: parseSheetTimestamp(get('timestamp'), time),
     name,
     organization: get('organization'),

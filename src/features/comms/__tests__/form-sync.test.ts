@@ -55,6 +55,20 @@ describe('comms.syncForm', () => {
     expect({ guest: await h.guest(eventId, g.id), responses: responses() }).toEqual(before);
   });
 
+  it('a column added to the sheet, or an answer edited in it, is not a new response', async () => {
+    const { h, eventId, sync, responses } = await setup();
+    await h.addGuest(eventId, { email: 'an@a.vn' as Email });
+    sheet.text = csv('04/11/2026 10:00:00,Nguyễn Văn An,Công ty A,an@a.vn,,Có,,', '04/11/2026 10:00:00,Trần Thị Bình,Công ty B,binh@b.vn,,Có,,');
+    expect(await sync()).toMatchObject({ fresh: 2 });
+    // Staff add a working column at the end of the sheet and fix a typo in the organisation.
+    sheet.text = [`${HEADER},Ghi chú nội bộ`, '04/11/2026 10:00:00,Nguyễn Văn An,Công ty A (đã sửa),an@a.vn,,Có,,,đã gọi', '04/11/2026 10:00:00,Trần Thị Bình,Công ty B,binh@b.vn,,Có,,,'].join('\r\n');
+    expect(await sync()).toMatchObject({ rows: 2, fresh: 0 });
+    // A second answer of the same person, later, is a new response.
+    sheet.text = csv('04/11/2026 10:00:00,Nguyễn Văn An,Công ty A,an@a.vn,,Có,,', '04/11/2026 11:00:00,Nguyễn Văn An,Công ty A,an@a.vn,,Không tham dự,,');
+    expect(await sync()).toMatchObject({ fresh: 1 });
+    expect(responses()).toHaveLength(3);
+  });
+
   it('never overwrites a staff change made after the response (older answers are stale)', async () => {
     const { h, eventId, sync, responses } = await setup();
     const g = await h.addGuest(eventId, { email: 'an@a.vn' as Email });
