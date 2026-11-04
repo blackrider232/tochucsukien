@@ -278,6 +278,29 @@ describe('comms.syncForm', () => {
     expect(h.audits().at(-1)!.summary).toContain('không xác định được ngày/tháng');
   });
 
+  it('a sheet sorted as text is not read as old US dates: its answers wait for review', async () => {
+    const { h, eventId, sync, responses } = await setup();
+    for (const e of ['a', 'b', 'c']) await h.addGuest(eventId, { email: `${e}@a.vn` as Email, name: e });
+    sheet.text = csv('01/11/2026 08:00:00,a,A,a@a.vn,,Có,,', '02/10/2026 08:00:00,b,B,b@a.vn,,Có,,', '04/11/2026 08:00:00,c,C,c@a.vn,,Có,,');
+    expect(await sync()).toMatchObject({ applied: 0, dateOrderUnclear: true });
+    expect(responses().map((r) => r.apply_status)).toEqual(['no_time', 'no_time', 'no_time']);
+  });
+
+  it('rows kept for review because their order was unclear get their times, and apply, once a later sync can tell it', async () => {
+    const { h, eventId, sync, responses } = await setup();
+    const [a, b, c] = [await h.addGuest(eventId, { email: 'a@a.vn' as Email, name: 'a' }), await h.addGuest(eventId, { email: 'b@a.vn' as Email, name: 'b' }), await h.addGuest(eventId, { email: 'c@a.vn' as Email, name: 'c' })];
+    const old = ['01/03/2026 09:00:00,a,A,a@a.vn,,Có,,', '04/03/2026 09:00:00,b,B,b@a.vn,,Không,,'];
+    sheet.text = csv(...old);
+    expect(await sync()).toMatchObject({ applied: 0, dateOrderUnclear: true });
+    // A recent answer arrives: only day-first reads every row forward and recent.
+    sheet.text = csv(...old, '05/11/2026 08:00:00,c,C,c@a.vn,,Có,,');
+    expect(await sync()).toMatchObject({ fresh: 1, applied: 3, dateOrderUnclear: false });
+    expect(responses().map((r) => [r.responded_at, r.apply_status])).toEqual([
+      ['2026-03-01T02:00:00.000Z', 'applied'], ['2026-03-04T02:00:00.000Z', 'applied'], ['2026-11-05T01:00:00.000Z', 'applied'],
+    ]);
+    expect([(await h.guest(eventId, a.id)).rsvpStatus, (await h.guest(eventId, b.id)).rsvpStatus, (await h.guest(eventId, c.id)).rsvpStatus]).toEqual(['confirmed', 'declined', 'confirmed']);
+  });
+
   it('keeps a response with an unreadable time for review and never applies it on its own', async () => {
     const { h, eventId, sync, responses } = await setup();
     const g = await h.addGuest(eventId, { email: 'an@a.vn' as Email });

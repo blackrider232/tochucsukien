@@ -123,7 +123,6 @@ describe('parseResponseRow', () => {
     ['one US-locale answer from this morning: day-first is 11 April, months before the sheet was synced', ['11/4/2026 10:00:00'], 'mdy'],
     ['one Vietnamese answer from this morning', ['04/11/2026 10:00:00'], 'dmy'],
     ['Vietnamese answers of early November', ['1/11/2026 08:00:00', '2/11/2026 08:00:00', '4/11/2026 09:00:00'], 'dmy'],
-    ['US-locale answers that only go forward one way', ['3/5/2026 08:00:00', '4/3/2026 08:00:00'], 'mdy'],
     ['a sheet whose day and month are the same in every row', ['11/11/2025 10:00:00', '2026-11-04T02:15:30.000Z', ''], 'dmy'],
     ['a sheet with no slash dates', ['2026-11-04T02:15:30.000Z', 'hôm qua'], 'dmy'],
   ])('reads the date order of %s from its rows', (_, cells, order) => {
@@ -133,6 +132,8 @@ describe('parseResponseRow', () => {
     ['old answers that go forward either way, nothing recent', ['1/3/2026 09:00:00', '4/3/2026 09:00:00']],
     ['dates that are impossible either way', ['13/10/2026 08:00:00', '10/28/2026 09:00:00']],
     ['every reading puts an answer in the future', ['12/11/2026 08:00:00']],
+    ['answers that go forward only one way, and that way nothing is recent', ['3/5/2026 08:00:00', '4/3/2026 08:00:00']],
+    ['a sheet sorted as text: day-first is recent but goes back, month-first goes forward but is old', ['01/11/2026 08:00:00', '02/10/2026 08:00:00', '03/11/2026 08:00:00']],
   ])('cannot tell the date order of %s: null, the rows are kept for review', (_, cells) => {
     expect(detectDateOrder(cells, NOW_)).toBeNull();
   });

@@ -228,6 +228,8 @@ async function syncError(ctx: CommandContext, form: FormRow, message: string) {
 }
 
 const UNRESOLVED: ReadonlySet<ResponseRow['match']> = new Set(['none', 'ambiguous']);
+/** Not applied yet, so a time read again may still change what happens to them. */
+const REREAD: ReadonlySet<ResponseRow['applyStatus']> = new Set(['pending', 'no_time', 'review']);
 
 /** The sync, reading the sheet through `sheets` (Google in the app, the fake in dev memory and tests). */
 export const syncFormWith = (sheets: SheetSource): CommandSpec<InputOf<'comms.syncForm'>, SyncReport> => ({
@@ -257,8 +259,8 @@ export const syncFormWith = (sheets: SheetSource): CommandSpec<InputOf<'comms.sy
       const r = parseResponseRow(headers, cells, map, time, labels);
       if (r) parsed.set(rowHashOf(r.rowKey), r);
     }
-    const existing = await ctx.db.table(responsesTable).list({ eventId });
-    const known = new Set(existing.map((r) => r.rowHash));
+    const stored = await ctx.db.table(responsesTable).list({ eventId });
+    const known = new Set(stored.map((r) => r.rowHash));
     const drafts: DraftOf<ResponseRow>[] = [...parsed].filter(([hash]) => !known.has(hash)).map(([rowHash, r]) => ({
       id: newId<'RsvpResponse'>(),
       eventId,
@@ -291,12 +293,25 @@ export const syncFormWith = (sheets: SheetSource): CommandSpec<InputOf<'comms.sy
     }
 
     const t = emptyTally();
-    // An answer waiting for a person comes back when a Form label saved since reads it.
-    const relabelled = (r: ResponseRow) => r.applyStatus === 'review' && isAnswer(readRsvpAnswer(r.rsvpAnswer, labels));
-    const work = [...existing.filter((r) => r.applyStatus === 'pending' || relabelled(r) || (r.applyStatus === 'no_time' && UNRESOLVED.has(r.match))), ...inserted]
-      .sort((a, b) => Date.parse(a.respondedAt) - Date.parse(b.respondedAt));
+    let retimed = 0;
     try {
+      // A row stored while the sheet's date order could not be told (or read another way), not applied yet, gets the
+      // time the sheet reads now; its key is the timestamp as typed, so the row itself is never stored twice.
+      const existing: ResponseRow[] = [];
+      for (const r of stored) {
+        const at = parsed.get(r.rowHash)?.respondedAt;
+        if (!at || !REREAD.has(r.applyStatus) || (r.applyStatus !== 'no_time' && Date.parse(at) === Date.parse(r.respondedAt))) {
+          existing.push(r);
+          continue;
+        }
+        existing.push(await ctx.db.table(responsesTable).update(r.id, { respondedAt: at, applyStatus: r.applyStatus === 'no_time' ? 'pending' : r.applyStatus }, { expectedVersion: r.version }));
+        retimed += 1;
+      }
+      // An answer waiting for a person comes back when a Form label saved since reads it.
+      const relabelled = (r: ResponseRow) => r.applyStatus === 'review' && isAnswer(readRsvpAnswer(r.rsvpAnswer, labels));
       // Oldest first, so when one guest answered twice the later answer is the one that stays.
+      const work = [...existing.filter((r) => r.applyStatus === 'pending' || relabelled(r) || (r.applyStatus === 'no_time' && UNRESOLVED.has(r.match))), ...inserted]
+        .sort((a, b) => Date.parse(a.respondedAt) - Date.parse(b.respondedAt));
       const index = targetsOf(await readRoster(ctx, eventId));
       const toAdd: ResponseRow[] = [];
       for (const row of work) {
@@ -307,13 +322,13 @@ export const syncFormWith = (sheets: SheetSource): CommandSpec<InputOf<'comms.sy
       await ctx.db.table(formsTable).update(form.id, { lastSyncAt: ctx.now, lastAttemptAt: ctx.now, lastSyncError: null, sheetHeaders: headers }, { overwrite: 'idempotent-set' });
     } catch (e) {
       // The new responses are stored and what was applied stays applied; the rest waits as pending for the next sync.
-      if (inserted.length > 0 || t.applied + t.created + t.stale + t.noAnswer + t.review > 0) {
+      if (inserted.length > 0 || retimed > 0 || t.applied + t.created + t.stale + t.noAnswer + t.review > 0) {
         const reason = failureReason(e);
         throw new CommandError(
           'conflict',
           `Đồng bộ dừng giữa chừng: đã áp dụng ${t.applied} phản hồi và thêm ${t.created} khách mới. Bấm "Đồng bộ ngay" để xử lý phần còn lại.`,
           undefined,
-          audit('ĐỒNG BỘ GOOGLE FORM', `Đồng bộ Google Form dừng giữa chừng (${reason}): lưu ${inserted.length} phản hồi mới; áp dụng ${t.applied}, thêm khách mới ${t.created}; phần còn lại chờ lần đồng bộ sau`, eventId, 'rsvp_form', form.id),
+          audit('ĐỒNG BỘ GOOGLE FORM', `Đồng bộ Google Form dừng giữa chừng (${reason}): lưu ${inserted.length} phản hồi mới${retimed ? `, đọc lại thời gian ${retimed} phản hồi` : ''}; áp dụng ${t.applied}, thêm khách mới ${t.created}; phần còn lại chờ lần đồng bộ sau`, eventId, 'rsvp_form', form.id),
         );
       }
       throw e;
@@ -323,6 +338,7 @@ export const syncFormWith = (sheets: SheetSource): CommandSpec<InputOf<'comms.sy
     const summary =
       `Đồng bộ Google Form: ${parsed.size} phản hồi, ${inserted.length} mới; áp dụng ${t.applied}, bỏ qua ${t.stale} (cũ hơn thay đổi gần nhất), ` +
       `không có câu trả lời ${t.noAnswer}, cần xem lại ${t.review}, thêm khách mới ${t.created}${t.failed ? `, lỗi ${t.failed}` : ''}` +
+      (retimed ? `; đọc lại thời gian của ${retimed} phản hồi theo thứ tự ngày/tháng của Sheet` : '') +
       (dateOrderUnclear ? '; không xác định được ngày/tháng trong cột thời gian của Sheet nên các phản hồi chờ xem lại' : '');
     return { value: report, audit: audit('ĐỒNG BỘ GOOGLE FORM', summary, eventId, 'rsvp_form', form.id) };
   },

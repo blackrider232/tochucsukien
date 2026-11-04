@@ -49,9 +49,11 @@ const RECENT_MS = 7 * 86_400_000;
 /**
  * Google Forms writes every timestamp of a sheet in its owner's locale: 'dd/mm/yyyy hh:mm:ss' in a Vietnamese sheet,
  * 'mm/dd/yyyy' in a US one, and appends the rows in the order the answers came. So the sheet's order is the reading
- * that can read every date; when both can, the one that puts none in the future, then the one whose times only go forward, else the one
- * whose newest answer is recent. When the rows cannot tell, null: no slash date is then read, and the responses wait
- * for review.
+ * that can read every date; when both can, the one that puts none in the future; when both still can, the only one
+ * whose times go one way (forward, or back for a sheet sorted newest first) and whose newest answer is recent. A sheet
+ * sorted as text ("01/11", "02/10", "03/11") goes one way only when read the wrong way, and is not recent that way, so
+ * both tests must agree. When the
+ * rows cannot tell, null: no slash date is then read, and the responses wait for review.
  */
 export function detectDateOrder(cells: ReadonlyArray<string>, now: Instant): DateOrder | null {
   const dates = cells.map((c) => c.trim()).filter((c) => SLASH_DATE.test(c) && (readTimestamp(c, 'dmy') || readTimestamp(c, 'mdy')));
@@ -63,10 +65,9 @@ export function detectDateOrder(cells: ReadonlyArray<string>, now: Instant): Dat
   if (readings.length < 2) return readings[0]?.order ?? null;
   const past = readings.filter((r) => r.times.every((t) => t <= Date.parse(now) + FUTURE_SKEW_MS));
   if (past.length < 2) return past[0]?.order ?? null;
-  const forward = past.filter((r) => r.times.every((t, i) => i === 0 || t >= r.times[i - 1]!));
-  if (forward.length === 1) return forward[0]!.order;
-  const recent = past.filter((r) => Date.parse(now) - Math.max(...r.times) <= RECENT_MS);
-  return recent.length === 1 ? recent[0]!.order : null;
+  const oneWay = (times: ReadonlyArray<number>) => times.every((t, i) => i === 0 || t >= times[i - 1]!) || times.every((t, i) => i === 0 || t <= times[i - 1]!);
+  const settled = past.filter((r) => oneWay(r.times) && Date.parse(now) - Math.max(...r.times) <= RECENT_MS);
+  return settled.length === 1 ? settled[0]!.order : null;
 }
 
 /**
