@@ -87,7 +87,7 @@ export function SendPanel(props: {
             tone={
               report.claimFailed || report.failed.length || report.unknown.length || report.unrecorded.length || report.inFlight.length || report.ownInFlight.length || report.unclear.length
                 ? 'warning'
-                : report.skipped.length
+                : report.skipped.length || report.sent.length === 0
                   ? 'info'
                   : 'success'
             }

@@ -36,6 +36,18 @@ describe('SendPanel', () => {
     expect(h.onResumeSkipped).toHaveBeenCalledOnce();
   });
 
+  it('a run that sent nothing because everyone already had the message is neutral, not a success', () => {
+    renderUi(withAppContext(panel(report({ alreadySent: [person('a@x.vn'), person('b@x.vn')] }))));
+    const alert = screen.getByText(/^Chưa gửi thư nào/).closest('[data-tone]')!;
+    expect(alert).toHaveAttribute('data-tone', 'blue');
+    expect(alert).toHaveTextContent('Chưa gửi thư nào: 2 đã nhận thư này nên không gửi lại.');
+  });
+
+  it('a run that sent everything is a success', () => {
+    renderUi(withAppContext(panel(report({ sent: [{ recipient: person('a@x.vn'), messageId: 'm' }], alreadySent: [person('b@x.vn')] }))));
+    expect(screen.getByText(/^Hoàn tất/).closest('[data-tone]')).toHaveAttribute('data-tone', 'emerald');
+  });
+
   it('a run that sent nothing because others hold every recipient is a warning that counts them, never a success', () => {
     const held = Array.from({ length: 13 }, (_, i) => person(`p${i}@x.vn`));
     renderUi(withAppContext(panel(report({ inFlight: held, ownInFlight: [person('own@x.vn')], unclear: [person('u@x.vn')] }))));
