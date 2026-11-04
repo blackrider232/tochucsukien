@@ -160,11 +160,26 @@ describe('comms.startCampaign', () => {
     expect(deliveries(h)).toEqual([['a@x.vn', 'error']]);
   });
 
-  it('a claim that stops part-way audits what it holds and fails', async () => {
+  it('a claim that stops part-way frees what it claimed, so the browser, which never learns of them, leaves nothing held', async () => {
     const h = harness();
     const eventId = await h.createEvent();
     const audits = h.audits().length;
     const r = await h.runWith(failingWrites((t, op, nth) => t === 'sce_tcsk_email_deliveries' && op === 'insert' && nth === 1), xtdtUser, 'comms.startCampaign', {
+      eventId, senderEmail: SENDER, ...MESSAGE, attachQr: false, runToken: TAB_A, takeOver: false, recipients: [to('a@x.vn'), to('b@x.vn')],
+    });
+    expect(r).toMatchObject({ ok: false, kind: 'unavailable' });
+    expect(deliveries(h)).toEqual([]);
+    expect(h.rows('sce_tcsk_email_campaigns')).toEqual([]);
+    expect(h.audits()).toHaveLength(audits);
+    // A second press claims both at once: nothing waits 32 minutes for a lease.
+    expect((await start(h, eventId, [to('a@x.vn'), to('b@x.vn')], xtdtUser, MESSAGE, TAB_B)).claimed).toEqual(['a@x.vn', 'b@x.vn']);
+  });
+
+  it('a claim that stops part-way and cannot free its claims either audits what it still holds and fails', async () => {
+    const h = harness();
+    const eventId = await h.createEvent();
+    const audits = h.audits().length;
+    const r = await h.runWith(failingWrites((t, op, nth) => t === 'sce_tcsk_email_deliveries' && (op === 'remove' || (op === 'insert' && nth === 1))), xtdtUser, 'comms.startCampaign', {
       eventId, senderEmail: SENDER, ...MESSAGE, attachQr: false, runToken: TAB_A, takeOver: false, recipients: [to('a@x.vn'), to('b@x.vn')],
     });
     expect(r).toMatchObject({ ok: false, kind: 'conflict', message: expect.stringContaining('Đã giữ chỗ 1 người nhận') });

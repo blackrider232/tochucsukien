@@ -113,6 +113,8 @@ export const startCampaign: CommandSpec<InputOf<'comms.startCampaign'>, OutputOf
     const inFlight: Email[] = [];
     const ownInFlight: Email[] = [];
     const unclear: Email[] = [];
+    /** This call's own claims, as written: freed again if the call fails, since the browser never learns of them. */
+    const held: DeliveryRow[] = [];
     let takenOver = 0;
     let orphaned = 0;
     const seen = new Set<string>();
@@ -139,8 +141,7 @@ export const startCampaign: CommandSpec<InputOf<'comms.startCampaign'>, OutputOf
         } else {
           const row = { guestId: r.guestId, recipientName: r.recipientName, subject, senderEmail, status: 'queued' as const, claimToken: claim, claimProof: runToken, sentAt: null, error: null, providerMessageId: null, imported: false };
           try {
-            if (before) await ctx.db.table(deliveriesTable).update(before.id, row, { expectedVersion: before.version });
-            else await ctx.db.table(deliveriesTable).insert({ ...row, eventId, campaignId, email: r.email });
+            held.push(before ? await ctx.db.table(deliveriesTable).update(before.id, row, { expectedVersion: before.version }) : await ctx.db.table(deliveriesTable).insert({ ...row, eventId, campaignId, email: r.email }));
             claimed.push(r.email);
             if (heldElsewhere) takenOver += 1;
           } catch (e) {
@@ -151,8 +152,10 @@ export const startCampaign: CommandSpec<InputOf<'comms.startCampaign'>, OutputOf
         }
       }
     } catch (e) {
-      if (claimed.length > 0 || orphaned > 0) {
-        throw new CommandError('conflict', `Đã giữ chỗ ${claimed.length} người nhận nhưng không giữ được những người còn lại. Hãy bấm gửi lại sau ít phút.`, undefined, audit('BẮT ĐẦU GỬI THƯ', `Bắt đầu đợt gửi "${subject}" từ ${senderEmail}: đã giữ chỗ ${claimed.length} người nhận${orphaned ? `, chuyển ${orphaned} thư đang gửi dở sang "Không rõ đã gửi"` : ''} rồi dừng vì lỗi; các thư đã giữ chỗ chưa được gửi`, eventId, 'email_campaign', campaignId));
+      let kept = 0;
+      for (const row of held) await ctx.db.table(deliveriesTable).remove(row.id, { expectedVersion: row.version }).catch(() => (kept += 1));
+      if (kept > 0 || orphaned > 0) {
+        throw new CommandError('conflict', `Đã giữ chỗ ${kept} người nhận nhưng không giữ được những người còn lại. Hãy bấm gửi lại sau ít phút.`, undefined, audit('BẮT ĐẦU GỬI THƯ', `Bắt đầu đợt gửi "${subject}" từ ${senderEmail}: đã giữ chỗ ${kept} người nhận${orphaned ? `, chuyển ${orphaned} thư đang gửi dở sang "Không rõ đã gửi"` : ''} rồi dừng vì lỗi; các thư đã giữ chỗ chưa được gửi và tự hết giữ chỗ sau 30 phút`, eventId, 'email_campaign', campaignId));
       }
       if (await undoMessage().then(() => true, () => false)) throw e;
       throw new CommandError('conflict', 'Chưa giữ chỗ được người nhận nào. Hãy bấm gửi lại sau ít phút.', undefined, audit('BẮT ĐẦU GỬI THƯ', `Lưu nội dung thư "${subject}" nhưng không giữ chỗ được người nhận nào vì lỗi; chưa thư nào được gửi`, eventId, 'email_campaign', campaignId));
