@@ -18,9 +18,9 @@ const OTHER_RUN = '0b0e0b0e-0000-4000-8000-000000000003';
 let db: PGlite;
 let eventId: string;
 
-async function as<T>(user: string, fn: () => Promise<T>): Promise<T> {
+async function as<T>(user: string, fn: () => Promise<T>, aal = 'aal1'): Promise<T> {
   await db.exec(`set role authenticated`);
-  await db.exec(`select set_config('request.jwt.claim.sub', '${user}', false), set_config('request.jwt.claims', '{"sub":"${user}","aal":"aal1"}', false)`);
+  await db.exec(`select set_config('request.jwt.claim.sub', '${user}', false), set_config('request.jwt.claims', '{"sub":"${user}","aal":"${aal}"}', false)`);
   try {
     return await fn();
   } finally {
@@ -214,6 +214,36 @@ describe('the no-double-send rules on Postgres, for an officer writing to the ta
     expect((await write(COLLEAGUE, `update public.sce_tcsk_email_campaigns set attach_qr = false where id = '${campaign}' returning id`)).rows).toEqual([]);
     expect((await write(COLLEAGUE, `delete from public.sce_tcsk_email_campaigns where id = '${campaign}' returning id`)).rows).toEqual([]);
     expect((await db.query(`select attach_qr from public.sce_tcsk_email_campaigns where id = '${campaign}'`)).rows).toEqual([{ attach_qr: true }]);
+  });
+
+  it('an officer who sets sce.restoring in their own session is still checked', async () => {
+    const id = await claim('g16@x.vn');
+    await update(OFFICER, id, `status = 'sent', sent_at = now(), provider_message_id = 'msg-g16', claim_proof = '${RUN}'`);
+    const forged = (user: string, sql: string) => as(user, async () => {
+      await db.exec(`select set_config('sce.restoring', 'on', false)`);
+      try {
+        return await db.query<{ id: string }>(sql);
+      } finally {
+        await db.exec(`select set_config('sce.restoring', '', false)`);
+      }
+    });
+    await expect(forged(OFFICER, `update public.sce_tcsk_email_deliveries set status = 'error', error = 'x' where id = '${id}'`)).rejects.toThrow(/final/);
+    const live = await claim('g17@x.vn');
+    await expect(forged(COLLEAGUE, `delete from public.sce_tcsk_email_deliveries where id = '${live}'`)).rejects.toThrow(/may be deleted/);
+    const campaign = '0b0e0b0e-0000-5000-8000-0000000000c2';
+    await as(OFFICER, () => db.query(`insert into public.sce_tcsk_email_campaigns (id, event_id, subject_template, body_template) values ('${campaign}', '${eventId}', 'Mời', '<p>a</p>')`));
+    await expect(forged(COLLEAGUE, `update public.sce_tcsk_email_campaigns set body_template = '<p>khác</p>' where id = '${campaign}'`)).rejects.toThrow(/never changes/);
+    expect(await row(id)).toMatchObject({ status: 'sent' });
+  });
+
+  it('a backup restore (security definer, as the owner) still puts back sent and claimed deliveries', async () => {
+    const id = await claim('g18@x.vn');
+    await update(OFFICER, id, `status = 'sent', sent_at = now(), provider_message_id = 'msg-g18', claim_proof = '${RUN}'`);
+    const backup = (await as(ADMIN, () => db.query<{ id: number }>(`select public.sce_tcsk_create_backup('Thử khôi phục', 'manual') as id`), 'aal2')).rows[0]!.id;
+    await update(OFFICER, await claim('g19@x.vn'), `claim_proof = '${RUN}'`);
+    await as(ADMIN, () => db.query(`select public.sce_tcsk_restore_backup(${backup})`), 'aal2');
+    expect(await row(id)).toMatchObject({ status: 'sent', provider_message_id: 'msg-g18' });
+    expect((await db.query(`select id from public.sce_tcsk_email_deliveries where email = 'g19@x.vn'`)).rows).toEqual([]);
   });
 
   it('deleting a guest with a sent delivery still works: the delivery keeps its record', async () => {
