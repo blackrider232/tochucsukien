@@ -85,7 +85,7 @@ describe('signed savings rate (BUG-35)', () => {
     expect(savingsLabel(0)).toBe('Tiết kiệm 0,00%');
     const t = biddingTotals([pkg(1_000_000_000, 1_000_040_000)]);
     expect(biddingTotalsSentence(t)).toContain('vượt dự toán 40.000 đ (<0,01%)');
-    expect(decodeFigures(JSON.parse(JSON.stringify(encodeFigures(reportFigures({ plan: plan([]), roster: [], booths: [], packages: [pkg(1_000_000_000, 1_000_040_000)] }, withHolidays, SETTINGS, TODAY)))))).toMatchObject({ biddingSavingsPercent: rate });
+    expect(decodeFigures(JSON.parse(JSON.stringify(encodeFigures(dashboardFigures({ plan: plan([]), roster: [], booths: [], packages: [pkg(1_000_000_000, 1_000_040_000)], clippings: 0 }, withHolidays, SETTINGS, TODAY)))))).toMatchObject({ biddingSavingsPercent: rate });
   });
   it('one formatter, two decimals, Vietnamese comma, sign kept', () => {
     expect(formatPercent2(3.33)).toBe('3,33%');

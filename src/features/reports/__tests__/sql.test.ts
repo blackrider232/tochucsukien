@@ -318,9 +318,9 @@ describe("core's backup and restore keep every reports table as it was", () => {
        values ('${eventId}', '2026-11-30', 11, 20, '${ids.head}', '2026-11-30T03:00:00Z', '{"progressPercent":20}', 'Tên cũ của sự kiện', '2026-12-15', 'TRƯỞNG PHÒNG XÚC TIẾN ĐẦU TƯ')`,
     );
     const before = await dump();
-    expect(before.sce_tcsk_daily_reports.length).toBeGreaterThanOrEqual(3);
-    expect(before.sce_tcsk_bidding_packages.length).toBeGreaterThan(0);
-    expect(before.sce_tcsk_media_clippings.length).toBeGreaterThan(0);
+    expect(before.sce_tcsk_daily_reports!.length).toBeGreaterThanOrEqual(3);
+    expect(before.sce_tcsk_bidding_packages!.length).toBeGreaterThan(0);
+    expect(before.sce_tcsk_media_clippings!.length).toBeGreaterThan(0);
     const id = await as(ids.admin, 'aal2', async () => (await db.query<{ id: string }>(`select public.sce_tcsk_create_backup('reports round trip') as id`)).rows[0]!.id);
     await as(ids.admin, 'aal2', () => db.query(`select public.sce_tcsk_restore_backup(${id}::bigint)`));
     expect(await dump()).toEqual(before);
