@@ -5,7 +5,7 @@
 // (keyboard wedge: code then Enter) fills. Never a fake viewfinder (m5 BUG-10).
 // The dialog stays open between scans so a queue moves quickly.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { z } from 'zod';
 import { Alert, Button, Dialog, Form, FormField, TextInput, useZodForm } from '@/components/ui';
 import { useDesk, type CheckInDone, type ScanDone } from './desk-actions';
@@ -94,6 +94,14 @@ function detectorCtor(): DetectorCtor | null {
   return typeof window === 'undefined' ? null : ((window as unknown as { BarcodeDetector?: DetectorCtor }).BarcodeDetector ?? null);
 }
 
+/** What rules the camera out before anyone asks for it, so the dialog says so on opening. */
+function cameraBlocked(): 'insecure' | 'unsupported' | null {
+  if (!window.isSecureContext) return 'insecure';
+  if (!detectorCtor() || !navigator.mediaDevices?.getUserMedia) return 'unsupported';
+  return null;
+}
+const noSubscription = () => () => undefined;
+
 const MESSAGES: Partial<Record<CameraState, { tone: 'info' | 'warning' | 'danger'; text: string }>> = {
   unsupported: { tone: 'info', text: 'Trình duyệt này chưa hỗ trợ quét mã bằng camera. Dùng máy quét USB/Bluetooth hoặc nhập mã bên dưới.' },
   insecure: { tone: 'info', text: 'Camera chỉ dùng được khi mở ứng dụng qua kết nối an toàn (https). Dùng máy quét hoặc nhập mã bên dưới.' },
@@ -108,7 +116,9 @@ function CameraScanner({ onCode }: { onCode: (raw: string) => void }) {
   const stream = useRef<MediaStream | null>(null);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const seen = useRef<{ code: string; at: number } | null>(null);
-  const [state, setState] = useState<CameraState>('idle');
+  const [tried, setState] = useState<CameraState>('idle');
+  const blocked = useSyncExternalStore(noSubscription, cameraBlocked, () => null);
+  const state = blocked ?? tried;
 
   const stop = useCallback(() => {
     if (timer.current) clearInterval(timer.current);
@@ -121,9 +131,7 @@ function CameraScanner({ onCode }: { onCode: (raw: string) => void }) {
   useEffect(() => stop, [stop]);
 
   const start = async () => {
-    const Ctor = detectorCtor();
-    if (!window.isSecureContext) return setState('insecure');
-    if (!Ctor || !navigator.mediaDevices?.getUserMedia) return setState('unsupported');
+    const Ctor = detectorCtor()!;
     setState('starting');
     try {
       const supported = Ctor.getSupportedFormats ? await Ctor.getSupportedFormats() : WANTED;
@@ -167,7 +175,7 @@ function CameraScanner({ onCode }: { onCode: (raw: string) => void }) {
           <Button variant="secondary" icon="x" onClick={() => { stop(); setState('idle'); }}>Tắt camera</Button>
         </div>
       ) : (
-        <Button variant="secondary" icon="qr-code" onClick={() => void start()}>Bật camera</Button>
+        !blocked && <Button variant="secondary" icon="qr-code" onClick={() => void start()}>Bật camera</Button>
       )}
       {message && <Alert tone={message.tone}>{message.text}</Alert>}
     </div>

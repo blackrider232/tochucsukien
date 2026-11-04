@@ -161,6 +161,21 @@ describe('offline with the scan dialog already open (review LOW-4)', () => {
   });
 });
 
+describe('scan dialog camera', () => {
+  it('says the browser has no camera decoding when it opens, without a "Bật camera" button that cannot work', async () => {
+    Object.defineProperty(window, 'isSecureContext', { value: true, configurable: true });
+    try {
+      const { user } = show(data([guest()]), 'checkin');
+      await user.click(screen.getByRole('button', { name: 'Quét mã QR check-in' }));
+      const dialog = await screen.findByRole('dialog', { name: /Quét mã QR check-in/ });
+      expect(within(dialog).getByText(/chưa hỗ trợ quét mã bằng camera/)).toBeInTheDocument();
+      expect(within(dialog).queryByRole('button', { name: 'Bật camera' })).toBeNull();
+    } finally {
+      delete (window as { isSecureContext?: boolean }).isSecureContext;
+    }
+  });
+});
+
 describe('check-in desk', () => {
   it('asks the decision-7 question before checking in a declined guest, and sends nothing when refused', async () => {
     dispatch.mockReset();
