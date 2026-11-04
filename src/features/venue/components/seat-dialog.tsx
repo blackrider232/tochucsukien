@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Alert, Badge, Button, Combobox, Dialog, StatusBadge } from '@/components/ui';
+import { Alert, Badge, Button, Combobox, Dialog, FormField, StatusBadge } from '@/components/ui';
 import type { GuestId, SeatCode } from '@/core/brand';
 import { useCommand } from '@/core/commands';
 import { GUEST_GROUPS, isAttending, RSVP } from '@/core/vocab';
@@ -71,9 +71,7 @@ export function SeatDialog({ event, zone, code, occupant, guests, seatOf, presel
         <p className="text-sm text-ink-2">
           Đang ngồi: {occupant ? <strong className="text-ink">{occupant.name}{occupant.organization ? ` (${occupant.organization})` : ''}</strong> : <span className="italic">ghế trống</span>}
         </p>
-        <div className="space-y-1">
-          <p className="text-sm font-semibold text-ink">Chọn đại biểu từ danh sách</p>
-          <p className="text-xs text-ink-muted">Gõ tên, cơ quan hoặc chức vụ. Đại biểu đã xác nhận tham dự hiện trước; đại biểu báo vắng không được xếp chỗ.</p>
+        <FormField label="Chọn đại biểu từ danh sách" name="seat-guest" hint="Gõ tên hoặc cơ quan, hoặc nhấn mũi tên xuống để xem danh sách. Đại biểu đã xác nhận hiện trước; đại biểu báo vắng không được xếp chỗ.">
           <Combobox<SeatGuestView>
             name="seat-guest"
             search={async (q) => (q.trim() ? candidates : candidates.slice(0, 50))}
@@ -90,7 +88,7 @@ export function SeatDialog({ event, zone, code, occupant, guests, seatOf, presel
             )}
             onPick={setPicked}
           />
-        </div>
+        </FormField>
         {picked && (
           <div className="space-y-2" aria-live="polite">
             <p className="flex flex-wrap items-center gap-2 text-sm">
