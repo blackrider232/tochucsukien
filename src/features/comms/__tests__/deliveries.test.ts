@@ -364,6 +364,20 @@ describe('a send whose answer was lost', () => {
     expect((await start(h, eventId, [to('a@x.vn', g.id)], xtdtUser, MESSAGE, TAB_B)).claimed).toEqual(['a@x.vn']);
   });
 
+  it('marking not sent touches only unknown rows: a sent, failed, claimed or in-flight message stays as it is', async () => {
+    const h = harness();
+    const eventId = await h.createEvent();
+    const { campaignId } = await start(h, eventId, [to('s@x.vn'), to('e@x.vn'), to('q@x.vn'), to('f@x.vn')]);
+    await record(h, eventId, campaignId, [sent('s@x.vn'), failed('e@x.vn')]);
+    await marking(h, eventId, campaignId, 'f@x.vn');
+    const before = h.rows('sce_tcsk_email_deliveries');
+    const audits = h.audits().length;
+    const r = await h.ok(xtdtUser, 'comms.markNotSent', { eventId, campaignId, emails: ['s@x.vn', 'e@x.vn', 'q@x.vn', 'f@x.vn', 'none@x.vn'] as Email[] });
+    expect(r.value).toEqual({ marked: 0 });
+    expect(h.rows('sce_tcsk_email_deliveries')).toEqual(before);
+    expect(h.audits()).toHaveLength(audits + 1);
+  });
+
   it('an unknown result never overwrites a success', async () => {
     const h = harness();
     const eventId = await h.createEvent();
