@@ -250,6 +250,10 @@ describe('memoryAuditWriter (sce_tcsk_audit_command, 202611041320_core_audit_wri
       .map((action): [string, ReturnType<typeof testActor>, Partial<CommandAuditRow>] => [`the core action ${JSON.stringify(action)}`, testActor('user', XTDT), { action }]),
     ...['Profile', ' BACKUP ', 'pro\u200dfile', 'ｓｅｔｔｉｎｇｓ'].map((entity): [string, ReturnType<typeof testActor>, Partial<CommandAuditRow>] => [`the core entity ${JSON.stringify(entity)}`, testActor('user', XTDT), { entity }]),
     ['an empty action', testActor('user', XTDT), { action: ' \u200b ' }],
+    ...[coreAction.replace('P', '\u0420'), coreAction.replace('O', '\u041e'), ...['\u2066', '\u2067', '\u2068', '\u2069', '\u034f', '\u3164'].map((c) => coreAction.replace(' ', ` ${c}`)),
+      'CẬP NHẬT <b>KHÁCH</b>', 'CẬP NHẬT\u0007KHÁCH']
+      .map((action): [string, ReturnType<typeof testActor>, Partial<CommandAuditRow>] => [`the look-alike action ${JSON.stringify(action)}`, testActor('user', XTDT), { action }]),
+    ...['pr\u043efile', 'guest<1>', 'khách'].map((entity): [string, ReturnType<typeof testActor>, Partial<CommandAuditRow>] => [`the entity ${JSON.stringify(entity)}`, testActor('user', XTDT), { entity }]),
     ['an assurance level that is not one, for a user without a factor', testActor('user', XTDT, { aal: 'aal3' as never }), {}],
     ['a null assurance level, for a user without a factor', { ...testActor('user', XTDT), aal: null as never }, {}],
     ['a null command under a core permission', admin, { command: null as never, perm: 'core.users.manage', eventId: null, entity: 'user' }],
@@ -268,7 +272,8 @@ describe('memoryAuditWriter (sce_tcsk_audit_command, 202611041320_core_audit_wri
     await write(admin, { ...row, command: 'templates.create', perm: 'templates.admin', eventId: null, entity: 'template' });
     await write(testActor('user', XTDT, { aal: 'aal2', hasVerifiedTotp: true }), row);
     await write(testActor('user', XTDT), { ...row, command: 'directory.importToEvent' });
-    expect(inspectMemoryDb(seed, 'sce_tcsk_audit_logs')).toHaveLength(3);
+    await write(testActor('user', XTDT), { ...row, action: 'XÓA/KHÔI PHỤC KHÁCH (LẦN 2): "VIP", 50% - ỔN?', entity: 'master_contact' });
+    expect(inspectMemoryDb(seed, 'sce_tcsk_audit_logs')).toHaveLength(4);
   });
 });
 

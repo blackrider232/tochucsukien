@@ -319,9 +319,12 @@ const CORE_AUDIT_ACTIONS_FOLDED = new Set([...CORE_AUDIT_ACTIONS].map((a) => a.t
 const CROSS_FEATURE_AUDIT = new Set(['directory.importToEvent guests.write']);
 /** tcsk.audit_text: NFKC, invisible format characters dropped, white space collapsed, trimmed; null when empty. */
 const auditText = (t: string | null) =>
-  t === null ? null : t.normalize('NFKC').replace(/[\u00ad\u180e\u200b-\u200f\u202a-\u202e\u2060-\u2064\ufeff]/g, '').replace(/\s+/g, ' ').trim() || null;
+  t === null ? null : t.normalize('NFKC').replace(/[\u00ad\u180e\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff]/g, '').replace(/\s+/g, ' ').trim() || null;
+/** 202611041350_core_audit_action_charset.sql: Vietnamese letters, digits, spaces and plain punctuation; entities are ASCII identifiers. */
+const AUDIT_ACTION = /^[0-9A-Za-zÀ-ÃÈ-ÊÌÍÒ-ÕÙÚÝà-ãè-êìíò-õùúýĂăĐđĨĩŨũƠơƯưẠ-ỹ /().,:;'"&+%#?!-]+$/u;
+const AUDIT_ENTITY = /^[A-Za-z0-9_.-]+$/;
 
-/** public.sce_tcsk_audit_command of 202611041320_core_audit_writer.sql and 202611041330, check for check. */
+/** public.sce_tcsk_audit_command of 202611041320_core_audit_writer.sql, 202611041330 and 202611041350, check for check. */
 function writeCommandAudit(store: Store, actor: Actor, row: CommandAuditRow): void {
   // 202611041330_core_audit_writer_nulls.sql: a missing argument is refused before any check reads it.
   if (typeof actor.profile.id !== 'string' || typeof row.command !== 'string' || typeof row.perm !== 'string' || (actor.aal !== 'aal1' && actor.aal !== 'aal2')) {
@@ -331,7 +334,7 @@ function writeCommandAudit(store: Store, actor: Actor, row: CommandAuditRow): vo
   const action = auditText(row.action);
   const entity = auditText(row.entity);
   const def = permissionMatrix().get(row.perm);
-  const forbidden = feature === '' || feature === 'core' || verb === '' || action === null
+  const forbidden = feature === '' || feature === 'core' || verb === '' || action === null || !AUDIT_ACTION.test(action) || (entity !== null && !AUDIT_ENTITY.test(entity))
     || (row.perm.split('.')[0] !== feature && !CROSS_FEATURE_AUDIT.has(`${row.command} ${row.perm}`))
     || CORE_AUDIT_ENTITIES.has(entity?.toLowerCase() ?? '') || CORE_AUDIT_ACTIONS_FOLDED.has(action.toLowerCase())
     || actor.profile.status !== 'active' || !aalOk(actor) || !def;

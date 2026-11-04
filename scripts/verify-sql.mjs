@@ -409,6 +409,14 @@ for (const action of [coreAction, coreAction.toLowerCase(), `  ${coreAction.repl
 }
 for (const entity of ['profile', 'Profile', ' BACKUP ', 'pro‍file', 'ｓｅｔｔｉｎｇｓ', 'Holidays']) await refusedRow(`the core entity ${JSON.stringify(entity)}`, { entity });
 for (const action of ['', '   ', '​​']) await refusedRow(`an empty action ${JSON.stringify(action)}`, { action });
+// Look-alikes of a core action: only Vietnamese letters, digits, spaces and plain punctuation are an action (third review LOW1).
+for (const action of [coreAction.replace('P', '\u0420'), coreAction.replace('O', '\u041e'), ...['\u2066', '\u2067', '\u2068', '\u2069', '\u034f', '\u3164'].map((c) => coreAction.replace(' ', ` ${c}`)),
+  'CẬP NHẬT <b>TIẾN ĐỘ</b>', 'CẬP NHẬT\u0007TIẾN ĐỘ']) {
+  await refusedRow(`the action ${JSON.stringify(action)}`, { action });
+}
+for (const entity of ['pr\u043efile', 'step<1>', 'bước']) await refusedRow(`the entity ${JSON.stringify(entity)}`, { entity });
+const plainAction = await writtenRow('an action with Vietnamese letters, digits and plain punctuation', { action: 'XÓA/KHÔI PHỤC BƯỚC (LẦN 2): "BÁO CÁO", 50% - ỔN?' , entity: 'step_group' });
+assert.equal(plainAction.action, 'XÓA/KHÔI PHỤC BƯỚC (LẦN 2): "BÁO CÁO", 50% - ỔN?', 'a plain action is stored as given');
 
 await as(ids.xtdt, 'aal1', () => assert.rejects(db.query(`select public.sce_tcsk_create_backup('x', 'auto')`), /forbidden/, 'a user cannot take an auto backup'));
 await as(ids.admin, 'aal1', () => assert.rejects(db.query(`select public.sce_tcsk_create_backup('x', 'auto')`), /forbidden/, 'an admin at aal1 cannot take an auto backup'));
