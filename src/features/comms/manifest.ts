@@ -1,5 +1,4 @@
-// Pure data, safe to import from the proxy. The owning worker extends it;
-// the foundation wrote this first version (nav, permissions, routes, tables).
+// Pure data, safe to import from the proxy.
 
 import { defineFeature } from '@/core/registry';
 
@@ -20,10 +19,9 @@ export const commsManifest = defineFeature({
   ],
   routes: [
     { dir: '(app)/events/[eventId]/invitations', permission: 'comms.read' },
-    { dir: '(print)/events/[eventId]/invitations', permission: 'comms.read' },
     { dir: 'api/cron/rsvp-sync', permission: 'comms.rsvp.manage' },
   ],
-  tables: ['sce_tcsk_sender_mailboxes', 'sce_tcsk_rsvp_forms', 'sce_tcsk_rsvp_responses', 'sce_tcsk_email_deliveries'],
-  // Partial keys: Google Form fields on events, email results on guests, unitSenderEmails in settings.
+  tables: ['sce_tcsk_sender_mailboxes', 'sce_tcsk_rsvp_forms', 'sce_tcsk_rsvp_responses', 'sce_tcsk_email_deliveries', 'sce_tcsk_email_campaigns'],
+  // Partial keys: Google Form fields on events, email results on guests, unitSenderEmails in settings (googleClientId is core's).
   legacyBlobKeys: ['events', 'eventGuests', 'systemSettings'],
 });
