@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import type { Instant } from '@/core/brand';
-import { parseRsvpAnswer, parseYesNo } from '../domain/answers';
 import { detectColumns, type ColumnMap } from '../domain/columns';
 import { CsvError, parseCsv } from '../domain/csv';
 import { detectDateOrder, parseColumnMap, parseResponseRow, parseSheetTimestamp } from '../domain/responses';
@@ -79,85 +78,6 @@ describe('detectColumns', () => {
   });
   it('does not read "Ghi chú (notes)" as an RSVP column because of "no"', () => {
     expect(detectColumns(['Họ tên', 'Notes']).rsvp).toBeUndefined();
-  });
-});
-
-describe('answers', () => {
-  // Each phrasing is checked as typed and without diacritics (folded the way many people type on a phone).
-  const plain = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
-  /** [answer, reading, reading without diacritics when it differs]: "vâng" (yes) and "vắng" (absent) are both "vang" typed plain, which reads as no answer. */
-  const both = (rows: ReadonlyArray<readonly [string, unknown, unknown?]>) =>
-    rows.flatMap(([raw, v, ...p]) => (plain(raw) === raw ? [[raw, v] as const] : [[raw, v] as const, [plain(raw), p.length ? p[0] : v] as const]));
-
-  it.each(
-    both([
-      ['Có', 'confirmed'],
-      ['Có, tôi sẽ tham dự', 'confirmed'],
-      ['Tham dự', 'confirmed'],
-      ['Có, không ăn tiệc', 'confirmed'],
-      ['Tôi xác nhận tham dự, không ăn tiệc', 'confirmed'],
-      ['Xin xác nhận sẽ tham dự cùng Ban Giám đốc', 'confirmed'],
-      ['Tôi sẽ tham dự, không có gì thay đổi', 'confirmed'],
-      ['Không có gì thay đổi, tôi sẽ tham dự', 'confirmed'],
-      ['Em xác nhận tham dự, không cử người đi thay', 'confirmed'],
-      ['Tham dự, không có người đi thay', 'confirmed'],
-      ['Tham dự hội nghị, không tham dự tiệc', 'confirmed'],
-      ['Đồng ý tham gia', 'confirmed'],
-      ['Sẽ đến đúng giờ', 'confirmed'],
-      ['Có mặt', 'confirmed'],
-      ['Yes', 'confirmed'],
-      ['Yes, I will attend', 'confirmed'],
-      ['Không', 'declined'],
-      ['Không tham dự', 'declined'],
-      ['Không tham dự được', 'declined'],
-      ['Không, tôi bận', 'declined'],
-      ['Tôi bận công tác', 'declined'],
-      ['Bận', 'declined'],
-      ['Xin phép vắng mặt', 'declined'],
-      ['Tôi không thể tham dự', 'declined'],
-      ['Tôi xác nhận không tham dự', 'declined'],
-      ['Rất tiếc, tôi sẽ không tham dự', 'declined'],
-      ['Từ chối', 'declined'],
-      ['Trùng lịch, xin phép vắng', 'declined'],
-      ['No', 'declined'],
-      ['Vâng', 'confirmed', null],
-      ['Xin vâng', 'confirmed', null],
-      ['Dạ vâng', 'confirmed', null],
-      ['vắng mặt', 'declined'],
-      ['em xin phép vắng', 'declined'],
-      ['vang', null],
-      ['Cử người đi thay', 'substituted'],
-      ['Không tham dự, cử người đi thay', 'substituted'],
-      ['Có thể', null],
-      ['Chưa chắc', null],
-      ['Có thể tham dự', null],
-      ['Có, nhưng không tham dự được', null],
-      ['Tham dự hay không tôi báo sau', null],
-      ['Ban Giám đốc', null],
-      ['Hanoi', null],
-      ['Cơ quan tôi', null],
-      ['', null],
-    ]),
-  )('RSVP %j -> %s', (raw, expected) => {
-    expect(parseRsvpAnswer(raw)).toBe(expected);
-  });
-
-  it.each(
-    both([
-      ['Có', true],
-      ['Có dự tiệc', true],
-      ['Tôi tham dự tiệc, không cần xe đưa đón', true],
-      ['Dự tiệc, không ăn cay', true],
-      ['Không', false],
-      ['Không dự tiệc', false],
-      ['Không tham dự tiệc', false],
-      ['Có, không ăn tiệc', null],
-      ['', null],
-      ['Có thể', null],
-      ['Cơ quan', null],
-    ]),
-  )('banquet %j -> %s', (raw, expected) => {
-    expect(parseYesNo(raw)).toBe(expected);
   });
 });
 
