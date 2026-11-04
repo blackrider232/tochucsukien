@@ -94,7 +94,7 @@ export function dailyReportDocument(r: Pick<IssuedReport, 'reportDate' | 'eventD
     title: 'BÁO CÁO',
     subject: `Tiến độ hằng ngày công tác chuẩn bị tổ chức ${r.eventName}`,
     milestone: `(${milestoneSentence(r)})`,
-    recipients: [`Ủy ban nhân dân Thành phố ${org.city};`, `${agencyName(org.parentAgency, org.city)};`, `Ban Giám đốc ${agencyName(org.agencyName, org.city)}.`],
+    recipients: [`Ủy ban nhân dân Thành phố ${org.city};`, `${agencyName(org.parentAgency)};`, `Ban Giám đốc ${agencyName(org.agencyName)}.`],
     sections: [
       {
         heading: 'I. Tình hình thực hiện kế hoạch',
