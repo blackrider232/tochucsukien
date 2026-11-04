@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { addCalendarDays, addWorkdays, buildWorkCalendar } from '@/core/dates';
 import { biddingTotals, dailyReportState, dashboardFigures, decodeFigures, encodeFigures, formatPercent2, milestoneLabel, reportFigures, savingsPercent, workdaysToEvent } from '../domain/figures';
+import { snapshotMilestone } from '../domain/report';
 import { nextPackageCode } from '../domain/schemas';
 import { booth, d, event, guest, guests, HOLIDAYS, pkg, plan, SETTINGS, step, weekendsOnly, withHolidays } from './fixtures';
 
@@ -156,6 +157,11 @@ describe('T-10 daily report state on the holiday calendar (BUG-03/04, decision 1
     expect(state('2026-11-30', '2026-12-13')).toMatchObject({ kind: 'active', workdays: 10 });
     expect(state('2026-11-27', '2026-12-13')).toMatchObject({ kind: 'not_yet', workdays: 11 });
   });
+  it('the day after T0 is already past, T+1', () => {
+    const after = state('2026-12-16', '2026-12-15');
+    expect(after).toEqual({ kind: 'past', calendarDays: 1 });
+    expect(milestoneLabel(after)).toBe('T+1');
+  });
   it('event day and after', () => {
     expect(state('2026-12-15', '2026-12-15')).toEqual({ kind: 'event_day' });
     expect(state('2026-12-17', '2026-12-15')).toEqual({ kind: 'past', calendarDays: 2 });
@@ -174,6 +180,23 @@ describe('T-10 daily report state on the holiday calendar (BUG-03/04, decision 1
     expect(workdaysToEvent(withHolidays, d('2026-05-05'), d('2026-04-28'))).toBe(3);
     expect(workdaysToEvent(withHolidays, d('2026-05-05'), d('2026-05-05'))).toBe(0);
     expect(workdaysToEvent(withHolidays, d('2026-04-28'), d('2026-05-05'))).toBe(-3);
+  });
+});
+
+describe('the milestone an issued report prints (BUG-13)', () => {
+  const at = (reportDate: string, eventDate: string | null, workdaysToEvent: number) => snapshotMilestone({ reportDate: d(reportDate), eventDate: eventDate === null ? null : d(eventDate), workdaysToEvent });
+
+  it('after T0 it counts calendar days from the frozen event date, not the stored working days', () => {
+    // T0 Fri 18/12, issued Mon 21/12: three calendar days after, [18/12, 21/12) holds one working day.
+    expect(at('2026-12-21', '2026-12-18', -1)).toBe('T+3');
+  });
+  it('the Saturday before a Sunday T0 is T-0 (no working day left), not T0', () => {
+    expect(at('2026-12-12', '2026-12-13', 0)).toBe('T-0');
+    expect(at('2026-12-13', '2026-12-13', 0)).toBe('T0');
+  });
+  it('a report stored without an event date falls back to its working days', () => {
+    expect(at('2026-12-08', null, 5)).toBe('T-5');
+    expect(at('2026-12-08', null, 0)).toBe('T0');
   });
 });
 

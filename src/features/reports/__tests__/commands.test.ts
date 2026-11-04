@@ -78,6 +78,16 @@ describe('bidding packages, entered by hand (decision 15, BUG-33/34/35/36)', () 
     expect((await h.run(staff, 'reports.createPackage', { eventId: elsewhere, id: newId<'BiddingPackage'>(), draft: h.packageDraft('TB-2026-001', 50, null) })).ok).toBe(true);
   });
 
+  it('an edit cannot take another package\'s code, whatever its case or tone marks', async () => {
+    const h = harness();
+    const eventId = await h.createEvent();
+    await h.addPackage(eventId, 'GÓI-01', 100, null);
+    const other = await h.addPackage(eventId, 'GÓI-02', 100, null);
+    const r = await h.run(staff, 'reports.updatePackage', { eventId, id: other.value.id, version: other.value.version, draft: h.packageDraft('goi-01', 100, null) });
+    expect(r).toMatchObject({ ok: false, kind: 'invalid', fieldErrors: { code: 'Mã GÓI-01 đã được dùng cho gói "Gói GÓI-01"' } });
+    expect((await h.packages(eventId)).map((p) => p.code)).toEqual(['GÓI-01', 'GÓI-02']);
+  });
+
   it('a package may keep its own code when edited', async () => {
     const h = harness();
     const eventId = await h.createEvent();

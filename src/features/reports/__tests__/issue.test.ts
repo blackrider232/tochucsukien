@@ -2,8 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { newId, type EventId, type Instant } from '@/core/brand';
 import { DbError, type Db } from '@/core/db';
 import { decodeFigures } from '../domain/figures';
+import { readEvent } from '@/features/progress/server';
+import { dailyReportDocument } from '../domain/report';
+import { orgIdentity } from '@/core/settings';
+import { readDailyReport } from '../server/reads';
+import { printableReport } from '../server/screen-data';
 import { dailyReportsTable } from '../server/tables';
-import { admin, harness, head, ISSUE, leader, NOW, outsider, staff } from './harness';
+import { admin, harness, head, ISSUE, leader, NOW, outsider, SETTINGS, staff } from './harness';
 
 /**
  * T0 Tue 15/12/2026, issued Tue 08/12 at 08:00: (08/12, 15/12] holds 9, 10, 11, 14, 15 -> T-5.
@@ -141,6 +146,33 @@ describe('reports.issueDailyReport', () => {
     expect(h.audits().at(-1)?.summary).toMatch(/^Phát hành báo cáo ngày 09\/12\/2026 \(T-4\):/);
   });
 
+  it('a desk that issues just after midnight, while this request\'s insert is stamped that same next day, stands', async () => {
+    const { h, eventId } = await seeded();
+    h.clock.now = '2026-12-08T16:59:59.900Z' as Instant;
+    let raced: unknown = null;
+    const lateAndRaced = (db: Db): Db => ({
+      rpc: db.rpc.bind(db),
+      table(def) {
+        const t = db.table(def);
+        if (def.name !== 'sce_tcsk_daily_reports') return t;
+        return {
+          ...t,
+          insert: async (draft) => {
+            const mine = h.clock.now;
+            h.clock.now = '2026-12-08T17:00:01.000Z' as Instant;
+            raced ??= await h.issue(leader, eventId, { ...ISSUE, signatory: 'Bàn kia' });
+            h.clock.now = mine;
+            return t.insert({ ...draft, reportDate: '2026-12-09' } as typeof draft);
+          },
+        } as typeof t;
+      },
+    });
+    const r = await h.runWith(head, lateAndRaced, 'reports.issueDailyReport', { eventId, id: newId<'DailyReport'>(), draft: ISSUE });
+    expect(raced).toMatchObject({ ok: true, value: { already: false, report: { reportDate: '2026-12-09' } } });
+    expect(r).toMatchObject({ ok: true, value: { already: true, report: { reportDate: '2026-12-09', signatory: 'Bàn kia' } } });
+    expect(await h.reports(eventId)).toHaveLength(1);
+  });
+
   it('a retry with the same id that lands after midnight converges on the report it issued', async () => {
     const { h, eventId } = await seeded();
     const id = newId<'DailyReport'>();
@@ -231,5 +263,31 @@ describe('who may issue (decision 17: dept_leader and above)', () => {
     await expect(table.update(r.value.report.id, { keyHighlight: 'sửa' }, { overwrite: 'idempotent-set' })).rejects.toBeInstanceOf(DbError);
     await expect(table.remove(r.value.report.id)).rejects.toBeInstanceOf(DbError);
     expect((await h.reports(eventId))[0]?.keyHighlight).toBe(ISSUE.keyHighlight);
+  });
+});
+
+describe('reading an issued report back (L12, BUG-13)', () => {
+  it('a report is read only under its own event: another event\'s URL gets nothing, even for an admin', async () => {
+    const { h, eventId } = await seeded();
+    const r = await h.issue(head, eventId);
+    if (!r.ok) throw new Error(r.message);
+    const elsewhere = await h.createEvent();
+    expect(await readDailyReport(h.ctx(admin), elsewhere, r.value.report.id)).toBeNull();
+    expect(await printableReport(h.ctx(admin), (await readEvent(h.ctx(admin), elsewhere))!, r.value.report.id)).toBeNull();
+    expect(await readDailyReport(h.ctx(admin), eventId, r.value.report.id)).toEqual(r.value.report);
+  });
+
+  it('the print page of an issued report keeps the event name and date it was issued under', async () => {
+    const { h, eventId } = await seeded();
+    const r = await h.issue(head, eventId);
+    if (!r.ok) throw new Error(r.message);
+    await h.ok(admin, 'progress.updateEvent', { id: eventId, version: h.rows('sce_tcsk_events')[0]!.version as never, patch: { name: 'Tên đã đổi', eventDate: '2026-12-22' as never } });
+    const renamed = (await readEvent(h.ctx(admin), eventId))!;
+    expect(renamed.name).toBe('Tên đã đổi');
+    const printed = await printableReport(h.ctx(head), renamed, r.value.report.id);
+    if (!printed || !('report' in printed)) throw new Error('no report');
+    const doc = dailyReportDocument(printed.report, orgIdentity(SETTINGS));
+    expect(doc.subject).toBe('Tiến độ hằng ngày công tác chuẩn bị tổ chức Hội nghị Xúc tiến Đầu tư 2026');
+    expect(doc.milestone).toBe('(Mốc T-5: còn 5 ngày làm việc trước ngày khai mạc (15/12/2026))');
   });
 });

@@ -12,6 +12,14 @@ const S = 'src/features/reports/server/screen-data.ts';
 const C = 'src/features/reports/server/commands.ts';
 const M = 'src/features/reports/manifest.ts';
 const R = 'src/features/reports/domain/report.ts';
+const RD = 'src/features/reports/server/reads.ts';
+const SCR = 'src/features/reports/components/reports-screen.tsx';
+const DT = 'src/features/reports/components/daily-tab.tsx';
+const BID = 'src/features/reports/components/bidding-tab.tsx';
+const PR = 'src/features/reports/components/print-daily-report.tsx';
+const SQL_DERIVED = 'supabase/migrations/202611041410_reports_issue_derived.sql';
+const SQL_LEAD = 'supabase/migrations/202611041420_reports_issue_lead_department.sql';
+const SQL_CODE = 'supabase/migrations/202611041430_reports_package_code_folded.sql';
 
 const mutations = [
   ['savings sign flipped', F, '((budget - winning) / budget)', '((winning - budget) / budget)'],
@@ -41,6 +49,26 @@ const mutations = [
   ['code uniqueness case-sensitive', C, '=== key);', '=== code.trim());'],
   ['chuyên viên may issue', M, "'reports.issue': { label: 'Ban hành báo cáo hàng ngày', scope: 'event', grants: { admin: 'all', leader: 'all', dept_leader: 'department', user: 'none' } }", "'reports.issue': { label: 'Ban hành báo cáo hàng ngày', scope: 'event', grants: { admin: 'all', leader: 'all', dept_leader: 'department', user: 'department' } }"],
   ['quota missed worded as reached', R, 'const outcome = f.quotaReached', 'const outcome = true'],
+  ['next-day race recovery dropped (L6)', I, '[today, addCalendarDays(today, 1)]', '[today]'],
+  ['readDailyReport ignores the event (L12)', RD, 'return row && row.eventId === eventId ? toReport(row) : null;', 'return row ? toReport(row) : null;'],
+  ['snapshot milestone from the stored working days only', R, "'workdaysToEvent'>): string {\n  const days = r.eventDate ? calendarDaysBetween(r.reportDate, r.eventDate) : r.workdaysToEvent;", "'workdaysToEvent'>): string {\n  const days = r.workdaysToEvent;"],
+  ['past starts a day late', F, "if (calendarDays < 0) return { kind: 'past'", "if (calendarDays < -1) return { kind: 'past'"],
+  ['updatePackage skips the code check', C, 'NO_PACKAGE);\n    await assertCodeFree(ctx, eventId, id, draft.code);', 'NO_PACKAGE);'],
+  ['issued print takes the live event name', S, 'return report ? { report, preview: false } : null;', 'return report ? { report: { ...report, eventName: event.name }, preview: false } : null;'],
+  ['issued Word export takes the live event name', DT, 'onClick={() => toWord(issuedToday)}', 'onClick={() => toWord({ ...issuedToday, eventName: data.event.name })}'],
+  ['bidding caption on the full dự toán (M3)', SCR, 'trên dự toán ${formatVnd(f.biddingAwardedBudget', 'trên dự toán ${formatVnd(f.biddingBudget'],
+  ['Chưa đến hạn counts the overdue steps (BUG-06)', SCR, '${f.stepsTotal - f.stepsDone - f.overdueSteps}', '${f.stepsTotal - f.stepsDone}'],
+  ['quota percent as quota ÷ target (L9)', R, "f.guestQuotaPercent > 0 ? `, tức ${f.guestQuotaPercent}%` : ''", "f.guestTarget > 0 ? `, tức ${Math.round((f.guestQuota / f.guestTarget) * 100)}%` : ''"],
+  ['target 0 worded as a reached quota (L9)', R, 'if (f.guestTarget <= 0) return', 'if (f.guestTarget < 0) return'],
+  ['Kính gửi in letterhead capitals (L9)', R, '`${agencyName(org.parentAgency, org.city)};`', '`${org.parentAgency};`'],
+  ['export footer with the raw signed rate (L10)', BID, 'footer: { lines: [biddingTotalsSentence(totals)] },', 'footer: { lines: [`tiết kiệm ${formatPercent2(totals.savingsPercent)}`] },'],
+  ['export cell a raw number (L10)', BID, 'value: (p) => exportedSaving(p) }', 'value: (p) => (p.winningPrice === null ? null : savingsPercent(p.budget, p.winningPrice)) }'],
+  ['print body at 13 pt (L8)', PR, 'font-size: ${ND30_BODY_PT}pt;', 'font-size: 13pt;'],
+  ['trigger keeps the forged event name (H1)', SQL_DERIVED, '  new.event_name := ev.name;\n', ''],
+  ['trigger keeps the forged T-n (H1)', SQL_DERIVED, '  new.workdays_to_event := tcsk.reports_workdays_to_event(ev.event_date, today);\n', ''],
+  ['SQL T-n over (today, T0] (H1, M4)', SQL_DERIVED, 'generate_series(least(today, event_date), greatest(today, event_date) - 1,', 'generate_series(least(today, event_date) + 1, greatest(today, event_date),'],
+  ['insert policy back to lead + supporting (M2)', SQL_LEAD, 'with check (tcsk.reports_can_issue(event_id))', "with check (tcsk.has_event_perm('reports.issue', event_id))"],
+  ['code index on lower(code) only (L11)', SQL_CODE, '(event_id, tcsk.reports_code_key(code));', '(event_id, lower(code));'],
 ];
 
 const results = [];
