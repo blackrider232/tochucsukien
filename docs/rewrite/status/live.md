@@ -173,7 +173,7 @@ What a direct write still does, because only an RPC could stop it (change reques
 - It deletes a check-in, or a token, with no audit row.
 - It copies a check-in into a token and restores it under the same user within the windows. That writes back the same values the check-in already had, so nothing is forged.
 
-The trigger also trusts the app server's clock: the app stamps the check-in time itself, and the database accepts it from 2 minutes before to 1 minute after its own `now()`. An app server whose clock runs more than 2 minutes behind the database, or more than 1 minute ahead of it (network delay eats into the behind side), has every check-in refused.
+The trigger also trusts the app server's clock: the app stamps the check-in time itself, and the database accepts it from 2 minutes before to 1 minute after its own `now()`. An app server whose clock runs more than 2 minutes behind the database, or more than 1 minute ahead of it (network delay eats into the behind side), has every check-in refused. Such a refusal carries its own SQLSTATE (22008, constraint name `live_clock_skew`, which core's `translatePgError` reads as a constraint), not 42501, and the check-in, gift and walk-in commands answer "Đồng hồ máy chủ lệch so với cơ sở dữ liệu…" instead of a permission error. A person who forges a time gets the same answer, since the database cannot tell the two apart.
 
 ## Not verified
 

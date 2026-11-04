@@ -3,6 +3,11 @@
 --   * a check-in row stays with its guest: an UPDATE that moves it to another
 --     guest, who may never have come or may have declined, is refused. (The
 --     core stamp trigger already holds event_id; nothing held guest_id.)
+--   * a time outside the window (2 minutes behind, 1 minute ahead of the
+--     database clock) is refused with SQLSTATE 22008 and the constraint name
+--     live_clock_skew in the detail, not 42501, so the app can tell a skewed
+--     server clock from a permission refusal. 22008 is one of the codes
+--     core's translatePgError reads as a constraint, with that name.
 -- Idempotent: create or replace, drop trigger if exists.
 
 create or replace function tcsk.live_checkin_guard() returns trigger
@@ -42,11 +47,11 @@ begin
       raise exception 'a check-in is recorded by the signed-in user' using errcode = '42501';
     end if;
     if new.checked_in_at not between fresh_from and fresh_to then
-      raise exception 'a check-in is recorded at the current time' using errcode = '42501';
+      raise exception 'a check-in is recorded at the current time' using errcode = '22008', detail = 'constraint "live_clock_skew"';
     end if;
   end if;
   if gift_changed and new.gift_given_at is not null and new.gift_given_at not between fresh_from and fresh_to then
-    raise exception 'a gift is recorded at the current time' using errcode = '42501';
+    raise exception 'a gift is recorded at the current time' using errcode = '22008', detail = 'constraint "live_clock_skew"';
   end if;
   return new;
 end $$;

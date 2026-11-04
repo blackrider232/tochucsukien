@@ -76,6 +76,21 @@ describe('a desk user writing check-ins directly', () => {
     expect(await checkinOf(g)).toBeUndefined();
   });
 
+  it('refuses a time outside the window with its own SQLSTATE and constraint name, so the app can say "clock", not "forbidden"', async () => {
+    const g = await addGuest('Ngô Thị Giờ');
+    const skewed = { code: '22008', detail: expect.stringContaining('constraint "live_clock_skew"') };
+    const insert = (at: string, gift = 'null') => asA(`insert into public.sce_tcsk_checkins (event_id, guest_id, checked_in_at, checked_in_by, gift_given_at) values ('${eventId}', '${g}', ${at}, '${A}', ${gift})`);
+    await expect(insert(`now() - interval '3 minutes'`)).rejects.toMatchObject(skewed);
+    await expect(insert(`now() + interval '2 minutes'`)).rejects.toMatchObject(skewed);
+    await expect(insert(`now()`, `now() + interval '2 minutes'`)).rejects.toMatchObject(skewed);
+    // The window is 2 minutes behind and 1 minute ahead of the database clock.
+    await insert(`now() - interval '90 seconds'`);
+    await asA(`delete from public.sce_tcsk_checkins where guest_id = '${g}'`);
+    await insert(`now() + interval '30 seconds'`);
+    // A permission refusal keeps 42501.
+    await expect(asA(`insert into public.sce_tcsk_checkins (event_id, guest_id, checked_in_at, checked_in_by) values ('${eventId}', '${await addGuest('Phan Văn Ký')}', now(), '${B}')`)).rejects.toMatchObject({ code: '42501' });
+  });
+
   it('cannot move a check-in or a gift into the past afterwards', async () => {
     const g = await addGuest('Trần Văn Bình');
     await asA(`insert into public.sce_tcsk_checkins (event_id, guest_id, checked_in_at, desk) values ('${eventId}', '${g}', now(), 'Bàn 1')`);

@@ -16,14 +16,14 @@ import { readEvent } from '@/features/progress/server';
 import { matchScan, type ScanOutcome } from '../contract';
 import { formatAt } from '../domain/desk';
 import { deskSchema, eventIdSchema, guestIdSchema, instantSchema, undoTokenIdSchema, type UndoTokenId } from '../domain/schemas';
-import { asSchema, audit, checkinWrite, declinedMessage, guestOf, inverse, readLive, who, type Spec } from './command-kit';
+import { asSchema, audit, checkinWrite, declinedMessage, guestOf, inverse, isClockSkew, readLive, stampedWrite, who, type Spec } from './command-kit';
 import { toCheckIn } from './reads';
 import { checkinsTable, undoTokensTable, type CheckinRow } from './tables';
 
 const currentCheckin = async (ctx: CommandContext, eventId: EventId, guestId: GuestId): Promise<CheckinRow | null> =>
   (await ctx.db.table(checkinsTable).list({ eventId, guestId }))[0] ?? null;
 
-const lostRace = (e: unknown) => e instanceof DbError && (e.kind === 'constraint' || e.kind === 'conflict');
+const lostRace = (e: unknown) => e instanceof DbError && (e.kind === 'constraint' || e.kind === 'conflict') && !isClockSkew(e);
 
 /** Sets checkedInAt once. The unique (event, guest) key decides between two desks; the loser reads the winner's time. */
 async function recordCheckIn(ctx: CommandContext, eventId: EventId, guest: RosterEntry, desk: string | null): Promise<{ already: boolean; row: CheckinRow }> {
@@ -33,9 +33,9 @@ async function recordCheckIn(ctx: CommandContext, eventId: EventId, guest: Roste
   const table = ctx.db.table(checkinsTable);
   try {
     // A row without a time is a gift recorded before arrival by the legacy app.
-    const row = existing
-      ? await table.update(existing.id, values, { expectedVersion: existing.version })
-      : await table.insert({ eventId, guestId: guest.id, giftGivenAt: null, ...values });
+    const row = await stampedWrite(existing
+      ? table.update(existing.id, values, { expectedVersion: existing.version })
+      : table.insert({ eventId, guestId: guest.id, giftGivenAt: null, ...values }));
     return { already: false, row };
   } catch (e) {
     if (!lostRace(e)) throw e;
@@ -236,7 +236,7 @@ export const setGift: Spec<'live.setGift'> = {
     if (given) {
       if (!row?.checkedInAt) throw new CommandError('invalid', `${guest.name} chưa check-in. Check-in trước khi phát túi quà & tài liệu.`);
       if (row.giftGivenAt) return unchanged('đã phát túi quà & tài liệu từ trước');
-      const after = await table.update(row.id, { giftGivenAt: ctx.now }, { expectedVersion: row.version });
+      const after = await stampedWrite(table.update(row.id, { giftGivenAt: ctx.now }, { expectedVersion: row.version }));
       return {
         value: toCheckIn(after),
         audit: audit('PHÁT QUÀ', `Đã phát túi quà & tài liệu: ${who(guest)}`, eventId, 'checkin', guestId),

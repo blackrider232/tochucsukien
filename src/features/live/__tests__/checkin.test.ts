@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DbError, type Db } from '@/core/db';
-import type { Instant } from '@/core/brand';
+import { translatePgError } from '@/core/db/supabase';
+import { newId, type Instant } from '@/core/brand';
 import { testActor, XTDT } from '@/core/testing/actors';
 import { checkinsTable } from '../server/tables';
 import { admin, desk, harness, interleave, NOW } from './harness';
@@ -167,6 +168,50 @@ describe('cancel, restore and the welcome pack', () => {
     expect(again.inverse).toBeUndefined();
     await h.undo(desk, g.inverse);
     expect((await h.checkins(eventId))[0]!.giftGivenAt).toBeNull();
+  });
+});
+
+describe('a server clock the database refuses', () => {
+  const SKEW = 'Đồng hồ máy chủ lệch so với cơ sở dữ liệu';
+  /** What the guard's SQLSTATE 22008 becomes in core's translatePgError, thrown by the given writes of the check-in table. */
+  const skewed = (methods: ReadonlyArray<'insert' | 'update'>) => (db: Db): Db => ({
+    rpc: db.rpc.bind(db),
+    table(def) {
+      const t = db.table(def);
+      if (def.name !== 'sce_tcsk_checkins') return t;
+      const refuse = async () => { throw translatePgError({ code: '22008', message: 'a check-in is recorded at the current time', details: 'constraint "live_clock_skew"' }, 400, def.name); };
+      return { ...t, ...Object.fromEntries(methods.map((m) => [m, refuse])) } as typeof t;
+    },
+  });
+
+  it('translatePgError names the guard\'s constraint', () => {
+    expect(translatePgError({ code: '22008', message: 'm', details: 'constraint "live_clock_skew"' }, 400)).toMatchObject({ kind: 'constraint', detail: { constraint: 'live_clock_skew' } });
+  });
+
+  it('a check-in the database refuses for its time says the clock is off, not that the user may not', async () => {
+    const { h, eventId, guest } = await setup();
+    const r = await h.runWith(desk, skewed(['insert']), 'live.checkIn', { eventId, guestId: guest.id, desk: null });
+    expect(r).toMatchObject({ ok: false, kind: 'conflict' });
+    expect(r.ok ? '' : r.message).toContain(SKEW);
+    expect(await h.checkins(eventId)).toEqual([]);
+  });
+
+  it('a gift, a confirmed declined check-in and a walk-in say the same', async () => {
+    const { h, eventId, guest } = await setup();
+    await h.ok(desk, 'live.checkIn', { eventId, guestId: guest.id, desk: null });
+    const gift = await h.runWith(desk, skewed(['update']), 'live.setGift', { eventId, guestId: guest.id, given: true });
+    expect(gift).toMatchObject({ ok: false, kind: 'conflict' });
+    expect(gift.ok ? '' : gift.message).toContain(SKEW);
+    const declined = await h.addGuest(eventId, { name: 'Lê Thị Vắng', rsvpStatus: 'declined' });
+    const confirm = await h.runWith(desk, skewed(['insert']), 'live.checkInDeclined', { eventId, guestId: declined.id, desk: null });
+    expect(confirm).toMatchObject({ ok: false, kind: 'conflict' });
+    expect(confirm.ok ? '' : confirm.message).toContain(SKEW);
+    const walk = await h.runWith(desk, skewed(['insert']), 'live.walkIn', {
+      eventId, guestId: newId<'Guest'>(), guest: { name: 'Khách Mới', group: 'DoanhNghiep', title: '', organization: 'X', phone: '', hasBanquet: false },
+      zoneKey: null, confirmVipZone: false, giftGiven: false, allowDuplicate: true, desk: null,
+    });
+    expect(walk).toMatchObject({ ok: false, kind: 'conflict' });
+    expect(walk.ok ? '' : walk.message).toContain(SKEW);
   });
 });
 
