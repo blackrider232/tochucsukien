@@ -141,6 +141,13 @@ export function setNewPassword(password: string): Promise<FlowResult> {
 }
 
 const WRONG_CURRENT_PASSWORD = 'Mật khẩu hiện tại không đúng.';
+const GOOGLE_ONLY = 'Tài khoản này đăng nhập bằng Google và chưa có mật khẩu. Để đặt mật khẩu lần đầu, đăng xuất rồi chọn "Quên mật khẩu" ở trang đăng nhập và mở liên kết gửi về email.';
+
+/** True when GoTrue lists the account's sign-in methods and a password is not among them. */
+function withoutPassword(user: { app_metadata?: { providers?: unknown }; identities?: ReadonlyArray<{ provider: string }> }): boolean {
+  const providers = user.identities?.map((i) => i.provider) ?? (Array.isArray(user.app_metadata?.providers) ? (user.app_metadata.providers as string[]) : []);
+  return providers.length > 0 && !providers.includes('email');
+}
 
 /**
  * Signs in with the current password on a throwaway client that keeps no session, writes no cookie or storage
@@ -158,7 +165,10 @@ async function currentPasswordHolds(email: string, password: string): Promise<Fl
     const passThrough = error.code === 'over_request_rate_limit' || error.name === 'AuthRetryableFetchError' || error.status === 0;
     return passThrough ? failed(error) : { ok: false, message: WRONG_CURRENT_PASSWORD };
   }
-  await check.auth.signOut({ scope: 'local' });
+  // The check's own session stays valid on the server until it is signed out; one retry, then the log keeps it.
+  const first = await check.auth.signOut({ scope: 'local' });
+  const { error: notClosed } = first.error ? await check.auth.signOut({ scope: 'local' }) : first;
+  if (notClosed) console.error('password check: its sign-in session could not be closed', { code: notClosed.code, status: notClosed.status });
   return { ok: true, value: null };
 }
 
@@ -172,6 +182,7 @@ export function changePassword(current: string, password: string): Promise<FlowR
     const { data, error } = await a.getUser();
     if (error) return failed(error);
     if (!data.user?.email) return { ok: false, message: MESSAGES.session_not_found! };
+    if (withoutPassword(data.user)) return { ok: false, message: GOOGLE_ONLY };
     const checked = await currentPasswordHolds(data.user.email, current);
     if (!checked.ok) return checked;
     const updated = await a.updateUser({ password, current_password: current });
