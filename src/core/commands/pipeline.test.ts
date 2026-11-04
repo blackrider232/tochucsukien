@@ -61,6 +61,12 @@ const specs: Record<string, AnyCommandSpec> = {
     authorize: { perm: 'guests.read', global: true },
     run: async () => ({ value: 1, audit: null }),
   },
+  'guests.testAuditedInSql': {
+    kind: 'mutation',
+    input: z.object({}),
+    authorize: { perm: 'guests.read', global: true },
+    run: async () => ({ value: 1, audit: 'sql' }),
+  },
   'guests.testCount': {
     kind: 'query',
     input: z.object({ eventId: z.string() }),
@@ -184,6 +190,23 @@ describe('pipeline: input, audit, errors', () => {
     expect(failureOf(await w.run(testActor('user', XTDT), 'guests.testNoAudit', {}))).toMatchObject({ kind: 'unavailable' });
     expect(spy).toHaveBeenCalled();
     spy.mockRestore();
+  });
+
+  it('a mutation whose SQL function wrote the audit row gets no second row', async () => {
+    const w = world();
+    expect(await w.run(testActor('user', XTDT), 'guests.testAuditedInSql', {})).toEqual({ ok: true, value: 1 });
+    expect(w.audit()).toEqual([]);
+  });
+
+  it('the audit row is refused when the caller does not hold the command’s permission on that event', async () => {
+    const w = world();
+    const spec = specs['progress.testDelete']!;
+    vi.mocked(spec.run).mockResolvedValueOnce({ value: null, audit: { action: 'XÓA', summary: '', eventId: E2, entity: null, entityId: null } });
+    const calls = vi.mocked(spec.run).mock.calls.length;
+    const r = await w.run(testActor('dept_leader', XTDT), 'progress.testDelete', { eventId: E1 });
+    expect(vi.mocked(spec.run).mock.calls.length).toBe(calls + 1);
+    expect(r).toMatchObject({ ok: false, kind: 'forbidden' });
+    expect(w.audit()).toEqual([]);
   });
 
   it('queries need no audit', async () => {
