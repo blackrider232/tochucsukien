@@ -87,3 +87,18 @@ describe('reads go through RLS', () => {
     expect(seen.map((rows) => rows.length)).toEqual([0, 0, 0, 0]);
   });
 });
+
+describe('the permission each command checks and audits under', () => {
+  // reports.read and reports.write grant the same roles today, so no actor tells them apart; the declared permission is
+  // what the pipeline checks and what sce_tcsk_audit_command re-checks in SQL, so it is pinned here.
+  it('edits are reports.write, issuing is reports.issue, all on the event', async () => {
+    const { commands } = await import('../server/commands');
+    const perms = Object.fromEntries(Object.entries(commands).map(([verb, spec]) => [verb, 'event' in spec.authorize ? spec.authorize.perm : 'not event-scoped']));
+    expect(perms).toEqual({
+      createClipping: 'reports.write', updateClipping: 'reports.write', deleteClipping: 'reports.write',
+      createPackage: 'reports.write', updatePackage: 'reports.write', deletePackage: 'reports.write',
+      createPressRelease: 'reports.write', updatePressRelease: 'reports.write', deletePressRelease: 'reports.write',
+      issueDailyReport: 'reports.issue',
+    });
+  });
+});
