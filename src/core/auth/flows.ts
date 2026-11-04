@@ -98,6 +98,14 @@ export function signInWithPassword(email: string, password: string): Promise<Flo
   });
 }
 
+/** Leaves for Google; /auth/callback exchanges the code. A first Google sign-in gets a pending profile like any sign-up. */
+export function signInWithGoogle(next: string): Promise<FlowResult> {
+  return attempt(async (a) => {
+    const { error } = await a.signInWithOAuth({ provider: 'google', options: { redirectTo: callbackUrl(next) } });
+    return error ? failed(error) : { ok: true, value: null };
+  });
+}
+
 /**
  * Metadata carries only the display name and a self-registerable department, which
  * the trigger re-checks against sce_tcsk_departments. 'signed_in' when the project
