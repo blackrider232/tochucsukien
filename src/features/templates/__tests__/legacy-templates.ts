@@ -39,6 +39,7 @@ export function loadLegacyTemplates(): LegacyTemplate[] {
 }
 
 const PRE_RENAME = 'Tên cũ của cơ quan trong câu văn; thay bằng tên hiện hành (câu văn cần dạng viết thường nên không dùng thẻ).';
+const WEEKDAY = 'Giữ thứ trong tuần như legacy ("Thứ Hai, 09/11/2026"), viết đúng thể thức: thứ, ngày dd/mm/yyyy, bằng thẻ {{THU_TO_CHUC}}.';
 const LETTERHEAD = 'Tên cơ quan lấy từ cài đặt hệ thống (orgIdentity), không viết cứng.';
 
 export const LEGACY_FIXES: ReadonlyArray<LegacyFix> = [
@@ -65,6 +66,11 @@ export const LEGACY_FIXES: ReadonlyArray<LegacyFix> = [
   { bug: 'B37', id: 'form_congvan_ubnd_phoihop', field: 'content', from: 'Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp chủ động', to: 'Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp Hà Nội chủ động', count: 1, why: PRE_RENAME },
   { bug: 'B37', id: 'form_congvan_mou_ngoaivu', field: 'content', from: 'giữa Trung tâm Xúc tiến Đầu tư SCE và', to: 'giữa Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp Hà Nội (SCE) và', count: 1, why: PRE_RENAME },
   { bug: 'B37', id: 'form_thongcao_baochi', field: 'content', from: 'Tổ Truyền thông - Trung tâm Xúc tiến Đầu tư SCE<br>', to: 'Tổ Truyền thông - Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp Hà Nội (SCE)<br>', count: 1, why: PRE_RENAME },
+  // Applied in this order: the lowercase form first, because the capital form's result contains it.
+  { bug: 'B13', id: '*', field: 'content', from: 'ngày {{NGAY_TO_CHUC}}', to: '{{THU_TO_CHUC}}, ngày {{NGAY_TO_CHUC}}', count: 3, why: WEEKDAY },
+  { bug: 'B13', id: '*', field: 'content', from: 'Ngày {{NGAY_TO_CHUC}}', to: '{{THU_TO_CHUC}}, ngày {{NGAY_TO_CHUC}}', count: 4, why: WEEKDAY },
+  { bug: 'B13', id: '*', field: 'content', from: 'Ngày <strong>{{NGAY_TO_CHUC}}</strong>', to: '<strong>{{THU_TO_CHUC}}, ngày {{NGAY_TO_CHUC}}</strong>', count: 2, why: WEEKDAY },
+  { bug: 'B13', id: '*', field: 'content', from: 'ngày <strong>{{NGAY_TO_CHUC}}</strong>', to: '<strong>{{THU_TO_CHUC}}, ngày {{NGAY_TO_CHUC}}</strong>', count: 3, why: WEEKDAY },
   { bug: 'UI-5', id: 'form_giaymoi_vip', field: 'content', from: '<li>⏰ <strong>', to: '<li><strong>', count: 1, why: 'Biểu tượng cảm xúc không thuộc văn bản hành chính và bị cấm trong mã nguồn (quy tắc UI 5).' },
   { bug: 'UI-5', id: 'form_giaymoi_vip', field: 'content', from: '<li>📍 <strong>', to: '<li><strong>', count: 1, why: 'Biểu tượng cảm xúc không thuộc văn bản hành chính và bị cấm trong mã nguồn (quy tắc UI 5).' },
   { bug: 'UI-5', id: 'form_giaymoi_vip', field: 'content', from: '<li>👔 <strong>', to: '<li><strong>', count: 1, why: 'Biểu tượng cảm xúc không thuộc văn bản hành chính và bị cấm trong mã nguồn (quy tắc UI 5).' },

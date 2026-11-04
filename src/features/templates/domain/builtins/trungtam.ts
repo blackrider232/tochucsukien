@@ -101,7 +101,7 @@ export const TRUNGTAM_TEMPLATES: ReadonlyArray<BuiltinTemplate> = [
     <p style="text-indent: 30px; text-align: justify;">
         <strong>Điều 1.</strong> Ban hành kèm theo Quyết định này Bảng phân công nhiệm vụ chi tiết và tiến độ triển khai công tác tổ chức sự kiện <strong>{{TEN_SU_KIEN}}</strong>.<br>
         - Đơn vị chủ trì: Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp Hà Nội (SCE).<br>
-        - Thời gian tổ chức: Ngày <strong>{{NGAY_TO_CHUC}}</strong> (Khai mạc: <strong>{{GIO_KHAI_MAC}}</strong>).<br>
+        - Thời gian tổ chức: <strong>{{THU_TO_CHUC}}, ngày {{NGAY_TO_CHUC}}</strong> (Khai mạc: <strong>{{GIO_KHAI_MAC}}</strong>).<br>
         - Địa điểm: <strong>{{DIA_DIEM}}</strong>.<br>
         - Quy mô đại biểu dự kiến: <strong>{{SO_KHACH_DU_KIEN}}</strong> đại biểu.
     </p>
@@ -233,7 +233,7 @@ export const TRUNGTAM_TEMPLATES: ReadonlyArray<BuiltinTemplate> = [
             {{TEN_SU_KIEN}}
         </p>
         <ul style="list-style-type: none; padding-left: 20px; line-height: 2;">
-            <li><strong>Thời gian:</strong> {{GIO_KHAI_MAC}}, ngày <strong>{{NGAY_TO_CHUC}}</strong></li>
+            <li><strong>Thời gian:</strong> {{GIO_KHAI_MAC}}, <strong>{{THU_TO_CHUC}}, ngày {{NGAY_TO_CHUC}}</strong></li>
             <li><strong>Địa điểm:</strong> {{DIA_DIEM}}</li>
             <li><strong>Trang phục:</strong> Trang phục công sở lịch sự / Complet</li>
             <li><strong>Đón tiếp VIP:</strong> Ban Tổ chức bố trí Lễ tân đón tiếp Quý đại biểu tại Phòng Khánh tiết VIP trước 30 phút</li>
@@ -266,7 +266,7 @@ export const TRUNGTAM_TEMPLATES: ReadonlyArray<BuiltinTemplate> = [
         <p style="font-size: 11pt; text-transform: uppercase; font-weight: bold; color: #78350f; margin: 0;">UBND THÀNH PHỐ HÀ NỘI - {{TEN_CO_QUAN}}</p>
         <h1 style="font-size: 26pt; font-weight: bold; color: #991b1b; margin: 15px 0; letter-spacing: 2px;">XE ƯU TIÊN (VIP)</h1>
         <p style="font-size: 13pt; font-weight: bold; color: #1e3a8a; margin: 5px 0;">{{TEN_SU_KIEN}}</p>
-        <p style="font-size: 11pt; margin: 5px 0;">Ngày {{NGAY_TO_CHUC}} • {{DIA_DIEM}}</p>
+        <p style="font-size: 11pt; margin: 5px 0;">{{THU_TO_CHUC}}, ngày {{NGAY_TO_CHUC}} • {{DIA_DIEM}}</p>
         <div style="background-color: #b45309; color: white; padding: 8px; font-weight: bold; font-size: 13pt; border-radius: 6px; margin: 15px auto; width: 85%;">
             ĐỖ TẠI SẢNH DANH DỰ (SẢNH CHÍNH)
         </div>
@@ -282,7 +282,7 @@ export const TRUNGTAM_TEMPLATES: ReadonlyArray<BuiltinTemplate> = [
     <div style="text-align: center; margin-bottom: 20px;">
         <h3 style="font-size: 15pt; font-weight: bold; text-transform: uppercase; margin: 0;">BIÊN BẢN BÀN GIAO THẺ ĐẠI BIỂU VÀ ẤN PHẨM SỰ KIỆN</h3>
         <p style="margin: 4px 0; font-weight: bold; color: #1e3a8a;">Sự kiện: {{TEN_SU_KIEN}}</p>
-        <p style="margin: 0; font-style: italic; font-size: 11pt;">Thời điểm bàn giao: Lúc 06h30 ngày {{NGAY_TO_CHUC}} tại Bàn Lễ tân</p>
+        <p style="margin: 0; font-style: italic; font-size: 11pt;">Thời điểm bàn giao: Lúc 06h30 {{THU_TO_CHUC}}, ngày {{NGAY_TO_CHUC}} tại Bàn Lễ tân</p>
     </div>
 
     <p><strong>I. Đại diện các bên bàn giao:</strong></p>
@@ -431,7 +431,7 @@ export const TRUNGTAM_TEMPLATES: ReadonlyArray<BuiltinTemplate> = [
     <div style="text-align: center; margin-bottom: 20px;">
         <h3 style="font-size: 16pt; font-weight: bold; text-transform: uppercase; margin: 0;">KỊCH BẢN ĐIỀU HÀNH TỔNG THỂ & LỜI DẪN MC (RUN-SHEET)</h3>
         <p style="margin: 4px 0; font-weight: bold; color: #1e3a8a;">{{TEN_SU_KIEN}}</p>
-        <p style="margin: 0; font-style: italic; font-size: 11pt;">Khung giờ: {{GIO_KHAI_MAC}} ngày {{NGAY_TO_CHUC}} tại {{DIA_DIEM}}</p>
+        <p style="margin: 0; font-style: italic; font-size: 11pt;">Khung giờ: {{GIO_KHAI_MAC}} {{THU_TO_CHUC}}, ngày {{NGAY_TO_CHUC}} tại {{DIA_DIEM}}</p>
     </div>
 
     <table style="width: 100%; border-collapse: collapse; font-size: 11pt;" border="1">
@@ -518,7 +518,7 @@ export const TRUNGTAM_TEMPLATES: ReadonlyArray<BuiltinTemplate> = [
     </div>
 
     <p style="text-indent: 30px; text-align: justify;">
-        Ngày <strong>{{NGAY_TO_CHUC}}</strong>, tại <strong>{{DIA_DIEM}}</strong>, Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp Hà Nội (SCE) tổ chức chương trình <strong>{{TEN_SU_KIEN}}</strong> với sự tham gia của hơn {{SO_KHACH_DU_KIEN}} đại biểu là lãnh đạo các Bộ ngành Trung ương, UBND TP Hà Nội, các tổ chức quốc tế và cộng đồng doanh nghiệp trong và ngoài nước.
+        <strong>{{THU_TO_CHUC}}, ngày {{NGAY_TO_CHUC}}</strong>, tại <strong>{{DIA_DIEM}}</strong>, Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp Hà Nội (SCE) tổ chức chương trình <strong>{{TEN_SU_KIEN}}</strong> với sự tham gia của hơn {{SO_KHACH_DU_KIEN}} đại biểu là lãnh đạo các Bộ ngành Trung ương, UBND TP Hà Nội, các tổ chức quốc tế và cộng đồng doanh nghiệp trong và ngoài nước.
     </p>
 
     <p style="font-weight: bold; margin-top: 15px;">Mục tiêu và điểm nhấn chính của sự kiện:</p>
@@ -784,7 +784,7 @@ export const TRUNGTAM_TEMPLATES: ReadonlyArray<BuiltinTemplate> = [
     </p>
 
     <p style="text-indent: 30px; text-align: justify;">
-        Ngày {{NGAY_TO_CHUC}}, chương trình <strong>{{TEN_SU_KIEN}}</strong> do Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp Hà Nội tổ chức đã diễn ra thành công tốt đẹp tại {{DIA_DIEM}}.
+        {{THU_TO_CHUC}}, ngày {{NGAY_TO_CHUC}}, chương trình <strong>{{TEN_SU_KIEN}}</strong> do Trung tâm Xúc tiến Đầu tư và Hỗ trợ Doanh nghiệp Hà Nội tổ chức đã diễn ra thành công tốt đẹp tại {{DIA_DIEM}}.
     </p>
     <p style="text-indent: 30px; text-align: justify;">
         Ban Tổ chức xin trân trọng gửi lời cảm ơn sâu sắc nhất tới sự hiện diện quý báu, những ý kiến đóng góp tâm huyết và sự đồng hành nhiệt tình của Quý đại biểu. Sự tham gia tích cực của Quý vị là nhân tố quyết định tạo nên thành công trọn vẹn của chương trình.
