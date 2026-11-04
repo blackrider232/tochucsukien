@@ -74,7 +74,7 @@ describe('live.checkIn', () => {
     expect(second).toMatchObject({ ok: true, value: { already: false, checkIn: { checkedInAt: LATER, desk: 'Bàn 2' } } });
     expect(first).toMatchObject({ ok: true, value: { already: true, checkIn: { checkedInAt: LATER, desk: 'Bàn 2' } } });
     expect(await h.checkins(eventId)).toHaveLength(1);
-    expect(actions(h).filter((a) => a.includes('CHECK-IN'))).toEqual(['CHECK-IN ĐẠI BIỂU', 'QUÉT LẠI CHECK-IN']);
+    expect(actions(h).filter((a) => String(a).includes('CHECK-IN'))).toEqual(['CHECK-IN ĐẠI BIỂU', 'QUÉT LẠI CHECK-IN']);
   });
 });
 
