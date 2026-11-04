@@ -23,7 +23,7 @@ export const liveManifest = defineFeature({
     },
   ],
   subTabs: [
-    { parentNav: 'live', id: 'checkin', order: 10, label: 'Check-in', href: { kind: 'event', segment: 'live' }, permission: 'live.read' },
+    { parentNav: 'live', id: 'checkin', order: 10, label: 'Bàn lễ tân check-in', href: { kind: 'event', segment: 'live' }, permission: 'live.read' },
     { parentNav: 'live', id: 'duty', order: 20, label: 'Phân công ca trực', href: { kind: 'event', segment: 'live/duty' }, permission: 'live.read' },
     { parentNav: 'live', id: 'incidents', order: 30, label: 'Sổ xử lý sự cố', href: { kind: 'event', segment: 'live/incidents' }, permission: 'live.read' },
     { parentNav: 'live', id: 'monitor', order: 40, label: 'Giám sát chỗ ngồi', href: { kind: 'event', segment: 'live/monitor' }, permission: 'live.read' },
