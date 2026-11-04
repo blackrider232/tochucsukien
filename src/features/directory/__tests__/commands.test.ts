@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { newId, type ContactId, type Email, type Version } from '@/core/brand';
+import { commandLookup, runCommand } from '@/core/commands/pipeline';
+import type { Db, Table } from '@/core/db';
+import type { MasterContact } from '../contract';
 import { RESET_PHRASE } from '../domain/schemas';
 import { searchTextOf } from '../domain/search';
 import { SAMPLE_CONTACTS } from '../domain/sample-contacts';
+import { commands } from '../server/commands';
+import { contactsTable, type ContactRow } from '../server/tables';
 import { admin, cid, draft, harness, staff } from './harness';
 
 const auditOf = (h: ReturnType<typeof harness>) => h.audits().map((a) => ({ action: a.action, summary: a.summary }));
@@ -142,6 +147,49 @@ describe('directory.delete and directory.deleteMany', () => {
     expect(await h.undo(admin, r.inverse)).toMatchObject({ ok: true, value: { restored: 0, alreadyThere: 4 } });
     expect(h.rows()).toHaveLength(5);
     expect(last(h).summary).toBe('Khôi phục vào CSDL khách mời 0 đối tượng (4 đã có sẵn)');
+  });
+});
+
+/** A Db on which another admin deletes `victim` just before the bulk delete's own removeWhere runs. */
+const racingDelete = (db: Db, victim: { id: ContactId; version: Version }): Db => ({
+  ...db,
+  table: ((def: unknown) => {
+    const table = db.table(def as typeof contactsTable) as Table<ContactRow>;
+    if (def !== contactsTable) return table;
+    return new Proxy(table, {
+      get: (t, p) =>
+        p === 'removeWhere'
+          ? async (where: Parameters<Table<ContactRow>['removeWhere']>[0]) => {
+              await t.remove(victim.id, { expectedVersion: victim.version });
+              return t.removeWhere(where);
+            }
+          : Reflect.get(t, p),
+    });
+  }) as Db['table'],
+});
+
+describe('the bulk delete audit', () => {
+  it('counts what was really deleted, not what was asked for', async () => {
+    const h = harness();
+    const made: MasterContact[] = [];
+    for (let i = 0; i < 3; i++) made.push(await h.addContact({ name: `Khách ${i}`, organization: `Đơn vị ${i}` }));
+    const ctx = h.ctx(admin);
+    const r = await runCommand({ ...ctx, db: racingDelete(ctx.db, made[0]!) }, commandLookup({ directory: { commands } }), 'directory.deleteMany', {
+      items: made.map((x) => ({ id: x.id, version: x.version })),
+    });
+    expect(r).toMatchObject({ ok: true, value: { deleted: 2 } });
+    expect(last(h).summary).toBe('Xóa khỏi CSDL khách mời 2 đối tượng');
+  });
+
+  it('names the first 20 ids and how many more, not every id', async () => {
+    const h = harness();
+    const made: MasterContact[] = [];
+    for (let i = 0; i < 25; i++) made.push(await h.addContact({ name: `Khách ${i}`, organization: `Đơn vị ${i}` }));
+    await h.ok(admin, 'directory.deleteMany', { items: made.map((x) => ({ id: x.id, version: x.version })) });
+    const [ids, more] = String(last(h).entity_id).split(' ');
+    expect(more).toBe('(+5)');
+    expect(ids!.split(',')).toHaveLength(20);
+    expect(ids!.split(',').every((id) => made.some((x) => x.id === id))).toBe(true);
   });
 });
 

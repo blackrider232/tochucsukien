@@ -50,6 +50,10 @@ const inverse = <K extends Inverse['command']>(command: K, input: InputOf<K>, la
 const audit = (action: string, summary: string, entityId: string | null, eventId: EventId | null = null): AuditEntry => ({ action, summary, eventId, entity: 'master_contact', entityId });
 
 const adminOnly = { perm: 'directory.admin', global: true } as const;
+/** The audit row of a batch names its first ids and how many more; the summary carries the count. */
+const AUDIT_IDS = 20;
+const idsOf = (ids: ReadonlyArray<string>): string | null =>
+  ids.length === 0 ? null : `${ids.slice(0, AUDIT_IDS).join(',')}${ids.length > AUDIT_IDS ? ` (+${ids.length - AUDIT_IDS})` : ''}`;
 const who = (c: Pick<MasterContact, 'name' | 'organization'>) => `"${c.name}" (${c.organization})`;
 
 type Spec<I, O> = CommandSpec<I, O>;
@@ -199,7 +203,7 @@ const deleteMany: Spec<InputOf<'directory.deleteMany'>, { deleted: number }> = {
     for (let i = 0; i < ids.length; i += 100) removed += await ctx.db.table(contactsTable).removeWhere({ id: ids.slice(i, i + 100) });
     return {
       value: { deleted: removed },
-      audit: audit('XÓA ĐỐI TƯỢNG CSDL', `Xóa khỏi CSDL khách mời ${removed} đối tượng`, ids.join(',')),
+      audit: audit('XÓA ĐỐI TƯỢNG CSDL', `Xóa khỏi CSDL khách mời ${removed} đối tượng`, idsOf(ids)),
       inverse: inverse('directory.restore', { contacts: rows.map(snapshotOf) }, `Xóa ${removed} đối tượng`),
     };
   },
@@ -215,7 +219,7 @@ const restore: Spec<InputOf<'directory.restore'>, { restored: number; alreadyThe
     const rows = missing.length > 0 ? await ctx.db.table(contactsTable).insertMany(missing.map((c) => draftRow(c.id, c.draft))) : [];
     return {
       value: { restored: rows.length, alreadyThere: contacts.length - missing.length },
-      audit: audit('KHÔI PHỤC ĐỐI TƯỢNG CSDL', `Khôi phục vào CSDL khách mời ${rows.length} đối tượng${there.size > 0 ? ` (${there.size} đã có sẵn)` : ''}`, rows.map((r) => r.id).join(',') || null),
+      audit: audit('KHÔI PHỤC ĐỐI TƯỢNG CSDL', `Khôi phục vào CSDL khách mời ${rows.length} đối tượng${there.size > 0 ? ` (${there.size} đã có sẵn)` : ''}`, idsOf(rows.map((r) => r.id))),
       ...(rows.length > 0 ? { inverse: deleteInverse(rows, `Khôi phục ${rows.length} đối tượng`) } : {}),
     };
   },
@@ -229,7 +233,7 @@ const importCsv: Spec<InputOf<'directory.importCsv'>, { created: number; skipped
     const { created, skipped } = await insertFresh(ctx, items);
     return {
       value: { created: created.length, skipped },
-      audit: audit('NHẬP CSV VÀO CSDL', `Nhập CSV vào CSDL khách mời: thêm ${created.length}, bỏ qua ${skipped} đối tượng trùng`, created.map((r) => r.id).join(',') || null),
+      audit: audit('NHẬP CSV VÀO CSDL', `Nhập CSV vào CSDL khách mời: thêm ${created.length}, bỏ qua ${skipped} đối tượng trùng`, idsOf(created.map((r) => r.id))),
       ...(created.length > 0 ? { inverse: deleteInverse(created, `Nhập CSV ${created.length} đối tượng`) } : {}),
     };
   },
@@ -243,7 +247,7 @@ const loadSample: Spec<InputOf<'directory.loadSample'>, { created: number; skipp
     const { created, skipped } = await insertFresh(ctx, SAMPLE_CONTACTS.map((draft) => ({ id: newId<'MasterContact'>(), draft })));
     return {
       value: { created: created.length, skipped },
-      audit: audit('NẠP DỮ LIỆU MẪU CSDL', `Nạp dữ liệu mẫu (giả) vào CSDL khách mời: thêm ${created.length}, bỏ qua ${skipped} đã có`, created.map((r) => r.id).join(',') || null),
+      audit: audit('NẠP DỮ LIỆU MẪU CSDL', `Nạp dữ liệu mẫu (giả) vào CSDL khách mời: thêm ${created.length}, bỏ qua ${skipped} đã có`, idsOf(created.map((r) => r.id))),
       ...(created.length > 0 ? { inverse: deleteInverse(created, `Nạp ${created.length} đối tượng mẫu`) } : {}),
     };
   },
