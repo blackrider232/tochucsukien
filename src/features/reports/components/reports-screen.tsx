@@ -51,7 +51,7 @@ export function ReportsScreen({ data, tab }: { data: ReportsScreenData; tab: Rep
           <KpiCard
             label="Tiến độ hoàn thành" value={`${f.progressPercent}%`} icon="list-check" accent="blue"
             progress={{ value: f.stepsDone, max: Math.max(f.stepsTotal, 1) }}
-            caption={`Xong: ${f.stepsDone}/${f.stepsTotal} • Quá hạn: ${f.overdueSteps} • Chưa xong: ${f.stepsTotal - f.stepsDone}`}
+            caption={`Xong: ${f.stepsDone}/${f.stepsTotal} • Quá hạn: ${f.overdueSteps} • Chưa đến hạn: ${f.stepsTotal - f.stepsDone - f.overdueSteps}`}
           />
           <KpiCard
             label="Thư mời so với định mức" value={f.guestsInvited} ofTotal={f.guestQuota} icon="users" accent="emerald"

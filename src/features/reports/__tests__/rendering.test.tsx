@@ -83,7 +83,8 @@ describe('headline numbers', () => {
     expect(screen.getByText('Trong mốc báo cáo hằng ngày')).toBeInTheDocument();
     expect(screen.getByText('Vượt 12,50%')).toBeInTheDocument();
     expect(screen.getByText('Đạt định mức')).toBeInTheDocument();
-    expect(screen.getByText(/Xong: 1\/3 • Quá hạn: 1 • Chưa xong: 2/)).toBeInTheDocument();
+    // T-20 done, T-10 late, T-2 (13/12) not yet due: the three parts add up to the 3 steps (BUG-06).
+    expect(screen.getByText('Xong: 1/3 • Quá hạn: 1 • Chưa đến hạn: 1')).toBeInTheDocument();
   });
 
   it('the bidding card compares the winning prices with the dự toán of the same awarded packages (M3)', () => {
