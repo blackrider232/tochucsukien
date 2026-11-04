@@ -1,6 +1,6 @@
 # Status: feature `comms` (M4c, thư mời, Google Form RSVP, hòm thư gửi)
 
-Branch `t3/bb67c139` (from dev @ 8695afe, on the salvaged `t3/comms-gmail-invites-rsvp-sync-1` @ 322821a). The feature lives in `src/features/comms/`. Routes are `/events/[eventId]/invitations` (compose and send), `/events/[eventId]/invitations/log` (delivery log), `/events/[eventId]/invitations/form` (Google Form), the mailboxes section of `/admin/settings` (a settings slot) and `GET /api/cron/rsvp-sync`. Migration `202611041200_comms_delivery_evidence_and_sync_state.sql`.
+Branch `t3/comms-invites-rsvp-sync` (from dev @ 8695afe, on the salvaged `t3/comms-gmail-invites-rsvp-sync-1` @ 322821a). The feature lives in `src/features/comms/`. Routes are `/events/[eventId]/invitations` (compose and send), `/events/[eventId]/invitations/log` (delivery log), `/events/[eventId]/invitations/form` (Google Form), the mailboxes section of `/admin/settings` (a settings slot) and `GET /api/cron/rsvp-sync`. Migration `202611041200_comms_delivery_evidence_and_sync_state.sql`.
 
 ## What is built
 
