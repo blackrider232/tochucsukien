@@ -31,6 +31,8 @@ Entry points added while implementing:
 
 `src/core/export/` is reserved with a `.gitkeep` and has no sketch yet.
 
+`@/core/dev/mode` and `@/core/dev/runtime` are the dev memory runtime (`SCE_DEV_MEMORY=1 pnpm dev`, never in production). The `sce_dev_role` cookie picks the actor, one process-wide `memoryDb` serves every request, and features add fixtures with an optional `devSeed` on their server record. `/dev/role` switches role and `/dev/reset` reseeds. See `docs/rewrite/dev-runtime.md`.
+
 `/dev/kit` (`src/app/dev/kit`) is the kit gallery. It renders without a session on fixture app context and is a 404 in production.
 
 `src/features/<key>/index.ts` and `server/index.ts` re-export `contract.ts` for now; `server/index.ts` also exports `commands` and `legacyImporter`. The owning worker splits client-safe and server-only exports when it implements the feature.
