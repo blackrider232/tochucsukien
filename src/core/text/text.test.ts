@@ -142,6 +142,36 @@ describe('sanitizeRichHtml', () => {
     expect(sanitizeRichHtml(`<p style="${style}">x</p>`)).toBe('<p>x</p>');
   });
 
+  it.each([
+    ['text in a 4-digit hex with zero alpha', 'color:#0000'],
+    ['text in an 8-digit hex with zero alpha', 'color: #00000000'],
+    ['text in an 8-digit hex with 2 % alpha', 'color:#ff000005'],
+    ['an underline in a hex with zero alpha', 'text-decoration-color:#fff0'],
+    ['text pushed a page away', 'text-indent:99999px'],
+    ['letters spread across the page', 'letter-spacing:500px'],
+    ['words spread across the page', 'word-spacing: 40em'],
+    ['a line taller than any page', 'line-height:100000px'],
+    ['a unitless line height of a page', 'line-height: 900'],
+    ['a block taller than any page', 'height:999999px'],
+    ['a block wider than any page', 'min-width: 5000mm'],
+    ['a block collapsed to nothing', 'width:0;height:0'],
+    ['a container-wide block', 'width:100cqw'],
+    ['a percentage over the whole', 'width: 5000%'],
+    ['a margin that pushes the text away', 'margin:0 0 0 20000px'],
+    ['padding that swamps the page', 'padding: 300mm'],
+    ['a border that fills the page', 'border: 900px solid black'],
+    ['an invisible border colour', 'border-color: transparent'],
+    ['an invisible border in a shorthand', 'border:2px solid transparent'],
+    ['a length in an unknown unit', 'margin-top: 3furlongs'],
+  ])('drops %s', (_label, style) => {
+    expect(sanitizeRichHtml(`<p style="${style}">x</p>`)).toBe('<p>x</p>');
+  });
+
+  it('keeps the visible colours, lengths and proportions of a document', () => {
+    const style = 'color: #1e3a8a; color: #000f; color: #1e3a8aff; text-indent: 2em; letter-spacing: 2px; line-height: 2; line-height: 150%; line-height: 24pt; width: 250px; max-width: 550px; min-height: 120px; min-width: 0; width: 100%; height: 297mm; padding: 35px; margin: 0 auto; margin-top: 40px; border: 4px solid #b45309; border-radius: 12px; font-weight: 700';
+    expect(styleOf(sanitizeRichHtml(`<p style="${style}">x</p>`))).toBe(style);
+  });
+
   it('keeps ordinary sizes, colours and a transparent background', () => {
     const style = 'font-size: 14pt; font-size: 72px; font-size: 2em; font-size: 120%; font-size: larger; color: rgba(0, 0, 0, 0.8); background-color: transparent; text-indent: 30px; letter-spacing: 0.5px; width: 100%; height: 40mm';
     expect(styleOf(sanitizeRichHtml(`<p style="${style}">x</p>`))).toBe(style);

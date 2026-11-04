@@ -78,7 +78,6 @@ const COLOR_FUNCTION = /\b(?:rgba?|hsla?)\(\s*[\d.%\s,/]+\)/gi;
 const STYLE_VALUE = /^[a-z0-9#%.,\s'"-]+$/i;
 // Abuse that places nothing but still hides or swamps the text around it.
 const NEGATIVE = /(?:^|[\s,(])-\s*\.?\d/;
-const VIEWPORT_UNIT = /\d\s*[dsl]?v(?:w|h|i|b|min|max)\b/i;
 /** Readable font sizes per unit, [min, max]; a keyword (larger, x-large) is always readable. */
 const FONT_SIZE: Readonly<Record<string, readonly [number, number]>> = {
   px: [6, 96], pt: [5, 72], pc: [0.4, 6], em: [0.4, 6], rem: [0.4, 6], '%': [40, 600], mm: [2, 25], cm: [0.2, 2.5], in: [0.08, 1],
@@ -89,16 +88,67 @@ function readableFontSize(value: string): boolean {
   const range = m ? FONT_SIZE[m[2]!.toLowerCase()] : undefined;
   return range !== undefined && Number(m![1]) >= range[0] && Number(m![1]) <= range[1];
 }
-/** Text drawn in no colour, or nearly none. */
+/** CSS px per unit, an em counted at 16 px. Any other unit (vw, cqw, Q…) is refused. */
+const PX_PER: Readonly<Record<string, number>> = { px: 1, pt: 4 / 3, pc: 16, em: 16, rem: 16, ex: 8, ch: 8, mm: 96 / 25.4, cm: 96 / 2.54, in: 96 };
+/**
+ * The largest length each property may take: in px, as a percentage, and as a plain number. A4 is about 1123 px tall.
+ * `zero: false` refuses a collapsed box. A property not listed may hold no number at all.
+ */
+interface LengthLimit { px: number; pct: number; plain: number; zero: boolean }
+const limit = (px: number, pct = 0, plain = 0, zero = true): LengthLimit => ({ px, pct, plain, zero });
+const BOX = limit(1200, 100, 0, false);
+const LENGTH_LIMITS: Readonly<Record<string, LengthLimit>> = {
+  'text-indent': limit(160, 50),
+  'letter-spacing': limit(16),
+  'word-spacing': limit(16),
+  'line-height': limit(96, 400, 4),
+  width: BOX, height: BOX, 'max-width': BOX, 'max-height': BOX,
+  'min-width': limit(1200, 100), 'min-height': limit(1200, 100),
+  'border-radius': limit(200, 50),
+  'border-spacing': limit(16),
+  'vertical-align': limit(32, 100),
+  'font-weight': limit(0, 0, 1000),
+};
+const SPACING = limit(200, 50);
+const BORDER_WIDTH = limit(16);
+function lengthLimitOf(property: string): LengthLimit | undefined {
+  if (/^(?:margin|padding)/.test(property)) return SPACING;
+  if (/^border(?:-(?:top|right|bottom|left))?(?:-width)?$/.test(property)) return BORDER_WIDTH;
+  return LENGTH_LIMITS[property];
+}
+/** Every number in the value has a known unit and stays within the property's limit. */
+function boundedLengths(property: string, value: string): boolean {
+  if (property === 'font-size') return readableFontSize(value);
+  const bound = lengthLimitOf(property);
+  const numbers = value.replace(COLOR_FUNCTION, ' ').replace(HEX_COLOR, ' ').replace(/'[^']*'|"[^"]*"/g, ' ').matchAll(/(\d*\.?\d+)([a-z%]*)/gi);
+  return [...numbers].every(([, digits = '', rawUnit = '']) => {
+    const n = Number(digits);
+    const unit = rawUnit.toLowerCase();
+    if (!bound) return false;
+    if (n === 0 && (unit === '' || unit in PX_PER || unit === '%')) return bound.zero;
+    if (unit === '') return n <= bound.plain;
+    if (unit === '%') return n <= bound.pct;
+    const px = PX_PER[unit];
+    return px !== undefined && n * px <= bound.px;
+  });
+}
+const HEX_COLOR = /#(?:[0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{3,4})\b/gi;
+/** Text, an underline or a border drawn in no colour, or nearly none. */
 function invisibleColor(value: string): boolean {
   if (/\btransparent\b/i.test(value)) return true;
-  return [...value.matchAll(/\b(?:rgba?|hsla?)\(([^)]*)\)/gi)].some(([, args = '']) => {
+  const hexAlpha = [...value.matchAll(HEX_COLOR)].some(([hex]) => {
+    const digits = hex.slice(1);
+    if (digits.length === 4) return parseInt(digits[3]!.repeat(2), 16) / 255 < 0.2;
+    return digits.length === 8 && parseInt(digits.slice(6), 16) / 255 < 0.2;
+  });
+  return hexAlpha || [...value.matchAll(/\b(?:rgba?|hsla?)\(([^)]*)\)/gi)].some(([, args = '']) => {
     const alpha = args.includes('/') ? args.split('/')[1] : args.split(',')[3];
     if (alpha === undefined) return false;
     const a = parseFloat(alpha);
     return (alpha.trim().endsWith('%') ? a / 100 : a) < 0.2;
   });
 }
+const DRAWN_IN_COLOR = /^(?:color|text-decoration-color|border(?:-(?:top|right|bottom|left))?(?:-color)?)$/;
 
 /** The declarations of `style` that pass, verbatim when all of them do; null when none does. */
 function safeStyle(style: string): string | null {
@@ -113,9 +163,8 @@ function safeStyle(style: string): string | null {
       && STYLE_VALUE.test(value.replace(COLOR_FUNCTION, '0'))
       // A negative margin pulls the block over the content before it; a negative indent or spacing hides text.
       && !(property.startsWith('margin') && /-\s*\.?\d/.test(value)) && !NEGATIVE.test(value)
-      && !VIEWPORT_UNIT.test(value)
-      && !(property === 'font-size' && !readableFontSize(value))
-      && !((property === 'color' || property === 'text-decoration-color') && invisibleColor(value));
+      && boundedLengths(property, value)
+      && !(DRAWN_IN_COLOR.test(property) && invisibleColor(value));
     return allowed ? [`${property}:${value}`] : [];
   });
   if (kept.length === 0) return null;
