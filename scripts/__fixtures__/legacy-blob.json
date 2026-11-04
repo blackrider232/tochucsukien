@@ -1,0 +1,39 @@
+{
+  "programs": [],
+  "departments": ["Phòng Hành chính - Tổ chức", "Phòng Phát triển doanh nghiệp", "Phòng Xúc tiến đầu tư", "Phòng Tư vấn doanh nghiệp"],
+  "systemSettings": {
+    "agencyName": "TRUNG TÂM XÚC TIẾN ĐẦU TƯ VÀ HỖ TRỢ DOANH NGHIỆP HÀ NỘI (SCE)",
+    "parentAgency": "SỞ TÀI CHÍNH HÀ NỘI",
+    "dailyReportThresholdDays": 10,
+    "fieldPresenceHours": 2,
+    "guestQuotaPercent": 130,
+    "badgeQuotaPercent": 250,
+    "googleClientId": "1234-abc.apps.googleusercontent.com",
+    "unitSenderEmails": [
+      { "id": "gmail_cfg_1", "displayName": "Hòm thư Ban Tổ Chức Sự Kiện", "email": "hanoi.sce.event@gmail.com", "clientId": "", "isDefault": true }
+    ]
+  },
+  "events": [
+    {
+      "id": "evt_1761200000000", "name": "Hội nghị Đối thoại Doanh nghiệp quý IV", "type": "hoi_nghi", "eventDate": "2026-12-15", "eventTime": "08:30",
+      "location": "Hội trường A, 16 Cát Linh", "department": "Phòng Tư vấn doanh nghiệp", "leadPerson": "Đ/c Trần Văn Bình", "budget": "120.000.000",
+      "targetGuests": 120, "status": "preparing", "note": "", "groups": []
+    },
+    {
+      "id": "evt_1761200000001", "name": "Hội nghị Xúc tiến Đầu tư và Giao thương Hà Nội - Tokyo 2026", "type": "hoi_nghi", "eventDate": "2026-11-20",
+      "eventTime": "08:30", "location": "Khách sạn Lotte Hotel Hanoi", "department": "Phòng Xúc tiến đầu tư", "leadPerson": "Đ/c Nguyễn Văn Cường",
+      "budget": "480.000.000", "targetGuests": 180, "status": "preparing", "note": "", "groups": []
+    }
+  ],
+  "eventGuests": {
+    "evt_1761200000000": [
+      { "id": "gst_1761200100000", "name": "Lê Thị Hoa", "group": "DoanhNghiep", "organization": "Công ty CP Sông Hồng", "phone": "0913.210.001", "email": "hoa@songhong.vn", "rsvpStatus": "confirmed", "isCheckedIn": false },
+      { "id": "gst_vip_01", "name": "Nguyễn Văn Mẫu", "group": "VIP", "organization": "UBND TP", "rsvpStatus": "confirmed" }
+    ]
+  },
+  "masterGuestDb": [
+    { "id": "mdb_dn_1761200200000", "name": "Lê Thị Hoa", "group": "DoanhNghiep", "organization": "Công ty CP Sông Hồng", "phone": "0913210001" }
+  ],
+  "eventBooths": { "evt_1761200000000": [{ "id": "bth_01", "code": "A01", "company": "Mẫu", "status": "confirmed" }] },
+  "legacyScratchpad": { "note": "a key no feature claims" }
+}
