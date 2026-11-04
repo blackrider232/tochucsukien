@@ -8,7 +8,7 @@ Branch `t3/progress-module-rewrite`. The feature lives in `src/features/progress
 - **Server** (`server/`). `tables.ts`, `reads.ts` (`listEvents`, `readEvent`, `readEventPlan`, `listEventPlans`) and `commands.ts` hold 18 commands. Each one is audited with the legacy summary string and returns an inverse for undo. `legacy-importer.ts`, `dev-seed.ts` and `screen-data.ts` (per-event UI permissions) complete the folder.
 - **Screens** (`components/`). The dashboard has KPI cards and the four pop-ups, filters, view modes and the event, group and step accordion. The event wizard serves create (page) and edit (dialog). The plan page is one event, fully open. The step, sub-task, link, note and group dialogs are there. The A4 plan and an A4 summary of all events print. Export goes to Excel (.xlsx) and CSV.
 - **Slots**. The top-bar daily-report bell links to `/events?popup=daily`. The `eventActions` slot holds "In kế hoạch".
-- **Tests** (`__tests__/`, 88). They cover the worked examples of m2 §3.2 and §3.4, holidays and làm bù, the T± labels, and the template diffed against the legacy generator run in Node. Every command is tested for denial with no write and no audit, plus audit text and undo round trips. They also cover id uniqueness, the importer fixture, XSS rendering and CSV formula injection.
+- **Tests** (`__tests__/`, 137). They cover the worked examples of m2 §3.2 and §3.4, holidays and làm bù, the T± labels, and the template diffed against the legacy generator run in Node. Every command is tested for denial twice: as an unrelated actor, where the emulated RLS answers first, and with RLS bypassed (`runWithoutRls` in `harness.ts`), where only the command's own `authorize` and checks can refuse. Both assert no write and no audit. There are also audit text and undo round trips, deadline order, percent rounding, search narrowing, id uniqueness, the importer fixture, XSS rendering and CSV formula injection.
 - **Template regeneration**. Run `pnpm tsx src/features/progress/__tests__/generate-standard-templates.ts`. `standard-templates.test.ts` fails if the table drifts from `legacy/index.html`.
 
 ## Bugs (m2 §6)
@@ -30,12 +30,12 @@ Branch `t3/progress-module-rewrite`. The feature lives in `src/features/progress
 | BUG-12 | Fixed. "Đã hoàn thành" is derived: steps exist and all are done (decision 3). The readers fill `SceEvent.status` from the steps, and the stored column is ignored. |
 | BUG-13 | Fixed. One `statusLabel` feeds the filter, the card and the export. |
 | BUG-14 | Fixed. A blank event offers "Áp dụng quy trình chuẩn SCE" and "Thêm nhóm việc". Groups have create, edit and delete. The create toast now says what actually happened. |
-| BUG-15 | Fixed. Delete is soft, child tables cascade by FK, and an admin can undo the delete (see the change request below). |
+| BUG-15 | Fixed. Delete is soft and child tables cascade by FK. The undo of a delete works only for an actor who can still read the event they deleted, which today is an admin acting in the deleter's own session. A dept_leader can delete but gets no undo, and no screen lists deleted events, until change request B lands. The confirm promises only "Có thể hoàn tác ngay sau khi xóa." |
 | BUG-16 | Fixed by a default (Q5). A type change keeps every step and shows a hint. "Áp dụng quy trình chuẩn" adds the missing template groups. |
 | BUG-17 | Fixed. The department options are exactly the ones the actor may create for. The default is the profile department only when it is one of them. |
 | BUG-18 | Fixed. Everything renders as React text with no inline handlers. `templateKey` is restricted to `[A-Za-z0-9_-]`. A test checks this. |
 | BUG-19 | Fixed. A link must parse as `SafeUrl` (http or https) in the form, the command, the row parse and the importer. A test checks this. |
-| BUG-20 | Fixed. The matrix is checked in the command (`authorize`), in RLS, and in the UI for hiding. Every command has a denial test. |
+| BUG-20 | Fixed. The matrix is checked in the command (`authorize`), in RLS, and in the UI for hiding. Every command has a denial test through RLS, and since the review fixes also one with RLS bypassed that proves the command's own check. Before that, denials were RLS-only: an unrelated actor got `not_found` from the emulated RLS before any command code ran. |
 | BUG-21 | Fixed. The pop-up shows the event's own department. |
 | BUG-22 | Fixed. The type chip comes from `EVENT_TYPES`. |
 | BUG-23 | Fixed. Past events read "Đã diễn ra N ngày trước". |
@@ -81,7 +81,7 @@ Branch `t3/progress-module-rewrite`. The feature lives in `src/features/progress
 ## Foundation feedback
 
 1. **Import cycle in `@/core/commands`.** A feature's server module that imports `defineCommands` or `CommandError` at runtime makes `pnpm check:contract` crash with `ReferenceError: Cannot access 'featureServers' before initialization`. The cause is that `index.ts` re-exports `dispatch`, and `dispatch.ts` reads `featureServers` at module top level, so the crash comes whenever `registry-server` is the entry point. `src/features/README.md` tells workers to use `defineCommands`. Workaround here: type-only imports (`CommandsOf<'progress'>`) and `DbError` for failures, which loses the specific Vietnamese messages. Change request A.
-2. **Undoing a delete works for admins only.** RLS (and its `memoryDb` mirror) hides soft-deleted events from everyone but admin, so `progress.restoreEvent` fails with not_found for the dept_leader who deleted the event. Change request B.
+2. **Undoing a delete works for admins only.** RLS (and its `memoryDb` mirror) hides soft-deleted events from everyone but admin, so `progress.restoreEvent` fails for the dept_leader who deleted the event. `deleteEvent` now returns the undo only when the actor can still read the event, so a dept_leader gets none instead of one that fails. Change request B.
 3. **Missing foundation pages.** The design lists `(app)/events/[eventId]/layout.tsx` (readEvent or notFound, switcher, sub-tab bar, `eventActions`) and `[eventId]/page.tsx` (redirect to plan), but neither exists. So there is no event header or sub-tab bar, the `eventActions` slot is never rendered, and `/events/<id>` is a 404. `(app)/page.tsx` renders "SCE" instead of redirecting to `/events`.
 4. **Print routes need their own URL.** `(print)/events/[eventId]/plan/page.tsx` would resolve to the same URL as `(app)/events/[eventId]/plan/page.tsx`, which is a Next.js build error. This module uses `(print)/events/[eventId]/plan/print`. Document `<segment>/print` for the other workers.
 5. **Contract stubs throw at runtime.** `contract.ts` functions throw "not implemented" until their owner merges. A worker who calls another feature's pure helper (here `resolveTemplateKey` and `templateHref`) breaks the page. This module guards that one call with try/catch.
@@ -96,6 +96,22 @@ Branch `t3/progress-module-rewrite`. The feature lives in `src/features/progress
 ## Contract change requests
 
 - **A.** Stop re-exporting `dispatch`, `useCommand` and `useUndo` from `@/core/commands/index.ts`, or build the lookup lazily inside `dispatch()`, so feature servers can import `defineCommands` and `CommandError`.
-- **B.** Let an actor who holds `progress.delete` on the lead department read their department's soft-deleted events. Change `sce_read` on `sce_tcsk_events` and its mirror in `src/core/db/memory.ts`. Until then, undo of a delete works for admin only.
+- **B.** Let an actor who holds `progress.delete` on the lead department read their department's soft-deleted events. Change `sce_read` on `sce_tcsk_events` and its mirror in `src/core/db/memory.ts`. Until then, undo of a delete works for admin only. The command already adapts: it offers the undo whenever the actor can read the event they deleted.
 - **C.** Add `(app)/events/[eventId]/layout.tsx`, `(app)/events/[eventId]/page.tsx` (redirect to `./plan`) and the `(app)/page.tsx` redirect to `/events`.
 - **D.** Add `Textarea`, a controlled `Checkbox` or `Toggle`, and the missing icons to the kit.
+
+## Review fixes
+
+An independent review returned PASS WITH FIXES. Each finding was reproduced with a failing test first.
+
+| Finding | Fix | Commit |
+|---|---|---|
+| 1. Forged completion. `createStep` and `createGroups` took `completedAt` and `completedBy` from the client. | Step input carries `done` only. The server stamps the acting user and `ctx.now` (`stepInsertRow`). Undoing a step or group delete re-completes the step as the person who undoes it, not as the original completer, and the audit says "đánh dấu hoàn thành". Soft-deleting steps would need a migration, so it was not done. | `cabdb55` |
+| 2. The confirm promised an admin restore that no screen offers, and a dept_leader's undo failed. | `deleteEvent` returns the restore inverse only when the actor can still read the event. The confirm says "Có thể hoàn tác ngay sau khi xóa." No deleted-events screen was built. | `7f3f52b` |
+| 3. The importer let in `offset_days` 999 and `target_guests` 0. | Offsets above 365 are clamped to 365, guests outside 1 to 100000 become 150, and each change is an issue in the report. | `7f902a6` |
+| 4. The wizard default department for an admin was Phòng Hành chính - Tổ chức. | The default is the profile department, else Phòng Xúc tiến đầu tư (m2 §1.7). | `fea2bde` |
+| 5a. The commands' own permission checks were untested. | `runWithoutRls` runs the pipeline with an admin-like Db and a weak actor. Mutating the delete or restore permission, the lead-department scope, the department-change check or the create resource now fails a test. | `7927fc1` |
+| 5b to 5d. Deadline order (BUG-44), `Math.round` and search narrowing (BUG-35) survived mutation. | `schedule.test.ts` and the new `dashboard.test.ts` cover them. Reversing the sort or its tie-break, `floor` or `ceil` for the percent, and dropping any search source or the narrowing now fails. | `7f9e8e8` |
+| 6. Two overstated claims in this file. | BUG-15 and BUG-20 and the test summary above now say what holds. | this commit |
+
+Known limit of finding 1: a completion restored by undo is stamped now by the person who undoes it, so the original completion time and name are lost. The alternative was to trust a stamp carried back from the client.
