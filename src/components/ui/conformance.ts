@@ -6,7 +6,7 @@ import { useBeep } from './beep';
 import { useDialogs } from './dialogs';
 import { downloadBlob, downloadWordHtml, downloadXlsx, xlsxSheet } from './files';
 import { qrPngDataUrl } from './qr';
-import { useCalendar, useSettings } from './app-env';
+import { useCalendar, useEventChanges, useSettings } from '@/core/auth';
 import { useToast } from './toast';
 
 export const conformance = {
@@ -19,5 +19,6 @@ export const conformance = {
   downloadWordHtml: downloadWordHtml satisfies typeof Contract.downloadWordHtml,
   useSettings: useSettings satisfies typeof Contract.useSettings,
   useCalendar: useCalendar satisfies typeof Contract.useCalendar,
+  useEventChanges: useEventChanges satisfies typeof Contract.useEventChanges,
   useBeep: useBeep satisfies typeof Contract.useBeep,
 };

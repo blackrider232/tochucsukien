@@ -5,7 +5,7 @@ import { z } from 'zod';
 import type { SanitizedHtml } from '@/core/brand';
 import type { EnumRegistry, Tone } from '@/core/vocab';
 import {
-  AppEnvProvider, Badge, Button, Checkbox, Combobox, DataTable, DateInput, Dialog, EmptyState, FilterBar, Form, FormField,
+  Badge, Button, Checkbox, Combobox, DataTable, DateInput, Dialog, EmptyState, FilterBar, Form, FormField,
   ICON_NAMES, Icon, IconButton, KpiCard, LinkTabs, MoneyInput, Nd30Header, NumberInput, PrintLink, PrintPage, ProgressBar,
   QrCode, RichHtml, SectionCard, Select, SignatureBlock, StatusBadge, Tabs, TextInput, ThemeToggle, TimeInput,
   downloadBlob, downloadWordHtml, downloadXlsx, useDialogs, useToast, useZodForm, xlsxSheet,
@@ -199,7 +199,7 @@ function Specimens() {
         </div>
       </Spec>
       <Spec kit="Form" title="FormField, controls và useZodForm">
-        <AppEnvProvider settings={SETTINGS} holidays={HOLIDAYS}><FormSpec /></AppEnvProvider>
+        <FormSpec />
       </Spec>
       <Spec kit="Combobox" title="Combobox">
         <FormField label="Danh bạ" name="contact" hint="Gõ “an”, “binh”…">
@@ -211,15 +211,13 @@ function Specimens() {
         <div className="space-y-3">
           <PrintLink href="#" label="In kế hoạch" />
           <div className="overflow-x-auto">
-            <AppEnvProvider settings={SETTINGS} holidays={HOLIDAYS}>
-              <PrintPage size="A5" orientation="portrait" margins="nd30">
+            <PrintPage size="A5" orientation="portrait" margins="nd30">
                 <Guard note="Nd30Header cần orgIdentity và formatNd30Date của core.">
                   <Nd30Header issuer="trung_tam" documentNumber="Số: 12/KH-SCE" date={'2026-11-04' as never} />
                 </Guard>
                 <p className="text-center font-bold">KẾ HOẠCH TỔ CHỨC SỰ KIỆN</p>
                 <SignatureBlock left={{ title: 'Người lập' }} right={{ title: 'Giám đốc', name: 'Nguyễn Văn A' }} recipients={['Như trên', 'Lưu: VT']} />
-              </PrintPage>
-            </AppEnvProvider>
+            </PrintPage>
           </div>
         </div>
       </Spec>

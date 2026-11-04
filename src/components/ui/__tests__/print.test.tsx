@@ -1,20 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
-import { AppEnvProvider } from '../app-env';
-import './helpers';
+import { describe, expect, it } from 'vitest';
+import type { IsoDate } from '@/core/brand';
+import { withAppContext } from './helpers';
 import { Nd30Header, PrintLink, PrintPage, SignatureBlock, pageCss } from '../print';
-
-vi.mock('@/core/settings', () => ({
-  orgIdentity: (s: { parentAgency: string; agencyName: string; agencyShortName: string }) => ({ ...s, city: 'Hà Nội' }),
-}));
-vi.mock('@/core/dates', () => ({
-  formatNd30Date: () => 'ngày 04 tháng 11 năm 2026',
-  buildWorkCalendar: () => ({ isWorkday: () => true, coverage: { from: '', to: '' } }),
-}));
-
-const settings = { parentAgency: 'SỞ TÀI CHÍNH HÀ NỘI', agencyName: 'TRUNG TÂM XÚC TIẾN ĐẦU TƯ', agencyShortName: 'SCE' } as never;
 
 describe('print primitives', () => {
   it('emits the @page rule for size, orientation and NĐ30 margins', () => {
@@ -35,11 +25,7 @@ describe('print primitives', () => {
   });
 
   it('Nd30Header prints the national motto, issuer lines, document number and date', () => {
-    render(
-      <AppEnvProvider settings={settings} holidays={[]}>
-        <Nd30Header issuer="trung_tam" documentNumber="Số: 12/KH-SCE" date={'2026-11-04' as never} />
-      </AppEnvProvider>,
-    );
+    render(withAppContext(<Nd30Header issuer="trung_tam" documentNumber="Số: 12/KH-SCE" date={'2026-11-04' as IsoDate} />));
     expect(screen.getByText('Cộng hòa xã hội chủ nghĩa Việt Nam')).toBeInTheDocument();
     expect(screen.getByText('Độc lập - Tự do - Hạnh phúc')).toBeInTheDocument();
     expect(screen.getByText('SỞ TÀI CHÍNH HÀ NỘI')).toBeInTheDocument();
@@ -48,11 +34,7 @@ describe('print primitives', () => {
   });
 
   it('Nd30Header leaves dotted blanks when number and date are absent', () => {
-    render(
-      <AppEnvProvider settings={settings} holidays={[]}>
-        <Nd30Header issuer="so_tai_chinh" />
-      </AppEnvProvider>,
-    );
+    render(withAppContext(<Nd30Header issuer="so_tai_chinh" />));
     expect(screen.getByText('Số: ..... /SCE')).toBeInTheDocument();
     expect(screen.getByText(/ngày \.\.\.\.\. tháng \.\.\.\.\. năm \.\.\.\.\./)).toBeInTheDocument();
   });

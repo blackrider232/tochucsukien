@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { Checkbox, DateInput, MoneyInput, NumberInput, Select, TextInput } from '../controls';
 import { Form, FormField, useZodForm } from '../form';
-import { AppEnvProvider } from '../app-env';
-import { renderUi } from './helpers';
+import type { IsoDate } from '@/core/brand';
+import { renderUi, testAppContext, withAppContext } from './helpers';
 
 const schema = z.object({
   name: z.string().min(1, 'Nhập họ tên'),
@@ -95,14 +95,12 @@ describe('forms', () => {
     function DateForm() {
       const form = useZodForm(z.object({ day: z.string() }), { defaultValues: { day: '2026-09-02' } });
       return (
-        <AppEnvProvider settings={{} as never} holidays={[{ date: '2026-09-02' as never, name: 'Quốc khánh', kind: 'holiday' }]}>
-          <Form form={form} onSubmit={() => {}}>
-            <FormField label="Ngày" name="day"><DateInput name="day" showHolidays /></FormField>
-          </Form>
-        </AppEnvProvider>
+        <Form form={form} onSubmit={() => {}}>
+          <FormField label="Ngày" name="day"><DateInput name="day" showHolidays /></FormField>
+        </Form>
       );
     }
-    renderUi(<DateForm />);
+    renderUi(withAppContext(<DateForm />, testAppContext([{ date: '2026-09-02' as IsoDate, name: 'Quốc khánh', kind: 'holiday' }])));
     expect(await screen.findByText('Ngày nghỉ lễ: Quốc khánh')).toBeInTheDocument();
   });
 });

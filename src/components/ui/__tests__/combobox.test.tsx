@@ -1,9 +1,8 @@
 import { screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { Combobox } from '../combobox';
-import { fakeText, renderUi } from './helpers';
-
-vi.mock('@/core/text', () => import('./helpers').then((m) => m.fakeText));
+import { matchesQuery } from '@/core/text';
+import { renderUi } from './helpers';
 
 interface Contact { id: string; name: string }
 const CONTACTS: Contact[] = [
@@ -13,7 +12,7 @@ const CONTACTS: Contact[] = [
 ];
 
 function setup() {
-  const search = vi.fn(async (q: string) => CONTACTS.filter((c) => fakeText.matchesQuery(q, c.name)));
+  const search = vi.fn(async (q: string) => CONTACTS.filter((c) => matchesQuery(q, c.name)));
   const onPick = vi.fn();
   const view = renderUi(
     <label>
@@ -76,7 +75,7 @@ describe('Combobox', () => {
   it('ignores a slow earlier response that arrives after a newer one', async () => {
     let releaseSlow: (v: Contact[]) => void = () => {};
     const search = vi.fn((q: string) =>
-      q === 'v' ? new Promise<Contact[]>((r) => { releaseSlow = r; }) : Promise.resolve(CONTACTS.filter((c) => fakeText.matchesQuery(q, c.name))),
+      q === 'v' ? new Promise<Contact[]>((r) => { releaseSlow = r; }) : Promise.resolve(CONTACTS.filter((c) => matchesQuery(q, c.name))),
     );
     const { user } = renderUi(<Combobox name="c" search={search} itemKey={(c) => c.id} itemLabel={(c) => c.name} onPick={() => {}} />);
     const box = screen.getByRole('combobox');

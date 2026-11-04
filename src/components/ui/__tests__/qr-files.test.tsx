@@ -4,9 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SanitizedHtml } from '@/core/brand';
 import { buildWorkbook, downloadBlob, safeCell, wordHtml, xlsxSheet } from '../files';
 import { QrCode, qrPath, qrPngDataUrl } from '../qr';
-import { fakeText } from './helpers';
-
-vi.mock('@/core/text', () => import('./helpers').then((m) => m.fakeText));
+import './helpers';
 
 const PAYLOAD = 'SCE-CHK:11111111-1111-4111-8111-111111111111:22222222-2222-4222-8222-222222222222';
 
@@ -92,6 +90,5 @@ describe('downloads', () => {
     expect(out).toContain('<div class="WordSection1"><p>Nội dung</p></div>');
     expect(out).toContain('size: 29.7cm 21.0cm');
     expect(out).toContain('margin: 2.0cm 1.5cm 2.0cm 3.0cm');
-    expect(fakeText.escapeHtml(0)).toBe('0');
   });
 });

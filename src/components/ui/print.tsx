@@ -3,7 +3,7 @@
 import type { Nd30HeaderProps, PrintLinkProps, PrintPageProps, SignatureBlockProps } from './kit.types';
 import { formatNd30Date } from '@/core/dates';
 import { orgIdentity } from '@/core/settings';
-import { useSettings } from './app-env';
+import { useSettings } from '@/core/auth';
 import { Icon } from './icons';
 
 const PAPER = {

@@ -1,8 +1,8 @@
 import { Fragment, type ComponentType, type ReactNode } from 'react';
-import { requestContext, type RequestContext } from '@/core/auth';
+import type { RequestContext } from '@/core/auth';
+import { requestContext } from '@/core/auth/server';
 import type { EventId } from '@/core/brand';
 import { can, type Permission } from '@/core/permissions';
-import type { Holiday } from '@/core/dates';
 import { registry, type FeatureKey, type FeatureSlots } from '@/core/registry';
 import { ROLES } from '@/core/vocab';
 import { featureSlots } from '@/features/registry-slots';
@@ -13,12 +13,7 @@ import type { ShellModel } from './nav-model';
 const slotEntries = () => Object.entries(featureSlots) as Array<[FeatureKey, FeatureSlots]>;
 
 /** Server-only. Everything the (app) layout hands to the client shell, derived from the registry. */
-export async function loadShell(): Promise<{
-  ctx: RequestContext;
-  model: ShellModel;
-  slots: ShellSlots;
-  holidays: ReadonlyArray<Holiday>;
-}> {
+export async function loadShell(): Promise<{ model: ShellModel; slots: ShellSlots }> {
   const ctx = await requestContext();
   const allowed = (p: Permission) => can(ctx.actor, p);
   const { profile } = ctx.actor;
@@ -57,8 +52,7 @@ export async function loadShell(): Promise<{
     headerActions: visibleActions(headerActions, allowed).map((a) => a.node),
   };
 
-  // Holidays reach the client through core's AppContext once it ships; until then date fields show no holiday hint.
-  return { ctx, model, slots: slotsOut, holidays: [] };
+  return { model, slots: slotsOut };
 }
 
 type EventAction = NonNullable<FeatureSlots['eventActions']>[number];

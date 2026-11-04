@@ -6,7 +6,7 @@ import type {
   CheckboxProps, DateInputProps, MoneyInputProps, NumberInputProps, SelectProps, TextInputProps, TimeInputProps,
 } from './kit.types';
 import { controlClass } from './filter-bar';
-import { useOptionalHolidays } from './app-env';
+import { useAppContext } from '@/core/auth';
 import { useControl, useControlMeta } from './use-control';
 
 export function TextInput({ name, placeholder, type = 'text', autoComplete }: TextInputProps) {
@@ -101,7 +101,7 @@ export function DateInput({ name, min, max, showHolidays }: DateInputProps) {
 
 /** Reads the typed date from the form and names the holiday under the field. */
 function HolidayNote({ name, id }: { name: string; id: string }) {
-  const holidays = useOptionalHolidays();
+  const { holidays } = useAppContext();
   const value = useWatch({ name }) as unknown;
   const holiday = typeof value === 'string' ? holidays.find((h) => h.date === value && h.kind === 'holiday') : undefined;
   if (!holiday) return <span id={id} hidden />;

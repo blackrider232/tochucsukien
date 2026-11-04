@@ -3,6 +3,11 @@ import { cleanup, render, type RenderResult } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactElement } from 'react';
 import { afterEach } from 'vitest';
+import { AppContextProvider, type AppContextValue } from '@/core/auth';
+import type { Version } from '@/core/brand';
+import type { Holiday } from '@/core/dates';
+import { DEFAULT_SETTINGS } from '@/core/settings';
+import { testActor, XTDT } from '@/core/testing/actors';
 import { UiProviders } from '../providers';
 
 if (typeof window !== 'undefined' && !window.matchMedia) {
@@ -25,18 +30,15 @@ export function renderUi(ui: ReactElement): RenderResult & { user: ReturnType<ty
 
 export { userEvent };
 
-/** Stand-ins for the core text helpers: the real bodies belong to core and are tested there. */
-export const fakeText = {
-  foldVi: (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/đ/g, 'd').toLowerCase().trim(),
-  matchesQuery(query: string, ...haystack: Array<string | null | undefined>) {
-    const fold = fakeText.foldVi;
-    const hay = fold(haystack.filter(Boolean).join(' '));
-    return fold(query).split(/\s+/).filter(Boolean).every((t) => hay.includes(t));
-  },
-  escapeHtml: (v: unknown) =>
-    v === null || v === undefined ? '' : String(v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!),
-  safeSpreadsheetText: (v: string) => (/^[=+\-@\t\r]/.test(v) ? `'${v}` : v),
-};
+/** The client mirror of a request context, as the (app) layout provides it. */
+export function testAppContext(holidays: ReadonlyArray<Holiday> = []): AppContextValue {
+  return { profile: testActor('user', XTDT).profile, settings: { ...DEFAULT_SETTINGS, version: 1 as Version }, holidays };
+}
+
+/** Renders inside AppContextProvider, for components that read settings or holidays. */
+export function withAppContext(ui: ReactElement, value: AppContextValue = testAppContext()): ReactElement {
+  return <AppContextProvider value={value}>{ui}</AppContextProvider>;
+}
 
 /** Tests inspect what the prefs module persisted; lint reserves the plain identifier for src/core/prefs. */
 export const prefStorage = (): Storage => window['local' + 'Storage' as 'localStorage'];

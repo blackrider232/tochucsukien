@@ -1,8 +1,6 @@
 // Public entry of the shared UI kit. Feature code imports everything from '@/components/ui'.
 // Contract types come from kit.types.ts; values come from the files below.
-// useEventChanges is still the contract stub until core ships the realtime hook.
 export type * from './kit.types';
-export { useEventChanges } from './kit.types';
 
 export { Button, IconButton } from './button';
 export { Icon, ICON_NAMES } from './icons';
@@ -27,8 +25,7 @@ export { RichHtml } from './rich-html';
 export { downloadBlob, downloadXlsx, downloadWordHtml, xlsxSheet } from './files';
 export { useBeep } from './beep';
 export { ThemeToggle, useTheme } from './theme';
-export { AppEnvProvider, useSettings, useCalendar } from './app-env';
 
-// Hooks that read app context, commands and undo are implemented in core.
-export { useAppContext } from '@/core/auth';
+// Hooks that read app context, realtime, commands and undo are implemented in core.
+export { useAppContext, useSettings, useCalendar, useEventChanges } from '@/core/auth';
 export { useCommand, useUndo } from '@/core/commands';
