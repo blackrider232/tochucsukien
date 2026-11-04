@@ -464,6 +464,24 @@ for (const role of ['service_role', null]) {
 }
 assert.equal(await auditCount(), auditRowsBefore, 'the audit log keeps every row');
 
+// Deleting an auth user sets actor_id null on that user's rows (on delete set null), the one change the append-only
+// trigger takes; the email stays, so the row still names who acted (202611041340_core_audit_actor_erasure.sql).
+const leaver = '00000000-0000-0000-0000-00000000aa01';
+await db.exec(`insert into auth.users (id, email, raw_user_meta_data) values ('${leaver}', 'nghiviec@x.vn', '{"department":"Phòng Xúc tiến đầu tư"}')`);
+await db.exec(`update public.sce_tcsk_profiles set status = 'active' where id = '${leaver}'`);
+await writtenRow('a row of a user who later leaves', { actor: leaver });
+const leaverRow = (await db.query(`select * from public.sce_tcsk_audit_logs where actor_email = 'nghiviec@x.vn'`)).rows[0];
+for (const [label, set] of [['actor_id and summary together', `actor_id = null, summary = 'sửa'`], ['actor_id to another user', `actor_id = '${ids.xtdt}'`],
+  ['actor_email', `actor_email = null`]]) {
+  await assert.rejects(db.exec(`update public.sce_tcsk_audit_logs set ${set} where id = ${leaverRow.id}`), /append-only/, `the owner cannot change ${label}`);
+}
+await asService(() => assert.rejects(db.exec(`update public.sce_tcsk_audit_logs set actor_id = null where id = ${leaverRow.id}`), /permission denied/, 'the service role cannot unlink an actor by hand'));
+await as(ids.admin, 'aal2', () => assert.rejects(db.exec(`update public.sce_tcsk_audit_logs set actor_id = null where id = ${leaverRow.id}`), /permission denied/, 'an admin cannot unlink an actor by hand'));
+await db.exec(`delete from auth.users where id = '${leaver}'`);
+const erased = (await db.query(`select * from public.sce_tcsk_audit_logs where id = ${leaverRow.id}`)).rows[0];
+assert.deepEqual(erased, { ...leaverRow, actor_id: null }, 'a deleted user’s rows keep everything but the actor id');
+assert.equal(await auditCount(), auditRowsBefore + 1, 'deleting a user removes no audit row');
+
 // Holidays carry the list the editor saw (202611041200_core_holidays_guard.sql).
 const year2031 = async () => (await db.query(`select holiday_date::text as date, name, kind from public.sce_tcsk_holidays where holiday_date between '2031-01-01' and '2031-12-31' order by 1`)).rows;
 const seen2031 = JSON.stringify(await year2031());
