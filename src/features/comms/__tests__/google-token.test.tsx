@@ -27,12 +27,12 @@ const render = (google: GoogleIdentity, sender = 'm1') =>
 
 afterEach(() => {
   vi.useRealTimers();
-  sessionStorage.clear();
-  localStorage.clear();
+  vi.restoreAllMocks();
 });
 
 describe('useGoogleToken', () => {
   it('keeps the token in memory only and reports the account Google names', async () => {
+    const stored = vi.spyOn(Storage.prototype, 'setItem');
     const google = fakeGoogle('BTC@X.vn');
     const { result } = render(google);
     act(() => void result.current.signIn('btc@x.vn'));
@@ -40,7 +40,8 @@ describe('useGoogleToken', () => {
     await google.answer({ ok: true, token: 'tok-secret', expiresInSec: 3600 });
     expect(result.current.state).toMatchObject({ kind: 'ready', email: 'btc@x.vn' });
     expect(result.current.current()).toBe('tok-secret');
-    expect(JSON.stringify({ ...sessionStorage }) + JSON.stringify({ ...localStorage }) + document.cookie).not.toContain('tok-secret');
+    expect(stored).not.toHaveBeenCalled();
+    expect(document.cookie).not.toContain('tok-secret');
   });
 
   it('treats a token within the margin of its expiry as gone', async () => {
