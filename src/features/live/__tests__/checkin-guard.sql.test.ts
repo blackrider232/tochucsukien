@@ -206,6 +206,18 @@ describe('an undo token is held to what it copies and to one use', () => {
     await change(`consumed_at = now()`);
   });
 
+  it('two desks cancelling at once: the second token insert fails on the unique key, or with 42501 once the check-in is gone', async () => {
+    const g = await addGuest('Tăng Văn Đua');
+    await asB(`insert into public.sce_tcsk_checkins (event_id, guest_id, checked_in_at, checked_in_by) values ('${eventId}', '${g}', now(), '${B}')`);
+    const first = (await asB(copyAsToken(g))).rows[0]!.id as string;
+    await expect(asA(copyAsToken(g))).rejects.toMatchObject({ code: '23505' });
+    expect((await q(`select id from public.sce_tcsk_checkin_undo_tokens where guest_id = '${g}'`)).rows).toEqual([{ id: first }]);
+    await asB(`delete from public.sce_tcsk_checkins where guest_id = '${g}'`);
+    await asB(`delete from public.sce_tcsk_checkin_undo_tokens where id = '${first}'`);
+    await expect(asA(`insert into public.sce_tcsk_checkin_undo_tokens (event_id, guest_id, checked_in_at, checked_in_by, expires_at)
+      values ('${eventId}', '${g}', now(), '${B}', now() + interval '15 minutes')`)).rejects.toMatchObject({ code: '42501' });
+  });
+
   it('restores only what the token holds: a different time, actor, desk or gift is refused', async () => {
     const { g } = await consumedToken('Lương Văn Khớp');
     const refused = /signed-in user|current time/;

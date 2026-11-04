@@ -89,26 +89,43 @@ export const checkInDeclined: Spec<'live.checkInDeclined'> = {
 /** How long the undo of a removed check-in stays possible. */
 export const UNDO_MINUTES = 15;
 
+const ALREADY_CANCELLED = 'Đã có người hủy check-in này. Đang tải lại…';
+
 /**
  * Removes a check-in and keeps a copy of it as a one-time undo token, so the undo restores what the server saw and the
- * inverse carries only the token id. A newer removal of the same guest replaces an older token.
+ * inverse carries only the token id. A newer removal of the same guest replaces an older token, but never the token of
+ * this very check-in: that one belongs to the desk that cancelled it first, and this desk is told so. The unique
+ * (event, guest) key of the token table decides between two desks cancelling at once.
  */
 async function removeCheckin(ctx: CommandContext, row: CheckinRow, guest: RosterEntry): Promise<{ eventId: EventId; guestId: GuestId; tokenId: UndoTokenId }> {
   const tokens = ctx.db.table(undoTokensTable);
-  await tokens.removeWhere({ eventId: row.eventId, guestId: row.guestId });
-  const token = await tokens.insert({
-    id: newId<'CheckinUndoToken'>(),
-    eventId: row.eventId,
-    guestId: row.guestId,
-    checkedInAt: row.checkedInAt!,
-    checkedInBy: row.checkedInBy,
-    desk: row.desk,
-    giftGivenAt: row.giftGivenAt,
-    declinedConfirmed: guest.rsvpStatus === 'declined',
-    expiresAt: addHours(ctx.now, UNDO_MINUTES / 60),
-    consumedAt: null,
-    consumedBy: null,
-  });
+  const cancelled = () => new CommandError('conflict', ALREADY_CANCELLED);
+  for (const old of await tokens.list({ eventId: row.eventId, guestId: row.guestId })) {
+    if (old.checkedInAt === row.checkedInAt && !old.consumedAt) throw cancelled();
+    await tokens.remove(old.id).catch((e) => {
+      if (!(e instanceof DbError && e.kind === 'not_found')) throw e;
+    });
+  }
+  let token;
+  try {
+    token = await tokens.insert({
+      id: newId<'CheckinUndoToken'>(),
+      eventId: row.eventId,
+      guestId: row.guestId,
+      checkedInAt: row.checkedInAt!,
+      checkedInBy: row.checkedInBy,
+      desk: row.desk,
+      giftGivenAt: row.giftGivenAt,
+      declinedConfirmed: guest.rsvpStatus === 'declined',
+      expiresAt: addHours(ctx.now, UNDO_MINUTES / 60),
+      consumedAt: null,
+      consumedBy: null,
+    });
+  } catch (e) {
+    // The database refuses a token for a check-in that is gone (42501, which reads as forbidden): the other desk won.
+    if (lostRace(e) || (e instanceof DbError && e.kind === 'forbidden' && !(await currentCheckin(ctx, row.eventId, row.guestId))?.checkedInAt)) throw cancelled();
+    throw e;
+  }
   try {
     await ctx.db.table(checkinsTable).remove(row.id, { expectedVersion: row.version });
   } catch (e) {

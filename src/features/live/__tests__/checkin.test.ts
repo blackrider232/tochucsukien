@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DbError, type Db } from '@/core/db';
 import type { Instant } from '@/core/brand';
 import { testActor, XTDT } from '@/core/testing/actors';
 import { checkinsTable } from '../server/tables';
@@ -225,6 +226,61 @@ describe('the undo of a cancel restores what the server kept, once', () => {
     expect(await h.undo(restorer, cancel.inverse)).toMatchObject({ ok: false, kind: 'conflict' });
     expect(await h.undo(restorer, second.inverse)).toMatchObject({ ok: true });
     expect((await h.checkins(eventId))[0]).toMatchObject({ checkedInAt: '2026-12-15T02:01:00.000Z', desk: 'Bàn 3' });
+  });
+
+  describe('two desks cancel the same check-in at once', () => {
+    const TOKENS = 'sce_tcsk_checkin_undo_tokens';
+    const secondDesk = testActor('user', XTDT);
+    async function checkedIn() {
+      const s = await setup();
+      await s.h.ok(desk, 'live.checkIn', { eventId: s.eventId, guestId: s.guest.id, desk: 'Bàn 2' });
+      s.h.clock.now = CANCEL_AT;
+      return s;
+    }
+    /** The loser reads the check-in, then the other desk cancels it, then the loser goes on. */
+    async function race(method: 'list' | 'insert', first: 'list' | 'insert' = method) {
+      const { h, eventId, guest } = await checkedIn();
+      let winner: Awaited<ReturnType<typeof h.ok<'live.cancelCheckIn'>>> | undefined;
+      const loser = await h.runWith(restorer, (db) => interleave(db, TOKENS, first, async () => { winner = await h.ok(secondDesk, 'live.cancelCheckIn', { eventId, guestId: guest.id }); }), 'live.cancelCheckIn', { eventId, guestId: guest.id });
+      return { h, eventId, guest, winner: winner!, loser };
+    }
+
+    it.each(['list', 'insert'] as const)('the loser (%s) is told someone cancelled it, and the winner keeps the token to undo with', async (step) => {
+      const { h, eventId, winner, loser } = await race(step);
+      expect(loser).toMatchObject({ ok: false, kind: 'conflict' });
+      expect(loser.ok ? '' : loser.message).toContain('Đã có người hủy check-in này');
+      expect(h.rows(TOKENS)).toHaveLength(1);
+      expect(await h.undo(secondDesk, winner.inverse)).toMatchObject({ ok: true });
+      expect((await h.checkins(eventId))[0]).toMatchObject({ checkedInAt: NOW, desk: 'Bàn 2' });
+    });
+
+    it('a token insert the database refuses (the check-in is gone) reads as a conflict, not as a permission error', async () => {
+      const { h, eventId, guest } = await checkedIn();
+      const refusing = (db: Db): Db => ({
+        rpc: db.rpc.bind(db),
+        table(def) {
+          const t = db.table(def);
+          if (def.name !== TOKENS) return t;
+          return { ...t, insert: async () => { await h.ok(secondDesk, 'live.cancelCheckIn', { eventId, guestId: guest.id }); throw new DbError('forbidden', { table: TOKENS }); } } as typeof t;
+        },
+      });
+      const r = await h.runWith(restorer, refusing, 'live.cancelCheckIn', { eventId, guestId: guest.id });
+      expect(r).toMatchObject({ ok: false, kind: 'conflict' });
+      expect(r.ok ? '' : r.message).toContain('Đã có người hủy check-in này');
+    });
+
+    it('a token insert refused while the check-in is still there stays a permission error', async () => {
+      const { h, eventId, guest } = await checkedIn();
+      const refusing = (db: Db): Db => ({
+        rpc: db.rpc.bind(db),
+        table(def) {
+          const t = db.table(def);
+          return def.name === TOKENS ? ({ ...t, insert: async () => { throw new DbError('forbidden', { table: TOKENS }); } } as typeof t) : t;
+        },
+      });
+      expect(await h.runWith(restorer, refusing, 'live.cancelCheckIn', { eventId, guestId: guest.id })).toMatchObject({ ok: false, kind: 'forbidden' });
+      expect(await h.checkins(eventId)).toHaveLength(1);
+    });
   });
 
   it('an expired token is refused', async () => {
