@@ -106,11 +106,11 @@ const createEvent: Spec<EventDraftInput, SceEvent> = {
     const { applyStandardTemplate, ...fields } = draft;
     const row = await ctx.db.table(eventsTable).insert({ ...fields, id, supportingDepartments: [...fields.supportingDepartments], deletedAt: null });
     if (applyStandardTemplate) await insertGroups(ctx, id, templateGroups(ctx, row, row.type));
-    return {
-      value: toEvent(row),
-      audit: audit('TẠO SỰ KIỆN', `Tạo sự kiện mới: "${row.name}" (${formatVNDate(row.eventDate)})`, id, 'event', id),
-      inverse: inverse('progress.deleteEvent', { id, version: row.version }, `Tạo sự kiện "${row.name}"`),
-    };
+    const outcome = { value: toEvent(row), audit: audit('TẠO SỰ KIỆN', `Tạo sự kiện mới: "${row.name}" (${formatVNDate(row.eventDate)})`, id, 'event', id) };
+    // Undoing a create is a delete; offer it only to an actor the matrix lets delete (a chuyên viên may not).
+    return can(ctx.actor, 'progress.delete', { departments: [row.department] })
+      ? { ...outcome, inverse: inverse('progress.deleteEvent', { id, version: row.version }, `Tạo sự kiện "${row.name}"`) }
+      : outcome;
   },
 };
 

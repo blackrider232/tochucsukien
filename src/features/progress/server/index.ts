@@ -3,6 +3,7 @@
 
 export type * from '../contract';
 export { listEvents, readEvent, readEventPlan, listEventPlans } from './reads';
+export { screenData } from './screen-data';
 export { commands } from './commands';
 export { legacyImporter } from './legacy-importer';
 export { devSeed } from './dev-seed';

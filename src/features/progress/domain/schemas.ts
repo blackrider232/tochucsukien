@@ -66,11 +66,8 @@ export const stepDraftSchema = stepFields.transform(ddayOffset);
 export const stepPatchSchema = stepFields.partial().transform(ddayOffset);
 export type StepDraft = z.output<typeof stepDraftSchema>;
 
-export const subTaskSchema: z.ZodType<SubTask, unknown> = z.object({
-  id: z.string().min(1).max(64),
-  name: required(300, 'Vui lòng nhập tên việc nhỏ'),
-  completed: z.boolean(),
-});
+export const subTaskFields = z.object({ name: required(300, 'Vui lòng nhập tên việc nhỏ') });
+export const subTaskSchema: z.ZodType<SubTask, unknown> = subTaskFields.extend({ id: z.string().min(1).max(64), completed: z.boolean() });
 
 /** http(s) only: `javascript:` and friends never parse (m2 BUG-19). */
 export const safeUrlSchema = z
@@ -78,11 +75,8 @@ export const safeUrlSchema = z
   .trim()
   .refine((v) => parseSafeUrl(v) !== null, 'Đường dẫn phải bắt đầu bằng http:// hoặc https://')
   .transform((v) => parseSafeUrl(v) as SafeUrl);
-export const stepLinkSchema: z.ZodType<StepLink, unknown> = z.object({
-  id: z.string().min(1).max(64),
-  name: required(300, 'Vui lòng nhập tên tài liệu'),
-  url: safeUrlSchema,
-});
+export const linkFields = z.object({ name: required(300, 'Vui lòng nhập tên tài liệu'), url: safeUrlSchema });
+export const stepLinkSchema: z.ZodType<StepLink, unknown> = linkFields.extend({ id: z.string().min(1).max(64) });
 
 export const groupFields = z.object({
   phase: z.enum(GROUP_PHASES),
@@ -91,6 +85,7 @@ export const groupFields = z.object({
   note: text(2000),
 });
 export type GroupDraft = z.output<typeof groupFields>;
+export const groupNoteFields = z.object({ note: groupFields.shape.note.min(1, 'Vui lòng nhập nội dung ghi chú') });
 
 const instantSchema = z.string().refine((v) => parseInstant(v) !== null, 'Thời điểm không hợp lệ').transform((v) => parseInstant(v) as Instant);
 

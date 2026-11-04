@@ -25,6 +25,7 @@ export const progressManifest = defineFeature({
     { dir: '(app)/events/new', permission: 'progress.create' },
     { dir: '(app)/events/[eventId]/plan', permission: 'progress.read' },
     { dir: '(print)/events/[eventId]/plan', permission: 'progress.read' },
+    { dir: '(print)/events/summary', permission: 'progress.read' },
   ],
   tables: ['sce_tcsk_events', 'sce_tcsk_task_groups', 'sce_tcsk_steps'],
   legacyBlobKeys: ['events', 'programs'],

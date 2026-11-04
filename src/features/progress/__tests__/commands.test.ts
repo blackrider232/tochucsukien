@@ -31,6 +31,15 @@ describe('progress.createEvent', () => {
     expect(h.audits().at(-1)).toMatchObject({ action: 'TẠO SỰ KIỆN', summary: `Tạo sự kiện mới: "${draft().name}" (15/12/2026)`, event_id: eventId });
   });
 
+  it('offers undo of a create only to an actor who may delete the event', async () => {
+    const h = harness();
+    const asUser = await h.ok(xtdtUser, 'progress.createEvent', { id: newId<'Event'>(), draft: draft() });
+    expect(asUser.inverse).toBeUndefined();
+    const asLeader = await h.ok(xtdtLeader, 'progress.createEvent', { id: newId<'Event'>(), draft: draft() });
+    expect(asLeader.inverse).toMatchObject({ command: 'progress.deleteEvent' });
+    expect((await h.undo(xtdtLeader, asLeader.inverse)).ok).toBe(true);
+  });
+
   it('creates a blank event without groups when the template is off', async () => {
     const h = harness();
     const id = await h.createEvent(xtdtUser, { applyStandardTemplate: false });

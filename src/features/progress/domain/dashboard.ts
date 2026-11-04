@@ -39,6 +39,12 @@ export function sortSummaries(rows: ReadonlyArray<PlanSummary>, today: IsoDate):
   });
 }
 
+/** One derived status for filter, card and export (m2 BUG-12/13). */
+export function statusLabel(r: PlanSummary): 'Đã hoàn thành' | 'Đã diễn ra' | 'Đang chuẩn bị' {
+  if (r.complete) return 'Đã hoàn thành';
+  return r.countdown.kind === 'past' ? 'Đã diễn ra' : 'Đang chuẩn bị';
+}
+
 export type StatusFilter = 'all' | 'daily_report' | 'dday_today' | 'has_overdue' | 'preparing' | 'completed';
 export interface PlanFilter {
   q: string;
