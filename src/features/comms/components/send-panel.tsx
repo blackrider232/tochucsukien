@@ -27,7 +27,7 @@ const STOP_REASON: Record<string, string> = {
   claim_lost: 'Một phiên gửi khác đã tiếp quản những người nhận còn lại, nên phiên này đã dừng để không gửi trùng. Xem Nhật ký gửi.',
   claim_stale: 'Không gia hạn được giữ chỗ người nhận (mất kết nối với máy chủ), nên phiên gửi đã dừng trước khi giữ chỗ hết hạn để không gửi trùng. Kiểm tra kết nối rồi bấm "Gửi tiếp phần chưa gửi".',
   not_marked: 'Không đánh dấu được thư tiếp theo là đang gửi (mất kết nối, hoặc một phiên khác đã tiếp quản), nên chưa gửi thư đó. Xem Nhật ký gửi rồi bấm "Gửi tiếp phần chưa gửi".',
-  record: 'Đã thử ghi nhật ký gửi nhiều lần nhưng không được, nên đã dừng để tránh gửi trùng. Thư đã gửi mà chưa ghi sẽ hiện "Không rõ đã gửi" ở Nhật ký gửi sau 30 phút. Kiểm tra kết nối rồi gửi tiếp.',
+  record: 'Đã thử ghi nhật ký gửi nhiều lần nhưng không được, nên đã dừng để tránh gửi trùng. Thư đã gửi mà chưa ghi hiện "Đang gửi" ở Nhật ký gửi, rồi "Không rõ đã gửi" khoảng 30 phút sau khi phiên gửi dừng. Kiểm tra kết nối rồi gửi tiếp.',
 };
 
 /** Every recipient of the run counted once: what went, what failed, and what was not sent and why. */

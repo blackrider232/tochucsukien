@@ -20,6 +20,8 @@ export const CLAIM_LEASE_MS = 30 * 60_000;
  * taken for a dead run's only this much after the lease, so a server clock a little ahead never ends a live claim.
  */
 export const CLAIM_SKEW_MS = 2 * 60_000;
+/** A claim last written at `updatedAt` (the database's clock) belongs to a dead run at `now` (the app server's). */
+export const claimLapsed = (now: string, updatedAt: string) => Date.parse(now) - Date.parse(updatedAt) >= CLAIM_LEASE_MS + CLAIM_SKEW_MS;
 /** A live run renews its claims this often, before its next message. */
 export const CLAIM_RENEW_MS = 5 * 60_000;
 /**

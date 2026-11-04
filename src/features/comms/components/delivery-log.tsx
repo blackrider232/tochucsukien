@@ -3,7 +3,8 @@
 // "Nhật ký gửi": one row per recipient per campaign, as Gmail answered. Rows
 // imported from the old app say so: its sandbox marked unsent mail as sent.
 // "Đang gửi" is a claim with no answer yet: a run in progress, or one that
-// stopped with that message in flight, whose outcome only Gmail's Sent folder tells.
+// stopped with that message in flight within the last 30 minutes; after that
+// lease the message reads "Không rõ đã gửi" (shownDeliveries).
 // "Không rõ đã gửi" is a send whose answer was lost: nothing sends it again
 // until an officer checks the Sent folder and confirms it did not go.
 

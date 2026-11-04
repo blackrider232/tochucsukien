@@ -28,7 +28,7 @@ import { CommandError, type CommandContext, type CommandSpec, type InputOf, type
 import { DbError } from '@/core/db';
 import { formatVNTime } from '@/core/dates';
 import { devMemoryEnabled } from '@/core/dev/mode';
-import { CLAIM_LEASE_MS, CLAIM_SKEW_MS } from '../domain/campaign';
+import { CLAIM_LEASE_MS, CLAIM_SKEW_MS, claimLapsed } from '../domain/campaign';
 import { campaignIdSchema, deliveryResultSchema, eventIdSchema, guestIdSchema, MAX_CLAIM_BATCH, requiredEmailSchema, runTokenSchema, type RunToken } from '../domain/schemas';
 import { DEV_FAKE_ID_PREFIX } from '../domain/transport';
 import { asSchema, audit } from './command-kit';
@@ -62,10 +62,10 @@ const byEmail = async (ctx: CommandContext, eventId: EventId, campaignId: Campai
   new Map((await ctx.db.table(deliveriesTable).list({ eventId, campaignId })).map((d) => [d.email, d]));
 
 /** updated_at is the database's clock, ctx.now the app server's: the skew margin keeps a live claim from ending early. */
-const leaseExpired = (ctx: CommandContext, d: DeliveryRow) => Date.parse(ctx.now) - Date.parse(d.updatedAt) >= CLAIM_LEASE_MS + CLAIM_SKEW_MS;
+const leaseExpired = (ctx: CommandContext, d: DeliveryRow) => claimLapsed(ctx.now, d.updatedAt);
 /** Held by the run whose token hashes to `claim`: claimed, or being sent. */
 const heldBy = (d: DeliveryRow, claim: ClaimHash) => (d.status === 'queued' || d.status === 'sending') && d.claimToken === claim;
-const IN_FLIGHT_LOST = 'Phiên gửi đã dừng khi đang gửi thư này, nên chưa rõ thư đã đi hay chưa. Kiểm tra mục Đã gửi của Gmail.';
+export const IN_FLIGHT_LOST = 'Phiên gửi đã dừng khi đang gửi thư này, nên chưa rõ thư đã đi hay chưa. Kiểm tra mục Đã gửi của Gmail.';
 /** Taken over while its run may still be waiting for Gmail: that run may yet record the answer (markNotSent waits). */
 const IN_FLIGHT_TAKEN = 'Phiên gửi trước đã được tiếp quản khi đang gửi thư này, nên chưa rõ thư đã đi hay chưa. Kiểm tra mục Đã gửi của Gmail.';
 
@@ -295,7 +295,10 @@ export const markNotSent: CommandSpec<InputOf<'comms.markNotSent'>, OutputOf<'co
     let marked = 0;
     try {
       for (const email of new Set(emails)) {
-        const d = existing.get(email);
+        let d = existing.get(email);
+        // A message in flight whose run went silent for the whole lease reads as unknown in the log (deliveryLogData):
+        // it becomes unknown first, as the database allows for a lapsed one, then an error.
+        if (d?.status === 'sending' && leaseExpired(ctx, d)) d = await ctx.db.table(deliveriesTable).update(d.id, { status: 'unknown', error: IN_FLIGHT_LOST }, { expectedVersion: d.version });
         if (d?.status !== 'unknown') continue;
         await ctx.db.table(deliveriesTable).update(d.id, { status: 'error', error: `Cán bộ đã kiểm tra: thư chưa được gửi (${d.error ?? 'mất kết nối'})`.slice(0, 500) }, { expectedVersion: d.version });
         marked += 1;

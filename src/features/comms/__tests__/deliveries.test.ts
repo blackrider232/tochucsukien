@@ -199,6 +199,23 @@ describe('a message being sent', () => {
     expect((await deliveryLogData(h.ctx(xtdtUser), eventId))!.rows[0]).toMatchObject({ status: 'unknown', error: expect.stringContaining('Kiểm tra mục Đã gửi') });
   });
 
+  it('a message in flight whose run went silent reads "Không rõ đã gửi" once its lease is over, and may be confirmed unsent', async () => {
+    const h = harness();
+    const eventId = await h.createEvent();
+    const g = await h.addGuest(eventId, { email: 'a@x.vn' as Email });
+    const { campaignId } = await start(h, eventId, [to('a@x.vn', g.id)]);
+    await marking(h, eventId, campaignId, 'a@x.vn');
+    const shown = async () => (await deliveryLogData(h.ctx(xtdtUser), eventId))!.rows[0];
+    after(h, 'a@x.vn', CLAIM_LEASE_MS);
+    expect(await shown()).toMatchObject({ status: 'sending' });
+    after(h, 'a@x.vn', CLAIM_LEASE_MS + CLAIM_SKEW_MS);
+    // Nobody claimed it again: the log reads the lease, it does not wait for a claim to touch the row.
+    expect(await shown()).toMatchObject({ status: 'unknown', error: expect.stringContaining('Kiểm tra mục Đã gửi') });
+    expect((await invitationScreenData(h.ctx(xtdtUser), eventId, null))!.guests[0]).toMatchObject({ lastDelivery: 'unknown' });
+    expect((await h.ok(xtdtUser, 'comms.markNotSent', { eventId, campaignId, emails: ['a@x.vn'] as Email[] })).value).toEqual({ marked: 1 });
+    expect(deliveries(h)).toEqual([['a@x.vn', 'error']]);
+  });
+
   it('taking over a run of one’s own never sends its message in flight again: it becomes unknown', async () => {
     const h = harness();
     const eventId = await h.createEvent();

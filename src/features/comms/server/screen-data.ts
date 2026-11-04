@@ -11,7 +11,9 @@ import { readEvent } from '@/features/progress/server';
 import { detectColumns } from '../domain/columns';
 import { parseAnswerLabels, parseColumnMap } from '../domain/responses';
 import type { DeliveryLogData, FormScreenData, InvitationScreenData, MailboxesScreenData, ScreenEvent } from '../domain/screen';
+import { claimLapsed } from '../domain/campaign';
 import { serverSyncReady } from './cron';
+import { IN_FLIGHT_LOST } from './deliveries';
 import { listCampaigns, listDeliveries, listMailboxes, listResponses, readCampaign, readForm } from './reads';
 
 async function eventOf(ctx: RequestContext, eventId: EventId) {
@@ -21,10 +23,18 @@ async function eventOf(ctx: RequestContext, eventId: EventId) {
   return { view, scope: { departments: [event.department, ...event.supportingDepartments] } };
 }
 
+/**
+ * The delivery rows as people should read them: a message in flight whose run went silent for the whole lease is
+ * "Không rõ đã gửi", though no claim has touched the row yet (comms.markNotSent and the next claim write it so).
+ */
+async function shownDeliveries(ctx: RequestContext, eventId: EventId) {
+  return (await listDeliveries(ctx, eventId)).map((d) => (d.status === 'sending' && claimLapsed(ctx.now, d.updatedAt) ? { ...d, status: 'unknown' as const, error: IN_FLIGHT_LOST } : d));
+}
+
 export async function invitationScreenData(ctx: RequestContext, eventId: EventId, retryCampaign: string | null): Promise<InvitationScreenData | null> {
   const event = await eventOf(ctx, eventId);
   if (!event) return null;
-  const [roster, mailboxes, form, deliveries] = await Promise.all([readRoster(ctx, eventId), listMailboxes(ctx), readForm(ctx, eventId), listDeliveries(ctx, eventId)]);
+  const [roster, mailboxes, form, deliveries] = await Promise.all([readRoster(ctx, eventId), listMailboxes(ctx), readForm(ctx, eventId), shownDeliveries(ctx, eventId)]);
   // Newest first, so the first row per guest is the latest result.
   const lastOf = new Map<GuestId, 'sent' | 'error' | 'unknown'>();
   for (const d of deliveries) if (d.guestId && d.status !== 'queued' && d.status !== 'sending' && !lastOf.has(d.guestId)) lastOf.set(d.guestId, d.status);
@@ -58,7 +68,7 @@ export async function invitationScreenData(ctx: RequestContext, eventId: EventId
 export async function deliveryLogData(ctx: RequestContext, eventId: EventId): Promise<DeliveryLogData | null> {
   const event = await eventOf(ctx, eventId);
   if (!event) return null;
-  const [rows, kept] = await Promise.all([listDeliveries(ctx, eventId), listCampaigns(ctx, eventId)]);
+  const [rows, kept] = await Promise.all([shownDeliveries(ctx, eventId), listCampaigns(ctx, eventId)]);
   const subjects = new Map(kept.map((c) => [c.id, c.subjectTemplate]));
   // A row's own subject is merged for its recipient, so it names a campaign only for legacy rows, which have one text.
   const campaigns = new Map<CampaignId, string>();
