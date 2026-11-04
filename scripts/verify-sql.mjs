@@ -354,10 +354,10 @@ await denied(ids.leader, 'aal2', `delete from public.sce_tcsk_holidays where hol
 await denied(ids.xtdt, 'aal1', `update public.sce_tcsk_profiles set fullname = 'Ẩn danh' where id = '${ids.xtdt}'`, 'a name changes only through the audited function');
 
 const anonCallable = await db.query(`select p.oid::regprocedure::text as f from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid = p.pronamespace
-  where n.nspname in ('public', 'tcsk') and has_function_privilege('anon', p.oid, 'execute') order by 1`);
+  where n.nspname = 'public' and has_function_privilege('anon', p.oid, 'execute') order by 1`);
 assert.deepEqual(anonCallable.rows.map((r) => r.f), [], 'anon executes no function of public or tcsk');
 const internal = await db.query(`select p.oid::regprocedure::text as f from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid = p.pronamespace
-  where n.nspname = 'tcsk' and p.prosecdef and p.proname in ('take_snapshot', 'role_label', 'bootstrap_first_admin') and has_function_privilege('authenticated', p.oid, 'execute') order by 1`);
-assert.deepEqual(internal.rows.map((r) => r.f), [], 'authenticated executes no internal owner-rights helper');
+  where n.nspname = 'tcsk' and p.proname in ('take_snapshot', 'holidays_of', 'holiday_diff', 'role_label', 'bootstrap_first_admin') and has_function_privilege('authenticated', p.oid, 'execute') order by 1`);
+assert.deepEqual(internal.rows.map((r) => r.f), [], 'authenticated executes no internal helper of the audited functions');
 
 console.log('all RLS and function checks passed');

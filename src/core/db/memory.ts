@@ -9,12 +9,13 @@
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { newId, type Instant } from '@/core/brand';
+import { newId, type Instant, type IsoDate } from '@/core/brand';
 import type { Actor } from '@/core/auth';
 import { parseHolidayRows, parseProfileRow } from '@/core/auth/profile';
-import { todayVN } from '@/core/dates';
+import { formatVNDate, formatVNTime, todayVN } from '@/core/dates';
 import { parseSettingsRow } from '@/core/settings';
 import { aalOk, grantOf, permissionMatrix, type Permission } from '@/core/permissions';
+import { ROLES, type Role } from '@/core/vocab';
 import { DbError } from './errors';
 import { draftMatches, filtersOf, fromColumns, toColumns, columnOf, type Filter } from './mapping';
 import { parseAuditRow, parseBackupRow, settingsPatchColumns } from './rpc';
@@ -96,6 +97,10 @@ class Rls {
   }
   hasPerm(perm: string): boolean {
     return this.active && aalOk(this.actor) && this.grant(perm) === 'all';
+  }
+  /** Held at any scope: tcsk.grant_for(perm) <> 'none'. */
+  holdsPerm(perm: string): boolean {
+    return this.active && aalOk(this.actor) && this.grant(perm) !== 'none';
   }
   canOnDepartments(perm: string, lead: unknown, supporting: unknown): boolean {
     if (!this.active || !aalOk(this.actor)) return false;
@@ -295,6 +300,33 @@ const NOT_BACKED_UP = new Set(['sce_tcsk_profiles', 'sce_tcsk_role_permissions',
 const isBackedUp = (table: string) => Boolean(loadCatalog().get(table)?.owner) && !NOT_BACKED_UP.has(table);
 const vnDay = (at: unknown) => todayVN(String(at) as Instant);
 
+// The audit rows of 202611041100_core_audit_in_functions.sql, word for word.
+const CORE_AUDIT_ACTIONS = new Set([
+  'CẬP NHẬT THAM SỐ HỆ THỐNG', 'CẬP NHẬT NGÀY NGHỈ LỄ', 'CẬP NHẬT HỒ SƠ', 'PHÂN QUYỀN TÀI KHOẢN', 'CHUYỂN PHÒNG BAN', 'DUYỆT/MỞ KHÓA TÀI KHOẢN',
+  'KHÓA TÀI KHOẢN', 'TẠO TÀI KHOẢN', 'TẠO BẢN SAO LƯU', 'KHÔI PHỤC SAO LƯU', 'TẢI BẢN SAO LƯU', 'KHỞI TẠO QUẢN TRỊ VIÊN',
+]);
+const CORE_AUDIT_ENTITIES = new Set(['profile', 'backup', 'settings', 'holidays']);
+const SETTINGS_AUDIT: ReadonlyArray<readonly [column: string, label: string, unit: string]> = [
+  ['parent_agency', 'Đơn vị chủ quản (cấp trên)', ''],
+  ['agency_name', 'Đơn vị tổ chức sự kiện', ''],
+  ['agency_short_name', 'Tên viết tắt', ''],
+  ['daily_report_threshold_days', 'Ngưỡng kích hoạt báo cáo hàng ngày', ''],
+  ['field_presence_hours', 'Thời gian cán bộ có mặt hiện trường', ''],
+  ['guest_quota_percent', 'Tỷ lệ danh sách khách mời tối thiểu (nhóm 1a)', '%'],
+  ['badge_quota_percent', 'Tỷ lệ in thẻ đại biểu tối thiểu (nhóm 2b)', '%'],
+  ['google_client_id', 'Google Client ID mặc định', ''],
+];
+const roleLabel = (role: unknown) => ROLES[role as Role]?.label ?? String(role);
+const who = (p: Row) => `${String(p.fullname)} <${String(p.email)}>`;
+
+function holidayDiff(previous: ReadonlyArray<Row>, stored: ReadonlyArray<Row>): string {
+  const key = (h: Row) => `${String(h.holiday_date)}|${String(h.name)}|${String(h.kind)}`;
+  const line = (h: Row) => `${formatVNDate(String(h.holiday_date) as IsoDate)} ${String(h.name)}${h.kind === 'holiday' ? '' : ' (ngày làm bù)'}`;
+  const missingFrom = (rows: ReadonlyArray<Row>, other: ReadonlyArray<Row>) => rows.filter((h) => !other.some((o) => key(o) === key(h))).map(line);
+  const [added, dropped] = [missingFrom(stored, previous), missingFrom(previous, stored)];
+  return [added.length > 0 && `thêm ${added.join(', ')}`, dropped.length > 0 && `bỏ ${dropped.join(', ')}`].filter(Boolean).join('; ') || 'không thay đổi';
+}
+
 function rpcHandlers(store: Store, actor: Actor, rls: Rls): { readonly [K in keyof RpcMap]: (args: RpcMap[K]['args']) => RpcMap[K]['result'] } {
   const audit = (action: string, summary: string, eventId: string | null, entity: string | null, entityId: string | null) => {
     if (actor.profile.status !== 'active') throw new DbError('forbidden');
@@ -327,65 +359,91 @@ function rpcHandlers(store: Store, actor: Actor, rls: Rls): { readonly [K in key
       throw e;
     }
   };
-  const createBackup = (note: string, kind: 'manual' | 'auto') => {
-    if (kind === 'manual' ? !rls.hasPerm('core.backups.create') : actor.profile.status !== 'active') throw new DbError('forbidden');
+  /** tcsk.take_snapshot: no check, no audit. */
+  const snapshot = (note: string, kind: 'manual' | 'auto') => {
     store.seq += 1;
     const id = store.seq;
     const data = Object.fromEntries([...store.tables].filter(([t]) => isBackedUp(t)).map(([t, rows]) => [t, structuredClone(rows)]));
     rowsOf(store, 'sce_tcsk_backups').push({
       id, data, note: note.trim() || 'Sao lưu', kind, format: 2, created_by: actor.profile.id, created_by_email: actor.profile.email, created_at: new Date().toISOString(),
     });
-    if (kind === 'manual') audit('TẠO BẢN SAO LƯU', note, null, 'backup', String(id));
-    return { id };
+    return id;
   };
   return {
-    sce_tcsk_write_audit: (a) => audit(a.action, a.summary, a.eventId, a.entity, a.entityId),
-    sce_tcsk_create_backup: (a) => createBackup(a.note, a.kind),
+    sce_tcsk_audit_command: (a) => {
+      if (a.perm.startsWith('core.') || CORE_AUDIT_ENTITIES.has(a.entity ?? '') || CORE_AUDIT_ACTIONS.has(a.action)) throw new DbError('forbidden');
+      const ev = a.eventId === null ? undefined : rowsOf(store, 'sce_tcsk_events').find((e) => e.id === a.eventId);
+      const allowed = a.eventId === null ? rls.holdsPerm(a.perm) : ev ? rls.canOnDepartments(a.perm, ev.department, ev.supporting_departments) : rls.hasPerm(a.perm);
+      if (!allowed) throw new DbError('forbidden');
+      audit(a.action, a.summary, a.eventId, a.entity, a.entityId);
+    },
+    sce_tcsk_create_backup: (a) => {
+      if (!rls.hasPerm('core.backups.create')) throw new DbError('forbidden');
+      const id = snapshot(a.note, a.kind);
+      audit('TẠO BẢN SAO LƯU', `Bản #${id}${a.kind === 'auto' ? ' (tự động)' : ''}: ${a.note.trim() || 'Sao lưu'}`, null, 'backup', String(id));
+      return { id };
+    },
     sce_tcsk_restore_backup: (a) => {
       if (!rls.hasPerm('core.backups.restore')) throw new DbError('forbidden');
       const backup = rowsOf(store, 'sce_tcsk_backups').find((b) => b.id === a.id);
       if (!backup) throw new DbError('not_found');
       if (backup.format !== 2) throw new DbError('constraint', { constraint: 'legacy_format' });
-      const snapshot = structuredClone(backup.data) as Record<string, Row[]>;
-      createBackup(`Trước khi khôi phục #${a.id}`, 'manual');
-      for (const t of new Set([...store.tables.keys(), ...Object.keys(snapshot)])) {
-        if (isBackedUp(t)) store.tables.set(t, snapshot[t] ?? []);
+      const data = structuredClone(backup.data) as Record<string, Row[]>;
+      const beforeId = snapshot(`Trước khi khôi phục #${a.id}`, 'manual');
+      for (const t of new Set([...store.tables.keys(), ...Object.keys(data)])) {
+        if (isBackedUp(t)) store.tables.set(t, data[t] ?? []);
       }
-      audit('KHÔI PHỤC SAO LƯU', `Khôi phục từ bản #${a.id}`, null, 'backup', String(a.id));
+      const taken = formatVNTime(String(backup.created_at) as Instant, { withDate: true });
+      audit('KHÔI PHỤC SAO LƯU', `Khôi phục từ bản #${a.id} (${taken}): ${String(backup.note ?? '')}. Dữ liệu trước đó lưu ở bản #${beforeId}`, null, 'backup', String(a.id));
     },
     sce_tcsk_set_profile_role: (a) => {
       assertManage();
-      const old = transact(() => {
+      const [old, name] = transact(() => {
         const p = profile(a.id);
         const prev = p.role;
         p.role = a.role;
-        return prev;
+        return [prev, who(p)];
       });
-      audit('PHÂN QUYỀN TÀI KHOẢN', `${String(old)} -> ${a.role}`, null, 'profile', a.id);
+      audit('PHÂN QUYỀN TÀI KHOẢN', `${name}: ${roleLabel(old)} → ${roleLabel(a.role)}`, null, 'profile', a.id);
     },
     sce_tcsk_set_profile_department: (a) => {
       assertManage();
-      profile(a.id).department = a.department;
-      audit('CHUYỂN PHÒNG BAN', a.department, null, 'profile', a.id);
+      const p = profile(a.id);
+      const old = p.department;
+      p.department = a.department;
+      audit('CHUYỂN PHÒNG BAN', `${who(p)}: ${old === null || old === undefined ? '(chưa có)' : String(old)} → ${a.department}`, null, 'profile', a.id);
     },
     sce_tcsk_set_profile_status: (a) => {
       assertManage();
       if (a.status === 'locked' && a.ids.includes(actor.profile.id)) throw new DbError('constraint', { constraint: 'cannot_lock_self' });
+      const targets = a.ids.flatMap((id) => rowsOf(store, PROFILE_TABLE).filter((p) => p.id === id));
+      const accounts = targets.map((p) => `${a.status === 'locked' ? 'Khóa' : p.status === 'pending' ? 'Duyệt' : 'Mở khóa'} ${who(p)}`).join('; ');
       const n = transact(() => {
-        const changed = rowsOf(store, PROFILE_TABLE).filter((p) => a.ids.includes(p.id as never) && p.status !== a.status);
+        const changed = targets.filter((p) => p.status !== a.status);
         for (const p of changed) p.status = a.status;
         return changed.length;
       });
-      audit(a.status === 'active' ? 'DUYỆT/MỞ KHÓA TÀI KHOẢN' : 'KHÓA TÀI KHOẢN', `${n} tài khoản`, null, 'profile', a.ids.join(','));
+      audit(a.status === 'active' ? 'DUYỆT/MỞ KHÓA TÀI KHOẢN' : 'KHÓA TÀI KHOẢN', accounts || '0 tài khoản', null, 'profile', a.ids.join(','));
       return n;
+    },
+    sce_tcsk_admit_profile: (a) => {
+      assertManage();
+      const p = profile(a.id);
+      if (p.status !== 'pending') throw new DbError('constraint', { constraint: 'not_pending' });
+      Object.assign(p, { role: a.role, department: a.department, status: 'active' });
+      audit('TẠO TÀI KHOẢN', `${who(p)}, ${roleLabel(a.role)}, ${a.department}`, null, 'profile', a.id);
     },
     sce_tcsk_ensure_profile: () => undefined,
     sce_tcsk_update_settings: (a) => {
       if (!rls.hasPerm('core.settings.edit')) throw new DbError('forbidden');
       const row = rowsOf(store, 'sce_tcsk_system_settings')[0];
       if (!row || row.version !== a.expectedVersion) return null;
+      const before = { ...row };
       const values = Object.fromEntries(Object.entries(settingsPatchColumns(a.patch)).map(([k, v]) => [k, typeof v === 'string' ? v.trim() || null : v]));
       Object.assign(row, values, { version: Number(row.version) + 1, updated_at: new Date().toISOString(), updated_by: actor.profile.id });
+      const shown = (v: unknown, unit: string) => `${v === null || v === undefined ? '(trống)' : String(v)}${unit}`;
+      const changes = SETTINGS_AUDIT.filter(([c]) => before[c] !== row[c]).map(([c, label, unit]) => `${label}: ${shown(before[c], unit)} → ${shown(row[c], unit)}`);
+      audit('CẬP NHẬT THAM SỐ HỆ THỐNG', changes.join('; ') || 'không thay đổi', null, 'settings', '1');
       return parseSettingsRow(row);
     },
     sce_tcsk_replace_holidays: (a) => {
@@ -395,18 +453,21 @@ function rpcHandlers(store: Store, actor: Actor, rls: Rls): { readonly [K in key
       if (a.holidays.some((h) => !inYear(h.date) || !h.name.trim())) throw new DbError('constraint', { constraint: 'holiday_outside_year' });
       if (new Set(a.holidays.map((h) => h.date)).size !== a.holidays.length) throw new DbError('constraint', { constraint: 'sce_tcsk_holidays_pkey' });
       const at = new Date().toISOString();
-      const previous = parseHolidayRows(rowsOf(store, 'sce_tcsk_holidays').filter((h) => inYear(h.holiday_date)));
+      const before = rowsOf(store, 'sce_tcsk_holidays').filter((h) => inYear(h.holiday_date));
       const kept = rowsOf(store, 'sce_tcsk_holidays').filter((h) => !inYear(h.holiday_date));
       const added = a.holidays.map((h) => ({ holiday_date: h.date, name: h.name.trim().slice(0, 120), kind: h.kind, updated_at: at, updated_by: actor.profile.id }));
       store.tables.set('sce_tcsk_holidays', [...kept, ...added].sort((x, y) => String(x.holiday_date).localeCompare(String(y.holiday_date))));
-      return previous;
+      audit('CẬP NHẬT NGÀY NGHỈ LỄ', `Năm ${a.year}: ${holidayDiff(before, added)}`, null, 'holidays', String(a.year));
+      return parseHolidayRows(before);
     },
     sce_tcsk_update_profile_name: (a) => {
       if (actor.profile.status !== 'active') throw new DbError('forbidden');
       const clean = a.fullname.replace(/\s+/g, ' ').trim();
       if (!clean || clean.length > 120) throw new DbError('constraint', { constraint: 'invalid_fullname' });
       const row = profile(actor.profile.id);
+      const old = row.fullname;
       Object.assign(row, { fullname: clean, updated_at: new Date().toISOString() });
+      audit('CẬP NHẬT HỒ SƠ', `Tên hiển thị: "${String(old)}" → "${clean}"`, null, 'profile', actor.profile.id);
       return parseProfileRow(row);
     },
     sce_tcsk_list_profiles: () =>

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { Actor } from '@/core/auth';
 import type { BackupId, Email, UserId, Version } from '@/core/brand';
@@ -5,7 +7,9 @@ import type { CommandId, InputOf } from '@/core/commands';
 import { DbError } from '@/core/db';
 import { settingsPatchSchema } from '@/core/settings';
 import { XTDT, testActor } from '@/core/testing/actors';
-import { SETTINGS_LIMITS } from '../domain/schemas';
+import { ROLES } from '@/core/vocab';
+import { SETTINGS_FIELDS, type SettingsField } from '../domain/labels';
+import { HOLIDAY_KIND_LABELS, SETTINGS_LIMITS } from '../domain/schemas';
 import { actors, adminAal1, createAuthUser, day, harness, locked, NEW_USER_ID, NOW, pending } from './harness';
 
 const { admin, admin2, leader, xtdtLeader, xtdtUser, ptdnUser } = actors;
@@ -76,6 +80,22 @@ describe('one audit row per change', () => {
     const before = h.audits().length;
     await h.ok(id === 'core.profile.updateName' ? xtdtUser : admin, id, inputs[id] as never);
     expect(h.audits().slice(before)).toHaveLength(1);
+  });
+});
+
+describe('audit labels', () => {
+  it('names every edited settings field as the settings screen does', async () => {
+    const h = harness();
+    const patch = { parentAgency: 'A', agencyName: 'B', agencyShortName: 'C', dailyReportThresholdDays: 11, fieldPresenceHours: 3, guestQuotaPercent: 140, badgeQuotaPercent: 130 };
+    await h.ok(admin, 'core.settings.update', { version: v1, patch });
+    const labels = String(h.audits().at(-1)!.summary).split('; ').map((part) => part.split(': ')[0]);
+    expect(labels).toEqual((Object.keys(patch) as SettingsField[]).map((k) => SETTINGS_FIELDS[k].label));
+  });
+
+  it('the SQL functions write the labels the screens show', () => {
+    const sql = readFileSync(join(process.cwd(), 'supabase/migrations/202611041100_core_audit_in_functions.sql'), 'utf8');
+    const labels = [...Object.values(SETTINGS_FIELDS).map((f) => `'${f.label}'`), ...Object.values(ROLES).map((r) => `'${r.label}'`), `(${HOLIDAY_KIND_LABELS.compensatory_workday.toLowerCase()})`];
+    expect(labels.filter((label) => !sql.includes(label))).toEqual([]);
   });
 });
 
@@ -232,7 +252,7 @@ describe('core.profile.updateName', () => {
 });
 
 describe('core.backups.*', () => {
-  it('restores a snapshot after taking one of the current data, and audits both (core B17)', async () => {
+  it('restores a snapshot after taking one of the current data, in one audited change (core B17)', async () => {
     const h = harness();
     const created = await h.ok(leader, 'core.backups.create', { note: 'Trước khi sửa' });
     expect(created.value).toMatchObject({ kind: 'manual', format: 2, note: 'Trước khi sửa', createdByEmail: leader.profile.email });
@@ -288,9 +308,9 @@ describe('core.audit.list', () => {
     expect(h.audits().slice(0, snapshot.length)).toEqual(snapshot);
 
     const first = await h.ok(leader, 'core.audit.list', { limit: 2 });
-    expect(first.value.map((a) => a.action)).toEqual(['TẠO BẢN SAO LƯU', 'TẠO BẢN SAO LƯU']);
+    expect(first.value.map((a) => a.action)).toEqual(['TẠO BẢN SAO LƯU', 'CẬP NHẬT THAM SỐ HỆ THỐNG']);
     const next = await h.ok(leader, 'core.audit.list', { limit: 10, before: first.value.at(-1)!.id });
-    expect(next.value.map((a) => a.summary.slice(-11))).toEqual(['150% → 160%', '140% → 150%', '130% → 140%']);
+    expect(next.value.map((a) => a.summary.slice(-11))).toEqual(['140% → 150%', '130% → 140%']);
     expect((await h.ok(leader, 'core.audit.list', { limit: 10, action: 'CẬP NHẬT THAM SỐ HỆ THỐNG', from: day('2020-01-01'), to: day('2020-12-31') })).value).toHaveLength(0);
     expect((await h.ok(leader, 'core.audit.list', { limit: 10, action: 'CẬP NHẬT THAM SỐ HỆ THỐNG' })).value).toHaveLength(3);
     expect(first.value[0]).not.toHaveProperty('entity');

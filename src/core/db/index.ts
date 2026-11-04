@@ -81,16 +81,24 @@ export interface Db {
 
 /** SQL functions callable from the app. Core-owned list; features ask core to add one. */
 export interface RpcMap {
-  sce_tcsk_write_audit: {
-    args: { action: string; summary: string; eventId: EventId | null; entity: string | null; entityId: string | null };
+  /**
+   * The audit row of a command, as its caller, who must hold `perm` (on the event's departments when eventId is set).
+   * Core actions are refused: core's SQL functions write their own rows.
+   */
+  sce_tcsk_audit_command: {
+    args: { perm: string; action: string; summary: string; eventId: EventId | null; entity: string | null; entityId: string | null };
     result: void;
   };
+  /** Both kinds need core.backups.create. */
   sce_tcsk_create_backup: { args: { note: string; kind: 'manual' | 'auto' }; result: { id: number } };
   sce_tcsk_restore_backup: { args: { id: number }; result: void };
+  // Every core function below that changes data writes its own audit row (202611041100_core_audit_in_functions.sql).
   /** Profile changes are DB functions that re-check core.users.manage and refuse to remove the last admin. */
   sce_tcsk_set_profile_role: { args: { id: UserId; role: string }; result: void };
   sce_tcsk_set_profile_department: { args: { id: UserId; department: string }; result: void };
   sce_tcsk_set_profile_status: { args: { ids: ReadonlyArray<UserId>; status: 'active' | 'locked' }; result: number };
+  /** Role, department and approval of a pending account the service role just created, as one audited change. */
+  sce_tcsk_admit_profile: { args: { id: UserId; role: string; department: string }; result: void };
   /** Creates the caller's missing profile (users from the shared project's other apps). */
   sce_tcsk_ensure_profile: { args: Record<string, never>; result: void };
   // The rest are core's (202611041000_core_admin_functions.sql): the tables behind them have no managed columns.

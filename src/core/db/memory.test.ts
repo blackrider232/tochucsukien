@@ -214,10 +214,14 @@ describe('memoryDb rpc', () => {
     { id: userId, email: 'u@sce.vn', fullname: 'U', role: 'user', department: XTDT, status: 'pending' },
   ];
 
-  it('writes audit rows for active actors only', async () => {
+  it('writes a command audit row only under a permission the caller holds, and never a core action', async () => {
     const { seed, xtdt } = setup();
-    await memoryDb(seed, xtdt).rpc('sce_tcsk_write_audit', { action: 'X', summary: 's', eventId: E1, entity: 'guest', entityId: '1' });
-    await rejectsWith(memoryDb(seed, testActor('user', XTDT, { status: 'locked' })).rpc('sce_tcsk_write_audit', { action: 'Y', summary: '', eventId: null, entity: null, entityId: null }), 'forbidden');
+    const row = { perm: 'guests.write', action: 'X', summary: 's', eventId: E1, entity: 'guest', entityId: '1' };
+    await memoryDb(seed, xtdt).rpc('sce_tcsk_audit_command', row);
+    await rejectsWith(memoryDb(seed, testActor('user', XTDT, { status: 'locked' })).rpc('sce_tcsk_audit_command', row), 'forbidden');
+    await rejectsWith(memoryDb(seed, testActor('user', 'Phòng Tư vấn doanh nghiệp')).rpc('sce_tcsk_audit_command', row), 'forbidden');
+    await rejectsWith(memoryDb(seed, xtdt).rpc('sce_tcsk_audit_command', { ...row, perm: 'core.users.manage' }), 'forbidden');
+    await rejectsWith(memoryDb(seed, xtdt).rpc('sce_tcsk_audit_command', { ...row, action: 'PHÂN QUYỀN TÀI KHOẢN' }), 'forbidden');
     expect(inspectMemoryDb(seed, 'sce_tcsk_audit_logs')).toMatchObject([{ action: 'X', event_id: E1, actor_id: xtdt.profile.id }]);
   });
 
@@ -230,7 +234,7 @@ describe('memoryDb rpc', () => {
     expect(err.detail?.constraint).toBe('last_admin');
     expect(inspectMemoryDb(seed, 'sce_tcsk_profiles')[0]).toMatchObject({ role: 'admin' });
     expect(await memoryDb(seed, admin).rpc('sce_tcsk_set_profile_status', { ids: [user.profile.id as UserId], status: 'active' })).toBe(1);
-    expect(inspectMemoryDb(seed, 'sce_tcsk_audit_logs').map((a) => a.action)).toEqual(['DUYỆT/MỞ KHÓA TÀI KHOẢN']);
+    expect(inspectMemoryDb(seed, 'sce_tcsk_audit_logs')).toMatchObject([{ action: 'DUYỆT/MỞ KHÓA TÀI KHOẢN', summary: 'Duyệt U <u@sce.vn>' }]);
   });
 
   it('backup and restore round-trip domain tables', async () => {
