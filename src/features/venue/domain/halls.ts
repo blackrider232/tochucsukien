@@ -15,6 +15,14 @@ export const SEAT_CODE_PATTERN = /^[A-Z0-9]{1,4}-[0-9]{2,3}$/;
 
 export type ZoneGroup = GuestGroup | 'all';
 
+/** One seat's change, as the client saw it: the command refuses it when the seat no longer holds `from`. */
+export interface SeatChange {
+  seatCode: SeatCode;
+  from: GuestId | null;
+  to: GuestId | null;
+}
+
+
 /** One colour registry for dots, legend chips and seat tiles (m4b BUG-14). Each colour is a kit Tone. */
 export const ZONE_COLORS: { readonly [C in ZoneColor]: { label: string; tone: Tone } } = {
   red: { label: 'Đỏ (VIP)', tone: 'red' },

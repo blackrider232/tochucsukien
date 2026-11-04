@@ -10,9 +10,9 @@ import { CommandError, defineCommands, type AuditEntry, type CommandContext, typ
 import type { Schema } from '@/core/db';
 import type { RosterEntry } from '@/features/guests';
 import type { Booth, BoothShift, EventHall, HallTemplate, HallZone, SeatAssignment } from '../contract';
-import { AUTO_ASSIGN_MODES, planAutoAssign, seededRandom, type AutoAssignMode } from '../domain/auto-assign';
+import { AUTO_ASSIGN_MODES, planAutoAssign, seededRandom, type AutoAssignMode, type AutoAssignSummary } from '../domain/auto-assign';
 import { DEFAULT_HALL_TEMPLATES } from '../domain/default-halls';
-import { findFreeSeat, orphanSeats, remapSeats, zoneOfSeat } from '../domain/halls';
+import { findFreeSeat, orphanSeats, remapSeats, zoneOfSeat, type SeatChange } from '../domain/halls';
 import {
   boothDraftSchema, boothIdSchema, boothShiftIdSchema, eventIdSchema, guestIdSchema, hallTemplateDraftSchema, hallTemplateIdSchema, seatCodeSchema,
   SEAT_POLICIES, shiftDraftSchema, versionSchema, zonesSchema, type BoothDraft, type HallTemplateDraft, type SeatPolicy, type ShiftDraft,
@@ -21,18 +21,6 @@ import { defaultHallId } from './default-hall-ids';
 import { boothShiftsTable, boothsTable, eventHallsTable, hallTemplatesTable, seatsTable, type BoothRow, type EventHallRow, type SeatRow } from './tables';
 import { requireRoster } from './upstream';
 
-export interface SeatChange {
-  seatCode: SeatCode;
-  /** The occupant the client saw; the change is refused when the seat holds someone else now. */
-  from: GuestId | null;
-  to: GuestId | null;
-}
-export interface AutoAssignSummary {
-  attending: number;
-  placed: number;
-  unplaced: number;
-  perZone: ReadonlyArray<{ key: string; name: string; assigned: number; seats: number }>;
-}
 type HallState = { templateId: HallTemplateId | null; zones: ReadonlyArray<HallZone> };
 
 declare module '@/core/commands' {

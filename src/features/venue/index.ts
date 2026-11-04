@@ -7,3 +7,5 @@ export {
 } from './domain/halls';
 export { boothKpis, BOOTH_STATUS, SUBSIDY } from './domain/booths';
 export { AdminHalls } from './components/admin-halls';
+export { SeatingView } from './components/seating-view';
+export { PrintSeating } from './components/print-seating';

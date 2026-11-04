@@ -23,6 +23,14 @@ export interface AutoAssignResult {
   perZone: ReadonlyArray<{ zone: HallZone; assigned: number; seats: number }>;
 }
 
+/** What the command reports back for the result dialog. */
+export interface AutoAssignSummary {
+  attending: number;
+  placed: number;
+  unplaced: number;
+  perZone: ReadonlyArray<{ key: string; name: string; assigned: number; seats: number }>;
+}
+
 /** mulberry32: a small seeded generator in [0, 1). */
 export function seededRandom(seed: number): () => number {
   let a = seed >>> 0;
