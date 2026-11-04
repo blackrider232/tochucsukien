@@ -89,7 +89,7 @@ export function AdminHalls({ templates, usage }: { templates: ReadonlyArray<Hall
                       {t.zones.map((z) => (
                         <li key={z.key} className="space-y-1 rounded-control border border-line bg-surface-2 p-2">
                           <ZoneBadge zone={z} />
-                          <p className="text-xs text-ink-2">Tiền tố: <span className="font-mono font-semibold">{z.prefix}</span> · {z.seatCount} ghế{z.vipZone ? ' · Khu VIP' : ''}</p>
+                          <p className="text-xs text-ink-2">{z.seatCount} ghế, mã {z.prefix}01 đến {z.prefix}{String(z.seatCount).padStart(2, '0')}{z.vipZone ? ' · Khu VIP' : ''}</p>
                         </li>
                       ))}
                     </ul>
