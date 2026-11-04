@@ -6,12 +6,13 @@
 import { useEffect, useState } from 'react';
 import { Alert, Badge, Button, Form, FormField, SectionCard, StatusBadge, TextInput, useDialogs, useToast, useZodForm } from '@/components/ui';
 import type { Profile } from '@/core/auth';
-import { authAvailable, AUTH_UNAVAILABLE, changePassword, listTotpFactors, removeTotpFactor, type TotpFactor } from '@/core/auth/flows';
+import { authAvailable, AUTH_UNAVAILABLE, listTotpFactors, removeTotpFactor, type TotpFactor } from '@/core/auth/flows';
 import type { Instant } from '@/core/brand';
 import { useCommand } from '@/core/commands';
 import { formatVNTime } from '@/core/dates';
 import { ROLES } from '@/core/vocab';
-import { PASSWORD_MIN, changePasswordSchema, profileNameSchema } from '../domain/schemas';
+import { profileNameSchema } from '../domain/schemas';
+import { ChangePasswordForm } from './auth-forms';
 import { TotpEnroll } from './totp';
 import { useHydrated } from './use-hydrated';
 
@@ -65,35 +66,9 @@ function AccountCard({ profile }: { profile: Profile }) {
 
 function PasswordCard() {
   const toast = useToast();
-  const form = useZodForm(changePasswordSchema, { defaultValues: { current: '', password: '', confirm: '' } });
-  const hydrated = useHydrated();
-  const [error, setError] = useState<string | null>(null);
-  const submit = async (v: { current: string; password: string }) => {
-    setError(null);
-    const r = await changePassword(v.current, v.password);
-    if (!r.ok) return setError(r.message);
-    form.reset({ current: '', password: '', confirm: '' });
-    toast.success('Đã đổi mật khẩu.');
-  };
   return (
     <SectionCard title="Đổi mật khẩu" subtitle="Cần mật khẩu hiện tại để đặt mật khẩu mới." icon="lock">
-      {authAvailable() ? (
-        <Form form={form} onSubmit={submit} className="space-y-3">
-          {error && <Alert tone="danger">{error}</Alert>}
-          <FormField label="Mật khẩu hiện tại" name="current" required>
-            <TextInput name="current" type="password" autoComplete="current-password" />
-          </FormField>
-          <FormField label="Mật khẩu mới" name="password" required hint={`Tối thiểu ${PASSWORD_MIN} ký tự.`}>
-            <TextInput name="password" type="password" autoComplete="new-password" />
-          </FormField>
-          <FormField label="Nhập lại mật khẩu mới" name="confirm" required>
-            <TextInput name="confirm" type="password" autoComplete="new-password" />
-          </FormField>
-          <Button type="submit" variant="secondary" icon="lock" disabled={!hydrated} loading={form.formState.isSubmitting}>Đổi mật khẩu</Button>
-        </Form>
-      ) : (
-        <Alert tone="info">{AUTH_UNAVAILABLE}</Alert>
-      )}
+      <ChangePasswordForm onChanged={() => toast.success('Đã đổi mật khẩu.')} />
     </SectionCard>
   );
 }

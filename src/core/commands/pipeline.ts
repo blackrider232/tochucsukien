@@ -1,4 +1,6 @@
 // The command pipeline: parse -> gate -> authorize -> run -> audit -> result.
+// The audit row is written as the caller under the command's permission, so the
+// database refuses a row the caller could not have earned.
 // dispatch() feeds it the request context; tests feed it a memoryDb context.
 // ctx.call() re-enters it, so a command that asks another owner gets that
 // owner's permission check and audit too.
@@ -147,9 +149,9 @@ export async function runCommand(ctx: RequestContext, lookup: CommandLookup, id:
     const denied = await authorize(cmdCtx, spec, parsed.value);
     if (denied) return denied;
     const outcome = await spec.run(cmdCtx, parsed.value);
-    if (outcome.audit) {
-      await ctx.db.rpc('sce_tcsk_write_audit', outcome.audit);
-    } else if (spec.kind === 'mutation') {
+    if (outcome.audit && outcome.audit !== 'sql') {
+      await ctx.db.rpc('sce_tcsk_audit_command', { ...outcome.audit, perm: spec.authorize.perm });
+    } else if (!outcome.audit && spec.kind === 'mutation') {
       throw new Error(`mutation ${id} returned no audit entry`);
     }
     return 'inverse' in outcome && outcome.inverse ? { ok: true, value: outcome.value, inverse: outcome.inverse } : { ok: true, value: outcome.value };

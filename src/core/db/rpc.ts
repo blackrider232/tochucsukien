@@ -4,7 +4,7 @@
 import { z } from 'zod';
 import type { EventId, Instant } from '@/core/brand';
 import { parseHolidayRows, parseProfileRow } from '@/core/auth/profile';
-import { parseInstant } from '@/core/dates';
+import { parseInstant, type Holiday } from '@/core/dates';
 import { parseSettingsRow, type SettingsPatch } from '@/core/settings';
 import type { AuditLogRow, BackupRow, RpcMap } from './index';
 
@@ -69,11 +69,13 @@ export function parseAuditRow(row: unknown): AuditLogRow {
 
 const auditFacets = z.object({ actions: z.array(z.string()).default([]), entities: z.array(z.string()).default([]) });
 
+const holidayArgs = (list: ReadonlyArray<Holiday>) => list.map((h) => ({ date: h.date, name: h.name, kind: h.kind }));
+
 const list = <T>(parse: (row: unknown) => T) => (d: unknown): T[] => (Array.isArray(d) ? d.map(parse) : []);
 
 export const RPC_ALLOWLIST: { readonly [K in keyof RpcMap]: RpcSpec<K> } = {
-  sce_tcsk_write_audit: {
-    args: (a) => ({ action: a.action, summary: a.summary, event_id: a.eventId, entity: a.entity, entity_id: a.entityId }),
+  sce_tcsk_audit_command: {
+    args: (a) => ({ perm: a.perm, action: a.action, summary: a.summary, event_id: a.eventId, entity: a.entity, entity_id: a.entityId }),
     result: none,
   },
   sce_tcsk_create_backup: { args: (a) => ({ note: a.note, kind: a.kind }), result: (d) => ({ id: Number(d) }) },
@@ -81,14 +83,15 @@ export const RPC_ALLOWLIST: { readonly [K in keyof RpcMap]: RpcSpec<K> } = {
   sce_tcsk_set_profile_role: { args: (a) => ({ id: a.id, role: a.role }), result: none },
   sce_tcsk_set_profile_department: { args: (a) => ({ id: a.id, department: a.department }), result: none },
   sce_tcsk_set_profile_status: { args: (a) => ({ ids: a.ids, status: a.status }), result: (d) => Number(d) },
+  sce_tcsk_admit_profile: { args: (a) => ({ id: a.id, role: a.role, department: a.department }), result: none },
   sce_tcsk_ensure_profile: { args: () => ({}), result: none },
   sce_tcsk_update_settings: {
     args: (a) => ({ expected_version: a.expectedVersion, patch: settingsPatchColumns(a.patch) }),
     result: (d) => (d ? parseSettingsRow(d) : null),
   },
   sce_tcsk_replace_holidays: {
-    args: (a) => ({ year: a.year, holidays: a.holidays.map((h) => ({ date: h.date, name: h.name, kind: h.kind })) }),
-    result: (d) => parseHolidayRows(Array.isArray(d) ? d.map((h: { date?: unknown; name?: unknown; kind?: unknown }) => ({ holiday_date: h.date, name: h.name, kind: h.kind })) : []),
+    args: (a) => ({ year: a.year, holidays: holidayArgs(a.holidays), expected: holidayArgs(a.expected) }),
+    result: (d) => (Array.isArray(d) ? parseHolidayRows(d.map((h: { date?: unknown; name?: unknown; kind?: unknown }) => ({ holiday_date: h.date, name: h.name, kind: h.kind }))) : null),
   },
   sce_tcsk_update_profile_name: { args: (a) => ({ new_fullname: a.fullname }), result: parseProfileRow },
   sce_tcsk_list_profiles: { args: () => ({}), result: list(parseProfileRow) },

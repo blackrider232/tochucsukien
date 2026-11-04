@@ -28,3 +28,29 @@ export function screenRedirect(screen: AuthScreen, gate: Gate, next: string | nu
   const own: Gate['kind'][] = screen === 'pending' ? ['pending', 'locked'] : [screen];
   return own.includes(gate.kind) ? null : GATE_PATHS[gate.kind];
 }
+
+/** How long after opening a recovery link the session may set a password without the old one. */
+export const RECOVERY_WINDOW_SECONDS = 15 * 60;
+
+export type ResetPasswordView = { kind: 'request' } | { kind: 'recovery' } | { kind: 'change' } | { kind: 'redirect'; to: string };
+
+/**
+ * /reset-password: the email form without a session; for a finished session, the
+ * new-password form only within the window after a recovery sign-in (from the
+ * session's amr claim), else the form that asks for the current password. An
+ * unfinished session goes to its gate, the MFA ones coming back here.
+ */
+export function resetPasswordView(gate: Gate, recoveryAge: number | null): ResetPasswordView {
+  switch (gate.kind) {
+    case 'login':
+      return { kind: 'request' };
+    case 'pending':
+    case 'locked':
+      return { kind: 'redirect', to: GATE_PATHS[gate.kind] };
+    case 'mfa_challenge':
+    case 'mfa_enroll':
+      return { kind: 'redirect', to: `${GATE_PATHS[gate.kind]}?next=${encodeURIComponent('/reset-password')}` };
+    case 'ok':
+      return recoveryAge !== null && recoveryAge <= RECOVERY_WINDOW_SECONDS ? { kind: 'recovery' } : { kind: 'change' };
+  }
+}

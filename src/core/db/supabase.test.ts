@@ -210,9 +210,9 @@ describe('supabaseDb rpc', () => {
   it('maps arguments to SQL parameter names and parses results', async () => {
     const { client, rpcs } = fakeClient((call) => ok(call.table === 'rpc:sce_tcsk_create_backup' ? 42 : null));
     const db = supabaseDb(client, actor);
-    await db.rpc('sce_tcsk_write_audit', { action: 'X', summary: 's', eventId: E1, entity: 'guest', entityId: G1 });
+    await db.rpc('sce_tcsk_audit_command', { perm: 'guests.write', action: 'X', summary: 's', eventId: E1, entity: 'guest', entityId: G1 });
     expect(await db.rpc('sce_tcsk_create_backup', { note: 'n', kind: 'manual' })).toEqual({ id: 42 });
-    expect(rpcs[0]).toEqual({ fn: 'sce_tcsk_write_audit', args: { action: 'X', summary: 's', event_id: E1, entity: 'guest', entity_id: G1 } });
+    expect(rpcs[0]).toEqual({ fn: 'sce_tcsk_audit_command', args: { perm: 'guests.write', action: 'X', summary: 's', event_id: E1, entity: 'guest', entity_id: G1 } });
   });
 
   it('translates function errors', async () => {

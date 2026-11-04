@@ -57,7 +57,9 @@ export interface CommandContext extends RequestContext {
 }
 
 /**
- * kind 'mutation' must return an audit entry; kind 'query' returns audit: null.
+ * kind 'mutation' must return an audit entry, or 'sql' when the SQL function it
+ * called wrote the row itself (core's functions do), so a change logs one row;
+ * kind 'query' returns audit: null.
  * One interface (not a union) so run() gets contextual parameter types.
  */
 export interface CommandSpec<I, O> {
@@ -67,7 +69,7 @@ export interface CommandSpec<I, O> {
   run(ctx: CommandContext, input: I): Promise<CommandOutcome<O>>;
 }
 export type CommandOutcome<O> =
-  | { value: O; audit: AuditEntry; inverse?: Inverse }
+  | { value: O; audit: AuditEntry | 'sql'; inverse?: Inverse }
   | { value: O; audit: null };
 
 /** Keys of the record must be the verbs of `${F}.${verb}` ids in CommandMap. */

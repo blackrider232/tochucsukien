@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { Actor } from '@/core/auth';
 import type { BackupId, Email, UserId, Version } from '@/core/brand';
@@ -5,15 +7,23 @@ import type { CommandId, InputOf } from '@/core/commands';
 import { DbError } from '@/core/db';
 import { settingsPatchSchema } from '@/core/settings';
 import { XTDT, testActor } from '@/core/testing/actors';
-import { SETTINGS_LIMITS } from '../domain/schemas';
+import { ROLES } from '@/core/vocab';
+import { SETTINGS_FIELDS, type SettingsField } from '../domain/labels';
+import { HOLIDAY_KIND_LABELS, SETTINGS_LIMITS } from '../domain/schemas';
 import { actors, adminAal1, createAuthUser, day, harness, locked, NEW_USER_ID, NOW, pending } from './harness';
 
 const { admin, admin2, leader, xtdtLeader, xtdtUser, ptdnUser } = actors;
 const v1 = 1 as Version;
 
+const seededHolidays2027 = [
+  { date: day('2027-01-01'), name: 'Tết Dương lịch', kind: 'holiday' as const },
+  { date: day('2027-04-30'), name: 'Ngày Giải phóng miền Nam', kind: 'holiday' as const },
+];
+
 const inputs: { [K in CommandId as K extends `core.${string}` ? K : never]: InputOf<K> } = {
   'core.settings.update': { version: v1, patch: { guestQuotaPercent: 150 } },
-  'core.holidays.replaceYear': { year: 2027, holidays: [{ date: day('2027-02-06'), name: 'Tết Nguyên đán', kind: 'holiday' }] },
+  'core.holidays.replaceYear': { year: 2029, holidays: [{ date: day('2029-02-13'), name: 'Tết Nguyên đán', kind: 'holiday' }] },
+  'core.holidays.saveYear': { year: 2027, expected: seededHolidays2027, holidays: [{ date: day('2027-02-06'), name: 'Tết Nguyên đán', kind: 'holiday' }] },
   'core.users.create': { email: 'moi@sce.vn' as Email, password: 'matkhau123', fullname: 'Mới', department: XTDT, role: 'user' },
   'core.users.setRole': { id: xtdtUser.profile.id, role: 'admin' },
   'core.users.setDepartment': { id: xtdtUser.profile.id, department: 'Phòng Tư vấn doanh nghiệp' },
@@ -29,6 +39,7 @@ const inputs: { [K in CommandId as K extends `core.${string}` ? K : never]: Inpu
 const denied: { [K in keyof typeof inputs]: ReadonlyArray<[string, Actor]> } = {
   'core.settings.update': [['dept_leader', xtdtLeader], ['user', xtdtUser], ['admin at aal1', adminAal1]],
   'core.holidays.replaceYear': [['dept_leader', xtdtLeader], ['user', xtdtUser], ['admin at aal1', adminAal1]],
+  'core.holidays.saveYear': [['dept_leader', xtdtLeader], ['user', xtdtUser], ['admin at aal1', adminAal1]],
   'core.users.create': [['leader', leader], ['dept_leader', xtdtLeader], ['user', xtdtUser]],
   'core.users.setRole': [['leader', leader], ['dept_leader', xtdtLeader], ['user', xtdtUser], ['admin at aal1', adminAal1]],
   'core.users.setDepartment': [['leader', leader], ['dept_leader', xtdtLeader], ['user', xtdtUser]],
@@ -58,6 +69,40 @@ describe('permission denials at command level', () => {
       expect(await h.runWithoutRls(actor, id, inputs[id] as never)).toMatchObject({ ok: false, kind: 'gate' });
     }
     expect(h.audits()).toEqual([]);
+  });
+});
+
+describe('one audit row per change', () => {
+  const backupNote = { note: 'Bản trước khi khôi phục' };
+  const prepare: Partial<Record<keyof typeof inputs, (h: ReturnType<typeof harness>) => Promise<unknown>>> = {
+    'core.users.create': async (h) => {
+      h.seed.sce_tcsk_profiles.push({ id: NEW_USER_ID, email: 'moi@sce.vn', fullname: 'Mới', role: 'user', department: null, status: 'pending', is_active: false, created_at: NOW, updated_at: NOW });
+    },
+    'core.backups.restore': (h) => h.ok(admin, 'core.backups.create', backupNote),
+  };
+  const mutations = (Object.keys(inputs) as Array<keyof typeof inputs>).filter((id) => id !== 'core.backups.download' && id !== 'core.audit.list');
+  it.each(mutations)('%s writes exactly one row, the SQL function’s', async (id) => {
+    const h = harness();
+    await prepare[id]?.(h);
+    const before = h.audits().length;
+    await h.ok(id === 'core.profile.updateName' ? xtdtUser : admin, id, inputs[id] as never);
+    expect(h.audits().slice(before)).toHaveLength(1);
+  });
+});
+
+describe('audit labels', () => {
+  it('names every edited settings field as the settings screen does', async () => {
+    const h = harness();
+    const patch = { parentAgency: 'A', agencyName: 'B', agencyShortName: 'C', dailyReportThresholdDays: 11, fieldPresenceHours: 3, guestQuotaPercent: 140, badgeQuotaPercent: 130 };
+    await h.ok(admin, 'core.settings.update', { version: v1, patch });
+    const labels = String(h.audits().at(-1)!.summary).split('; ').map((part) => part.split(': ')[0]);
+    expect(labels).toEqual((Object.keys(patch) as SettingsField[]).map((k) => SETTINGS_FIELDS[k].label));
+  });
+
+  it('the SQL functions write the labels the screens show', () => {
+    const sql = readFileSync(join(process.cwd(), 'supabase/migrations/202611041100_core_audit_in_functions.sql'), 'utf8');
+    const labels = [...Object.values(SETTINGS_FIELDS).map((f) => `'${f.label}'`), ...Object.values(ROLES).map((r) => `'${r.label}'`), `(${HOLIDAY_KIND_LABELS.compensatory_workday.toLowerCase()})`];
+    expect(labels.filter((label) => !sql.includes(label))).toEqual([]);
   });
 });
 
@@ -105,29 +150,59 @@ describe('core.settings.update', () => {
   });
 });
 
-describe('core.holidays.replaceYear', () => {
+describe('core.holidays.saveYear', () => {
   const tet = { date: day('2027-02-06'), name: 'Tết Nguyên đán', kind: 'holiday' as const };
   const lamBu = { date: day('2027-02-20'), name: 'Làm bù Tết', kind: 'compensatory_workday' as const };
+  const STALE = 'Ngày nghỉ năm 2027 vừa được người khác thay đổi. Đang tải lại danh sách mới…';
 
   it('replaces one year, converges when repeated, and leaves other years alone', async () => {
     const h = harness();
     const list = [{ date: day('2027-01-01'), name: 'Tết Dương lịch', kind: 'holiday' as const }, tet, lamBu];
-    const first = await h.ok(leader, 'core.holidays.replaceYear', { year: 2027, holidays: list });
+    const first = await h.ok(leader, 'core.holidays.saveYear', { year: 2027, expected: seededHolidays2027, holidays: list });
     expect(h.holidays(2027)).toEqual(list);
     expect(h.audits().at(-1)).toMatchObject({ action: 'CẬP NHẬT NGÀY NGHỈ LỄ', summary: 'Năm 2027: thêm 06/02/2027 Tết Nguyên đán, 20/02/2027 Làm bù Tết (ngày làm bù); bỏ 30/04/2027 Ngày Giải phóng miền Nam' });
-    await h.ok(leader, 'core.holidays.replaceYear', { year: 2027, holidays: list });
+    await h.ok(leader, 'core.holidays.saveYear', { year: 2027, expected: list, holidays: list });
     expect(h.holidays(2027)).toEqual(list);
     expect(h.audits().at(-1)?.summary).toBe('Năm 2027: không thay đổi');
     expect(h.holidays(2028)).toEqual([{ date: '2028-01-01', name: 'Tết Dương lịch', kind: 'holiday' }]);
     expect((await h.undo(leader, first.inverse)).ok).toBe(true);
-    expect(h.holidays(2027).map((x) => x.name)).toEqual(['Tết Dương lịch', 'Ngày Giải phóng miền Nam']);
+    expect(h.holidays(2027)).toEqual(seededHolidays2027);
+  });
+
+  it('refuses a save made from a list someone else has changed since', async () => {
+    const h = harness();
+    await h.ok(admin, 'core.holidays.saveYear', { year: 2027, expected: seededHolidays2027, holidays: [...seededHolidays2027, tet] });
+    const audits = h.audits().length;
+    const stale = await h.run(leader, 'core.holidays.saveYear', { year: 2027, expected: seededHolidays2027, holidays: [...seededHolidays2027, lamBu] });
+    expect(stale).toEqual({ ok: false, kind: 'conflict', message: STALE });
+    expect(h.holidays(2027).map((x) => x.name)).toEqual(['Tết Dương lịch', 'Tết Nguyên đán', 'Ngày Giải phóng miền Nam']);
+    expect(h.audits()).toHaveLength(audits);
+  });
+
+  it('refuses to undo over an edit someone made after it', async () => {
+    const h = harness();
+    const mine = await h.ok(admin, 'core.holidays.saveYear', { year: 2027, expected: seededHolidays2027, holidays: [...seededHolidays2027, tet] });
+    const theirs = [...seededHolidays2027, tet, lamBu];
+    await h.ok(leader, 'core.holidays.saveYear', { year: 2027, expected: [...seededHolidays2027, tet], holidays: theirs });
+    expect(await h.undo(admin, mine.inverse)).toEqual({ ok: false, kind: 'conflict', message: STALE });
+    expect(h.holidays(2027).map((x) => x.name)).toEqual(['Tết Dương lịch', 'Tết Nguyên đán', 'Làm bù Tết', 'Ngày Giải phóng miền Nam']);
   });
 
   it('refuses a date outside the year and a date listed twice', async () => {
     const h = harness();
-    const r = await h.run(admin, 'core.holidays.replaceYear', { year: 2027, holidays: [tet, { ...tet, name: 'Trùng' }, { date: day('2028-01-02'), name: 'Sai năm', kind: 'holiday' }] });
+    const r = await h.run(admin, 'core.holidays.saveYear', { year: 2027, expected: seededHolidays2027, holidays: [tet, { ...tet, name: 'Trùng' }, { date: day('2028-01-02'), name: 'Sai năm', kind: 'holiday' }] });
     expect(r).toMatchObject({ ok: false, kind: 'invalid', fieldErrors: { 'holidays.1.date': 'Ngày này đã có trong danh sách', 'holidays.2.date': 'Ngày phải thuộc năm 2027' } });
     expect(h.holidays(2027)).toHaveLength(2);
+  });
+});
+
+describe('core.holidays.replaceYear', () => {
+  it('fills a year that has no rows yet, and refuses a year that has some, which only saveYear may change', async () => {
+    const h = harness();
+    await h.ok(leader, 'core.holidays.replaceYear', inputs['core.holidays.replaceYear']);
+    expect(h.holidays(2029)).toEqual(inputs['core.holidays.replaceYear'].holidays);
+    expect(await h.run(leader, 'core.holidays.replaceYear', { year: 2027, holidays: [] })).toMatchObject({ ok: false, kind: 'conflict' });
+    expect(h.holidays(2027)).toEqual(seededHolidays2027);
   });
 });
 
@@ -136,8 +211,7 @@ describe('core.users.*', () => {
     const h = harness();
     const role = await h.ok(admin, 'core.users.setRole', { id: xtdtUser.profile.id, role: 'dept_leader' });
     expect(role.value).toMatchObject({ role: 'dept_leader' });
-    expect(h.audits().map((a) => a.action)).toEqual(['PHÂN QUYỀN TÀI KHOẢN', 'PHÂN QUYỀN TÀI KHOẢN']);
-    expect(h.audits()[1]!.summary).toBe(`${xtdtUser.profile.fullname} <${xtdtUser.profile.email}>: Chuyên viên → Lãnh đạo Phòng`);
+    expect(h.audits()).toMatchObject([{ action: 'PHÂN QUYỀN TÀI KHOẢN', summary: `${xtdtUser.profile.fullname} <${xtdtUser.profile.email}>: Chuyên viên → Lãnh đạo Phòng` }]);
     await h.undo(admin, role.inverse);
     expect(h.profile(xtdtUser).role).toBe('user');
 
@@ -215,12 +289,12 @@ describe('core.profile.updateName', () => {
 });
 
 describe('core.backups.*', () => {
-  it('restores a snapshot after taking one of the current data, and audits both (core B17)', async () => {
+  it('restores a snapshot after taking one of the current data, in one audited change (core B17)', async () => {
     const h = harness();
     const created = await h.ok(leader, 'core.backups.create', { note: 'Trước khi sửa' });
     expect(created.value).toMatchObject({ kind: 'manual', format: 2, note: 'Trước khi sửa', createdByEmail: leader.profile.email });
     await h.ok(admin, 'core.settings.update', { version: v1, patch: { guestQuotaPercent: 170 } });
-    await h.ok(admin, 'core.holidays.replaceYear', { year: 2027, holidays: [] });
+    await h.ok(admin, 'core.holidays.saveYear', { year: 2027, expected: seededHolidays2027, holidays: [] });
 
     expect(await h.run(leader, 'core.backups.restore', { id: created.value.id })).toMatchObject({ ok: false, kind: 'forbidden' });
     await h.ok(admin, 'core.backups.restore', { id: created.value.id });
@@ -228,7 +302,20 @@ describe('core.backups.*', () => {
     expect(h.holidays(2027)).toHaveLength(2);
     const notes = h.rows('sce_tcsk_backups').map((b) => b.note);
     expect(notes).toEqual(['Trước khi sửa', `Trước khi khôi phục #${created.value.id}`]);
-    expect(h.audits().filter((a) => a.action === 'KHÔI PHỤC SAO LƯU').at(-1)?.summary).toMatch(new RegExp(`^Khôi phục từ bản #${created.value.id} \\(\\d\\d:\\d\\d \\d\\d/\\d\\d/\\d{4}\\): Trước khi sửa$`));
+    const snapshot = h.rows('sce_tcsk_backups').at(-1)!.id;
+    expect(h.audits().at(-1)).toMatchObject({ action: 'KHÔI PHỤC SAO LƯU' });
+    expect(h.audits().at(-1)!.summary).toMatch(new RegExp(`^Khôi phục từ bản #${created.value.id} \\(\\d\\d:\\d\\d \\d\\d/\\d\\d/\\d{4}\\): Trước khi sửa\\. Dữ liệu trước đó lưu ở bản #${snapshot}$`));
+  });
+
+  it('leaves accounts as they are: roles, names and statuses changed after the backup survive a restore', async () => {
+    const h = harness();
+    const created = await h.ok(admin, 'core.backups.create', { note: 'Trước khi đổi tài khoản' });
+    await h.ok(admin, 'core.users.setRole', { id: xtdtUser.profile.id, role: 'dept_leader' });
+    await h.ok(ptdnUser, 'core.profile.updateName', { fullname: 'Tên sau sao lưu' });
+    await h.ok(admin, 'core.users.setStatus', { ids: [pending.profile.id], status: 'active' });
+    const accounts = h.rows('sce_tcsk_profiles');
+    await h.ok(admin, 'core.backups.restore', { id: created.value.id });
+    expect(h.rows('sce_tcsk_profiles')).toEqual(accounts);
   });
 
   it('sends a legacy whole-blob backup to the import script instead of restoring it', async () => {
@@ -258,9 +345,9 @@ describe('core.audit.list', () => {
     expect(h.audits().slice(0, snapshot.length)).toEqual(snapshot);
 
     const first = await h.ok(leader, 'core.audit.list', { limit: 2 });
-    expect(first.value.map((a) => a.action)).toEqual(['TẠO BẢN SAO LƯU', 'TẠO BẢN SAO LƯU']);
+    expect(first.value.map((a) => a.action)).toEqual(['TẠO BẢN SAO LƯU', 'CẬP NHẬT THAM SỐ HỆ THỐNG']);
     const next = await h.ok(leader, 'core.audit.list', { limit: 10, before: first.value.at(-1)!.id });
-    expect(next.value.map((a) => a.summary.slice(-11))).toEqual(['150% → 160%', '140% → 150%', '130% → 140%']);
+    expect(next.value.map((a) => a.summary.slice(-11))).toEqual(['140% → 150%', '130% → 140%']);
     expect((await h.ok(leader, 'core.audit.list', { limit: 10, action: 'CẬP NHẬT THAM SỐ HỆ THỐNG', from: day('2020-01-01'), to: day('2020-12-31') })).value).toHaveLength(0);
     expect((await h.ok(leader, 'core.audit.list', { limit: 10, action: 'CẬP NHẬT THAM SỐ HỆ THỐNG' })).value).toHaveLength(3);
     expect(first.value[0]).not.toHaveProperty('entity');

@@ -4,11 +4,11 @@
 // browser auth flow, and on success loads the next page in full so the proxy
 // sees the new session cookie and routes it through the gate.
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Alert, Button, Form, FormField, Select, TextInput, useZodForm } from '@/components/ui';
-import { authAvailable, AUTH_UNAVAILABLE, onPasswordRecovery, requestPasswordReset, setNewPassword, signInWithGoogle, signInWithPassword, signUp } from '@/core/auth/flows';
-import { LANDING, safeNext } from '../domain/auth-routes';
-import { PASSWORD_MIN, SELF_REGISTER_DEPARTMENTS, loginSchema, newPasswordSchema, registerSchema, resetRequestSchema, type RegisterInput } from '../domain/schemas';
+import { authAvailable, AUTH_UNAVAILABLE, changePassword, requestPasswordReset, setNewPassword, signInWithGoogle, signInWithPassword, signUp } from '@/core/auth/flows';
+import { LANDING, safeNext, type ResetPasswordView } from '../domain/auth-routes';
+import { PASSWORD_MIN, SELF_REGISTER_DEPARTMENTS, changePasswordSchema, loginSchema, newPasswordSchema, registerSchema, resetRequestSchema, type RegisterInput } from '../domain/schemas';
 import { useHydrated } from './use-hydrated';
 
 const go = (path: string) => window.location.assign(path);
@@ -117,10 +117,11 @@ export function RegisterForm({ onSignUp = signUp }: { onSignUp?: typeof signUp }
   );
 }
 
-export function ResetPasswordForm({ recovering }: { recovering: boolean }) {
-  const [fromEvent, setFromEvent] = useState(false);
-  useEffect(() => onPasswordRecovery(() => setFromEvent(true)), []);
-  return recovering || fromEvent ? <NewPasswordForm /> : <ResetRequestForm />;
+/** The server picks the view from the session (resetPasswordView); nothing in the URL or the browser can pick 'recovery'. */
+export function ResetPasswordForm({ view }: { view: Exclude<ResetPasswordView['kind'], 'redirect'> }) {
+  if (view === 'recovery') return <NewPasswordForm />;
+  if (view === 'change') return <ChangePasswordForm onChanged={() => go(LANDING)} />;
+  return <ResetRequestForm />;
 }
 
 function ResetRequestForm() {
@@ -179,5 +180,35 @@ function NewPasswordForm() {
         <Button type="submit" icon="lock" disabled={!hydrated} loading={form.formState.isSubmitting}>Đặt mật khẩu mới</Button>
       </Form>
     </div>
+  );
+}
+
+/** A signed-in password change: GoTrue re-checks the current password (core B37, Q3). */
+export function ChangePasswordForm({ onChanged }: { onChanged: () => void }) {
+  const form = useZodForm(changePasswordSchema, { defaultValues: { current: '', password: '', confirm: '' } });
+  const hydrated = useHydrated();
+  const [error, setError] = useState<string | null>(null);
+  const submit = async (v: { current: string; password: string }) => {
+    setError(null);
+    const r = await changePassword(v.current, v.password);
+    if (!r.ok) return setError(r.message);
+    form.reset({ current: '', password: '', confirm: '' });
+    onChanged();
+  };
+  if (!authAvailable()) return <Alert tone="info">{AUTH_UNAVAILABLE}</Alert>;
+  return (
+    <Form form={form} onSubmit={submit} className="space-y-3">
+      {error && <Alert tone="danger">{error}</Alert>}
+      <FormField label="Mật khẩu hiện tại" name="current" required>
+        <TextInput name="current" type="password" autoComplete="current-password" />
+      </FormField>
+      <FormField label="Mật khẩu mới" name="password" required hint={`Tối thiểu ${PASSWORD_MIN} ký tự.`}>
+        <TextInput name="password" type="password" autoComplete="new-password" />
+      </FormField>
+      <FormField label="Nhập lại mật khẩu mới" name="confirm" required>
+        <TextInput name="confirm" type="password" autoComplete="new-password" />
+      </FormField>
+      <Button type="submit" variant="secondary" icon="lock" disabled={!hydrated} loading={form.formState.isSubmitting}>Đổi mật khẩu</Button>
+    </Form>
   );
 }

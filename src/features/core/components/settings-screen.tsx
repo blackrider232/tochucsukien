@@ -107,7 +107,7 @@ export function HolidaysEditor({ year, years, canEdit }: { year: number; years: 
   const ofYear = holidays.filter((h) => h.date.startsWith(`${year}-`)).sort((a, b) => a.date.localeCompare(b.date));
   const count = (y: number) => holidays.filter((h) => h.date.startsWith(`${y}-`)).length;
 
-  const replace = (next: ReadonlyArray<Holiday>, success: string) => run('core.holidays.replaceYear', { year, holidays: next }, { success });
+  const replace = (next: ReadonlyArray<Holiday>, success: string) => run('core.holidays.saveYear', { year, expected: ofYear, holidays: next }, { success });
   const remove = async (h: Holiday) => {
     const ok = await dialogs.confirm({
       title: `Xóa ${HOLIDAY_KIND_LABELS[h.kind].toLowerCase()} ${formatVNDate(h.date)}?`,
@@ -135,6 +135,9 @@ export function HolidaysEditor({ year, years, canEdit }: { year: number; years: 
       <div className="space-y-3">
         <LinkTabs label="Năm" variant="pill" activeId={String(year)} items={years.map((y) => ({ id: String(y), label: `${y} · ${count(y)} ngày`, href: `/admin/settings?year=${y}` }))} />
         <Alert tone="info">Tết Nguyên đán, Giỗ Tổ Hùng Vương, ngày nghỉ bù và ngày làm bù do Chính phủ công bố hằng năm. Nhập ngay khi có thông báo để hạn chót quanh Tết được tính đúng.</Alert>
+        {canEdit && (
+          <Alert tone="warning">Thêm, sửa hoặc xóa một ngày ở đây làm thay đổi hạn chót và số ngày đếm ngược của các sự kiện đã có, không chỉ sự kiện tạo sau.</Alert>
+        )}
         <DataTable rows={ofYear} columns={columns} rowKey={(h) => h.date} empty={{ icon: 'calendar', title: `Chưa có ngày nghỉ nào trong năm ${year}`, text: canEdit ? 'Bấm "Thêm ngày" để nhập lịch nghỉ của năm.' : undefined }} />
       </div>
       {adding && (
