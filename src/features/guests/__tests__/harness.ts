@@ -7,7 +7,7 @@ import { newId, type EventId, type GuestId, type Instant, type IsoDate, type Sea
 import type { CommandId, CommandResult, CommandSpec, InputOf, Inverse, OutputOf } from '@/core/commands';
 import { commandLookup, runCommand } from '@/core/commands/pipeline';
 import { buildWorkCalendar } from '@/core/dates';
-import { DbError, memoryDb } from '@/core/db';
+import { DbError, memoryDb, type DraftOf } from '@/core/db';
 import { inspectMemoryDb } from '@/core/db/memory';
 import { DEFAULT_SETTINGS } from '@/core/settings';
 import { testActor, XTDT } from '@/core/testing/actors';
@@ -17,7 +17,7 @@ import type { GuestDraft } from '../contract';
 import { NEW_GUEST_DEFAULTS } from '../domain/schemas';
 import { commands } from '../server/commands';
 import { readRoster } from '../server/reads';
-import { seatsTable } from '../server/tables';
+import { guestsTable, seatsTable, type GuestRow } from '../server/tables';
 
 export const SETTINGS = { ...DEFAULT_SETTINGS, version: 1 as Version };
 export const NOW = '2026-11-04T02:00:00.000Z' as Instant;
@@ -87,9 +87,14 @@ export function harness() {
   };
   const seat = (eventId: EventId, guestId: GuestId, seatCode: string) =>
     memoryDb(seed, testActor('admin', null)).table(seatsTable).insert({ eventId, guestId, seatCode: seatCode as SeatCode });
+  /** Rows straight into the table, as an earlier import would have left them: no command, no audit. */
+  const seedGuests = (eventId: EventId, drafts: ReadonlyArray<GuestDraft>) =>
+    memoryDb(seed, testActor('admin', null)).table(guestsTable).insertMany(
+      drafts.map((d) => ({ ...d, id: newId<'Guest'>(), eventId, legacyId: null, rsvpAt: null }) as unknown as DraftOf<GuestRow>),
+    );
   const unseat = (eventId: EventId, guestId: GuestId) => memoryDb(seed, testActor('admin', null)).table(seatsTable).removeWhere({ eventId, guestId });
   const roster = (actor: Actor, eventId: EventId) => readRoster(ctx(actor), eventId);
   const audits = () => inspectMemoryDb(seed, 'sce_tcsk_audit_logs');
   const rows = (table: string) => inspectMemoryDb(seed, table);
-  return { seed, ctx, run, runWithoutRls, ok, undo, createEvent, addGuest, seat, unseat, roster, audits, rows };
+  return { seed, ctx, run, runWithoutRls, ok, undo, createEvent, addGuest, seat, unseat, seedGuests, roster, audits, rows };
 }

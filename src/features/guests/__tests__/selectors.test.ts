@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { SeatCode, Version } from '@/core/brand';
 import { DEFAULT_SETTINGS, type SystemSettings } from '@/core/settings';
 import { filterGuests, guestIdentityKey, guestKpis, guestQuota, isNamecardGuest, printSets, quotaProgress } from '..';
-import { NO_FILTER, rsvpTransition, sameGuest } from '../domain/roster';
+import { NO_FILTER, rsvpTransition } from '../domain/roster';
 import { entry } from './roster-fixture';
 
 const settings = (guestQuotaPercent = 130): SystemSettings => ({ ...DEFAULT_SETTINGS, guestQuotaPercent, version: 1 as Version });
@@ -68,11 +68,21 @@ describe('identity and dedupe (m4a B41)', () => {
     expect(guestIdentityKey({ name: ' Nguyễn  Văn An ', organization: 'Sở Tài Chính', email: null, phone: '' })).toBe('name:nguyen van an|so tai chinh');
   });
 
-  it('sameGuest compares the first identity both records carry', () => {
+  it('is the only identity rule: records agree exactly when their keys are equal, whatever one of them lacks', () => {
     const base = { name: 'Nguyễn Văn An', organization: 'Sở Tài chính', email: null, phone: '' };
-    expect(sameGuest(base, { ...base, name: 'NGUYEN VAN AN', phone: '0912.345.678' })).toBe(true);
-    expect(sameGuest({ ...base, email: 'a@x.vn' as never }, { ...base, email: 'b@x.vn' as never })).toBe(false);
-    expect(sameGuest({ ...base, phone: '0912345678' }, { ...base, phone: '0912345679' })).toBe(false);
+    const key = (o: Partial<typeof base> & { email?: string | null }) => guestIdentityKey({ ...base, ...o, email: (o.email ?? null) as never });
+    // Only one record has an email: it is identified by the email, the other by what it has.
+    expect(key({ email: 'a@x.vn' })).not.toBe(key({}));
+    expect(key({ email: 'a@x.vn' })).not.toBe(key({ phone: '0912345678' }));
+    // Only one record has a phone: the same.
+    expect(key({ phone: '0912345678' })).not.toBe(key({}));
+    // Same email, whatever the rest.
+    expect(key({ email: 'A@X.vn', name: 'Khác' })).toBe(key({ email: 'a@x.vn' }));
+    // Same phone in two forms, or no email: phone decides, not the name.
+    expect(key({ phone: '+84 912.345.678', name: 'Khác' })).toBe(key({ phone: '0912345678' }));
+    // A short phone is not an identity; the name and organization are.
+    expect(key({ phone: '1234567', name: 'NGUYEN VAN AN', organization: 'so tai chinh' })).toBe(key({}));
+    expect(key({ email: 'a@x.vn' })).not.toBe(key({ email: 'b@x.vn' }));
   });
 });
 

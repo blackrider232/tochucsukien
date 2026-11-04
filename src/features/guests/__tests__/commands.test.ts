@@ -167,14 +167,14 @@ describe('guests.upsertMany (asked by directory and comms)', () => {
     const { h, eventId, guest } = await setup();
     const contact = 'c0000000-0000-4000-8000-000000000001' as ContactId;
     const items = [
-      { id: newId<'Guest'>(), draft: draft({ name: 'NGUYỄN VĂN AN', organization: 'Sở tài chính hà nội', title: 'Giám đốc', phone: '0912.345.678', masterContactId: contact }) },
+      { id: newId<'Guest'>(), draft: draft({ name: 'NGUYỄN VĂN AN', organization: 'Sở tài chính hà nội', title: 'Giám đốc', masterContactId: contact }) },
       { id: newId<'Guest'>(), draft: draft({ name: 'Mới Một', organization: 'Công ty A', email: 'moi1@a.vn' as Email }) },
       { id: newId<'Guest'>(), draft: draft({ name: 'Mới Một (trùng email)', organization: 'Công ty A', email: 'MOI1@a.vn' as Email }) },
     ];
     const r = await h.ok(xtdtUser, 'guests.upsertMany', { eventId, items, onExisting: 'fill_blanks' });
     expect(r.value).toEqual({ added: 1, updated: 1, skipped: 1 });
     const roster = await h.roster(xtdtUser, eventId);
-    expect(roster.find((g) => g.id === guest.id)).toMatchObject({ name: 'Nguyễn Văn An', title: 'Giám đốc', phone: '0912.345.678', masterContactId: contact });
+    expect(roster.find((g) => g.id === guest.id)).toMatchObject({ name: 'Nguyễn Văn An', title: 'Giám đốc', phone: '', masterContactId: contact });
     expect(roster).toHaveLength(2);
     expect(h.audits().at(-1)).toMatchObject({ action: 'NHẬP KHÁCH MỜI', summary: 'Nhập khách mời: thêm 1, bổ sung thông tin 1, bỏ qua 1 (trùng)' });
     expect((await h.ok(xtdtUser, 'guests.upsertMany', { eventId, items, onExisting: 'fill_blanks' })).value).toEqual({ added: 0, updated: 0, skipped: 3 });

@@ -72,24 +72,16 @@ export function printSets(roster: ReadonlyArray<RosterEntry>, vipSeat: (code: Se
   };
 }
 
-/** The one dedupe identity (m4a B41): folded email, else normalized phone, else folded name+organization. */
+/**
+ * The one dedupe identity (m4a B41): folded email, else normalized phone, else folded name+organization. Two records are
+ * the same person exactly when their keys are equal, so a record that has an email is never the same as one that lacks it.
+ */
 export function guestIdentityKey(g: Pick<Guest, 'name' | 'organization' | 'email' | 'phone'>): string {
   const email = g.email ? foldVi(g.email) : '';
   if (email) return `email:${email}`;
   const phone = normalizePhone(g.phone);
   if (phone.length >= 8) return `phone:${phone}`;
   return `name:${foldVi(g.name)}|${foldVi(g.organization)}`;
-}
-
-/**
- * Whether two records are the same person, by the first identity both carry: email, then phone, then name and
- * organization. A record with a phone matches one without by name and organization, which a single key cannot.
- */
-export function sameGuest(a: Pick<Guest, 'name' | 'organization' | 'email' | 'phone'>, b: Pick<Guest, 'name' | 'organization' | 'email' | 'phone'>): boolean {
-  if (a.email && b.email) return foldVi(a.email) === foldVi(b.email);
-  const [pa, pb] = [normalizePhone(a.phone), normalizePhone(b.phone)];
-  if (pa.length >= 8 && pb.length >= 8) return pa === pb;
-  return foldVi(a.name) === foldVi(b.name) && foldVi(a.organization) === foldVi(b.organization);
 }
 
 export interface GuestFilter {

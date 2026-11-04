@@ -9,7 +9,7 @@ import type { AuditEntry, CommandContext, CommandsOf, CommandSpec, Inverse, Inpu
 import { DbError, type DraftOf, type Schema } from '@/core/db';
 import { RSVP, SEND_METHOD } from '@/core/vocab';
 import type { Guest, GuestDraft } from '../contract';
-import { rsvpTransition, sameGuest } from '../domain/roster';
+import { guestIdentityKey, rsvpTransition } from '../domain/roster';
 import {
   MAX_BATCH, RSVP_SOURCE_VALUES, RSVP_VALUES, SEND_METHOD_VALUES, eventIdSchema, guestDraftSchema, guestIdSchema, guestPatchSchema,
   draftOf, guestSnapshotSchema, instantSchema, versionSchema, type GuestSnapshot,
@@ -202,15 +202,24 @@ const upsertMany: Spec<InputOf<'guests.upsertMany'>, { added: number; updated: n
   ),
   authorize: writeOnEvent,
   async run(ctx, { eventId, items, onExisting }) {
-    const existing = await ctx.db.table(guestsTable).list({ eventId });
+    // Every identity key is folded once; the lookups below are map hits, so an import is linear in guests plus items.
+    const byKey = new Map<string, GuestRow>();
+    for (const g of await ctx.db.table(guestsTable).list({ eventId })) {
+      const key = guestIdentityKey(g);
+      if (!byKey.has(key)) byKey.set(key, g);
+    }
+    const seen = new Set<string>();
     const fresh: DraftOf<GuestRow>[] = [];
     let [updated, skipped] = [0, 0];
     for (const { id, draft } of items) {
-      if (fresh.some((f) => sameGuest(f, draft))) {
+      const key = guestIdentityKey(draft);
+      // A second item for a guest this import already added or filled changes nothing; the first one won.
+      if (seen.has(key)) {
         skipped += 1;
         continue;
       }
-      const match = existing.find((g) => sameGuest(g, draft));
+      seen.add(key);
+      const match = byKey.get(key);
       if (!match) {
         fresh.push(newRow(eventId, id, draft, draft.rsvpStatus === 'pending' ? null : ctx.now));
         continue;
