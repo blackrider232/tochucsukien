@@ -319,6 +319,43 @@ describe('comms.syncForm', () => {
   });
 });
 
+describe('comms.saveAnswerLabels: the Form’s own choices', () => {
+  it('a choice saved with its meaning applies the answers waiting for review at the next sync, by whole answer only', async () => {
+    const { h, eventId, sync, responses } = await setup();
+    const a = await h.addGuest(eventId, { email: 'a@a.vn' as Email });
+    const b = await h.addGuest(eventId, { email: 'b@a.vn' as Email });
+    sheet.text = csv('04/11/2026 10:00:00,A,Công ty A,a@a.vn,,"Có, tôi sẽ tham dự",,', '04/11/2026 10:00:00,B,Công ty B,b@a.vn,,"Có, tôi sẽ tham dự nhưng đến muộn",,');
+    expect(await sync()).toMatchObject({ applied: 0, review: 2 });
+    const form = h.rows('sce_tcsk_rsvp_forms')[0] as { version: number };
+    const saved = await h.ok(xtdtUser, 'comms.saveAnswerLabels', { eventId, version: form.version as never, labels: { '  CÓ, tôi sẽ tham dự. ': 'confirmed' } });
+    expect(saved.value.answerLabels).toEqual({ 'có, tôi sẽ tham dự': 'confirmed' });
+    expect(h.audits().at(-1)).toMatchObject({ action: 'CẤU HÌNH GOOGLE FORM', summary: 'Lựa chọn trả lời của Form: 1 lựa chọn (1 tham dự, 0 từ chối, 0 cử người thay)' });
+    expect(await sync()).toMatchObject({ fresh: 0, applied: 1, review: 0 });
+    expect((await h.guest(eventId, a.id)).rsvpStatus).toBe('confirmed');
+    expect((await h.guest(eventId, b.id)).rsvpStatus).toBe('pending');
+    expect(responses().map((r) => r.apply_status)).toEqual(['applied', 'review']);
+    // New rows read the label as they come in.
+    sheet.text = csv('04/11/2026 10:00:00,A,Công ty A,a@a.vn,,"Có, tôi sẽ tham dự",,', '04/11/2026 11:00:00,B,Công ty B,b@a.vn,,"Có, tôi sẽ tham dự",,');
+    expect(await sync()).toMatchObject({ fresh: 1, applied: 1 });
+    expect((await h.guest(eventId, b.id)).rsvpStatus).toBe('confirmed');
+  });
+
+  it('undo puts the earlier choices back; a stale version is refused', async () => {
+    const { h, eventId } = await setup();
+    const form = h.rows('sce_tcsk_rsvp_forms')[0] as { version: number };
+    const saved = await h.ok(xtdtUser, 'comms.saveAnswerLabels', { eventId, version: form.version as never, labels: { 'Rất tiếc, tôi bận': 'declined' } });
+    expect(await h.run(xtdtUser, 'comms.saveAnswerLabels', { eventId, version: form.version as never, labels: {} })).toMatchObject({ ok: false, kind: 'conflict' });
+    expect((await h.undo(xtdtUser, saved.inverse)).ok).toBe(true);
+    expect((h.rows('sce_tcsk_rsvp_forms')[0] as { answer_labels: unknown }).answer_labels).toEqual({});
+  });
+
+  it('refuses a choice that means anything but the three answers', async () => {
+    const { h, eventId } = await setup();
+    const form = h.rows('sce_tcsk_rsvp_forms')[0] as { version: number };
+    expect(await h.run(xtdtUser, 'comms.saveAnswerLabels', { eventId, version: form.version as never, labels: { Có: 'pending' as never } })).toMatchObject({ ok: false, kind: 'invalid' });
+  });
+});
+
 describe('the review list: a person decides an answer the reader would not apply', () => {
   async function waiting(answer = 'Tham dự ko đc', rsvpStatus: 'confirmed' | 'pending' = 'confirmed') {
     const s = await setup();

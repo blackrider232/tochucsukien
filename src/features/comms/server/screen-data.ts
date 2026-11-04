@@ -9,7 +9,7 @@ import { orgIdentity } from '@/core/settings';
 import { readRoster } from '@/features/guests/server';
 import { readEvent } from '@/features/progress/server';
 import { detectColumns } from '../domain/columns';
-import { parseColumnMap } from '../domain/responses';
+import { parseAnswerLabels, parseColumnMap } from '../domain/responses';
 import type { DeliveryLogData, FormScreenData, InvitationScreenData, MailboxesScreenData, ScreenEvent } from '../domain/screen';
 import { serverSyncReady } from './cron';
 import { listCampaigns, listDeliveries, listMailboxes, listResponses, readCampaign, readForm } from './reads';
@@ -90,7 +90,7 @@ export async function formScreenData(ctx: RequestContext, eventId: EventId): Pro
     form: form && {
       formUrl: form.formUrl, sheetCsvUrl: form.sheetCsvUrl, autoSync: form.autoSync, autoAddNewGuests: form.autoAddNewGuests,
       columnMap: parseColumnMap(form.columnMap), detectedMap: detectColumns(form.sheetHeaders), sheetHeaders: form.sheetHeaders,
-      lastSyncAt: form.lastSyncAt, lastAttemptAt: form.lastAttemptAt, lastSyncError: form.lastSyncError, version: form.version,
+      lastSyncAt: form.lastSyncAt, lastAttemptAt: form.lastAttemptAt, lastSyncError: form.lastSyncError, answerLabels: parseAnswerLabels(form.answerLabels), version: form.version,
     },
     // Newest first on screen.
     responses: [...responses].reverse().map((r) => ({

@@ -6,9 +6,10 @@ import { Button, Checkbox, Form, FormField, IconButton, SectionCard, Select, Tex
 import type { EventId } from '@/core/brand';
 import { useCommand } from '@/core/commands';
 import { z } from 'zod';
+import { normalizeAnswer, type AnswerStatus } from '../domain/answers';
 import { FORM_FIELDS, FORM_FIELD_LABELS, type ColumnMap, type FormField as Field } from '../domain/columns';
 import { formConfigSchema } from '../domain/schemas';
-import type { FormView } from '../domain/screen';
+import type { FormView, ResponseView } from '../domain/screen';
 
 export function FormConfigCard({ eventId, form, canManage, serverSync }: { eventId: EventId; form: FormView | null; canManage: boolean; serverSync: boolean }) {
   const run = useCommand();
@@ -104,6 +105,55 @@ export function ColumnMapCard({ eventId, form, canManage }: { eventId: EventId; 
             )}
           </div>
         )}
+      </Form>
+    </SectionCard>
+  );
+}
+
+const MEANINGS: ReadonlyArray<{ value: AnswerStatus | 'review'; label: string }> = [
+  { value: 'review', label: 'Cần xem lại từng phản hồi' },
+  { value: 'confirmed', label: 'Tham dự' },
+  { value: 'declined', label: 'Từ chối' },
+  { value: 'substituted', label: 'Cử người đi thay' },
+];
+
+/**
+ * The Form's own RSVP choices: each answer waiting for review, once, and each choice already saved. An answer that is
+ * exactly a saved choice is applied with its meaning from the next sync on; a longer answer still waits for review.
+ */
+export function AnswerLabelsCard({ eventId, form, waiting, canManage }: { eventId: EventId; form: FormView; waiting: ReadonlyArray<ResponseView>; canManage: boolean }) {
+  const run = useCommand();
+  const choices = new Map<string, { text: string; count: number }>();
+  for (const key of Object.keys(form.answerLabels)) choices.set(key, { text: key, count: 0 });
+  for (const r of waiting) {
+    const key = normalizeAnswer(r.rsvpAnswer);
+    const c = choices.get(key);
+    if (c) c.count += 1;
+    else if (key && choices.size < 50) choices.set(key, { text: r.rsvpAnswer.trim(), count: 1 });
+  }
+  const keys = [...choices.keys()];
+  const field = (i: number) => `c${i}`;
+  const schema = z.object(Object.fromEntries(keys.map((_, i) => [field(i), z.string()])));
+  const f = useZodForm(schema, { defaultValues: Object.fromEntries(keys.map((k, i) => [field(i), form.answerLabels[k] ?? 'review'])) });
+  const save = async (values: Record<string, string>) => {
+    const labels = Object.fromEntries(keys.flatMap((k, i) => (values[field(i)] === 'review' ? [] : [[k, values[field(i)] as AnswerStatus]])));
+    await run('comms.saveAnswerLabels', { eventId, version: form.version, labels }, { success: 'Đã lưu lựa chọn trả lời của Form. Bấm "Đồng bộ ngay" để áp dụng.' });
+  };
+  if (keys.length === 0) return null;
+  return (
+    <SectionCard title="Lựa chọn trả lời của Form" subtitle="Nếu đây là một lựa chọn có sẵn trong Form, hãy cho biết ý nghĩa; câu trả lời đúng y như vậy sẽ được tự cập nhật từ lần đồng bộ sau" icon="list-check">
+      <Form form={f} onSubmit={save} className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {keys.map((k, i) => {
+            const c = choices.get(k)!;
+            return (
+              <FormField key={k} label={c.text} name={field(i)} hint={c.count > 0 ? `${c.count} phản hồi đang chờ xem lại` : 'Đã lưu'}>
+                <Select name={field(i)} options={MEANINGS} />
+              </FormField>
+            );
+          })}
+        </div>
+        {canManage && <Button type="submit" variant="secondary" icon="check">Lưu lựa chọn</Button>}
       </Form>
     </SectionCard>
   );

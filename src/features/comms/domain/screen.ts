@@ -4,6 +4,7 @@ import type { CampaignId, Email, EventId, GuestId, HHmm, Instant, IsoDate, Mailb
 import type { OrgIdentity } from '@/core/settings';
 import type { GuestGroup, RsvpStatus } from '@/core/vocab';
 import type { SenderMailbox } from '../contract';
+import type { AnswerLabels } from './answers';
 import type { ColumnMap } from './columns';
 
 export interface ScreenEvent {
@@ -88,6 +89,8 @@ export interface FormView {
   lastSyncAt: Instant | null;
   lastAttemptAt: Instant | null;
   lastSyncError: string | null;
+  /** The Form's RSVP choices staff gave a meaning, keyed by the normalised answer. */
+  answerLabels: AnswerLabels;
   version: Version;
 }
 export interface ResponseView {

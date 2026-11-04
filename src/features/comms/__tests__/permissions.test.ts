@@ -25,6 +25,7 @@ const answering = () => fakeSheetSource({ [SHEET_CSV_URL]: 'Dấu thời gian,H�
 const EVENT_COMMANDS = {
   saveForm: 'comms.rsvp.manage',
   saveColumnMap: 'comms.rsvp.manage',
+  saveAnswerLabels: 'comms.rsvp.manage',
   syncForm: 'comms.rsvp.manage',
   resolveResponse: 'comms.rsvp.manage',
   startCampaign: 'comms.send',
@@ -45,6 +46,7 @@ async function fixture() {
   const inputs: Record<keyof typeof EVENT_COMMANDS, unknown> = {
     saveForm: { eventId, version: form.version + 2, config: { formUrl: 'https://forms.gle/x', sheetUrl: SHEET, autoSync: true, autoAddNewGuests: false } },
     saveColumnMap: { eventId, version: form.version + 2, columnMap: { name: 0, email: 1 } },
+    saveAnswerLabels: { eventId, version: form.version + 2, labels: { 'Có, tôi sẽ tham dự': 'confirmed' } },
     syncForm: { eventId },
     resolveResponse: { eventId, id: response.id, version: response.version as Version, action: { kind: 'dismiss' } },
     startCampaign: { eventId, senderEmail: 'btc@x.vn' as Email, subject: 's', body: '<p>b</p>', attachQr: false, runToken: RUN, takeOver: false, recipients: [{ guestId: null, email: 'b@x.vn', recipientName: '' }] },

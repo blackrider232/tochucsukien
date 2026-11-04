@@ -92,7 +92,7 @@ describe('comms screens render untrusted text as text', () => {
   it('the Google Form screen shows public answers as text and offers review actions', async () => {
     const data: FormScreenData = {
       event,
-      form: { formUrl: null, sheetCsvUrl: null, autoSync: false, autoAddNewGuests: false, columnMap: null, detectedMap: {}, sheetHeaders: [XSS], lastSyncAt: null, lastAttemptAt: null, lastSyncError: XSS, version: 1 as Version },
+      form: { formUrl: null, sheetCsvUrl: null, autoSync: false, autoAddNewGuests: false, columnMap: null, detectedMap: {}, sheetHeaders: [XSS], lastSyncAt: null, lastAttemptAt: null, lastSyncError: XSS, version: 1 as Version, answerLabels: {} },
       responses: [response(), response({ id: 'r2' as RsvpResponseId, applyStatus: 'applied', match: 'email', matchedGuest: { id: 'g1' as GuestId, name: XSS } })],
       guests: [{ id: 'g1' as GuestId, name: XSS, organization: 'A', email: null, phone: '' }],
       canManage: true,
@@ -135,6 +135,21 @@ describe('comms screens render untrusted text as text', () => {
     expect(list.querySelector('table')).toBeNull();
   });
 
+  it('the Form choices card lists each answer waiting for review once, and saves the meaning chosen', async () => {
+    dispatched.mockClear();
+    const form = { formUrl: null, sheetCsvUrl: null, autoSync: false, autoAddNewGuests: false, columnMap: null, detectedMap: {}, sheetHeaders: [], lastSyncAt: null, lastAttemptAt: null, lastSyncError: null, version: 7 as Version, answerLabels: { 'rất tiếc, tôi bận': 'declined' as const } };
+    const waiting = (id: string, rsvpAnswer: string) => response({ id: id as RsvpResponseId, applyStatus: 'review', rsvp: null, match: 'email', matchedGuest: { id: 'g1' as GuestId, name: 'B' }, rsvpAnswer });
+    const data: FormScreenData = { event, form, responses: [waiting('r1', 'Có, tôi sẽ tham dự'), waiting('r2', 'có, tôi sẽ tham dự.'), waiting('r3', XSS)], guests: [], canManage: true, serverSync: false };
+    const { container, user } = renderUi(withAppContext(<FormPage data={data} />));
+    const card = screen.getByText('Lựa chọn trả lời của Form').closest('section')!;
+    noInjection(container);
+    expect(within(card).getAllByRole('combobox')).toHaveLength(3);
+    expect(within(card).getByText(/2 phản hồi/)).toBeInTheDocument();
+    await user.selectOptions(within(card).getByRole('combobox', { name: /Có, tôi sẽ tham dự/ }), 'confirmed');
+    await user.click(within(card).getByRole('button', { name: 'Lưu lựa chọn' }));
+    await vi.waitFor(() => expect(dispatched).toHaveBeenCalledWith('comms.saveAnswerLabels', { eventId: event.id, version: 7, labels: { 'có, tôi sẽ tham dự': 'confirmed', 'rất tiếc, tôi bận': 'declined' } }));
+  });
+
   it('a read-only officer sees the answers waiting for review, with no decision buttons', () => {
     const waiting = response({ applyStatus: 'review', rsvp: null, match: 'email', matchedGuest: { id: 'g1' as GuestId, name: 'Trần Văn Bình' }, rsvpAnswer: 'Bận đột xuất' });
     renderUi(withAppContext(<FormPage data={{ event, form: null, responses: [waiting], guests: [], canManage: false, serverSync: false }} />));
@@ -149,7 +164,7 @@ describe('comms screens render untrusted text as text', () => {
   ])('the auto sync switch promises a server sync only when one runs (configured: %s)', (serverSync, disabled, label, badge) => {
     const data: FormScreenData = {
       event,
-      form: { formUrl: null, sheetCsvUrl: 'https://docs.google.com/spreadsheets/d/x/export?format=csv' as never, autoSync: true, autoAddNewGuests: false, columnMap: null, detectedMap: {}, sheetHeaders: [], lastSyncAt: null, lastAttemptAt: null, lastSyncError: null, version: 1 as Version },
+      form: { formUrl: null, sheetCsvUrl: 'https://docs.google.com/spreadsheets/d/x/export?format=csv' as never, autoSync: true, autoAddNewGuests: false, columnMap: null, detectedMap: {}, sheetHeaders: [], lastSyncAt: null, lastAttemptAt: null, lastSyncError: null, version: 1 as Version, answerLabels: {} },
       responses: [],
       guests: [],
       canManage: true,
@@ -166,7 +181,7 @@ describe('comms screens render untrusted text as text', () => {
     dispatched.mockClear();
     const data: FormScreenData = {
       event,
-      form: { formUrl: null, sheetCsvUrl: null, autoSync: true, autoAddNewGuests: false, columnMap: null, detectedMap: {}, sheetHeaders: [], lastSyncAt: null, lastAttemptAt: null, lastSyncError: null, version: 3 as Version },
+      form: { formUrl: null, sheetCsvUrl: null, autoSync: true, autoAddNewGuests: false, columnMap: null, detectedMap: {}, sheetHeaders: [], lastSyncAt: null, lastAttemptAt: null, lastSyncError: null, version: 3 as Version, answerLabels: {} },
       responses: [], guests: [], canManage: true, serverSync: false,
     };
     const { user } = renderUi(withAppContext(<FormPage data={data} />));

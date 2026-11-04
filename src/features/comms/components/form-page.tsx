@@ -16,7 +16,7 @@ import { fileDateStamp, formatVNTime } from '@/core/dates';
 import { fileNameStem, matchesQuery } from '@/core/text';
 import { RSVP, type Tone } from '@/core/vocab';
 import { awaitsDecision, needsReview, type FormScreenData, type ResponseView } from '../domain/screen';
-import { ColumnMapCard, FormConfigCard } from './form-config';
+import { AnswerLabelsCard, ColumnMapCard, FormConfigCard } from './form-config';
 
 const APPLY: Record<ResponseView['applyStatus'], { label: string; tone: Tone }> = {
   pending: { label: 'Chờ xử lý', tone: 'amber' },
@@ -231,6 +231,7 @@ export function FormPage({ data }: { data: FormScreenData }) {
         {form && form.sheetHeaders.length > 0 && <ColumnMapCard key={`map-${form.version}`} eventId={data.event.id} form={form} canManage={data.canManage} />}
       </div>
       {toDecide.length > 0 && <AnswersToDecide data={data} rows={toDecide} />}
+      {form && <AnswerLabelsCard key={`labels-${form.version}-${toDecide.length}`} eventId={data.event.id} form={form} waiting={toDecide} canManage={data.canManage} />}
       {review.length > 0 && (
         <SectionCard title="Phản hồi cần xem lại" subtitle="Không khớp được khách mời nào, khớp nhiều khách, hoặc không đọc được thời gian" icon="alert-triangle">
           <DataTable rows={review} columns={columns} rowKey={(r) => r.id} empty={{ icon: 'check', title: 'Không có phản hồi chờ xem lại' }} />

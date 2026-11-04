@@ -5,11 +5,12 @@
 import type { CampaignId, Email, EventId, GuestId, MailboxId, RsvpResponseId, Version } from '@/core/brand';
 import { defineCommands, type Sig } from '@/core/commands';
 import type { SenderMailbox } from '../contract';
+import type { AnswerLabels } from '../domain/answers';
 import type { ColumnMap } from '../domain/columns';
 import type { DeliveryResult, FormConfig, MailboxDraft, RunToken } from '../domain/schemas';
 import { markNotSent, markSending, recordDeliveries, releaseDeliveries, renewClaims, startCampaign } from './deliveries';
 import type { SyncReport } from '../domain/sync-report';
-import { resolveResponse, saveColumnMap, saveForm, syncFormWith } from './form';
+import { resolveResponse, saveAnswerLabels, saveColumnMap, saveForm, syncFormWith } from './form';
 import { deleteMailbox, restoreMailbox, saveMailbox } from './mailboxes';
 import { defaultSheetSource, type SheetSource } from './sheet-source';
 import type { ApplyStatus, FormRow } from './tables';
@@ -24,6 +25,8 @@ declare module '@/core/commands' {
     'comms.saveForm': Sig<{ eventId: EventId; version: Version | null; config: FormConfig }, FormRow>;
     /** null returns to detecting the columns from the header row. */
     'comms.saveColumnMap': Sig<{ eventId: EventId; version: Version; columnMap: ColumnMap | null }, FormRow>;
+    /** The Form's RSVP choices and what each means; an answer that is exactly one of them is applied as that. */
+    'comms.saveAnswerLabels': Sig<{ eventId: EventId; version: Version; labels: AnswerLabels }, FormRow>;
     /** "Đồng bộ ngay" and the cron route. */
     'comms.syncForm': Sig<{ eventId: EventId }, SyncReport>;
     'comms.resolveResponse': Sig<
@@ -79,6 +82,7 @@ export const createCommands = (deps: CommsDeps) =>
     restoreMailbox,
     saveForm,
     saveColumnMap,
+    saveAnswerLabels,
     syncForm: syncFormWith(deps.sheets),
     resolveResponse,
     startCampaign,

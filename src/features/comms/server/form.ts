@@ -74,6 +74,31 @@ export const saveColumnMap: CommandSpec<InputOf<'comms.saveColumnMap'>, FormRow>
   },
 };
 
+const answerStatus = z.enum(['confirmed', 'declined', 'substituted']);
+
+export const saveAnswerLabels: CommandSpec<InputOf<'comms.saveAnswerLabels'>, FormRow> = {
+  kind: 'mutation',
+  input: asSchema(
+    z.object({
+      eventId: eventIdSchema,
+      version: versionSchema,
+      labels: z.record(z.string().trim().min(1).max(200), answerStatus).refine((l) => Object.keys(l).length <= 50, 'Tối đa 50 lựa chọn'),
+    }),
+  ),
+  authorize: manage,
+  async run(ctx, { eventId, version, labels }) {
+    const before = await formOf(ctx, eventId);
+    if (!before) throw new DbError('not_found');
+    const answerLabels = parseAnswerLabels(labels);
+    const row = await ctx.db.table(formsTable).update(before.id, { answerLabels }, { expectedVersion: version });
+    const count = (s: AnswerStatus) => Object.values(answerLabels).filter((v) => v === s).length;
+    return {
+      value: row,
+      audit: audit('CẤU HÌNH GOOGLE FORM', `Lựa chọn trả lời của Form: ${Object.keys(answerLabels).length} lựa chọn (${count('confirmed')} tham dự, ${count('declined')} từ chối, ${count('substituted')} cử người thay)`, eventId, 'rsvp_form', row.id),
+      inverse: inverse('comms.saveAnswerLabels', { eventId, version: row.version, labels: parseAnswerLabels(before.answerLabels) }, 'Lựa chọn trả lời của Form'),
+    };
+  },
+};
 
 interface Tally {
   applied: number;
