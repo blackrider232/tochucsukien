@@ -95,3 +95,16 @@ describe('row parsing', () => {
     expect(parseHolidayRows([{ holiday_date: '2026-09-02', name: 'Quốc khánh', kind: 'holiday' }, { holiday_date: 'x', name: 'y', kind: 'holiday' }])).toEqual([{ date: '2026-09-02', name: 'Quốc khánh', kind: 'holiday' }]);
   });
 });
+
+describe('lastRecoveryAt (the amr claim of a verified JWT)', async () => {
+  const { lastRecoveryAt } = await import('@/core/auth/session-gate');
+  it.each([
+    ['a recovery link', [{ method: 'recovery', timestamp: 1700 }], 1700],
+    ['an email OTP link, the latest of several', [{ method: 'otp', timestamp: 1500 }, { method: 'password', timestamp: 1800 }, { method: 'otp', timestamp: 1600 }], 1600],
+    ['a password sign-in, then TOTP', [{ method: 'password', timestamp: 1700 }, { method: 'totp', timestamp: 1710 }], null],
+    ['the RFC 8176 string form, which has no time', ['otp'], null],
+    ['no claim', undefined, null],
+  ])('%s', (_label, amr, at) => {
+    expect(lastRecoveryAt(amr)).toBe(at);
+  });
+});

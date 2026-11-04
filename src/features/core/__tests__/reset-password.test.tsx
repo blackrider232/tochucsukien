@@ -3,20 +3,20 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderUi } from '@/components/ui/__tests__/helpers';
 import type { Gate } from '@/core/auth';
 
-const session = vi.hoisted(() => ({ gate: { kind: 'login' } as Gate, recoveredAt: null as number | null }));
+const session = vi.hoisted(() => ({ gate: { kind: 'login' } as Gate, recoveryAge: null as number | null }));
 const redirect = vi.hoisted(() =>
   vi.fn((to: string) => {
     throw new Error(`NEXT_REDIRECT ${to}`);
   }),
 );
 vi.mock('next/navigation', () => ({ redirect, useRouter: () => ({ refresh: vi.fn() }) }));
-vi.mock('@/core/auth/server', () => ({ currentGate: async () => session.gate, recoveryProofAt: async () => session.recoveredAt }));
+vi.mock('@/core/auth/server', () => ({ currentGate: async () => session.gate, recoveryProofAge: async () => session.recoveryAge }));
+vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://example.supabase.co');
+vi.stubEnv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', 'sb_publishable_test');
 const { default: ResetPasswordPage } = await import('@/app/(auth)/reset-password/page');
 
-const nowSeconds = () => Math.floor(Date.now() / 1000);
-
-async function open(gate: Gate, recoveredAt: number | null, params: { mode?: string; notice?: string } = { mode: 'recovery' }) {
-  Object.assign(session, { gate, recoveredAt });
+async function open(gate: Gate, recoveryAge: number | null, params: { mode?: string; notice?: string } = { mode: 'recovery' }) {
+  Object.assign(session, { gate, recoveryAge });
   renderUi(await ResetPasswordPage({ searchParams: Promise.resolve(params) }));
 }
 const asksCurrentPassword = () => screen.queryByLabelText(/Mật khẩu hiện tại/) !== null;
@@ -30,12 +30,12 @@ describe('/reset-password decides recovery from the session, not the URL (core B
   });
 
   it('sets a new password without the old one only for a session opened from a recovery link in the last minutes', async () => {
-    await open({ kind: 'ok' }, nowSeconds() - 60, {});
+    await open({ kind: 'ok' }, 60, {});
     expect(offersNewPasswordOnly()).toBe(true);
   });
 
   it('asks for the current password once the recovery proof is old', async () => {
-    await open({ kind: 'ok' }, nowSeconds() - 60 * 60);
+    await open({ kind: 'ok' }, 60 * 60);
     expect(asksCurrentPassword()).toBe(true);
   });
 
@@ -51,6 +51,6 @@ describe('/reset-password decides recovery from the session, not the URL (core B
     [{ kind: 'mfa_challenge' } as Gate, '/mfa?next=%2Freset-password'],
     [{ kind: 'mfa_enroll' } as Gate, '/mfa/enroll?next=%2Freset-password'],
   ])('sends an unfinished session (%o) to its gate, even with recovery proof', async (gate, to) => {
-    await expect(open(gate, nowSeconds() - 60)).rejects.toThrow(`NEXT_REDIRECT ${to}`);
+    await expect(open(gate, 60)).rejects.toThrow(`NEXT_REDIRECT ${to}`);
   });
 });

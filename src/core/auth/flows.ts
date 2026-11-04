@@ -132,7 +132,7 @@ export function requestPasswordReset(email: string): Promise<FlowResult> {
   });
 }
 
-/** The recovery session (from the emailed link) sets a new password without the old one. */
+/** The recovery session (from the emailed link) sets a new password without the old one; /reset-password offers it only to such a session. */
 export function setNewPassword(password: string): Promise<FlowResult> {
   return attempt(async (a) => {
     const { error } = await a.updateUser({ password });
@@ -146,16 +146,6 @@ export function changePassword(current: string, password: string): Promise<FlowR
     const { error } = await a.updateUser({ password, current_password: current });
     return error ? failed(error, { invalid_credentials: 'Mật khẩu hiện tại không đúng.' }) : { ok: true, value: null };
   });
-}
-
-/** Calls back when the page was opened from a recovery link of the implicit flow. */
-export function onPasswordRecovery(callback: () => void): () => void {
-  const a = auth();
-  if (!a) return () => undefined;
-  const { data } = a.onAuthStateChange((event) => {
-    if (event === 'PASSWORD_RECOVERY') callback();
-  });
-  return () => data.subscription.unsubscribe();
 }
 
 export function listTotpFactors(): Promise<FlowResult<{ verified: TotpFactor[] }>> {

@@ -18,7 +18,7 @@ import { parseHolidayRows, parseProfileRow } from './profile';
 
 type Loaded = { ok: true; ctx: RequestContext; holidays: ReadonlyArray<Holiday> } | { ok: false; gate: Exclude<Gate, { kind: 'ok' }> };
 
-async function cookieClient() {
+export async function cookieClient() {
   // cookies() first: it marks the route dynamic, so a build never prerenders a page that needs a session.
   const cookieStore = await cookies();
   const env = requireSupabaseEnv();
