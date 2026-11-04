@@ -18,8 +18,29 @@ describe('header mapping', () => {
     expect(m.missing).toEqual(['Cơ quan / doanh nghiệp']);
     expect(m.unknown).toEqual(['Sở thích']);
   });
-  it('keeps the first of two columns that name the same field', () => {
-    expect(mapHeaders(['Họ tên', 'Tên', 'Cơ quan']).fields.name).toBe(0);
+  it('prefers a header that is exactly a field name over one that only starts with it, and says which column it left out', () => {
+    const m = mapHeaders(['Tên doanh nghiệp', 'Họ và tên', 'Đơn vị']);
+    expect(m.fields).toEqual({ name: 1, organization: 2 });
+    expect(m.unused).toEqual(['"Tên doanh nghiệp" (đã lấy cột "Họ và tên" làm Họ và tên)']);
+    expect(m.conflicts).toEqual([]);
+  });
+  it('names a conflict when two columns are equally good for one field', () => {
+    const m = mapHeaders(['Họ tên', 'Tên', 'Cơ quan']);
+    expect(m.conflicts).toEqual(['Họ và tên: "Họ tên", "Tên"']);
+  });
+});
+
+describe('a preview never reads a column silently in place of another (m4c B22)', () => {
+  it('reads the person from "Họ và tên", not from "Tên doanh nghiệp", and warns about the column it skipped', () => {
+    const p = previewContactImport('Tên doanh nghiệp,Họ và tên,Đơn vị\nCông ty A,Nguyễn Văn B,Sở C', opts());
+    expect(p.error).toBeNull();
+    expect(p.rows[0]!.draft).toMatchObject({ name: 'Nguyễn Văn B', organization: 'Sở C' });
+    expect(p.unusedColumns).toEqual(['"Tên doanh nghiệp" (đã lấy cột "Họ và tên" làm Họ và tên)']);
+  });
+  it('refuses a file where two columns are equally the name', () => {
+    const p = previewContactImport('Họ tên,Tên,Cơ quan\nAn,Bình,Sở A', opts());
+    expect(p.error).toBe('Có nhiều cột cùng nghĩa: Họ và tên: "Họ tên", "Tên". Đổi tên hoặc xóa bớt cột rồi dán lại.');
+    expect(p.rows).toEqual([]);
   });
 });
 

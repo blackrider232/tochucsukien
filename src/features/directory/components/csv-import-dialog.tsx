@@ -115,6 +115,9 @@ export function CsvImportDialog({ contacts, onClose }: { contacts: ReadonlyArray
             {preview.unknownColumns.length > 0 && (
               <Alert tone="warning">Bỏ qua các cột chưa nhận ra: {preview.unknownColumns.join(', ')}.</Alert>
             )}
+            {preview.unusedColumns.length > 0 && (
+              <Alert tone="warning">Bỏ qua các cột trùng nghĩa: {preview.unusedColumns.join('; ')}. Kiểm tra lại cột được dùng trước khi nhập.</Alert>
+            )}
             <DataTable
               rows={preview.rows.slice(0, SHOWN_ROWS)}
               columns={columns}

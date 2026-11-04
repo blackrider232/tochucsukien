@@ -41,7 +41,10 @@ const FIELD_LABEL: Record<Field, string> = {
   notes: 'Ghi chú lễ tân',
 };
 
-/** A header is its folded words; the first rule whose prefix it starts with decides the column. */
+/**
+ * A header is its folded words. It names a field exactly (its words are one of the field's names) or loosely (they start
+ * with one); among a header's matches the exact one wins, then the first rule.
+ */
 const HEADER_RULES: ReadonlyArray<readonly [Field | 'ignore', ReadonlyArray<string>]> = [
   ['ignore', ['stt', 'ma dinh danh', 'id']],
   ['group', ['nhom']],
@@ -58,27 +61,54 @@ const HEADER_RULES: ReadonlyArray<readonly [Field | 'ignore', ReadonlyArray<stri
 
 const headerWords = (h: string) => foldVi(h.replace(/[^\p{L}\p{N}]+/gu, ' '));
 
+type Exactness = 'exact' | 'prefix';
+function matchHeader(words: string): { field: Field | 'ignore'; exactness: Exactness } | null {
+  for (const exactness of ['exact', 'prefix'] as const) {
+    const rule = HEADER_RULES.find(([, names]) => names.some((p) => (exactness === 'exact' ? words === p : words.startsWith(`${p} `))));
+    if (rule) return { field: rule[0], exactness };
+  }
+  return null;
+}
+
 export interface ColumnMap {
-  /** Cell index per field, for the first column that names it. */
+  /** Cell index per field: the one column that names it best. */
   fields: Partial<Record<Field, number>>;
   /** Headers no rule recognised, for the preview to mention. */
   unknown: string[];
+  /** Columns that name a field a better column already gave, with the column that won. */
+  unused: string[];
+  /** Fields two or more columns name equally well; the file cannot be read until one goes. */
+  conflicts: string[];
   /** Required columns the file lacks, as form labels. */
   missing: string[];
 }
 
 export function mapHeaders(header: ReadonlyArray<string>): ColumnMap {
-  const fields: Partial<Record<Field, number>> = {};
   const unknown: string[] = [];
-  header.forEach((raw, i) => {
+  const claims = new Map<Field, { index: number; raw: string; exactness: Exactness }[]>();
+  header.forEach((raw, index) => {
     const words = headerWords(raw);
     if (!words) return;
-    const rule = HEADER_RULES.find(([, prefixes]) => prefixes.some((p) => words === p || words.startsWith(`${p} `)));
-    if (!rule) unknown.push(raw.trim());
-    else if (rule[0] !== 'ignore' && fields[rule[0]] === undefined) fields[rule[0]] = i;
+    const match = matchHeader(words);
+    if (!match) unknown.push(raw.trim());
+    else if (match.field !== 'ignore') claims.set(match.field, [...(claims.get(match.field) ?? []), { index, raw: raw.trim(), exactness: match.exactness }]);
   });
-  const missing = (['name', 'organization'] as const).filter((f) => fields[f] === undefined).map((f) => FIELD_LABEL[f]);
-  return { fields, unknown, missing };
+  const fields: Partial<Record<Field, number>> = {};
+  const unused: string[] = [];
+  const conflicts: string[] = [];
+  for (const [field, columns] of claims) {
+    const exact = columns.filter((c) => c.exactness === 'exact');
+    const best = exact.length > 0 ? exact : columns;
+    if (best.length > 1) {
+      conflicts.push(`${FIELD_LABEL[field]}: ${best.map((c) => `"${c.raw}"`).join(', ')}`);
+      continue;
+    }
+    const winner = best[0]!;
+    fields[field] = winner.index;
+    for (const c of columns) if (c !== winner) unused.push(`"${c.raw}" (đã lấy cột "${winner.raw}" làm ${FIELD_LABEL[field]})`);
+  }
+  const missing = (['name', 'organization'] as const).filter((f) => fields[f] === undefined && !claims.has(f)).map((f) => FIELD_LABEL[f]);
+  return { fields, unknown, unused, conflicts, missing };
 }
 
 /** Folded code, short label and long label of every group, plus the plain Vietnamese names people type. */
@@ -116,13 +146,15 @@ export interface ImportRow {
 export interface ImportPreview {
   rows: ImportRow[];
   counts: { total: number; created: number; duplicateExisting: number; duplicateInFile: number; invalid: number };
-  /** The file itself cannot be imported: no header, a missing required column, too many rows. */
+  /** The file itself cannot be imported: no header, a missing required column, two columns for one field, too many rows. */
   error: string | null;
   unknownColumns: string[];
+  /** Columns left out because another column names the same field better (ColumnMap.unused). */
+  unusedColumns: string[];
 }
 
 const EMPTY_COUNTS = { total: 0, created: 0, duplicateExisting: 0, duplicateInFile: 0, invalid: 0 };
-const failed = (error: string, unknownColumns: string[] = []): ImportPreview => ({ rows: [], counts: EMPTY_COUNTS, error, unknownColumns });
+const failed = (error: string, unknownColumns: string[] = []): ImportPreview => ({ rows: [], counts: EMPTY_COUNTS, error, unknownColumns, unusedColumns: [] });
 
 export interface ImportOptions {
   /** Group of a row whose group cell is empty or the file has no group column. */
@@ -141,6 +173,7 @@ export function previewContactImport(text: string, opts: ImportOptions): ImportP
   const [header, ...body] = parsed.rows;
   if (!header) return failed('Chưa có dữ liệu. Dòng đầu tiên phải là tiêu đề các cột, các dòng sau là đối tượng.');
   const map = mapHeaders(header);
+  if (map.conflicts.length > 0) return failed(`Có nhiều cột cùng nghĩa: ${map.conflicts.join('; ')}. Đổi tên hoặc xóa bớt cột rồi dán lại.`, map.unknown);
   if (map.missing.length > 0) return failed(`Thiếu cột bắt buộc: ${map.missing.join(', ')}. Tiêu đề ở dòng đầu tiên, ví dụ "Họ Và Tên", "Cơ Quan / Doanh Nghiệp".`, map.unknown);
   if (body.length === 0) return failed('Tệp chỉ có dòng tiêu đề, chưa có đối tượng nào.', map.unknown);
   if (body.length > MAX_BATCH) return failed(`Tệp có ${body.length} dòng, tối đa ${MAX_BATCH} dòng mỗi lần nhập. Hãy tách thành nhiều tệp.`, map.unknown);
@@ -195,7 +228,7 @@ export function previewContactImport(text: string, opts: ImportOptions): ImportP
     counts.created += 1;
     return { line, status: 'new', draft: result.data, errors: [], id };
   });
-  return { rows, counts, error: null, unknownColumns: map.unknown };
+  return { rows, counts, error: null, unknownColumns: map.unknown, unusedColumns: map.unused };
 }
 
 export const ROW_STATUS_LABEL: Record<RowStatus, string> = {
