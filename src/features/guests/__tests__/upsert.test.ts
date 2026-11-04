@@ -40,6 +40,45 @@ describe('guests.upsertMany dedupes by the one identity rule, guestIdentityKey (
   });
 });
 
+describe('guests.upsertMany matches the master contact link before the identity key (m4c B27)', () => {
+  it('skips an item whose contact the event already has a guest for, though its identity changed', async () => {
+    const { h, eventId } = await setup();
+    const contact = newId<'MasterContact'>();
+    await h.addGuest(xtdtUser, eventId, { name: 'Lê Văn B', organization: 'Sở C', phone: '0912.000.111', masterContactId: contact });
+    const r = await h.ok(xtdtUser, 'guests.upsertMany', {
+      eventId,
+      items: [item({ name: 'Lê Văn B', organization: 'Sở C', phone: '0912.000.111', email: email('b@c.vn'), masterContactId: contact })],
+      onExisting: 'skip',
+    });
+    expect(r.value).toEqual({ added: 0, updated: 0, skipped: 1 });
+    expect(await h.roster(xtdtUser, eventId)).toHaveLength(1);
+  });
+
+  it('fills the blanks of the guest it found by the link', async () => {
+    const { h, eventId } = await setup();
+    const contact = newId<'MasterContact'>();
+    await h.addGuest(xtdtUser, eventId, { name: 'Lê Văn B', organization: 'Sở C', phone: '0912.000.111', masterContactId: contact });
+    const r = await h.ok(xtdtUser, 'guests.upsertMany', {
+      eventId,
+      items: [item({ name: 'Lê Văn B', organization: 'Sở C', email: email('b@c.vn'), masterContactId: contact })],
+      onExisting: 'fill_blanks',
+    });
+    expect(r.value).toEqual({ added: 0, updated: 1, skipped: 0 });
+    expect((await h.roster(xtdtUser, eventId)).map((g) => [g.email, g.masterContactId])).toEqual([['b@c.vn', contact]]);
+  });
+
+  it('two items for the same contact in one import add one guest', async () => {
+    const { h, eventId } = await setup();
+    const contact = newId<'MasterContact'>();
+    const r = await h.ok(xtdtUser, 'guests.upsertMany', {
+      eventId,
+      items: [item({ name: 'An', phone: '0912.000.111', masterContactId: contact }), item({ name: 'An', email: email('an@a.vn'), masterContactId: contact })],
+      onExisting: 'skip',
+    });
+    expect(r.value).toEqual({ added: 1, updated: 0, skipped: 1 });
+  });
+});
+
 describe('guests.upsertMany scales linearly', () => {
   it('imports 2000 guests into an event of 3000 in well under a second', async () => {
     const { h, eventId } = await setup();

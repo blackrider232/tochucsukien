@@ -251,22 +251,27 @@ const upsertMany: Spec<InputOf<'guests.upsertMany'>, { added: number; updated: n
   async run(ctx, { eventId, items, onExisting }) {
     // Every identity key is folded once; the lookups below are map hits, so an import is linear in guests plus items.
     const byKey = new Map<string, GuestRow>();
+    const byContact = new Map<string, GuestRow>();
     for (const g of await ctx.db.table(guestsTable).list({ eventId })) {
       const key = guestIdentityKey(g);
       if (!byKey.has(key)) byKey.set(key, g);
+      if (g.masterContactId && !byContact.has(g.masterContactId)) byContact.set(g.masterContactId, g);
     }
     const seen = new Set<string>();
     const fresh: DraftOf<GuestRow>[] = [];
     let [updated, skipped] = [0, 0];
     for (const { id, draft } of items) {
       const key = guestIdentityKey(draft);
+      const link = draft.masterContactId ? `contact:${draft.masterContactId}` : null;
       // A second item for a guest this import already added or filled changes nothing; the first one won.
-      if (seen.has(key)) {
+      if (seen.has(key) || (link && seen.has(link))) {
         skipped += 1;
         continue;
       }
       seen.add(key);
-      const match = byKey.get(key);
+      if (link) seen.add(link);
+      // The guest copied from the same contact is that person, even after the contact gained an email (m4c B27).
+      const match = (draft.masterContactId && byContact.get(draft.masterContactId)) || byKey.get(key);
       if (!match) {
         fresh.push(newRow(eventId, id, draft, draft.rsvpStatus === 'pending' ? null : ctx.now));
         continue;
