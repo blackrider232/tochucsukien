@@ -76,6 +76,29 @@ const BOX_PROPERTY = /^(?:(?:margin|padding)(?:-(?:top|right|bottom|left))?|bord
 // Colour functions are the only functions; any other `name(` (url, image-set, expression, var…) fails the charset.
 const COLOR_FUNCTION = /\b(?:rgba?|hsla?)\(\s*[\d.%\s,/]+\)/gi;
 const STYLE_VALUE = /^[a-z0-9#%.,\s'"-]+$/i;
+// Abuse that places nothing but still hides or swamps the text around it.
+const NEGATIVE = /(?:^|[\s,(])-\s*\.?\d/;
+const VIEWPORT_UNIT = /\d\s*[dsl]?v(?:w|h|i|b|min|max)\b/i;
+/** Readable font sizes per unit, [min, max]; a keyword (larger, x-large) is always readable. */
+const FONT_SIZE: Readonly<Record<string, readonly [number, number]>> = {
+  px: [6, 96], pt: [5, 72], pc: [0.4, 6], em: [0.4, 6], rem: [0.4, 6], '%': [40, 600], mm: [2, 25], cm: [0.2, 2.5], in: [0.08, 1],
+};
+function readableFontSize(value: string): boolean {
+  if (/^[a-z-]+$/i.test(value)) return true;
+  const m = /^(\d*\.?\d+)\s*([a-z%]+)$/i.exec(value);
+  const range = m ? FONT_SIZE[m[2]!.toLowerCase()] : undefined;
+  return range !== undefined && Number(m![1]) >= range[0] && Number(m![1]) <= range[1];
+}
+/** Text drawn in no colour, or nearly none. */
+function invisibleColor(value: string): boolean {
+  if (/\btransparent\b/i.test(value)) return true;
+  return [...value.matchAll(/\b(?:rgba?|hsla?)\(([^)]*)\)/gi)].some(([, args = '']) => {
+    const alpha = args.includes('/') ? args.split('/')[1] : args.split(',')[3];
+    if (alpha === undefined) return false;
+    const a = parseFloat(alpha);
+    return (alpha.trim().endsWith('%') ? a / 100 : a) < 0.2;
+  });
+}
 
 /** The declarations of `style` that pass, verbatim when all of them do; null when none does. */
 function safeStyle(style: string): string | null {
@@ -88,8 +111,11 @@ function safeStyle(style: string): string | null {
     const value = d.slice(colon + 1).trim();
     const allowed = colon > 0 && value !== '' && (STYLE_PROPERTIES.has(property) || BOX_PROPERTY.test(property))
       && STYLE_VALUE.test(value.replace(COLOR_FUNCTION, '0'))
-      // A negative margin pulls the block over the content before it.
-      && !(property.startsWith('margin') && /-\s*\.?\d/.test(value));
+      // A negative margin pulls the block over the content before it; a negative indent or spacing hides text.
+      && !(property.startsWith('margin') && /-\s*\.?\d/.test(value)) && !NEGATIVE.test(value)
+      && !VIEWPORT_UNIT.test(value)
+      && !(property === 'font-size' && !readableFontSize(value))
+      && !((property === 'color' || property === 'text-decoration-color') && invisibleColor(value));
     return allowed ? [`${property}:${value}`] : [];
   });
   if (kept.length === 0) return null;

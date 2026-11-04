@@ -122,6 +122,31 @@ describe('sanitizeRichHtml', () => {
     expect(sanitizeRichHtml(`<span style="${style}">x</span>`)).toBe('<span>x</span>');
   });
 
+  it.each([
+    ['text pushed off the page', 'text-indent:-9999px'],
+    ['letters drawn over each other', 'letter-spacing: -5px'],
+    ['words drawn over each other', 'word-spacing:-.5em'],
+    ['a page-sized font', 'font-size:99999px'],
+    ['a huge point size', 'font-size: 400pt'],
+    ['a huge em size', 'font-size:20em'],
+    ['text too small to read', 'font-size:1px'],
+    ['a zero font size', 'font-size:0'],
+    ['a viewport-wide block', 'width:100vw'],
+    ['a viewport-tall block', 'height: 100vh'],
+    ['a dynamic viewport block', 'min-height:100dvh'],
+    ['transparent text', 'color:transparent'],
+    ['text with zero alpha', 'color: rgba(0, 0, 0, 0)'],
+    ['text with nearly zero alpha', 'color:hsla(0, 0%, 0%, 0.05)'],
+    ['text with zero alpha, space syntax', 'color: rgb(0 0 0 / 0%)'],
+  ])('drops %s', (_label, style) => {
+    expect(sanitizeRichHtml(`<p style="${style}">x</p>`)).toBe('<p>x</p>');
+  });
+
+  it('keeps ordinary sizes, colours and a transparent background', () => {
+    const style = 'font-size: 14pt; font-size: 72px; font-size: 2em; font-size: 120%; font-size: larger; color: rgba(0, 0, 0, 0.8); background-color: transparent; text-indent: 30px; letter-spacing: 0.5px; width: 100%; height: 40mm';
+    expect(styleOf(sanitizeRichHtml(`<p style="${style}">x</p>`))).toBe(style);
+  });
+
   it('keeps the allowed declarations of a style it has to cut', () => {
     expect(sanitizeRichHtml('<p style="color: red; position: fixed; font-weight: bold">x</p>')).toBe('<p style="color:red;font-weight:bold">x</p>');
   });
