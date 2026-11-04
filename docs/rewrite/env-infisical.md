@@ -20,6 +20,10 @@ infisical run --env=prod -- pnpm build
 
 `pnpm dev` with `SCE_DEV_MEMORY=1` needs no secrets (in-memory runtime, development only).
 
+## Current setup (2026-11-04)
+
+`dev`, `staging` and `prod` all point to one Supabase project, `SEC-INTERNAL` (ref `dvgcfuqnvmzvoyqlciau`). The project owner chose this. It means a staging test writes to the same database as prod. Each environment has its own `CRON_SECRET`. Migrations `0001` to `0005` were applied on 2026-11-04 to the empty project: 30 tables, all with RLS, 97 policies, and the public key is denied on every table. No admin exists yet: after the first sign-up, run `select tcsk.bootstrap_first_admin('<email>')` once.
+
 ## Keep environments apart
 
 Point `dev` at a Supabase project or branch that holds no production data. `scripts/import-legacy.ts` writes with the service role key, so run it with the `staging` environment first and with `prod` only after the dry run report is reviewed.
