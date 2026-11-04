@@ -3,7 +3,9 @@ import { newId, type CampaignId, type Email, type EventId, type GuestId, type In
 import { testActor, XTDT } from '@/core/testing/actors';
 import { campaignIdFor, CLAIM_LEASE_MS, CLAIM_SKEW_MS } from '../server/deliveries';
 import { deliveryLogData, invitationScreenData } from '../server/screen-data';
-import { DbError, type Db } from '@/core/db';
+import type { CommandId } from '@/core/commands';
+import { MESSAGES } from '@/core/commands/pipeline';
+import { DbError, type AuditWriter, type Db } from '@/core/db';
 import { admin, failingWrites, harness, NOW, xtdtUser } from './harness';
 
 const SENDER = 'btc@x.vn' as Email;
@@ -148,12 +150,13 @@ describe('comms.startCampaign', () => {
   it('a claim that stops part-way audits what it holds and fails', async () => {
     const h = harness();
     const eventId = await h.createEvent();
+    const audits = h.audits().length;
     const r = await h.runWith(failingWrites((t, op, nth) => t === 'sce_tcsk_email_deliveries' && op === 'insert' && nth === 1), xtdtUser, 'comms.startCampaign', {
       eventId, senderEmail: SENDER, ...MESSAGE, attachQr: false, runToken: TAB_A, takeOver: false, recipients: [to('a@x.vn'), to('b@x.vn')],
     });
     expect(r).toMatchObject({ ok: false, kind: 'conflict', message: expect.stringContaining('Đã giữ chỗ 1 người nhận') });
     expect(deliveries(h)).toEqual([['a@x.vn', 'queued']]);
-    expect(h.audits().at(-1)).toMatchObject({ action: 'BẮT ĐẦU GỬI THƯ', summary: expect.stringContaining('đã giữ chỗ 1 người nhận rồi dừng vì lỗi') });
+    expect(h.audits().slice(audits)).toEqual([expect.objectContaining({ action: 'BẮT ĐẦU GỬI THƯ', summary: expect.stringContaining('đã giữ chỗ 1 người nhận rồi dừng vì lỗi') })]);
   });
 });
 
@@ -335,12 +338,13 @@ describe('comms.recordDeliveries', () => {
 
   it('a batch that stops part-way audits what was recorded and fails, naming the loss', async () => {
     const { h, eventId, campaignId } = await claimed(['a@x.vn', 'b@x.vn']);
+    const audits = h.audits().length;
     const r = await h.runWith(failingWrites((t, op, nth) => t === 'sce_tcsk_email_deliveries' && op === 'update' && nth === 1), xtdtUser, 'comms.recordDeliveries', {
       eventId, campaignId, runToken: TAB_A, senderEmail: SENDER, subject: 'Giấy mời', results: [sent('a@x.vn'), sent('b@x.vn')],
     });
     expect(r).toMatchObject({ ok: false, kind: 'conflict', message: 'Chỉ ghi được 1/2 kết quả gửi. Kiểm tra Nhật ký gửi trước khi gửi tiếp.' });
     expect(deliveries(h)).toEqual([['a@x.vn', 'sent'], ['b@x.vn', 'queued']]);
-    expect(h.audits().at(-1)).toMatchObject({ action: 'GỬI THƯ MỜI', summary: 'Gửi thư "Giấy mời" từ btc@x.vn: ghi được 1 thư đã gửi, 0 thư lỗi rồi dừng vì lỗi; 1 kết quả chưa ghi' });
+    expect(h.audits().slice(audits)).toEqual([expect.objectContaining({ action: 'GỬI THƯ MỜI', summary: 'Gửi thư "Giấy mời" từ btc@x.vn: ghi được 1 thư đã gửi, 0 thư lỗi rồi dừng vì lỗi; 1 kết quả chưa ghi' })]);
   });
 });
 
@@ -429,5 +433,127 @@ describe('comms.renewClaims', () => {
     const audits = h.audits().length;
     expect(await h.run(xtdtUser, 'comms.renewClaims', { eventId, campaignId, runToken: TAB_A })).toMatchObject({ ok: false, kind: 'conflict' });
     expect(h.audits()).toHaveLength(audits);
+  });
+});
+
+describe('audit rows of commands that write more than once', () => {
+  const refusing: AuditWriter = async () => {
+    throw new DbError('forbidden');
+  };
+  const failingNth = (table: string, op: 'insert' | 'update' | 'remove', n: number) => failingWrites((t, o, nth) => t === table && o === op && nth === n);
+  const newRows = (h: H, from: number) => h.audits().slice(from);
+
+  it('a confirmation that stops part-way writes one row naming what it marked', async () => {
+    const h = harness();
+    const eventId = await h.createEvent();
+    const { campaignId } = await start(h, eventId, [to('a@x.vn'), to('b@x.vn')]);
+    await record(h, eventId, campaignId, [lost('a@x.vn'), lost('b@x.vn')]);
+    const audits = h.audits().length;
+    const r = await h.runWith(failingNth('sce_tcsk_email_deliveries', 'update', 1), xtdtUser, 'comms.markNotSent', { eventId, campaignId, emails: ['a@x.vn', 'b@x.vn'] as Email[] });
+    expect(r).toMatchObject({ ok: false, kind: 'conflict', message: 'Chỉ xác nhận được 1 thư là chưa gửi. Tải lại Nhật ký gửi.' });
+    expect(deliveries(h)).toEqual([['a@x.vn', 'error'], ['b@x.vn', 'unknown']]);
+    expect(newRows(h, audits)).toEqual([expect.objectContaining({ action: 'XÁC NHẬN THƯ CHƯA GỬI', summary: expect.stringContaining('Xác nhận 1 thư không rõ kết quả là chưa gửi rồi dừng vì lỗi') })]);
+  });
+
+  it('a release that stops part-way writes one row naming what it freed', async () => {
+    const h = harness();
+    const eventId = await h.createEvent();
+    const { campaignId } = await start(h, eventId, [to('a@x.vn'), to('b@x.vn')]);
+    const audits = h.audits().length;
+    const r = await h.runWith(failingNth('sce_tcsk_email_deliveries', 'remove', 1), xtdtUser, 'comms.releaseDeliveries', { eventId, campaignId, runToken: TAB_A, emails: ['a@x.vn', 'b@x.vn'] as Email[] });
+    expect(r).toMatchObject({ ok: false, kind: 'conflict', message: 'Chỉ bỏ giữ chỗ được 1 thư chưa gửi.' });
+    expect(deliveries(h)).toEqual([['b@x.vn', 'queued']]);
+    expect(newRows(h, audits)).toEqual([expect.objectContaining({ action: 'DỪNG GỬI THƯ', summary: expect.stringContaining('Bỏ giữ chỗ 1 thư chưa gửi rồi dừng vì lỗi') })]);
+  });
+
+  it('a renewal that stops part-way writes one row; one that renewed nothing writes none', async () => {
+    const h = harness();
+    const eventId = await h.createEvent();
+    const { campaignId } = await start(h, eventId, [to('a@x.vn'), to('b@x.vn')]);
+    const audits = h.audits().length;
+    expect(await h.runWith(failingNth('sce_tcsk_email_deliveries', 'update', 0), xtdtUser, 'comms.renewClaims', { eventId, campaignId, runToken: TAB_A })).toMatchObject({ ok: false, kind: 'unavailable' });
+    expect(newRows(h, audits)).toEqual([]);
+    const r = await h.runWith(failingNth('sce_tcsk_email_deliveries', 'update', 1), xtdtUser, 'comms.renewClaims', { eventId, campaignId, runToken: TAB_A });
+    expect(r).toMatchObject({ ok: false, kind: 'conflict', message: 'Chỉ gia hạn được 1 thư chưa gửi.' });
+    expect(newRows(h, audits)).toEqual([expect.objectContaining({ action: 'GIA HẠN GIỮ CHỖ', summary: 'Gia hạn giữ chỗ 1 thư chưa gửi của đợt gửi đang chạy rồi dừng vì lỗi' })]);
+  });
+
+  it('a first claim that fails and cannot take its message back out writes one row saying the message stayed', async () => {
+    const h = harness();
+    const eventId = await h.createEvent();
+    const audits = h.audits().length;
+    const r = await h.runWith(failingWrites((t, op) => (t === 'sce_tcsk_email_deliveries' && op === 'insert') || (t === 'sce_tcsk_email_campaigns' && op === 'remove')), xtdtUser, 'comms.startCampaign', {
+      eventId, senderEmail: SENDER, ...MESSAGE, attachQr: false, runToken: TAB_A, takeOver: false, recipients: [to('a@x.vn')],
+    });
+    expect(r).toMatchObject({ ok: false, kind: 'conflict', message: 'Chưa giữ chỗ được người nhận nào. Hãy bấm gửi lại sau ít phút.' });
+    expect(h.rows('sce_tcsk_email_campaigns')).toHaveLength(1);
+    expect(deliveries(h)).toEqual([]);
+    expect(newRows(h, audits)).toEqual([expect.objectContaining({ action: 'BẮT ĐẦU GỬI THƯ', summary: `Lưu nội dung thư "${MESSAGE.subject}" nhưng không giữ chỗ được người nhận nào vì lỗi; chưa thư nào được gửi` })]);
+  });
+
+  it('a partial failure whose row the database refuses still fails, keeps what stuck, and logs the entry', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const h = harness();
+    const eventId = await h.createEvent();
+    const { campaignId } = await start(h, eventId, [to('a@x.vn'), to('b@x.vn')]);
+    const audits = h.audits().length;
+    const r = await h.runWith(failingNth('sce_tcsk_email_deliveries', 'update', 1), xtdtUser, 'comms.recordDeliveries', {
+      eventId, campaignId, runToken: TAB_A, senderEmail: SENDER, subject: 'Giấy mời', results: [sent('a@x.vn'), sent('b@x.vn')],
+    }, refusing);
+    expect(r).toMatchObject({ ok: false, kind: 'conflict', message: 'Chỉ ghi được 1/2 kết quả gửi. Kiểm tra Nhật ký gửi trước khi gửi tiếp.' });
+    expect(deliveries(h)).toEqual([['a@x.vn', 'sent'], ['b@x.vn', 'queued']]);
+    expect(newRows(h, audits)).toEqual([]);
+    expect(log).toHaveBeenCalledWith('command comms.recordDeliveries: partial-failure audit row not written', expect.objectContaining({ action: 'GỬI THƯ MỜI', perm: 'comms.send' }), expect.any(DbError));
+    log.mockRestore();
+  });
+
+  describe('a change saved whose row the database refuses is reported saved, unaudited, never as a failure', () => {
+    type Prepared = { input: unknown; after: unknown[][]; check?: () => Promise<void> };
+    const cases: ReadonlyArray<[CommandId, (h: H, eventId: EventId) => Promise<Prepared>]> = [
+      ['comms.startCampaign', async (_h, eventId) => ({
+        input: { eventId, senderEmail: SENDER, ...MESSAGE, attachQr: false, runToken: TAB_A, takeOver: false, recipients: [to('a@x.vn')] },
+        after: [['a@x.vn', 'queued']],
+      })],
+      ['comms.markSending', async (h, eventId) => {
+        const { campaignId } = await start(h, eventId, [to('a@x.vn')]);
+        return { input: { eventId, campaignId, runToken: TAB_A, email: 'a@x.vn' }, after: [['a@x.vn', 'sending']] };
+      }],
+      ['comms.recordDeliveries', async (h, eventId) => {
+        const g = await h.addGuest(eventId, { email: 'a@x.vn' as Email });
+        const { campaignId } = await start(h, eventId, [to('a@x.vn', g.id), to('b@x.vn')]);
+        return {
+          input: { eventId, campaignId, runToken: TAB_A, senderEmail: SENDER, subject: 'Giấy mời', results: [sent('a@x.vn', g.id), failed('b@x.vn')] },
+          after: [['a@x.vn', 'sent'], ['b@x.vn', 'error']],
+          check: async () => expect(await h.guest(eventId, g.id)).toMatchObject({ inviteStatus: 'sent' }),
+        };
+      }],
+      ['comms.renewClaims', async (h, eventId) => {
+        const { campaignId } = await start(h, eventId, [to('a@x.vn')]);
+        return { input: { eventId, campaignId, runToken: TAB_A }, after: [['a@x.vn', 'queued']] };
+      }],
+      ['comms.markNotSent', async (h, eventId) => {
+        const { campaignId } = await start(h, eventId, [to('a@x.vn')]);
+        await record(h, eventId, campaignId, [lost('a@x.vn')]);
+        return { input: { eventId, campaignId, emails: ['a@x.vn'] }, after: [['a@x.vn', 'error']] };
+      }],
+      ['comms.releaseDeliveries', async (h, eventId) => {
+        const { campaignId } = await start(h, eventId, [to('a@x.vn'), to('b@x.vn')]);
+        return { input: { eventId, campaignId, runToken: TAB_A, emails: ['a@x.vn'] }, after: [['b@x.vn', 'queued']] };
+      }],
+    ];
+
+    it.each(cases)('%s', async (id, prepare) => {
+      const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const h = harness();
+      const eventId = await h.createEvent();
+      const { input, after, check } = await prepare(h, eventId);
+      const audits = h.audits().length;
+      expect(await h.runWith((db) => db, xtdtUser, id, input as never, refusing)).toMatchObject({ ok: true, unaudited: MESSAGES.unaudited });
+      expect(deliveries(h)).toEqual(after);
+      await check?.();
+      expect(h.audits()).toHaveLength(audits);
+      expect(log).toHaveBeenCalledWith(`command ${id}: saved, but its audit row was not written`, expect.objectContaining({ command: id, perm: 'comms.send' }), expect.any(DbError));
+      log.mockRestore();
+    });
   });
 });

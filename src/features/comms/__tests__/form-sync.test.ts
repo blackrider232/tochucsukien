@@ -1,5 +1,7 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Email, EventId } from '@/core/brand';
+import { MESSAGES } from '@/core/commands/pipeline';
+import { DbError, type AuditWriter } from '@/core/db';
 import type { SyncReport } from '../domain/sync-report';
 import type { SheetSource } from '../server/sheet-source';
 import type { ResponseRow } from '../server/tables';
@@ -194,9 +196,12 @@ describe('comms.syncForm', () => {
     const { h, eventId, sync, responses } = await setup({ autoAddNewGuests: true });
     const g = await h.addGuest(eventId, { email: 'an@a.vn' as Email });
     sheet.text = csv('04/11/2026 10:00:00,Nguyễn Văn An,Công ty A,an@a.vn,,Có,,', '04/11/2026 10:05:00,Khách Mới,Công ty Mới,moi@x.vn,,Có,,');
+    const audits = h.audits().length;
     const r = await h.runWith(failingWrites((t, op) => t === 'sce_tcsk_guests' && op === 'insertMany'), xtdtUser, 'comms.syncForm', { eventId });
     expect(r).toMatchObject({ ok: false, kind: 'conflict', message: 'Đồng bộ dừng giữa chừng: đã áp dụng 1 phản hồi và thêm 0 khách mới. Bấm "Đồng bộ ngay" để xử lý phần còn lại.' });
     expect(await h.guest(eventId, g.id)).toMatchObject({ rsvpStatus: 'confirmed' });
+    // guests.applyRsvp audits the answer it applied; the sync writes one row of its own.
+    expect(h.audits().slice(audits).map((a) => a.action)).toEqual(['CẬP NHẬT RSVP', 'ĐỒNG BỘ GOOGLE FORM']);
     expect(h.audits().at(-1)).toMatchObject({ action: 'ĐỒNG BỘ GOOGLE FORM', summary: expect.stringMatching(/^Đồng bộ Google Form dừng giữa chừng \(.+\): lưu 2 phản hồi mới; áp dụng 1, thêm khách mới 0; phần còn lại chờ lần đồng bộ sau$/) });
     expect(responses().map((x) => x.apply_status).sort()).toEqual(['applied', 'pending']);
     expect(await sync()).toMatchObject({ fresh: 0, created: 1, applied: 0 });
@@ -358,13 +363,48 @@ describe('comms.resolveResponse', () => {
     sheet.text = csv('04/11/2026 10:00:00,Khách Mới,Công ty Mới,moi@x.vn,,Có,,');
     await s.sync();
     const row = s.responses()[0]!;
+    const audits = s.h.audits().length;
     const r = await s.h.runWith(failingWrites((t, op) => t === 'sce_tcsk_rsvp_responses' && op === 'update', 'conflict'), xtdtUser, 'comms.resolveResponse', {
       eventId: s.eventId, id: row.id as never, version: row.version as never, action: { kind: 'create' },
     });
     expect(r).toMatchObject({ ok: false, kind: 'conflict', message: 'Đã thêm khách mời "Khách Mới" nhưng chưa ghi được phản hồi là đã xử lý. Tải lại trang để xem.' });
     expect(await s.h.roster(s.eventId)).toHaveLength(1);
-    expect(s.h.audits().at(-1)).toMatchObject({ action: 'XỬ LÝ PHẢN HỒI FORM', summary: expect.stringContaining('chưa ghi được phản hồi là đã xử lý') });
+    expect(s.h.audits().slice(audits).filter((a) => a.action === 'XỬ LÝ PHẢN HỒI FORM')).toEqual([expect.objectContaining({ summary: expect.stringContaining('chưa ghi được phản hồi là đã xử lý') })]);
     // The next sync places the response on the guest it created.
     expect(await s.sync()).toMatchObject({ applied: 1, created: 0 });
+  });
+});
+
+describe('a sync or a review action saved whose audit row the database refuses', () => {
+  const refusing: AuditWriter = async () => {
+    throw new DbError('forbidden');
+  };
+
+  it('a sync is reported saved and unaudited: the guest has the answer and no row is written', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { h, eventId, responses } = await setup();
+    const g = await h.addGuest(eventId, { email: 'an@a.vn' as Email });
+    sheet.text = csv('04/11/2026 10:00:00,Nguyễn Văn An,Công ty A,an@a.vn,,Có,,');
+    const audits = h.audits().length;
+    expect(await h.runWith((db) => db, xtdtUser, 'comms.syncForm', { eventId }, refusing)).toMatchObject({ ok: true, value: { applied: 1 }, unaudited: MESSAGES.unaudited });
+    expect(await h.guest(eventId, g.id)).toMatchObject({ rsvpStatus: 'confirmed' });
+    expect(responses().map((r) => r.apply_status)).toEqual(['applied']);
+    expect(h.audits()).toHaveLength(audits);
+    expect(log).toHaveBeenCalledWith('command comms.syncForm: saved, but its audit row was not written', expect.objectContaining({ action: 'ĐỒNG BỘ GOOGLE FORM', perm: 'comms.rsvp.manage' }), expect.any(DbError));
+    log.mockRestore();
+  });
+
+  it('"create" is reported saved and unaudited: the guest exists and the response is applied', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const s = await setup();
+    sheet.text = csv('04/11/2026 10:00:00,Khách Mới,Công ty Mới,moi@x.vn,,Có,,');
+    await s.sync();
+    const row = s.responses()[0]!;
+    const audits = s.h.audits().length;
+    const r = await s.h.runWith((db) => db, xtdtUser, 'comms.resolveResponse', { eventId: s.eventId, id: row.id as never, version: row.version as never, action: { kind: 'create' } }, refusing);
+    expect(r).toMatchObject({ ok: true, value: { applyStatus: 'applied' }, unaudited: MESSAGES.unaudited });
+    expect(await s.h.roster(s.eventId)).toHaveLength(1);
+    expect(s.h.audits()).toHaveLength(audits);
+    log.mockRestore();
   });
 });
