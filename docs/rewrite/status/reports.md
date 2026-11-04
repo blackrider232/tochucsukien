@@ -28,7 +28,7 @@ Branch `t3/b312cd83`. The feature lives in `src/features/reports/`. The routes a
   - **Bidding.** Packages labelled "Nhập tay", a signed saving per row and in total, and .xlsx export.
   - **Dashboard.** Five computed KPI cards and one bar per task group.
   - **Print.** An A4 NĐ30 page through the kit's `PrintPage`, `Nd30Header` and `SignatureBlock`. The type face and size live in the print component only (see change request 2). Word export is `.doc` per decision 14, labelled "Tải Word (.doc)".
-- **Tests** (`__tests__/`, 147 in 11 files).
+- **Tests** (`__tests__/`, 147 in 9 files).
   - **Worked examples by hand.** Progress 2/7 = 29% with two late steps, the 130% quota boundaries (194 vs 195 of 150, 9 vs 10 of 7, 100% and 200%), the legacy seed's 465.000.000 / 449.500.000 = 3,33%, overruns (-12,50%, -4,19%), rounding (66,67 not 66,66), zero budgets and unawarded packages (no rate, not 100%).
   - **T-10 on the holiday calendar.** 30/04 and 01/05 make Tue 28/04 to Tue 05/05 T-3, against T-5 with weekends alone. Quốc khánh, a weekend today, a compensatory Saturday, an event on a Sunday, the T-10/T-11 boundary, event day, past, the threshold from settings, and the VN midnight.
   - **Commands through the real pipeline**, with real progress, guests and venue behind the figures.
