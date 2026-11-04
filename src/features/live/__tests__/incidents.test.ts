@@ -85,6 +85,17 @@ describe('incident lifecycle', () => {
     expect(await h.incidents(eventId)).toHaveLength(1);
   });
 
+  it('deleting is refused for an incident someone acted on, even when the caller sends its current version (review M23)', async () => {
+    const { h, eventId, report } = await setup();
+    const r = await report(draft('Mất micro'));
+    const working = await h.ok(desk, 'live.setIncidentStatus', { eventId, id: r.value.id, version: r.value.version, status: 'in_progress', note: '' });
+    expect(await h.run(desk, 'live.deleteIncident', { eventId, id: r.value.id, version: working.value.version })).toMatchObject({ ok: false, kind: 'conflict' });
+    const reopened = await h.ok(desk, 'live.setIncidentStatus', { eventId, id: r.value.id, version: working.value.version, status: 'open', note: '' });
+    expect(reopened.value.status).toBe('open');
+    expect(await h.run(desk, 'live.deleteIncident', { eventId, id: r.value.id, version: reopened.value.version })).toMatchObject({ ok: false, kind: 'conflict' });
+    expect(await h.incidents(eventId)).toHaveLength(1);
+  });
+
   it('the assignee stays empty unless given: no seeded person is assigned (m5 BUG-27)', async () => {
     const { report } = await setup();
     expect((await report(draft('Mất micro'))).value.assignee).toBe('');
