@@ -107,12 +107,9 @@ export async function runCampaign(
     recipients: toSend,
     async send(r) {
       if (now() - renewedAt >= CLAIM_RENEW_MS) {
-        const held = await o.api.renew(id, token).catch(() => null);
-        // A failed renewal leaves the lease running; the next message tries again, until the claims are too old.
-        if (held) {
-          renewedAt = now();
-          if (!held.includes(r.email)) throw new TransportError({ kind: 'claim_lost', message: 'Một phiên gửi khác đã tiếp quản những người nhận còn lại.' });
-        }
+        // A failed renewal leaves the lease running; the next message tries again, until the claims are too old. Whether
+        // this message is still the run's is for markSending to say, on the server.
+        if (await o.api.renew(id, token).catch(() => null)) renewedAt = now();
       }
       if (now() - renewedAt >= CLAIM_STALE_MS) throw new TransportError({ kind: 'claim_stale', message: 'Không gia hạn được giữ chỗ người nhận.' });
       // Marked before Gmail is asked: a run that dies past this point leaves no claim another run would send again.

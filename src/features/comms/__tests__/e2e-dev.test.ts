@@ -321,6 +321,32 @@ describe('comms in the dev memory runtime, end to end', () => {
     }
   });
 
+  it('a rate limit whose retry falls due for a renewal goes on: the message being sent is still this run’s', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      const s = await scenario();
+      let limited = false;
+      // Gmail answers 429 after 6 minutes; the retry is past the 5-minute renewal, with the message already 'sending'.
+      const gmail: GmailTransport = {
+        kind: s.devGmail.kind,
+        async send(m) {
+          if (!limited) {
+            limited = true;
+            vi.setSystemTime(Date.now() + 6 * 60_000);
+            throw new TransportError({ kind: 'rate', message: 'Gmail: rate limit', retryAfterMs: 1 });
+          }
+          return s.devGmail.send(m);
+        },
+      };
+      const report = await s.send(gmail, s.guests);
+      expect(report).toMatchObject({ stoppedBy: null, skipped: [], unrecorded: [] });
+      expect(report.sent.map((x) => x.recipient.email).sort()).toEqual(s.guests.map((g) => g.email).sort());
+      expect((await s.audits()).filter((a) => a.action === 'GIA HẠN GIỮ CHỖ')).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('an answer with both a yes and a no word never declines a confirmed guest or frees the seat', async () => {
     const s = await scenario();
     await s.run('comms.syncForm', { eventId: s.eventId });

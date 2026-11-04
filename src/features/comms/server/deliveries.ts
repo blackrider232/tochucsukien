@@ -288,7 +288,10 @@ export const markNotSent: CommandSpec<InputOf<'comms.markNotSent'>, OutputOf<'co
   },
 };
 
-/** A live run's heartbeat: restarts the lease of every claim this run still holds, and names them; fails when it holds none. */
+/**
+ * A live run's heartbeat: restarts the lease of every claim this run still holds, the message it is sending included
+ * (a rate-limit retry can outlast a renewal), and names them; fails when it holds none.
+ */
 export const renewClaims: CommandSpec<InputOf<'comms.renewClaims'>, OutputOf<'comms.renewClaims'>> = {
   kind: 'mutation',
   input: asSchema(z.object({ eventId: eventIdSchema, campaignId: campaignIdSchema, runToken: runTokenSchema })),
@@ -297,7 +300,7 @@ export const renewClaims: CommandSpec<InputOf<'comms.renewClaims'>, OutputOf<'co
     const claim = claimHash(runToken);
     const held: Email[] = [];
     for (const d of (await byEmail(ctx, eventId, campaignId)).values()) {
-      if (d.status !== 'queued' || d.claimToken !== claim) continue;
+      if (!heldBy(d, claim)) continue;
       try {
         await ctx.db.table(deliveriesTable).update(d.id, { claimProof: runToken }, { expectedVersion: d.version });
         held.push(d.email);
