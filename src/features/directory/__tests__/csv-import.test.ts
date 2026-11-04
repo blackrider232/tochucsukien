@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { guestIdentityKey } from '@/features/guests';
 import { mapHeaders, parseBanquetCell, parseGroupCell, previewContactImport, type ImportOptions } from '../domain/csv-import';
-import { parseEmailDraft } from './helpers';
 
 const opts = (over: Partial<ImportOptions> = {}): ImportOptions => ({ defaultGroup: 'DoanhNghiep', existingKeys: new Set(), ...over });
 const HEADER = 'Họ Và Tên,Nhóm Đối Tượng,Cơ Quan / Doanh Nghiệp,Số Điện Thoại,Email,Tiệc VIP';
@@ -95,6 +94,6 @@ describe('previewContactImport', () => {
   });
 
   it('stores the lowercased email', () => {
-    expect(parseEmailDraft(previewContactImport(['Họ tên,Cơ quan,Email', 'A,Sở,An@Example.COM'].join('\n'), opts()).rows[0]!.draft)).toBe('an@example.com');
+    expect(previewContactImport(['Họ tên,Cơ quan,Email', 'A,Sở,An@Example.COM'].join('\n'), opts()).rows[0]!.draft?.email).toBe('an@example.com');
   });
 });

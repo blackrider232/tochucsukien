@@ -1,0 +1,19 @@
+{
+  "events": [],
+  "masterGuestDb": [
+    { "id": "mdb_vip_01", "name": "Lãnh đạo Mẫu Một", "group": "VIP", "title": "Chủ tịch", "organization": "UBND Thành phố", "phone": "0913.210.001", "email": "ld1@example.com", "notes": "", "hasBanquet": true, "isDefaultVip": true },
+    { "id": "mdb_sn_02", "name": "Giám đốc Sở Đã Sửa", "group": "SoNganh", "title": "Giám đốc", "organization": "Sở Ngoại vụ", "phone": "024.3846.3000", "email": "sny@example.com", "notes": "Admin đã sửa", "hasBanquet": true, "updatedAt": "2026-08-01T03:00:00.000Z" },
+    { "id": "mdb_dn_1767000000000", "name": "Trần Thị Doanh", "group": "DoanhNghiep", "title": "Tổng giám đốc", "organization": "Công ty ABC", "phone": "0988111222", "email": "DOANH@Example.COM", "address": "Số 1 Phố X", "taxCode": "0100123456", "notes": "Khách quen", "hasBanquet": false, "updatedAt": "2026-09-01T03:00:00.000Z" },
+    { "id": "mdb_dn_1767000000001", "name": "Trần T. Doanh (trùng email)", "group": "DoanhNghiep", "organization": "ABC Group", "email": "doanh@example.com" },
+    { "id": "mdb_dn_1767000000002", "name": "Lê Văn Hai", "group": "DoanhNghiep", "organization": "Công ty Hai", "phone": "", "email": "" },
+    { "id": "mdb_dn_1767000000003", "name": "  lê văn hai ", "group": "DoanhNghiep", "organization": "CÔNG TY HAI" },
+    { "id": "mdb_qt_1767000000004", "name": "Nhóm lạ", "group": "Khác", "organization": "Org lạ", "hasBanquet": "yes" },
+    { "id": "mdb_bc_1767000000005", "name": "Email xấu", "group": "BaoChi", "organization": "Báo A", "email": "khong-phai-email", "phone": "gọi anh Ba" },
+    { "id": "mdb_bc_1767000000006", "name": "Thiếu cơ quan", "group": "BaoChi", "organization": "" },
+    { "id": "mdb_bc_1767000000007", "organization": "Không tên" },
+    { "id": "mdb_bc_1767000000008", "name": "<img src=x onerror=alert(1)>", "group": "BaoChi", "organization": "<script>alert(2)</script>", "notes": "=HYPERLINK(\"http://evil\",\"x\")" },
+    { "id": "mdb_dn_1767000000000", "name": "Trùng mã", "group": "DoanhNghiep", "organization": "Công ty trùng mã" },
+    { "name": "Không mã", "organization": "Org" },
+    "không phải đối tượng"
+  ]
+}

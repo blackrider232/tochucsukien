@@ -9,7 +9,9 @@ import type { MasterContact } from '../contract';
 
 /** The fields a search looks at, folded and joined: name, title, organization, phone (as typed and digits only), email. */
 export function searchTextOf(c: Pick<MasterContact, 'name' | 'title' | 'organization' | 'phone' | 'email'>): string {
-  const phone = c.phone ? `${foldVi(c.phone)} ${normalizePhone(c.phone)}` : '';
+  const typed = foldVi(c.phone);
+  const digits = normalizePhone(c.phone);
+  const phone = typed === digits ? typed : `${typed} ${digits}`.trim();
   return [foldVi(c.name), foldVi(c.title), foldVi(c.organization), phone, c.email ? foldVi(c.email) : ''].filter(Boolean).join(' ');
 }
 
