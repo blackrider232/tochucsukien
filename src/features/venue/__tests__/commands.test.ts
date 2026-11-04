@@ -330,6 +330,16 @@ describe('the event hall', () => {
     expect(await h.run(xtdtUser, 'venue.updateEventZones', { eventId, version: latest.version, zones: [...hall.zones, { ...hall.zones[0]!, key: 'D', prefix: 'D-' }], releaseOrphans: true })).toMatchObject({ ok: false, kind: 'invalid' });
   });
 
+  it('the undo of a seat command never puts a guest back on a seat the hall no longer has', async () => {
+    const { h, eventId, g } = await setup();
+    await h.ok(xtdtUser, 'venue.assignSeat', { eventId, guestId: g.vip1, seatCode: seat('A-01') });
+    await h.ctx(admin).db.table((await import('../server/tables')).seatsTable).insert({ id: newId(), eventId, seatCode: seat('Z-01'), guestId: g.dn1 });
+    const r = await h.ok(xtdtUser, 'venue.clearSeats', { eventId });
+    expect(r.inverse?.input).toEqual({ eventId, changes: [{ seatCode: 'A-01', from: null, to: g.vip1 }] });
+    expect((await h.undo(xtdtUser, r.inverse)).ok).toBe(true);
+    expect(await h.seats(eventId)).toEqual({ 'A-01': g.vip1 });
+  });
+
   it('releaseOrphans frees the seats an imported or shrunk hall no longer has', async () => {
     const { h, eventId, g } = await setup();
     await h.ctx(admin).db.table((await import('../server/tables')).seatsTable).insert({ id: newId(), eventId, seatCode: seat('Z-01'), guestId: g.dn1 });
@@ -414,6 +424,7 @@ describe('booths and duty shifts', () => {
     expect(edited.value).toMatchObject({ status: 'available', company: '' });
     const removed = await h.ok(xtdtUser, 'venue.deleteBooth', { eventId, id, version: edited.value.version });
     expect(h.rows('sce_tcsk_booths')).toHaveLength(0);
+    expect(h.audits().at(-1)).toMatchObject({ action: 'XÓA GIAN HÀNG', summary: 'Xóa gian hàng A01', entity: 'booth', entity_id: id });
     await h.undo(xtdtUser, removed.inverse);
     expect(h.rows('sce_tcsk_booths')).toEqual([expect.objectContaining({ id, code: 'A01', status: 'available' })]);
   });
