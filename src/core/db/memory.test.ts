@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { describe, expect, it } from 'vitest';
 import type { GuestId, Instant, UserId, Version } from '@/core/brand';
 import { DbError, defineTable, memoryDb, supabaseDb, type CommandAuditRow, type Db } from '@/core/db';
-import { inspectMemoryDb, memoryAuditWriter } from '@/core/db/memory';
+import { declareGuard, inspectMemoryDb, memoryAuditWriter, type MemoryGuard } from '@/core/db/memory';
 import { PTDN, testActor, XTDT } from '@/core/testing/actors';
 import { checkinsTable, contactsTable, E1, E2, E3, eventRows, eventsTable, guestsTable, type TestGuest } from '@/core/testing/tables';
 
@@ -220,6 +220,34 @@ describe('memoryDb views (sce_tcsk_guest_roster of 0002)', () => {
   it('refuses writes, as Postgres refuses them on a join view', async () => {
     const { as, xtdt } = setup();
     await expect(as(xtdt).table(rosterView).insert({ ...draft(E1, G(1), 'A'), seatCode: null, checkedInAt: null })).rejects.toThrow(/is a view/);
+  });
+});
+
+describe('declareGuard (a CHECK, restrictive policy or trigger rule memoryDb cannot read from the SQL)', () => {
+  const nameCheck: MemoryGuard = ({ op, row }) => {
+    if (op !== 'delete' && String(row.name).trim() === '') throw new DbError('constraint', { table: 'sce_tcsk_guests', constraint: 'sce_tcsk_guests_name_check' });
+  };
+
+  it('refuses an insert, a batch, an update and a delete the guard refuses, and nothing is stored', async () => {
+    const { as, xtdt, seed } = setup();
+    declareGuard(seed, 'sce_tcsk_guests', nameCheck);
+    declareGuard(seed, 'sce_tcsk_guests', ({ op, before }) => {
+      if (op === 'delete' && before?.name === 'Khóa') throw new DbError('forbidden', { table: 'sce_tcsk_guests' });
+    });
+    const t = as(xtdt).table(guestsTable);
+    expect((await rejectsWith(t.insert(draft(E1, G(1), ' ')), 'constraint')).detail?.constraint).toBe('sce_tcsk_guests_name_check');
+    await rejectsWith(t.insertMany([draft(E1, G(2), 'B'), draft(E1, G(3), '')]), 'constraint');
+    const kept = await t.insert(draft(E1, G(4), 'Khóa'));
+    await rejectsWith(t.update(G(4), { name: '' }, { expectedVersion: kept.version }), 'constraint');
+    await rejectsWith(t.remove(G(4)), 'forbidden');
+    expect(inspectMemoryDb(seed, 'sce_tcsk_guests').map((g) => g.name)).toEqual(['Khóa']);
+  });
+
+  it('applies only to the seed it was declared on', async () => {
+    const guarded = setup();
+    declareGuard(guarded.seed, 'sce_tcsk_guests', nameCheck);
+    const other = setup();
+    expect((await other.as(other.xtdt).table(guestsTable).insert(draft(E1, G(1), ''))).name).toBe('');
   });
 });
 

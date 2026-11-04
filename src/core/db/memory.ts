@@ -10,7 +10,8 @@
 // (cascade, set null, no action), past RLS as in Postgres. created_at is
 // strictly increasing per store, and one insertMany shares one timestamp, as
 // one statement does. Known gaps against Postgres: CHECK constraints, FK checks
-// on insert and update, and triggers other than the managed columns.
+// on insert and update, and triggers other than the managed columns. A test or
+// dev seed can mirror one such rule with declareGuard.
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -33,6 +34,7 @@ type Seed = Readonly<Record<string, ReadonlyArray<Record<string, unknown>>>>;
 interface Store {
   tables: Map<string, Row[]>;
   seq: number;
+  guards?: Map<string, MemoryGuard[]>;
   /** The last created_at or updated_at handed out, in ms. Absent on a store made before a hot reload added it. */
   lastStamp?: number;
 }
@@ -104,6 +106,24 @@ function storeFor(seed: Seed): Store {
     stores.set(seed, store);
   }
   return store;
+}
+
+/**
+ * A rule the SQL enforces that memoryDb cannot read from the migrations: a CHECK constraint, a restrictive policy, a
+ * trigger that refuses a write. It sees the row in its column shape (snake_case) after RLS and NOT NULL, and refuses
+ * by throwing, best a DbError with the constraint's name. `before` is the stored row (null on insert); on delete `row`
+ * is the stored row too. A trigger that changes the row is not expressible here: write the column in the command.
+ */
+export type MemoryGuard = (write: { op: 'insert' | 'update' | 'delete'; row: Readonly<Row>; before: Readonly<Row> | null; actor: Actor }) => void;
+
+/**
+ * Test and dev-seed hook: runs `guard` on every insert, update and direct delete of `table` in the database behind
+ * `seed`, and nowhere else. Cascaded deletes skip it, as they skip RLS. Mirror one SQL rule per guard and name it.
+ */
+export function declareGuard(seed: Seed, table: `sce_tcsk_${string}`, guard: MemoryGuard): void {
+  const store = storeFor(seed);
+  store.guards ??= new Map();
+  store.guards.set(table, [...(store.guards.get(table) ?? []), guard]);
 }
 
 /** Test-only: the raw rows of a table, e.g. to assert the audit log. */
@@ -269,6 +289,9 @@ function memoryTable<R extends BaseRow>(store: Store, actor: Actor, rls: Rls, de
   const visible = () => all().filter((r) => rls.allows(meta, 'read', r));
   const parse = (r: Row) => fromColumns(def, structuredClone(r));
   const now = () => stamp(store);
+  const runGuards = (op: 'insert' | 'update' | 'delete', row: Row, before: Row | null) => {
+    for (const g of store.guards?.get(name) ?? []) g({ op, row, before, actor });
+  };
 
   function withDefaults(values: Row, at: string): Row {
     const row: Row = { ...values };
@@ -325,6 +348,7 @@ function memoryTable<R extends BaseRow>(store: Store, actor: Actor, rls: Rls, de
     row.created_by = row.updated_by = actor.profile.id;
     if (!rls.allows(meta, 'insert', row)) throw new DbError('forbidden', { table: name });
     assertNotNull(row);
+    runGuards('insert', row, null);
     assertKeys(row);
     return row;
   }
@@ -340,6 +364,7 @@ function memoryTable<R extends BaseRow>(store: Store, actor: Actor, rls: Rls, de
     const next: Row = { ...target, ...values, version: Number(target.version) + 1, updated_at: now(), updated_by: actor.profile.id };
     if (!rls.allows(meta, 'update_check', next)) throw new DbError('forbidden', { table: name });
     assertNotNull(next);
+    runGuards('update', next, target);
     assertUnique(next, target);
     Object.assign(target, next);
     return target;
@@ -417,6 +442,7 @@ function memoryTable<R extends BaseRow>(store: Store, actor: Actor, rls: Rls, de
       const target = rows[i];
       const versionOk = target && (!guard || !('expectedVersion' in guard) || target.version === guard.expectedVersion);
       if (target && versionOk && rls.allows(meta, 'read', target) && rls.allows(meta, 'delete', target)) {
+        runGuards('delete', target, target);
         deleteRows(store, name, [target]);
         return;
       }
@@ -428,6 +454,7 @@ function memoryTable<R extends BaseRow>(store: Store, actor: Actor, rls: Rls, de
       if (filters.length === 0) throw new Error(`${name}: removeWhere needs at least one condition`);
       const rows = all();
       const doomed = rows.filter((r) => matches(r, filters) && rls.allows(meta, 'read', r) && rls.allows(meta, 'delete', r));
+      for (const r of doomed) runGuards('delete', r, r);
       deleteRows(store, name, doomed);
       return doomed.length;
     },

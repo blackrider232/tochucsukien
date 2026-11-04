@@ -74,3 +74,7 @@ A test asserts the failure kind and that the last audit row names the loss, as `
 The same holds on success. When the row of a command that returned cannot be written, the change stands, the server log keeps the entry, and `useCommand` shows "Đã lưu thay đổi nhưng chưa ghi được nhật ký hệ thống…" as a warning in place of your success text. The result still carries the value and the inverse.
 
 comms writes its partial-failure rows itself at five places on its branch. Its owner migrates them to a thrown entry before merging, because the direct writer is gone.
+
+## What memoryDb does not read from your migration
+
+Tests and `SCE_DEV_MEMORY=1` run on `memoryDb`, which reads tables, defaults, unique keys, foreign keys, `register_table` policies and simple `security_invoker` views from the migrations. It cannot run your CHECK constraints, restrictive policies or triggers. When a test depends on one, mirror that one rule on the test's seed with `declareGuard(seed, 'sce_tcsk_<table>', ({ op, row, before, actor }) => …)` from `@/core/db/memory`, and throw `new DbError('constraint', { table, constraint: '<its SQL name>' })` as Postgres would. Keep the real check in SQL and prove it on PGlite, as `src/features/reports/__tests__/sql.test.ts` does.
