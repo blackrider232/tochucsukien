@@ -231,6 +231,17 @@ describe('core.backups.*', () => {
     expect(h.audits().filter((a) => a.action === 'KHÔI PHỤC SAO LƯU').at(-1)?.summary).toMatch(new RegExp(`^Khôi phục từ bản #${created.value.id} \\(\\d\\d:\\d\\d \\d\\d/\\d\\d/\\d{4}\\): Trước khi sửa$`));
   });
 
+  it('leaves accounts as they are: roles, names and statuses changed after the backup survive a restore', async () => {
+    const h = harness();
+    const created = await h.ok(admin, 'core.backups.create', { note: 'Trước khi đổi tài khoản' });
+    await h.ok(admin, 'core.users.setRole', { id: xtdtUser.profile.id, role: 'dept_leader' });
+    await h.ok(ptdnUser, 'core.profile.updateName', { fullname: 'Tên sau sao lưu' });
+    await h.ok(admin, 'core.users.setStatus', { ids: [pending.profile.id], status: 'active' });
+    const accounts = h.rows('sce_tcsk_profiles');
+    await h.ok(admin, 'core.backups.restore', { id: created.value.id });
+    expect(h.rows('sce_tcsk_profiles')).toEqual(accounts);
+  });
+
   it('sends a legacy whole-blob backup to the import script instead of restoring it', async () => {
     const h = harness();
     h.seed.sce_tcsk_backups.push({ id: 500, data: { events: [] }, note: 'Trước khi chuyển dữ liệu', kind: 'pre_migration', format: 1, created_by_email: null, created_at: '2026-10-01T00:00:00.000Z' });

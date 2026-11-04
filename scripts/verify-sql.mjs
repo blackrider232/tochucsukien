@@ -242,6 +242,14 @@ const backupsAfter = await as(ids.admin, 'aal2', () => db.query(`select note, cr
 assert.equal(backupsAfter.rows.length, backupsBefore + 1, 'restore takes one snapshot first');
 assert.equal(backupsAfter.rows[0].note, `Trước khi khôi phục #${rtId}`, 'the pre-restore snapshot is the newest and says so');
 assert.equal(backupsAfter.rows[0].created_by_email, 'admin@x.vn', 'the snapshot names who restored');
+const accounts = () => db.query(`select id, email, fullname, role, department, status from public.sce_tcsk_profiles order by email`);
+const scopeBackup = (await as(ids.admin, 'aal2', () => db.query(`select public.sce_tcsk_create_backup('Phạm vi khôi phục', 'manual') as id`))).rows[0].id;
+await as(ids.admin, 'aal2', () => db.exec(`select public.sce_tcsk_set_profile_role('${ids.xtdt}', 'dept_leader')`));
+await as(ids.xtdt, 'aal1', () => db.exec(`select public.sce_tcsk_update_profile_name('Tên sau sao lưu')`));
+const accountsBefore = (await accounts()).rows;
+await as(ids.admin, 'aal2', () => db.query(`select public.sce_tcsk_restore_backup(${scopeBackup})`));
+assert.deepEqual((await accounts()).rows, accountsBefore, 'restore leaves accounts untouched: a role and a name changed after the backup stay');
+await as(ids.admin, 'aal2', () => db.exec(`select public.sce_tcsk_set_profile_role('${ids.xtdt}', 'user')`));
 await as(ids.xtdtLead, 'aal1', () => assert.rejects(db.query(`select public.sce_tcsk_list_backups(10)`).then((r) => { if (r.rows.length === 0) throw new Error('row-level security: 0 rows'); }), /row-level security/, 'dept_leader sees no backups'));
 await as(ids.leader, 'aal2', () => assert.rejects(db.query(`select data from public.sce_tcsk_backups`), /permission denied/, 'backup data is not readable directly'));
 const exported = await as(ids.leader, 'aal2', () => db.query(`select public.sce_tcsk_backup_data(${rtId}) as d`));
