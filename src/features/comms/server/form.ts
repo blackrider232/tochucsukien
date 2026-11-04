@@ -14,7 +14,7 @@ import { readRoster, type GuestDraft, type RosterEntry } from '@/features/guests
 import { canIdentify, detectColumns, hasPhrase, words } from '../domain/columns';
 import { CsvError, parseCsv } from '../domain/csv';
 import { buildMatchIndex, matchResponse, type MatchIndex } from '../domain/matching';
-import { parseColumnMap, parseResponseRow } from '../domain/responses';
+import { detectDateOrder, parseColumnMap, parseResponseRow } from '../domain/responses';
 import type { SyncReport } from '../domain/sync-report';
 import { columnMapSchema, eventIdSchema, formConfigSchema, guestIdSchema, responseIdSchema, versionSchema } from '../domain/schemas';
 import { asSchema, audit, auditPartial, failureReason, inverse } from './command-kit';
@@ -214,8 +214,9 @@ export const syncFormWith = (sheets: SheetSource): CommandSpec<InputOf<'comms.sy
     if (!canIdentify(map)) return syncError(ctx, form, 'Không nhận diện được cột Họ và tên, Email hoặc Số điện thoại. Hãy ghép cột ở mục "Ghép cột".');
 
     const parsed = new Map<string, NonNullable<ReturnType<typeof parseResponseRow>>>();
+    const time = { order: detectDateOrder(map.timestamp === undefined ? [] : rows.slice(1).map((r) => r[map.timestamp!] ?? '')), now: ctx.now };
     for (const cells of rows.slice(1)) {
-      const r = parseResponseRow(headers, cells, map);
+      const r = parseResponseRow(headers, cells, map, time);
       if (r) parsed.set(rowHashOf(r.rowKey), r);
     }
     const existing = await ctx.db.table(responsesTable).list({ eventId });

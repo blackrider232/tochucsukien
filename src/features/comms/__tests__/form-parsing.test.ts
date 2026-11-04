@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import type { Instant } from '@/core/brand';
 import { parseRsvpAnswer, parseYesNo } from '../domain/answers';
 import { detectColumns, type ColumnMap } from '../domain/columns';
 import { CsvError, parseCsv } from '../domain/csv';
-import { parseColumnMap, parseResponseRow, parseSheetTimestamp } from '../domain/responses';
+import { detectDateOrder, parseColumnMap, parseResponseRow, parseSheetTimestamp } from '../domain/responses';
 import { isSheetCsvUrl, parseFormUrl, toSheetCsvUrl } from '../domain/sheet-url';
 
 describe('parseCsv', () => {
@@ -184,6 +185,23 @@ describe('parseResponseRow', () => {
     ['', null],
   ])('timestamp %j -> %s (Hà Nội wall clock)', (raw, expected) => {
     expect(parseSheetTimestamp(raw)).toBe(expected);
+  });
+  it.each([
+    ['a Vietnamese sheet', ['04/11/2026 09:00:00', '13/10/2026 08:00:00', '1/11/2026 07:00:00'], 'dmy'],
+    ['a sheet whose owner uses a US locale', ['10/28/2026 09:00:00', '11/4/2026 10:00:00'], 'mdy'],
+    ['a sheet with nothing to tell (read as Vietnamese)', ['11/4/2026 10:00:00', '2026-11-04T02:15:30.000Z', ''], 'dmy'],
+  ])('reads the date order of %s from all its rows', (_, cells, order) => {
+    expect(detectDateOrder(cells)).toBe(order);
+  });
+  it('reads "11/4/2026 10:00:00" as 4 November in a US-locale sheet', () => {
+    expect(parseSheetTimestamp('11/4/2026 10:00:00', { order: 'mdy' })).toBe('2026-11-04T03:00:00.000Z');
+    expect(parseSheetTimestamp('11/4/2026 10:00:00', { order: 'dmy' })).toBe('2026-04-11T03:00:00.000Z');
+  });
+  it('refuses a time in the future: a misread day and month, never an answer to apply', () => {
+    const now = '2026-11-04T05:00:00.000Z' as Instant;
+    expect(parseSheetTimestamp('04/12/2026 10:00:00', { now })).toBeNull();
+    expect(parseSheetTimestamp('04/11/2026 11:59:00', { now })).toBe('2026-11-04T04:59:00.000Z');
+    expect(parseSheetTimestamp('2027-01-01T00:00:00.000Z', { now })).toBeNull();
   });
   it('parses a saved column map leniently, dropping unknown fields and bad indexes', () => {
     expect(parseColumnMap({ name: 1, email: -1, rsvp: 2.5, evil: 3, phone: 4 })).toEqual({ name: 1, phone: 4 });

@@ -159,6 +159,19 @@ describe('comms.syncForm', () => {
     expect((await h.guest(eventId, g.id)).rsvpStatus).toBe('declined');
   });
 
+  it('reads a US-locale sheet’s times as such, and keeps a future time for review instead of applying it', async () => {
+    const { h, eventId, sync, responses } = await setup();
+    const a = await h.addGuest(eventId, { email: 'a@a.vn' as Email });
+    await h.addGuest(eventId, { email: 'b@a.vn' as Email });
+    sheet.text = csv('10/28/2026 09:00:00,A,Công ty A,a@a.vn,,Có,,', '11/4/2026 08:30:00,A,Công ty A,a@a.vn,,Không tham dự,,', '12/24/2026 10:00:00,B,Công ty B,b@a.vn,,Có,,');
+    await sync();
+    const by = (email: string) => responses().filter((r) => r.email === email).map((r) => [r.responded_at, r.apply_status]);
+    // Read as Vietnamese, the second answer would be 11 April and lose to the first.
+    expect(by('a@a.vn')).toEqual([['2026-10-28T02:00:00.000Z', 'applied'], ['2026-11-04T01:30:00.000Z', 'applied']]);
+    expect(await h.guest(eventId, a.id)).toMatchObject({ rsvpStatus: 'declined' });
+    expect(by('b@a.vn')).toEqual([[expect.any(String), 'no_time']]);
+  });
+
   it('keeps a response with an unreadable time for review and never applies it on its own', async () => {
     const { h, eventId, sync, responses } = await setup();
     const g = await h.addGuest(eventId, { email: 'an@a.vn' as Email });

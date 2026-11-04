@@ -32,19 +32,46 @@ const cellOf = (row: ReadonlyArray<string>, map: ColumnMap, f: FormField) => {
   return i === undefined ? '' : (row[i] ?? '').trim().slice(0, MAX_CELL);
 };
 
+export type DateOrder = 'dmy' | 'mdy';
+const SLASH_DATE = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\b/;
+
 /**
- * Google Forms writes 'dd/mm/yyyy hh:mm:ss' in a Vietnamese sheet and an ISO instant through the API. The wall clock
- * is read as Hà Nội time (the sheet's time zone is not in the CSV). Anything else is null: the response is then kept
- * for review and never applied on its own.
+ * Google Forms writes every timestamp of a sheet in its owner's locale: 'dd/mm/yyyy hh:mm:ss' in a Vietnamese sheet,
+ * 'mm/dd/yyyy' in a US one. A day above 12 in either place tells which; a sheet with none is read as Vietnamese.
  */
-export function parseSheetTimestamp(raw: string): Instant | null {
+export function detectDateOrder(cells: ReadonlyArray<string>): DateOrder {
+  let dmy = false;
+  let mdy = false;
+  for (const c of cells) {
+    const m = SLASH_DATE.exec(c.trim());
+    if (!m) continue;
+    if (Number(m[1]) > 12) dmy = true;
+    if (Number(m[2]) > 12) mdy = true;
+  }
+  return mdy && !dmy ? 'mdy' : 'dmy';
+}
+
+/** A response cannot come from the future; allow for a few minutes of clock skew between Google and the server. */
+const FUTURE_SKEW_MS = 10 * 60_000;
+
+/**
+ * A sheet timestamp, or an ISO instant through the API. The wall clock is read as Hà Nội time (the sheet's time zone
+ * is not in the CSV). An unreadable time, or one after `now` (a day and month read the wrong way round), is null: the
+ * response is then kept for review and never applied on its own.
+ */
+export function parseSheetTimestamp(raw: string, o: { order?: DateOrder; now?: Instant } = {}): Instant | null {
+  const at = readTimestamp(raw, o.order ?? 'dmy');
+  return at && o.now && Date.parse(at) > Date.parse(o.now) + FUTURE_SKEW_MS ? null : at;
+}
+
+function readTimestamp(raw: string, order: DateOrder): Instant | null {
   const s = raw.trim();
   if (!s) return null;
   const iso = /^\d{4}-\d{2}-\d{2}T/.test(s) ? parseInstant(s) : null;
   if (iso) return iso;
   const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ ,]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/.exec(s) ?? /^(\d{4})-(\d{2})-(\d{2})(?:[ T]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/.exec(s);
   if (!m) return null;
-  const [d, mo, y] = s.includes('/') ? [m[1], m[2], m[3]] : [m[3], m[2], m[1]];
+  const [d, mo, y] = !s.includes('/') ? [m[3], m[2], m[1]] : order === 'mdy' ? [m[2], m[1], m[3]] : [m[1], m[2], m[3]];
   const date = parseIsoDate(`${y}-${mo!.padStart(2, '0')}-${d!.padStart(2, '0')}`) as IsoDate | null;
   if (!date) return null;
   const hhmm = parseHHmm(`${(m[4] ?? '0').padStart(2, '0')}:${m[5] ?? '00'}`);
@@ -53,7 +80,7 @@ export function parseSheetTimestamp(raw: string): Instant | null {
   return parseInstant(new Date(base + Number(m[6] ?? 0) * 1000).toISOString());
 }
 
-export function parseResponseRow(headers: ReadonlyArray<string>, row: ReadonlyArray<string>, map: ColumnMap): ParsedResponse | null {
+export function parseResponseRow(headers: ReadonlyArray<string>, row: ReadonlyArray<string>, map: ColumnMap, time: { order?: DateOrder; now?: Instant } = {}): ParsedResponse | null {
   const get = (f: FormField) => cellOf(row, map, f);
   const name = get('name');
   const email = parseEmail(get('email'));
@@ -64,7 +91,7 @@ export function parseResponseRow(headers: ReadonlyArray<string>, row: ReadonlyAr
   const raw = Object.fromEntries(headers.map((h, i) => [h || `Cột ${i + 1}`, (row[i] ?? '').trim().slice(0, MAX_CELL)]));
   return {
     rowKey: row.map((c) => c.trim()).join('\u001f'),
-    respondedAt: parseSheetTimestamp(get('timestamp')),
+    respondedAt: parseSheetTimestamp(get('timestamp'), time),
     name,
     organization: get('organization'),
     title: get('title'),
