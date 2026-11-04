@@ -43,17 +43,7 @@ export type Gate =
   | { kind: 'mfa_challenge' }
   | { kind: 'mfa_enroll' };
 
-export function gateFor(input: {
-  hasSession: boolean;
-  profile: Profile | null;
-  aal: Aal | null;
-  hasVerifiedTotp: boolean;
-}): Gate {
-  // TODO: no session -> login; no profile or pending -> pending; locked -> locked;
-  // ROLES[role].requiresMfa && !hasVerifiedTotp -> mfa_enroll;
-  // hasVerifiedTotp && aal !== 'aal2' -> mfa_challenge; else ok.
-  throw new Error('not implemented');
-}
+export { gateFor, GATE_PATHS } from './gate';
 
 /**
  * Per-request, server-only. Built once per request with React cache().
@@ -67,9 +57,8 @@ export interface RequestContext {
   readonly calendar: WorkCalendar;
   readonly now: Instant;
 }
-export function requestContext(): Promise<RequestContext> {
-  throw new Error('not implemented');
-}
+// requestContext() itself is exported from '@/core/auth/server': it reads
+// next/headers, which Next.js refuses in any module a client component can reach.
 
 /** Client mirror of the non-secret parts, provided by the (app) layout. */
 export interface AppContextValue {
@@ -77,6 +66,4 @@ export interface AppContextValue {
   settings: SystemSettings;
   holidays: ReadonlyArray<import('@/core/dates').Holiday>;
 }
-export function useAppContext(): AppContextValue {
-  throw new Error('not implemented');
-}
+export { AppContextProvider, useAppContext, useSettings, useCalendar, useEventChanges } from './client';

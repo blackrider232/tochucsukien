@@ -72,7 +72,12 @@ export type CommandsOf<F extends string> = {
   [K in CommandId as K extends `${F}.${infer Verb}` ? Verb : never]: CommandSpec<InputOf<K>, OutputOf<K>>;
 };
 export function defineCommands<F extends FeatureKey>(feature: F, specs: NoInfer<CommandsOf<F>>): CommandsOf<F> {
-  throw new Error('not implemented');
+  for (const [verb, spec] of Object.entries(specs as Record<string, Partial<CommandSpec<unknown, unknown>>>)) {
+    if (!spec || typeof spec.run !== 'function' || typeof spec.input?.parse !== 'function' || !spec.authorize || !spec.kind) {
+      throw new Error(`${feature}.${verb}: a command needs kind, input, authorize and run`);
+    }
+  }
+  return specs;
 }
 
 /** Thrown inside run() for business-rule failures; message is user-facing Vietnamese. */
@@ -96,9 +101,7 @@ export type CommandFailure = {
 export type CommandResult<O> = { ok: true; value: O; inverse?: Inverse } | CommandFailure;
 
 /** The single server action. */
-export function dispatch<K extends CommandId>(id: K, input: InputOf<K>): Promise<CommandResult<OutputOf<K>>> {
-  throw new Error('not implemented');
-}
+export { dispatch } from './dispatch';
 
 export interface RunOptions {
   /** Toast on success. Omit for silent (e.g. checkbox toggles that are visibly applied). */
@@ -111,13 +114,7 @@ export interface RunOptions {
  * người khác cập nhật. Đang tải lại…" + router.refresh()), pushes inverses,
  * refreshes the route on success. Returns the value or undefined on failure.
  */
-export function useCommand(): <K extends CommandId>(
-  id: K,
-  input: InputOf<K>,
-  opts?: RunOptions,
-) => Promise<OutputOf<K> | undefined> {
-  throw new Error('not implemented');
-}
+export { useCommand, useUndo, clearUndo, CommandFeedbackProvider, type CommandFeedback } from './client';
 
 /** Undo/redo stacks of Inverse, per tab session, cleared on sign-out (core §3.6 intended). */
 export interface UndoApi {
@@ -127,7 +124,4 @@ export interface UndoApi {
   redoLabel: string | null;
   undo(): Promise<void>;
   redo(): Promise<void>;
-}
-export function useUndo(): UndoApi {
-  throw new Error('not implemented');
 }

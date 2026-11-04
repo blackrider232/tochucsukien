@@ -1,11 +1,11 @@
-// Public server entry: read functions (re-exported from the contract), the
-// commands record dispatch runs, and the legacy importer. Stubs until the
-// owning worker implements them; a missing command answers "chưa sẵn sàng".
+// Public server entry of feature `core`: the commands record dispatch runs and
+// the legacy importer (settings).
 
 import type { CommandsOf } from '@/core/commands';
 import type { LegacyImporter } from '@/core/legacy';
+import { coreCommands } from './commands';
 
 export * from '../contract';
 
-export const commands: Partial<CommandsOf<'core'>> = {};
+export const commands: Partial<CommandsOf<'core'>> = coreCommands;
 export const legacyImporter: LegacyImporter | null = null;
