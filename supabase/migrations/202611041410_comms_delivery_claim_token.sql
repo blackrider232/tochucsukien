@@ -1,4 +1,4 @@
--- 202611041300_comms_delivery_claim_token.sql
+-- 202611041410_comms_delivery_claim_token.sql
 -- comms only (sce:owner=comms tables). Idempotent.
 --
 -- A 'queued' delivery is held by one run of the send loop, named by the

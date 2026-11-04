@@ -1,4 +1,4 @@
--- 202611041410_comms_delivery_guard.sql
+-- 202611041460_comms_delivery_guard.sql
 -- comms only (sce:owner=comms tables). Idempotent.
 --
 -- The no-double-send rules, enforced by the database and not only by the app,
