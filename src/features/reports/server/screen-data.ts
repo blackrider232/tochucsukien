@@ -6,10 +6,11 @@ import type { RequestContext } from '@/core/auth';
 import { todayVN } from '@/core/dates';
 import { can } from '@/core/permissions';
 import type { SceEvent } from '@/features/progress';
-import { dailyReportState, dashboardFigures } from '../domain/figures';
-import { signerTitle } from '../domain/report';
+import type { DailyReportId } from '@/core/brand';
+import { dailyReportState, dashboardFigures, encodeFigures, workdaysToEvent } from '../domain/figures';
+import { previewReport, signerTitle, type IssuedReport } from '../domain/report';
 import type { GroupProgress, ReportsScreenData } from '../domain/screen';
-import { readClippings, readDailyReports, readPackages, readPressReleases } from './reads';
+import { readClippings, readDailyReport, readDailyReports, readPackages, readPressReleases } from './reads';
 import { missingSources, sourcesOf } from './upstream';
 
 export async function reportsScreen(ctx: RequestContext, event: SceEvent): Promise<ReportsScreenData> {
@@ -44,5 +45,22 @@ export async function reportsScreen(ctx: RequestContext, event: SceEvent): Promi
     issuedToday: reports.find((r) => r.reportDate === today) ?? null,
     signatoryTitle: signerTitle(event.department),
     can: { write: can(ctx.actor, 'reports.write', scope), issue: can(ctx.actor, 'reports.issue', scope) },
+  };
+}
+
+/** The print page's report: an issued snapshot by id, or today's figures as a preview; null when the id is not this event's. */
+export async function printableReport(ctx: RequestContext, event: SceEvent, reportId: DailyReportId | null): Promise<{ report: IssuedReport; preview: boolean } | { missing: ReadonlyArray<string> } | null> {
+  if (reportId) {
+    const report = await readDailyReport(ctx, event.id, reportId);
+    return report ? { report, preview: false } : null;
+  }
+  const screen = await reportsScreen(ctx, event);
+  if (!screen.figures) return { missing: screen.missing };
+  return {
+    report: previewReport({
+      eventId: event.id, eventName: event.name, eventDate: event.eventDate, today: screen.today, workdaysToEvent: workdaysToEvent(ctx.calendar, event.eventDate, screen.today),
+      department: event.department, figures: encodeFigures(screen.figures), now: ctx.now,
+    }),
+    preview: true,
   };
 }

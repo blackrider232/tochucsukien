@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { parseUuid, type BiddingPackageId, type ClippingId, type DailyReportId, type EventId, type IsoDate, type PressReleaseId, type SafeUrl, type Uuid, type Vnd, type Version } from '@/core/brand';
 import { parseIsoDate } from '@/core/dates';
 import { parseSafeUrl } from '@/core/text';
-import { DEPARTMENTS, type DepartmentName } from '@/core/vocab';
+import { DEPARTMENTS, type DepartmentName, type EnumRegistry } from '@/core/vocab';
 import type { BiddingStatus, MediaType, PressRelease } from '../contract';
 
 const uuidOf = <E extends string>() =>
@@ -92,3 +92,18 @@ export const issueFields = z.object({
   documentNumber: text(60).nullable().transform((v) => (v ? v : null)),
 });
 export type IssueDraft = z.output<typeof issueFields>;
+
+/** One look per contract status, wherever it shows (BUG-30). */
+export const BIDDING_STATUS: EnumRegistry<BiddingStatus> = {
+  'Đang thẩm định hồ sơ': { label: 'Đang thẩm định hồ sơ', short: 'Thẩm định', tone: 'amber' },
+  'Đang thực hiện hợp đồng': { label: 'Đang thực hiện hợp đồng', short: 'Thực hiện', tone: 'blue' },
+  'Đang nghiệm thu thanh lý': { label: 'Đang nghiệm thu thanh lý', short: 'Nghiệm thu', tone: 'indigo' },
+  'Đã nghiệm thu thanh lý': { label: 'Đã nghiệm thu thanh lý', short: 'Đã thanh lý', tone: 'emerald' },
+};
+
+/** 'TB-2026-004': the first number above every code of that year already used, padded to three digits (BUG-33). */
+export function nextPackageCode(codes: ReadonlyArray<string>, year: number): string {
+  const prefix = `TB-${year}-`;
+  const used = codes.map((c) => c.trim().toUpperCase()).filter((c) => c.startsWith(prefix)).map((c) => Number(c.slice(prefix.length))).filter(Number.isInteger);
+  return `${prefix}${String(Math.max(0, ...used) + 1).padStart(3, '0')}`;
+}

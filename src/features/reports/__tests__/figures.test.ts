@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildWorkCalendar } from '@/core/dates';
 import { biddingTotals, dailyReportState, dashboardFigures, decodeFigures, encodeFigures, formatPercent2, milestoneLabel, reportFigures, savingsPercent, workdaysToEvent } from '../domain/figures';
+import { nextPackageCode } from '../domain/schemas';
 import { booth, d, event, guest, guests, HOLIDAYS, pkg, plan, SETTINGS, step, weekendsOnly, withHolidays } from './fixtures';
 
 const TODAY = d('2026-12-08');
@@ -160,5 +161,16 @@ describe('snapshot encoding (BUG-12/13)', () => {
   });
   it('decodes a row stored before a field existed as zero, and ignores unknown keys', () => {
     expect(decodeFigures({ progressPercent: 40, unknown: 7 })).toMatchObject({ progressPercent: 40, clippings: 0, biddingSavingsPercent: null, quotaReached: false });
+  });
+});
+
+describe('next package code (BUG-33)', () => {
+  it.each([
+    [[], 'TB-2026-001'],
+    [['TB-2026-001', 'TB-2026-002'], 'TB-2026-003'],
+    [['TB-2026-009'], 'TB-2026-010'],
+    [['tb-2026-004', 'TB-2025-099', 'GOI-1'], 'TB-2026-005'],
+  ])('%j -> %s', (codes, next) => {
+    expect(nextPackageCode(codes, 2026)).toBe(next);
   });
 });
