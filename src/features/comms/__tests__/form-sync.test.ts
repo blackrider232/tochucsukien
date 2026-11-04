@@ -69,6 +69,15 @@ describe('comms.syncForm', () => {
     expect(responses()).toHaveLength(3);
   });
 
+  it('names a failed guest update in words a person can read, never the raw error', async () => {
+    const { h, eventId } = await setup();
+    await h.addGuest(eventId, { email: 'an@a.vn' as Email, name: 'Nguyễn Văn An' });
+    sheet.text = csv('04/11/2026 10:00:00,Nguyễn Văn An,Công ty A,an@a.vn,,Có,,');
+    // The guest is updated; writing the outcome on the response then fails with a database error.
+    const r = await h.runWith(failingWrites((t, op, nth) => t === 'sce_tcsk_rsvp_responses' && op === 'update' && nth === 1), xtdtUser, 'comms.syncForm', { eventId });
+    expect(r).toMatchObject({ ok: true, value: { applied: 1, failures: ['Nguyễn Văn An: lỗi hệ thống'] } });
+  });
+
   it('never overwrites a staff change made after the response (older answers are stale)', async () => {
     const { h, eventId, sync, responses } = await setup();
     const g = await h.addGuest(eventId, { email: 'an@a.vn' as Email });

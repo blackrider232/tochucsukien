@@ -124,7 +124,7 @@ async function applyToGuest(ctx: CommandContext, row: ResponseRow, guestId: Gues
     if (saved) await ctx.db.table(responsesTable).update(row.id, { applyStatus: 'applied', appliedAt: ctx.now }, { expectedVersion: claimed.version });
     if (saved) t.applied += 1;
     else t.failed += 1;
-    t.failures.push(`${row.name || row.email || 'Phản hồi'}: ${e instanceof Error ? e.message : 'lỗi không xác định'}`);
+    t.failures.push(`${row.name || row.email || 'Phản hồi'}: ${failureReason(e)}`);
   }
 }
 
