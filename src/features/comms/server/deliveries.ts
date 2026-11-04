@@ -28,6 +28,7 @@ import { CLAIM_LEASE_MS, CLAIM_SKEW_MS } from '../domain/campaign';
 import { campaignIdSchema, deliveryResultSchema, eventIdSchema, guestIdSchema, MAX_CLAIM_BATCH, requiredEmailSchema, runTokenSchema, type RunToken } from '../domain/schemas';
 import { DEV_FAKE_ID_PREFIX } from '../domain/transport';
 import { asSchema, audit, auditPartial } from './command-kit';
+import { readCampaign } from './reads';
 import { campaignsTable, deliveriesTable, type DeliveryRow } from './tables';
 
 export const MAX_DELIVERY_BATCH = 50;
@@ -72,9 +73,19 @@ export const startCampaign: CommandSpec<InputOf<'comms.startCampaign'>, OutputOf
   authorize: send,
   async run(ctx, { eventId, senderEmail, subject, body, attachQr, runToken, takeOver, recipients }) {
     const campaignId = campaignIdFor(eventId, subject, body);
-    // Kept for "Gửi lại thư lỗi"; written before any claim, so a claim never lacks its message.
-    await ctx.db.table(campaignsTable).upsertOn(['id'], { id: campaignId, eventId, subjectTemplate: subject, bodyTemplate: body, attachQr });
     const existing = await byEmail(ctx, eventId, campaignId);
+    // Kept for "Gửi lại thư lỗi"; written before any claim, so a claim never lacks its message, and taken out again
+    // when no claim follows, so a failed call leaves nothing behind.
+    const kept = await readCampaign(ctx, eventId, campaignId);
+    const message = { subjectTemplate: subject, bodyTemplate: body, attachQr };
+    let undoMessage = async () => {};
+    if (!kept) {
+      const row = await ctx.db.table(campaignsTable).insert({ id: campaignId, eventId, ...message });
+      undoMessage = () => ctx.db.table(campaignsTable).remove(row.id, { expectedVersion: row.version });
+    } else if (kept.attachQr !== attachQr) {
+      const row = await ctx.db.table(campaignsTable).update(kept.id, { attachQr }, { expectedVersion: kept.version });
+      undoMessage = async () => void (await ctx.db.table(campaignsTable).update(row.id, { attachQr: kept.attachQr }, { expectedVersion: row.version }));
+    }
     const claimed: Email[] = [];
     const alreadySent: Email[] = [];
     const inFlight: Email[] = [];
@@ -122,6 +133,7 @@ export const startCampaign: CommandSpec<InputOf<'comms.startCampaign'>, OutputOf
         await auditPartial(ctx, send.perm, audit('BẮT ĐẦU GỬI THƯ', `Bắt đầu đợt gửi "${subject}" từ ${senderEmail}: đã giữ chỗ ${claimed.length} người nhận${orphaned ? `, chuyển ${orphaned} thư đang gửi dở sang "Không rõ đã gửi"` : ''} rồi dừng vì lỗi; các thư đã giữ chỗ chưa được gửi`, eventId, 'email_campaign', campaignId));
         throw new CommandError('conflict', `Đã giữ chỗ ${claimed.length} người nhận nhưng không giữ được những người còn lại. Hãy bấm gửi lại sau ít phút.`);
       }
+      await undoMessage().catch(() => undefined);
       throw e;
     }
     const parts = [

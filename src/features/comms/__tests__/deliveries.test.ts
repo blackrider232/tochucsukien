@@ -3,6 +3,7 @@ import { newId, type CampaignId, type Email, type EventId, type GuestId, type In
 import { testActor, XTDT } from '@/core/testing/actors';
 import { campaignIdFor, CLAIM_LEASE_MS, CLAIM_SKEW_MS } from '../server/deliveries';
 import { deliveryLogData, invitationScreenData } from '../server/screen-data';
+import { DbError, type Db } from '@/core/db';
 import { admin, failingWrites, harness, NOW, xtdtUser } from './harness';
 
 const SENDER = 'btc@x.vn' as Email;
@@ -222,6 +223,36 @@ describe('a message being sent', () => {
     expect((await h.ok(xtdtUser, 'comms.releaseDeliveries', { eventId, campaignId, runToken: TAB_B, emails: ['a@x.vn'] as Email[] })).value).toEqual({ released: 0 });
     expect((await h.ok(xtdtUser, 'comms.releaseDeliveries', { eventId, campaignId, runToken: TAB_A, emails: ['a@x.vn'] as Email[] })).value).toEqual({ released: 1 });
     expect(deliveries(h)).toEqual([]);
+  });
+});
+
+describe('a claim that fails before it holds anything leaves nothing behind', () => {
+  const input = (eventId: EventId) => ({ eventId, senderEmail: SENDER, ...MESSAGE, attachQr: false, runToken: TAB_A, takeOver: false, recipients: [to('a@x.vn')] });
+  const unreadable = (db: Db): Db => ({
+    rpc: db.rpc.bind(db),
+    table(def) {
+      const t = db.table(def);
+      return def.name === 'sce_tcsk_email_deliveries' ? { ...t, list: () => Promise.reject(new DbError('unavailable')) } : t;
+    },
+  });
+
+  it('a read of the claims that fails stores no message and audits nothing', async () => {
+    const h = harness();
+    const eventId = await h.createEvent();
+    const audits = h.audits().length;
+    expect(await h.runWith(unreadable, xtdtUser, 'comms.startCampaign', input(eventId))).toMatchObject({ ok: false });
+    expect(h.rows('sce_tcsk_email_campaigns')).toEqual([]);
+    expect(h.audits()).toHaveLength(audits);
+  });
+
+  it('a first claim that fails takes the message it stored out again', async () => {
+    const h = harness();
+    const eventId = await h.createEvent();
+    const audits = h.audits().length;
+    expect(await h.runWith(failingWrites((t, op) => t === 'sce_tcsk_email_deliveries' && op === 'insert'), xtdtUser, 'comms.startCampaign', input(eventId))).toMatchObject({ ok: false });
+    expect(h.rows('sce_tcsk_email_campaigns')).toEqual([]);
+    expect(deliveries(h)).toEqual([]);
+    expect(h.audits()).toHaveLength(audits);
   });
 });
 
