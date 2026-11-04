@@ -155,6 +155,18 @@ describe('useUndo', () => {
     expect(result.current.undo).toMatchObject({ canUndo: false, canRedo: false });
   });
 
+  it('an undo saved without its audit row warns with that message instead of "Đã hoàn tác", and still offers redo', async () => {
+    const unaudited = 'Đã lưu thay đổi nhưng chưa ghi được nhật ký hệ thống. Vui lòng báo quản trị viên, không thực hiện lại.';
+    dispatch.mockResolvedValueOnce({ ok: true, value: 1, inverse: inverse('Thêm A') });
+    const { result } = hooks();
+    await act(() => result.current.run('guests.create' as never, {} as never));
+    dispatch.mockResolvedValueOnce({ ok: true, value: null, inverse: inverse('Xóa A'), unaudited });
+    await act(() => result.current.undo.undo());
+    expect(notes).toEqual([['warning', unaudited]]);
+    expect(result.current.undo).toMatchObject({ canUndo: false, canRedo: true, redoLabel: 'Xóa A' });
+    expect(refresh).toHaveBeenCalledTimes(2);
+  });
+
   it('offline: an undo sends nothing, says Ngoại tuyến and keeps the inverse for later', async () => {
     dispatch.mockResolvedValueOnce({ ok: true, value: 1, inverse: inverse('Thêm A') });
     const { result } = hooks();
