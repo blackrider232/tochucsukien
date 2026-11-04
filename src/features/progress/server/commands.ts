@@ -147,11 +147,9 @@ const deleteEvent: Spec<InputOf<'progress.deleteEvent'>, null> = {
   authorize: { perm: 'progress.delete', resource: (ctx, i) => leadDepartmentOf(ctx, i.id) },
   async run(ctx, { id, version }) {
     const row = await ctx.db.table(eventsTable).update(id, { deletedAt: ctx.now }, { expectedVersion: version });
-    return {
-      value: null,
-      audit: audit('XÓA SỰ KIỆN', `Xóa sự kiện: "${row.name}"`, id, 'event', id),
-      inverse: inverse('progress.restoreEvent', { id }, `Xóa sự kiện "${row.name}"`),
-    };
+    const outcome = { value: null, audit: audit('XÓA SỰ KIỆN', `Xóa sự kiện: "${row.name}"`, id, 'event', id) };
+    // The restore finds the event through the same read: offer it only to an actor who can still see what they deleted.
+    return (await ctx.db.table(eventsTable).get(id)) ? { ...outcome, inverse: inverse('progress.restoreEvent', { id }, `Xóa sự kiện "${row.name}"`) } : outcome;
   },
 };
 

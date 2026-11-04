@@ -112,17 +112,32 @@ describe('progress.updateEvent', () => {
 });
 
 describe('progress.deleteEvent and restoreEvent', () => {
-  it('a chuyên viên may not delete; a lãnh đạo phòng soft-deletes and an admin undo restores', async () => {
+  it('a chuyên viên may not delete; a lãnh đạo phòng soft-deletes and an admin restores', async () => {
     const { h, eventId, plan } = await setup();
     expect(await h.run(xtdtUser, 'progress.deleteEvent', { id: eventId, version: plan.event.version })).toMatchObject({ ok: false, kind: 'forbidden' });
     expect(await h.run(ptdnLeader, 'progress.deleteEvent', { id: eventId, version: plan.event.version })).toMatchObject({ ok: false });
-    const r = await h.ok(xtdtLeader, 'progress.deleteEvent', { id: eventId, version: plan.event.version });
+    await h.ok(xtdtLeader, 'progress.deleteEvent', { id: eventId, version: plan.event.version });
     expect(h.audits().at(-1)).toMatchObject({ action: 'XÓA SỰ KIỆN', summary: `Xóa sự kiện: "${draft().name}"` });
     expect(await h.plan(xtdtLeader, eventId)).toBeNull();
     expect(h.rows('sce_tcsk_steps')).toHaveLength(32);
-    expect(r.inverse).toMatchObject({ command: 'progress.restoreEvent', input: { id: eventId } });
-    expect((await h.undo(admin, r.inverse)).ok).toBe(true);
+    expect((await h.run(admin, 'progress.restoreEvent', { id: eventId })).ok).toBe(true);
     expect(await h.plan(xtdtLeader, eventId)).not.toBeNull();
+  });
+
+  it('offers an undo only to a deleter who can run it (review finding 2)', async () => {
+    const h = harness();
+    const deleteAs = async (actor: typeof admin) => {
+      const id = await h.createEvent(xtdtUser);
+      const plan = (await h.plan(xtdtUser, id))!;
+      return h.ok(actor, 'progress.deleteEvent', { id, version: plan.event.version });
+    };
+    const asAdmin = await deleteAs(admin);
+    expect(asAdmin.inverse).toMatchObject({ command: 'progress.restoreEvent' });
+    expect((await h.undo(admin, asAdmin.inverse)).ok).toBe(true);
+    for (const actor of [leader, xtdtLeader]) {
+      const r = await deleteAs(actor);
+      if (r.inverse) expect((await h.undo(actor, r.inverse)).ok).toBe(true);
+    }
   });
 });
 

@@ -42,3 +42,13 @@ describe('plan rendering (m2 BUG-18, design: HTML injection)', () => {
     expect((window as { __pwned?: number }).__pwned).toBeUndefined();
   });
 });
+
+describe('delete confirmation (review finding 2)', () => {
+  it('promises only the undo that exists, not a restore screen', async () => {
+    const { user } = renderUi(withAppContext(<PlanView data={{ plans: [plan], perms: { [E]: { write: true, edit: true, remove: true } }, today: '2026-11-04' as IsoDate, createDepartments: [] }} />));
+    await user.click(screen.getByRole('button', { name: 'Xóa sự kiện' }));
+    const dialog = await screen.findByRole('alertdialog');
+    expect(dialog).toHaveTextContent('Có thể hoàn tác ngay sau khi xóa.');
+    expect(dialog).not.toHaveTextContent('Quản trị viên');
+  });
+});

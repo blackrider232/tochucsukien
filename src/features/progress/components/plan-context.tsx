@@ -83,7 +83,7 @@ export function PlanProvider({ data, children, afterDelete }: { data: PlanScreen
     async deleteEvent(event) {
       const ok = await dialogs.confirm({
         title: 'Xác nhận xóa sự kiện?',
-        text: `Sự kiện "${event.name}" cùng toàn bộ tiến độ sẽ bị gỡ khỏi danh sách. Quản trị viên có thể khôi phục.`,
+        text: `Sự kiện "${event.name}" cùng toàn bộ tiến độ sẽ bị gỡ khỏi danh sách. Có thể hoàn tác ngay sau khi xóa.`,
         confirmLabel: 'Đồng ý xóa', cancelLabel: 'Hủy', tone: 'danger',
       });
       if (ok && (await run('progress.deleteEvent', { id: event.id, version: event.version }, { success: `Đã xóa sự kiện "${event.name}"` })) !== undefined) afterDelete?.();
