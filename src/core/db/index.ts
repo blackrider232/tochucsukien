@@ -5,7 +5,7 @@
 //
 // Two implementations behind the same interface:
 //   supabaseDb  production, user-scoped client, RLS enforced by Postgres
-//   memoryDb    tests only, emulates RLS with permissionMatrix()
+//   memoryDb    tests and the dev memory runtime (SCE_DEV_MEMORY=1), emulates RLS with permissionMatrix()
 // There is no third way to touch data.
 
 import type { EventId, Instant, UserId, Uuid, Version } from '@/core/brand';

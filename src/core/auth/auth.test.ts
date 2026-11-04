@@ -43,6 +43,7 @@ describe('decideProxy', () => {
     expect(decideProxy('/auth/callback', q('code=x'), null)).toEqual({ kind: 'next' });
     expect(decideProxy('/api/cron/rsvp-sync', q(), null)).toEqual({ kind: 'next' });
     expect(decideProxy('/dev/kit', q(), null)).toEqual({ kind: 'next' });
+    expect(decideProxy('/dev/role', q(), null)).toEqual({ kind: 'next' });
   });
 
   it('routes unfinished sessions to their gate page', () => {

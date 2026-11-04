@@ -9,6 +9,8 @@ import { buildWorkCalendar, nowInstant, type Holiday } from '@/core/dates';
 import { supabaseDb } from '@/core/db';
 import { DEFAULT_SETTINGS, parseSettingsRow, type SystemSettings } from '@/core/settings';
 import type { Version } from '@/core/brand';
+import { DEV_ROLE_COOKIE, devMemoryEnabled, parseDevRole } from '@/core/dev/mode';
+import { devContext } from '@/core/dev/runtime';
 import { requireSupabaseEnv } from './env';
 import { GATE_PATHS, gateFor } from './gate';
 import type { Actor, AppContextValue, Gate, Profile, RequestContext } from './index';
@@ -34,8 +36,17 @@ async function cookieClient() {
   });
 }
 
+/** SCE_DEV_MEMORY=1 outside production: the sce_dev_role cookie picks the actor, the shared memoryDb is the Db. */
+async function loadDevContext(): Promise<Loaded> {
+  const cookieStore = await cookies();
+  const dev = await devContext(parseDevRole(cookieStore.get(DEV_ROLE_COOKIE)?.value));
+  if (!dev.ok) return { ok: false, gate: { kind: dev.gate } };
+  return { ok: true, holidays: dev.holidays, ctx: { actor: dev.actor, db: dev.db, settings: dev.settings, calendar: buildWorkCalendar(dev.holidays), now: nowInstant() } };
+}
+
 /** Like requestContext(), but reports an unfinished session instead of redirecting (dispatch returns it as a failure). */
 export const loadRequestContext = cache(async (): Promise<Loaded> => {
+  if (devMemoryEnabled()) return loadDevContext();
   const supabase = await cookieClient();
 
   const { data: userData } = await supabase.auth.getUser();
@@ -89,6 +100,10 @@ export async function appContextValue(): Promise<AppContextValue> {
 
 /** Ends this device's session and clears its cookies. Only a route handler may set cookies, so POST /auth/signout calls it. */
 export async function signOut(): Promise<void> {
+  if (devMemoryEnabled()) {
+    (await cookies()).delete(DEV_ROLE_COOKIE);
+    return;
+  }
   const supabase = await cookieClient();
   await supabase.auth.signOut({ scope: 'local' });
 }

@@ -43,6 +43,8 @@ const csp = [
 
 const nextConfig: NextConfig = {
   generateBuildId: async () => buildId,
+  // Inlined into client bundles so useEventChanges() can tell it runs on the dev memory runtime.
+  env: { SCE_DEV_MEMORY: process.env.SCE_DEV_MEMORY ?? '' },
   async redirects() {
     return [{ source: '/code/index.html', destination: '/', permanent: true }];
   },

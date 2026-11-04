@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { buildWorkCalendar, type WorkCalendar } from '@/core/dates';
+import { devMemoryEnabled } from '@/core/dev/mode';
 import type { SystemSettings } from '@/core/settings';
 import { supabaseEnv } from './env';
 import type { AppContextValue } from './index';
@@ -44,7 +45,7 @@ function getBrowserClient(): SupabaseClient | null {
 
 const REFRESH_DEBOUNCE_MS = 400;
 
-/** Subscribes to postgres_changes for these tables filtered by event_id; debounced router.refresh(). */
+/** Subscribes to postgres_changes for these tables filtered by event_id; debounced router.refresh(). A no-op in dev memory mode. */
 export function useEventChanges(eventId: string, tables: ReadonlyArray<`sce_tcsk_${string}`>): { connected: boolean } {
   const router = useRouter();
   const [connected, setConnected] = useState(false);
@@ -52,7 +53,7 @@ export function useEventChanges(eventId: string, tables: ReadonlyArray<`sce_tcsk
   const key = tables.join(',');
 
   useEffect(() => {
-    const client = getBrowserClient();
+    const client = devMemoryEnabled() ? null : getBrowserClient();
     if (!client || key === '') return;
     let channel = client.channel(`sce:${eventId}:${key}`);
     for (const table of key.split(',')) {
