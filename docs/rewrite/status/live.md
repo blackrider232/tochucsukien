@@ -164,7 +164,7 @@ Each finding has a test that failed before its fix, except the mutants and LOW-3
 
 ## What the database does not stop
 
-`202611041510_live_checkin_guard.sql` holds a signed-in user who writes `sce_tcsk_checkins` or the token table through PostgREST with the publishable key. Such a user cannot record a check-in or a gift at a time other than now (2 minutes back, 1 minute ahead), cannot sign a check-in for someone else, and cannot record a gift without a check-in. An earlier time, desk, gift time or another user's id is accepted only from an undo token that the same user consumed in the last 2 minutes. A token must copy a check-in that exists when it is written, expires within 15 minutes, and is consumed once. The brief asked for "no backdating beyond the event's day window". The trigger refuses any backdating that does not come from a token, which is stricter. Rows written without a user (the importer under the service role) and a backup restore pass unchecked.
+`202611041510_live_checkin_guard.sql` holds a signed-in user who writes `sce_tcsk_checkins` or the token table through PostgREST with the publishable key. Such a user cannot record a check-in or a gift at a time other than now (2 minutes back, 1 minute ahead), cannot sign a check-in as someone else, cannot move a check-in (time, actor, desk and gift) onto another guest by changing its `guest_id`, and cannot record a gift without a check-in. An earlier time, desk, gift time or another user's id is accepted only from an undo token that the same user consumed in the last 2 minutes. A token must copy a check-in that exists when it is written, expires within 15 minutes, and is consumed once. The brief asked for "no backdating beyond the event's day window". The trigger refuses any backdating that does not come from a token, which is stricter. Rows written without a user (the importer under the service role) and a backup restore pass unchecked.
 
 What a direct write still does, because only an RPC could stop it (change request J):
 
@@ -173,7 +173,7 @@ What a direct write still does, because only an RPC could stop it (change reques
 - It deletes a check-in, or a token, with no audit row.
 - It copies a check-in into a token and restores it under the same user within the windows. That writes back the same values the check-in already had, so nothing is forged.
 
-The trigger also trusts the app server's clock to be within 2 minutes of the database's. A server whose clock is further off would have every check-in refused.
+The trigger also trusts the app server's clock: the app stamps the check-in time itself, and the database accepts it from 2 minutes before to 1 minute after its own `now()`. An app server whose clock runs more than 2 minutes behind the database, or more than 1 minute ahead of it (network delay eats into the behind side), has every check-in refused.
 
 ## Not verified
 

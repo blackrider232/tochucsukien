@@ -85,6 +85,22 @@ describe('a desk user writing check-ins directly', () => {
     expect(await checkinOf(g)).toMatchObject({ checked_in_by: A, desk: 'Bàn 1' });
   });
 
+  it('cannot re-point a check-in at another guest, a declined one included, nor a token', async () => {
+    const came = await addGuest('Hồ Văn Đến');
+    const absent = await addGuest('Vũ Thị Vắng');
+    const declined = await addGuest('Mai Văn Từ Chối');
+    await asA(`update public.sce_tcsk_guests set rsvp_status = 'declined' where id = '${declined}'`);
+    await asB(`insert into public.sce_tcsk_checkins (event_id, guest_id, checked_in_at, checked_in_by, desk) values ('${eventId}', '${came}', now(), '${B}', 'Bàn 4')`);
+    await asB(`update public.sce_tcsk_checkins set gift_given_at = now() where guest_id = '${came}'`);
+    for (const target of [absent, declined]) {
+      await expect(asA(`update public.sce_tcsk_checkins set guest_id = '${target}' where guest_id = '${came}'`)).rejects.toThrow(/stays with its guest/);
+      expect(await checkinOf(target)).toBeUndefined();
+    }
+    expect(await checkinOf(came)).toMatchObject({ checked_in_by: B, desk: 'Bàn 4' });
+    await asB(copyAsToken(came));
+    await expect(asA(`update public.sce_tcsk_checkin_undo_tokens set guest_id = '${absent}' where guest_id = '${came}'`)).rejects.toThrow(/only consumed/);
+  });
+
   it('cannot write an undo token that copies no check-in, nor reuse or extend one', async () => {
     const g = await addGuest('Phạm Văn Giả');
     await expect(asA(`insert into public.sce_tcsk_checkin_undo_tokens (event_id, guest_id, checked_in_at, checked_in_by, expires_at)
