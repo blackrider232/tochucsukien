@@ -172,6 +172,15 @@ describe('the no-double-send rules on Postgres, for an officer writing to the ta
     await expect(update(COLLEAGUE, id, `status = 'queued', error = null, claim_token = ${hashOf(OTHER_RUN)}`)).resolves.toBeDefined();
   });
 
+  it('a message confirmed unsent carries no evidence of a send: unknown becomes an error only without a Gmail id or time', async () => {
+    const id = await claim('g20@x.vn');
+    await update(OFFICER, id, `status = 'unknown', error = 'mất kết nối', claim_proof = '${RUN}'`);
+    await expect(update(COLLEAGUE, id, `status = 'error', error = 'x', provider_message_id = 'made-up-id'`)).rejects.toThrow(/not this run/);
+    await expect(update(COLLEAGUE, id, `status = 'error', error = 'x', sent_at = now()`)).rejects.toThrow(/not this run/);
+    await update(COLLEAGUE, id, `status = 'error', error = 'Cán bộ đã kiểm tra: thư chưa được gửi'`);
+    expect(await row(id)).toMatchObject({ status: 'error', provider_message_id: null });
+  });
+
   it('the officer whose run holds an unsent claim frees it; a colleague frees it only once it lapsed', async () => {
     const own = await claim('g8@x.vn');
     const theirs = await claim('g9@x.vn');

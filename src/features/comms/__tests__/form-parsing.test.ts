@@ -137,6 +137,13 @@ describe('parseResponseRow', () => {
   ])('cannot tell the date order of %s: null, the rows are kept for review', (_, cells) => {
     expect(detectDateOrder(cells, NOW_)).toBeNull();
   });
+  it('a newest answer exactly a week old is recent; one second older is not', () => {
+    const now = '2026-11-08T05:00:00.000Z' as Instant;
+    expect(detectDateOrder(['01/11/2026 12:00:00'], now)).toBe('dmy');
+    expect(detectDateOrder(['01/11/2026 11:59:59'], now)).toBeNull();
+    // A month old is not recent either way.
+    expect(detectDateOrder(['01/10/2026 12:00:00'], now)).toBeNull();
+  });
   it('reads no slash date without a known order', () => {
     expect(parseSheetTimestamp('04/11/2026 10:00:00', { order: null })).toBeNull();
     expect(parseSheetTimestamp('2026-11-04T02:15:30.000Z', { order: null })).toBe('2026-11-04T02:15:30.000Z');
