@@ -8,5 +8,6 @@ import { pathToFileURL } from 'node:url';
 
 const empty = pathToFileURL(createRequire(import.meta.url).resolve('next/dist/compiled/server-only/empty.js')).href;
 registerHooks({
-  resolve: (specifier, context, next) => (specifier === 'next/dist/compiled/server-only' ? { url: empty, shortCircuit: true } : next(specifier, context)),
+  resolve: (specifier, context, next) =>
+    specifier === 'server-only' || specifier === 'next/dist/compiled/server-only' ? { url: empty, shortCircuit: true } : next(specifier, context),
 });
