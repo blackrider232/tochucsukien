@@ -13,6 +13,7 @@ import { formatVNTime } from '@/core/dates';
 import { ROLES } from '@/core/vocab';
 import { PASSWORD_MIN, changePasswordSchema, profileNameSchema } from '../domain/schemas';
 import { TotpEnroll } from './totp';
+import { useHydrated } from './use-hydrated';
 
 export function ProfileScreen({ profile, requiresMfa }: { profile: Profile; requiresMfa: boolean }) {
   return (
@@ -29,6 +30,7 @@ export function ProfileScreen({ profile, requiresMfa }: { profile: Profile; requ
 function AccountCard({ profile }: { profile: Profile }) {
   const run = useCommand();
   const form = useZodForm(profileNameSchema, { defaultValues: { fullname: profile.fullname } });
+  const hydrated = useHydrated();
   const submit = async ({ fullname }: { fullname: string }) => {
     if (fullname === profile.fullname) return;
     if (await run('core.profile.updateName', { fullname }, { success: 'Đã cập nhật tên hiển thị.' })) form.reset({ fullname });
@@ -54,7 +56,7 @@ function AccountCard({ profile }: { profile: Profile }) {
           <FormField label="Họ và tên hiển thị" name="fullname" required>
             <TextInput name="fullname" autoComplete="name" />
           </FormField>
-          <Button type="submit" variant="secondary" icon="check" loading={form.formState.isSubmitting}>Lưu tên</Button>
+          <Button type="submit" variant="secondary" icon="check" disabled={!hydrated} loading={form.formState.isSubmitting}>Lưu tên</Button>
         </Form>
       </div>
     </SectionCard>
@@ -64,6 +66,7 @@ function AccountCard({ profile }: { profile: Profile }) {
 function PasswordCard() {
   const toast = useToast();
   const form = useZodForm(changePasswordSchema, { defaultValues: { current: '', password: '', confirm: '' } });
+  const hydrated = useHydrated();
   const [error, setError] = useState<string | null>(null);
   const submit = async (v: { current: string; password: string }) => {
     setError(null);
@@ -86,7 +89,7 @@ function PasswordCard() {
           <FormField label="Nhập lại mật khẩu mới" name="confirm" required>
             <TextInput name="confirm" type="password" autoComplete="new-password" />
           </FormField>
-          <Button type="submit" variant="secondary" icon="lock" loading={form.formState.isSubmitting}>Đổi mật khẩu</Button>
+          <Button type="submit" variant="secondary" icon="lock" disabled={!hydrated} loading={form.formState.isSubmitting}>Đổi mật khẩu</Button>
         </Form>
       ) : (
         <Alert tone="info">{AUTH_UNAVAILABLE}</Alert>

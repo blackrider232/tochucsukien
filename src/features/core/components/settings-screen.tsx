@@ -65,7 +65,7 @@ export function SettingsForm({ settings }: { settings: SystemSettings }) {
   const number = (field: keyof typeof SETTINGS_LIMITS) => {
     const [min, max] = SETTINGS_LIMITS[field];
     return (
-      <FormField label={SETTINGS_FIELDS[field].label} name={field} required suffix={SETTINGS_FIELDS[field].unit} hint={`Từ ${min} đến ${max}.`}>
+      <FormField label={SETTINGS_FIELDS[field].label} name={field} required suffix={SETTINGS_FIELDS[field].unit} hint={`Tính theo ${SETTINGS_FIELDS[field].hint}, từ ${min} đến ${max}.`}>
         <NumberInput name={field} min={min} max={max} step={1} />
       </FormField>
     );
@@ -133,7 +133,7 @@ export function HolidaysEditor({ year, years, canEdit }: { year: number; years: 
       actions={canEdit ? <Button variant="secondary" icon="plus" onClick={() => setAdding(true)}>Thêm ngày</Button> : undefined}
     >
       <div className="space-y-3">
-        <LinkTabs label="Năm" variant="pill" activeId={String(year)} items={years.map((y) => ({ id: String(y), label: String(y), count: count(y), href: `/admin/settings?year=${y}` }))} />
+        <LinkTabs label="Năm" variant="pill" activeId={String(year)} items={years.map((y) => ({ id: String(y), label: `${y} · ${count(y)} ngày`, href: `/admin/settings?year=${y}` }))} />
         <Alert tone="info">Tết Nguyên đán, Giỗ Tổ Hùng Vương, ngày nghỉ bù và ngày làm bù do Chính phủ công bố hằng năm. Nhập ngay khi có thông báo để hạn chót quanh Tết được tính đúng.</Alert>
         <DataTable rows={ofYear} columns={columns} rowKey={(h) => h.date} empty={{ icon: 'calendar', title: `Chưa có ngày nghỉ nào trong năm ${year}`, text: canEdit ? 'Bấm "Thêm ngày" để nhập lịch nghỉ của năm.' : undefined }} />
       </div>

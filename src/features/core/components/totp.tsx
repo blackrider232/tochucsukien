@@ -8,9 +8,11 @@ import { authAvailable, AUTH_UNAVAILABLE, challengeTotp, startTotpEnrollment, ve
 import { formatVNDate, todayVN } from '@/core/dates';
 import { LANDING, safeNext } from '../domain/auth-routes';
 import { totpCodeSchema } from '../domain/schemas';
+import { useHydrated } from './use-hydrated';
 
 function CodeForm({ submitLabel, onCode }: { submitLabel: string; onCode: (code: string) => Promise<string | null> }) {
   const form = useZodForm(totpCodeSchema, { defaultValues: { code: '' } });
+  const hydrated = useHydrated();
   const [error, setError] = useState<string | null>(null);
   const submit = async ({ code }: { code: string }) => {
     setError(null);
@@ -26,7 +28,7 @@ function CodeForm({ submitLabel, onCode }: { submitLabel: string; onCode: (code:
       <FormField label="Mã 6 số trên ứng dụng xác thực" name="code" required hint="Mã đổi sau mỗi 30 giây.">
         <TextInput name="code" autoComplete="one-time-code" placeholder="000000" />
       </FormField>
-      <Button type="submit" icon="shield" loading={form.formState.isSubmitting}>{submitLabel}</Button>
+      <Button type="submit" icon="shield" disabled={!hydrated} loading={form.formState.isSubmitting}>{submitLabel}</Button>
     </Form>
   );
 }

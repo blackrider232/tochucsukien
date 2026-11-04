@@ -9,6 +9,7 @@ import { Alert, Button, Form, FormField, Select, TextInput, useZodForm } from '@
 import { authAvailable, AUTH_UNAVAILABLE, onPasswordRecovery, requestPasswordReset, setNewPassword, signInWithGoogle, signInWithPassword, signUp } from '@/core/auth/flows';
 import { LANDING, safeNext } from '../domain/auth-routes';
 import { PASSWORD_MIN, SELF_REGISTER_DEPARTMENTS, loginSchema, newPasswordSchema, registerSchema, resetRequestSchema, type RegisterInput } from '../domain/schemas';
+import { useHydrated } from './use-hydrated';
 
 const go = (path: string) => window.location.assign(path);
 
@@ -26,6 +27,7 @@ function Unavailable() {
 
 export function LoginForm({ next, notice }: { next: string | null; notice: LoginNotice }) {
   const form = useZodForm(loginSchema, { defaultValues: { email: '', password: '' } });
+  const hydrated = useHydrated();
   const [error, setError] = useState<string | null>(null);
   const target = safeNext(next) ?? LANDING;
 
@@ -53,7 +55,7 @@ export function LoginForm({ next, notice }: { next: string | null; notice: Login
         <FormField label="Mật khẩu" name="password" required>
           <TextInput name="password" type="password" autoComplete="current-password" />
         </FormField>
-        <Button type="submit" loading={form.formState.isSubmitting}>Đăng nhập</Button>
+        <Button type="submit" disabled={!hydrated} loading={form.formState.isSubmitting}>Đăng nhập</Button>
       </Form>
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-4">
         <Button variant="secondary" icon="globe" onClick={() => void google()}>Đăng nhập với Google</Button>
@@ -70,6 +72,7 @@ const DEPARTMENT_OPTIONS = SELF_REGISTER_DEPARTMENTS.map((d) => ({ value: d, lab
 
 export function RegisterForm({ onSignUp = signUp }: { onSignUp?: typeof signUp }) {
   const form = useZodForm(registerSchema, { defaultValues: { fullname: '', department: 'Phòng Xúc tiến đầu tư', email: '', password: '' } });
+  const hydrated = useHydrated();
   const [error, setError] = useState<string | null>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
 
@@ -105,7 +108,7 @@ export function RegisterForm({ onSignUp = signUp }: { onSignUp?: typeof signUp }
         <FormField label="Mật khẩu" name="password" required hint={`Tối thiểu ${PASSWORD_MIN} ký tự.`}>
           <TextInput name="password" type="password" autoComplete="new-password" />
         </FormField>
-        <Button type="submit" icon="check" loading={form.formState.isSubmitting}>Đăng ký</Button>
+        <Button type="submit" icon="check" disabled={!hydrated} loading={form.formState.isSubmitting}>Đăng ký</Button>
       </Form>
       <p className="text-sm text-ink-2">
         Đã có tài khoản? <Button variant="ghost" href="/login">Quay lại đăng nhập</Button>
@@ -122,6 +125,7 @@ export function ResetPasswordForm({ hasSession }: { hasSession: boolean }) {
 
 function ResetRequestForm() {
   const form = useZodForm(resetRequestSchema, { defaultValues: { email: '' } });
+  const hydrated = useHydrated();
   const [error, setError] = useState<string | null>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
   const submit = async (v: { email: string }) => {
@@ -145,7 +149,7 @@ function ResetRequestForm() {
         <FormField label="Email đã đăng ký" name="email" required hint="Hệ thống gửi liên kết đặt lại mật khẩu tới email này.">
           <TextInput name="email" type="email" autoComplete="email" />
         </FormField>
-        <Button type="submit" icon="mail" loading={form.formState.isSubmitting}>Gửi email đặt lại</Button>
+        <Button type="submit" icon="mail" disabled={!hydrated} loading={form.formState.isSubmitting}>Gửi email đặt lại</Button>
       </Form>
       <Button variant="ghost" href="/login">Quay lại đăng nhập</Button>
     </div>
@@ -154,6 +158,7 @@ function ResetRequestForm() {
 
 function NewPasswordForm() {
   const form = useZodForm(newPasswordSchema, { defaultValues: { password: '', confirm: '' } });
+  const hydrated = useHydrated();
   const [error, setError] = useState<string | null>(null);
   const submit = async (v: { password: string }) => {
     setError(null);
@@ -171,7 +176,7 @@ function NewPasswordForm() {
         <FormField label="Nhập lại mật khẩu mới" name="confirm" required>
           <TextInput name="confirm" type="password" autoComplete="new-password" />
         </FormField>
-        <Button type="submit" icon="lock" loading={form.formState.isSubmitting}>Đặt mật khẩu mới</Button>
+        <Button type="submit" icon="lock" disabled={!hydrated} loading={form.formState.isSubmitting}>Đặt mật khẩu mới</Button>
       </Form>
     </div>
   );

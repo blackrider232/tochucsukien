@@ -17,6 +17,8 @@ export const userIdSchema = z.string().refine((v) => parseUuid(v) !== null, 'Mã
 export const versionSchema = z.number().int().positive().transform((v) => v as Version);
 export const emailSchema = z
   .string({ error: 'Nhập email' })
+  .trim()
+  .min(1, 'Nhập email')
   .transform((v, ctx) => parseEmail(v) ?? (ctx.addIssue({ code: 'custom', message: 'Email không hợp lệ' }), z.NEVER)) as z.ZodType<Email, string>;
 
 export const ROLE_VALUES = ['admin', 'leader', 'dept_leader', 'user'] as const satisfies ReadonlyArray<Role>;

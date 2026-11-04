@@ -7,14 +7,14 @@ import type { EnumRegistry } from '@/core/vocab';
 
 export type SettingsField = Exclude<keyof SystemSettings, 'version'>;
 
-export const SETTINGS_FIELDS: { readonly [K in SettingsField]: { label: string; unit?: string } } = {
+export const SETTINGS_FIELDS: { readonly [K in SettingsField]: { label: string; unit?: string; hint?: string } } = {
   parentAgency: { label: 'Đơn vị chủ quản (cấp trên)' },
   agencyName: { label: 'Đơn vị tổ chức sự kiện' },
   agencyShortName: { label: 'Tên viết tắt' },
-  dailyReportThresholdDays: { label: 'Ngưỡng kích hoạt báo cáo hàng ngày', unit: 'ngày làm việc trước sự kiện' },
-  fieldPresenceHours: { label: 'Thời gian cán bộ có mặt hiện trường', unit: 'tiếng trước khai mạc' },
-  guestQuotaPercent: { label: 'Tỷ lệ danh sách khách mời tối thiểu (nhóm 1a)', unit: '% khách dự kiến' },
-  badgeQuotaPercent: { label: 'Tỷ lệ in thẻ đại biểu tối thiểu (nhóm 2b)', unit: '% khách dự kiến' },
+  dailyReportThresholdDays: { label: 'Ngưỡng kích hoạt báo cáo hàng ngày', unit: 'ngày', hint: 'ngày làm việc trước sự kiện' },
+  fieldPresenceHours: { label: 'Thời gian cán bộ có mặt hiện trường', unit: 'tiếng', hint: 'tiếng trước giờ khai mạc' },
+  guestQuotaPercent: { label: 'Tỷ lệ danh sách khách mời tối thiểu (nhóm 1a)', unit: '%', hint: '% số khách dự kiến' },
+  badgeQuotaPercent: { label: 'Tỷ lệ in thẻ đại biểu tối thiểu (nhóm 2b)', unit: '%', hint: '% số khách dự kiến' },
   googleClientId: { label: 'Google Client ID mặc định' },
 };
 

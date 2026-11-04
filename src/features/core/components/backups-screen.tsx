@@ -76,7 +76,7 @@ export function BackupsScreen({ backups, canRestore }: { backups: ReadonlyArray<
       {!canRestore && <Alert tone="info">Bạn tạo và tải được bản sao lưu. Chỉ Quản trị viên đã xác thực hai lớp mới khôi phục được.</Alert>}
       <SectionCard
         title="Sao lưu và phục hồi dữ liệu"
-        subtitle="Bản sao lưu chụp toàn bộ dữ liệu nghiệp vụ, tham số và ngày nghỉ. Không gồm tài khoản và nhật ký."
+        subtitle="Dữ liệu nghiệp vụ, tham số và ngày nghỉ."
         icon="cloud"
         actions={<Button icon="plus" onClick={() => void create()}>Tạo bản sao lưu</Button>}
       >
@@ -84,7 +84,7 @@ export function BackupsScreen({ backups, canRestore }: { backups: ReadonlyArray<
           rows={backups}
           columns={columns}
           rowKey={(b) => String(b.id)}
-          empty={{ icon: 'cloud', title: 'Chưa có bản sao lưu nào', text: 'Nên tạo một bản trước mỗi đợt cập nhật dữ liệu sự kiện lớn.' }}
+          empty={{ icon: 'cloud', title: 'Chưa có bản sao lưu nào', text: 'Nên tạo một bản trước mỗi đợt cập nhật dữ liệu sự kiện lớn. Bản sao lưu không gồm tài khoản và nhật ký.' }}
         />
       </SectionCard>
     </div>

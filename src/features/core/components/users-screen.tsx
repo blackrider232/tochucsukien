@@ -110,13 +110,13 @@ export function UsersScreen({ profiles, canManage, selfId, scopedTo }: UsersScre
         </Alert>
       )}
       {canManage && pending.length > 0 && (
-        <Alert tone="warning" title={`Có ${pending.length} tài khoản cán bộ mới đang chờ phê duyệt`} action={<Button icon="check" onClick={() => void approveAll()}>Phê duyệt tất cả</Button>}>
-          Duyệt từng tài khoản trong menu thao tác của dòng, hoặc phê duyệt tất cả để kích hoạt quyền đăng nhập.
+        <Alert tone="warning" title={`${pending.length} tài khoản chờ phê duyệt`} action={<Button icon="check" onClick={() => void approveAll()}>Phê duyệt tất cả</Button>}>
+          Duyệt từng tài khoản ở menu thao tác của dòng, hoặc phê duyệt tất cả cùng lúc.
         </Alert>
       )}
       <SectionCard
         title="Danh sách cán bộ"
-        subtitle={`${profiles.length} tài khoản · ${activeAdmins} quản trị viên đang hoạt động`}
+        subtitle={canManage ? `${profiles.length} tài khoản, ${activeAdmins} quản trị viên` : `${profiles.length} tài khoản`}
         icon="users"
         actions={canManage ? <Button variant={pending.length > 0 ? 'secondary' : 'primary'} icon="plus" onClick={() => setEditing({ kind: 'create' })}>Thêm tài khoản</Button> : undefined}
       >
@@ -124,7 +124,7 @@ export function UsersScreen({ profiles, canManage, selfId, scopedTo }: UsersScre
           <FilterBar
             search={{ value: q, onChange: setQ, placeholder: 'Tìm theo họ tên hoặc email' }}
             filters={[
-              { id: 'dept', label: 'Phòng chuyên môn', value: dept, onChange: setDept, options: [{ value: 'all', label: 'Tất cả phòng ban' }, ...DEPARTMENT_OPTIONS, { value: '', label: NO_DEPARTMENT }] },
+              ...(scopedTo ? [] : [{ id: 'dept', label: 'Phòng chuyên môn', value: dept, onChange: setDept, options: [{ value: 'all', label: 'Tất cả phòng ban' }, ...DEPARTMENT_OPTIONS, { value: '', label: NO_DEPARTMENT }] }]),
               { id: 'status', label: 'Trạng thái', value: status, onChange: setStatus, options: [{ value: 'all', label: 'Tất cả trạng thái' }, ...enumOptions(PROFILE_STATUS).map((o) => ({ value: o.value, label: o.label }))] },
             ]}
           />
