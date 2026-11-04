@@ -79,6 +79,8 @@ async function writeSeatChanges(ctx: CommandContext, eventId: EventId, hall: Pic
   const incoming = changes.flatMap((c) => (c.to ? [c.to] : []));
   if (new Set(incoming).size !== incoming.length) throw new CommandError('invalid', 'Một đại biểu chỉ được xếp một ghế.');
 
+  // The roster first: until feature guests lands, "chưa sẵn sàng" is the real reason, not a seat mismatch.
+  const roster = incoming.length > 0 ? await requireRoster(ctx, eventId) : null;
   const current = await seatsOf(ctx, eventId);
   const bySeat = new Map(current.map((s) => [s.seatCode, s]));
   const byGuest = new Map(current.map((s) => [s.guestId, s]));
@@ -87,7 +89,6 @@ async function writeSeatChanges(ctx: CommandContext, eventId: EventId, hall: Pic
     if ((bySeat.get(c.seatCode)?.guestId ?? null) !== c.from) throw new CommandError('conflict', `Ghế ${c.seatCode} vừa được người khác thay đổi. Đang tải lại…`);
     if (c.to && !zoneOfSeat(hall, c.seatCode)) throw new CommandError('invalid', `Ghế ${c.seatCode} không có trong sơ đồ hội trường.`);
   }
-  const roster = incoming.length > 0 ? await requireRoster(ctx, eventId) : null;
   for (const guestId of incoming) {
     const guest = roster!.find((g) => g.id === guestId);
     if (!guest) throw new CommandError('not_found', 'Không tìm thấy đại biểu trong danh sách khách mời của sự kiện.');

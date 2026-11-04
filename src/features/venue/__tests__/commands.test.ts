@@ -82,6 +82,7 @@ describe('venue.assignSeat (asked by live)', () => {
     rosterReady(false);
     expect(await h.run(xtdtUser, 'venue.assignSeat', { eventId, guestId: g.vip1, seatCode: 'auto' })).toMatchObject({ ok: false, kind: 'conflict', message: ROSTER_NOT_READY });
     expect(await h.run(xtdtUser, 'venue.autoAssign', { eventId, mode: 'fill-empty', seed: 1 })).toMatchObject({ ok: false, message: ROSTER_NOT_READY });
+    expect(await h.run(xtdtUser, 'venue.applySeats', { eventId, changes: [{ seatCode: seat('A-01'), from: g.vip2, to: g.vip1 }] })).toMatchObject({ ok: false, message: ROSTER_NOT_READY });
     expect(h.rows('sce_tcsk_seat_assignments')).toHaveLength(0);
   });
 });
