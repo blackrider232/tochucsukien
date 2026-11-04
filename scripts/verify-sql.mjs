@@ -334,17 +334,72 @@ assert.match(restoreRow.summary, new RegExp(`^Khôi phục từ bản #${backupI
 await as(ids.xtdt, 'aal1', () => assert.rejects(
   db.query(`select public.sce_tcsk_write_audit('PHÂN QUYỀN TÀI KHOẢN', 'Chuyên viên → Quản trị viên', null, 'profile', '${ids.xtdt}')`),
   /permission denied/, 'a user cannot call the raw audit writer'));
-const forge = (perm, action, eventSql = 'null', entity = 'step') =>
-  `select public.sce_tcsk_audit_command('${perm}', '${action}', 'giả mạo', ${eventSql}, '${entity}', 'x')`;
-await as(ids.xtdt, 'aal1', () => assert.rejects(db.query(forge('core.users.manage', 'PHÂN QUYỀN TÀI KHOẢN', 'null', 'profile')), /forbidden/, 'a user cannot audit an action it may not perform'));
-await as(ids.admin, 'aal2', () => assert.rejects(db.query(forge('core.users.manage', 'PHÂN QUYỀN TÀI KHOẢN', 'null', 'profile')), /forbidden/, 'core actions are audited only by their own functions, even for an admin'));
-await as(ids.xtdt, 'aal1', () => assert.rejects(db.query(forge('progress.write', 'PHÂN QUYỀN TÀI KHOẢN')), /forbidden/, 'a held permission cannot carry a core action'));
-await as(ids.xtdt, 'aal1', () => assert.rejects(db.query(forge('progress.write', 'CẬP NHẬT TIẾN ĐỘ', 'null', 'profile')), /forbidden/, 'a held permission cannot carry a core entity'));
+// Feature command rows (202611041320_core_audit_writer.sql): only the server's service role writes them, for the
+// actor the pipeline names, and the function re-checks that actor. No user JWT reaches a writer.
+const writerSig = 'public.sce_tcsk_audit_command(uuid, text, text, text, text, text, uuid, text, text)';
+assert.deepEqual((await db.query(`select p.oid::regprocedure::text as f from pg_catalog.pg_proc p where p.proname = 'sce_tcsk_audit_command'`)).rows.map((r) => r.f),
+  [writerSig.replace(/, /g, ',').replace('public.', '')], 'one command audit writer, taking the actor from the server');
+assert.deepEqual((await db.query(`select has_function_privilege('authenticated', '${writerSig}', 'execute') as u, has_function_privilege('anon', '${writerSig}', 'execute') as a,
+  has_function_privilege('service_role', '${writerSig}', 'execute') as s, has_function_privilege('service_role', 'public.sce_tcsk_write_audit(text, text, uuid, text, text)', 'execute') as raw`)).rows[0],
+  { u: false, a: false, s: true, raw: false }, 'only the service role executes the command audit writer, and nobody but owner-rights functions the raw one');
+const command = { actor: ids.xtdt, aal: 'aal1', command: 'progress.setStepDone', perm: 'progress.write', action: 'CẬP NHẬT TIẾN ĐỘ', event: eventId, entity: 'step' };
+const writeCommandAudit = (row) => db.query(`select public.sce_tcsk_audit_command($1, $2, $3, $4, $5, 'tóm tắt', $6, $7, 'x')`,
+  [row.actor, row.aal, row.command, row.perm, row.action, row.event, row.entity]);
+await as(ids.xtdt, 'aal1', () => assert.rejects(writeCommandAudit(command), /permission denied/, 'a signed-in user cannot write a command audit row'));
+const asService = async (fn) => {
+  await db.exec(`set role service_role`);
+  try {
+    return await fn();
+  } finally {
+    await db.exec(`reset role`);
+  }
+};
+const commandAuditCount = async () => (await db.query(`select count(*)::int as n from public.sce_tcsk_audit_logs`)).rows[0].n;
+async function refusedRow(label, patch) {
+  const before = await commandAuditCount();
+  await asService(() => assert.rejects(writeCommandAudit({ ...command, ...patch }), /forbidden/, label));
+  assert.equal(await commandAuditCount(), before, `${label}: no row`);
+}
+async function writtenRow(label, patch) {
+  const before = await commandAuditCount();
+  await asService(() => writeCommandAudit({ ...command, ...patch }));
+  assert.equal(await commandAuditCount(), before + 1, `${label}: one row`);
+  return lastAudit();
+}
+// The JWT of the last request still names xtdt: the row's actor must come from the argument, never from it.
+await as(ids.xtdt, 'aal1', async () => {});
 const tvdnEvent = (await as(ids.admin, 'aal2', () => db.query(`insert into public.sce_tcsk_events (name, type, event_date, department) values ('HN TVDN', 'hoi_nghi', '2026-12-21', 'Phòng Tư vấn doanh nghiệp') returning id`))).rows[0].id;
-await as(ids.xtdt, 'aal1', () => assert.rejects(db.query(forge('progress.write', 'CẬP NHẬT TIẾN ĐỘ', `'${tvdnEvent}'`)), /forbidden/, 'a user cannot audit another department’s event'));
-await as(ids.pending, 'aal1', () => assert.rejects(db.query(forge('progress.write', 'CẬP NHẬT TIẾN ĐỘ', `'${eventId}'`)), /forbidden/, 'a pending account cannot audit'));
-const ownRow = await auditedOnce('a command audit', ids.xtdt, 'aal1', forge('progress.write', 'CẬP NHẬT TIẾN ĐỘ', `'${eventId}'`));
-assert.deepEqual([ownRow.actor_id, ownRow.actor_email, ownRow.action], [ids.xtdt, 'a@x.vn', 'CẬP NHẬT TIẾN ĐỘ'], 'a command audit carries the caller as actor, from the session');
+const ownRow = await writtenRow('a command audit', { actor: ids.ptdn, action: '  CẬP  NHẬT​ TIẾN ĐỘ ' });
+assert.deepEqual([ownRow.actor_id, ownRow.actor_email, ownRow.action], [ids.ptdn, 'b@x.vn', 'CẬP NHẬT TIẾN ĐỘ'], 'the row carries the actor the server named, and the action in canonical form');
+await refusedRow('a core command', { actor: ids.admin, aal: 'aal2', command: 'core.users.setRole', perm: 'core.users.manage', event: null, entity: 'step' });
+await refusedRow('a permission of another feature', { command: 'guests.update', perm: 'progress.write' });
+await refusedRow('a command of another feature', { command: 'directory.createContact', perm: 'guests.write' });
+await refusedRow('an unknown permission', { perm: 'progress.everything' });
+await refusedRow('a command without a verb', { command: 'progress' });
+await refusedRow('an event that does not exist, even for an admin', { actor: ids.admin, aal: 'aal2', event: '00000000-0000-0000-0000-0000000000ff' });
+await refusedRow('an event permission without an event, even for an admin', { actor: ids.admin, aal: 'aal2', event: null });
+await refusedRow('a global permission on an event', { actor: ids.admin, aal: 'aal2', command: 'templates.create', perm: 'templates.admin' });
+await refusedRow('another department’s event', { event: tvdnEvent });
+await refusedRow('a pending account', { actor: ids.pending });
+await db.exec(`update public.sce_tcsk_profiles set status = 'locked' where id = '${ids.xtdt}'`);
+await refusedRow('a locked account that otherwise holds the permission', {});
+await db.exec(`update public.sce_tcsk_profiles set status = 'active' where id = '${ids.xtdt}'`);
+await refusedRow('an account that does not exist', { actor: '00000000-0000-0000-0000-0000000000fe' });
+await refusedRow('an assurance level that is not one', { actor: ids.admin, aal: 'aal3' });
+await refusedRow('an admin at aal1', { actor: ids.admin, aal: 'aal1', command: 'templates.create', perm: 'templates.admin', event: null, entity: 'template' });
+await writtenRow('an admin at aal2', { actor: ids.admin, aal: 'aal2', command: 'templates.create', perm: 'templates.admin', event: null, entity: 'template' });
+await db.exec(`insert into auth.mfa_factors (user_id, status) values ('${ids.ptdn}', 'verified')`);
+await refusedRow('a user with a verified factor at aal1', { actor: ids.ptdn, aal: 'aal1' });
+await writtenRow('a user with a verified factor at aal2', { actor: ids.ptdn, aal: 'aal2' });
+await db.exec(`delete from auth.mfa_factors where user_id = '${ids.ptdn}'`);
+await writtenRow('the one cross-feature permission on the allowlist', { command: 'directory.importToEvent', perm: 'guests.write', action: 'NHẬP TỪ CSDL KHÁCH MỜI VÀO SỰ KIỆN' });
+const coreAction = 'PHÂN QUYỀN TÀI KHOẢN';
+for (const action of [coreAction, coreAction.toLowerCase(), `  ${coreAction.replace(/ /g, '   ')}\t`, coreAction.normalize('NFD'), coreAction.replace(/ /g, ' '),
+  coreAction.replace('QUYỀN', 'QU​YỀN'), coreAction.replace(/[A-Z]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0xfee0)), 'Khôi Phục Sao Lưu', '﻿TẠO BẢN SAO LƯU']) {
+  await refusedRow(`the core action ${JSON.stringify(action)}`, { action });
+}
+for (const entity of ['profile', 'Profile', ' BACKUP ', 'pro‍file', 'ｓｅｔｔｉｎｇｓ', 'Holidays']) await refusedRow(`the core entity ${JSON.stringify(entity)}`, { entity });
+for (const action of ['', '   ', '​​']) await refusedRow(`an empty action ${JSON.stringify(action)}`, { action });
 
 await as(ids.xtdt, 'aal1', () => assert.rejects(db.query(`select public.sce_tcsk_create_backup('x', 'auto')`), /forbidden/, 'a user cannot take an auto backup'));
 await as(ids.admin, 'aal1', () => assert.rejects(db.query(`select public.sce_tcsk_create_backup('x', 'auto')`), /forbidden/, 'an admin at aal1 cannot take an auto backup'));

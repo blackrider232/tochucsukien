@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { GuestId, UserId, Version } from '@/core/brand';
-import { DbError, memoryDb } from '@/core/db';
+import { DbError, memoryAuditWriter, memoryDb, supabaseDb, type CommandAuditRow, type Db } from '@/core/db';
 import { inspectMemoryDb } from '@/core/db/memory';
 import { PTDN, testActor, XTDT } from '@/core/testing/actors';
 import { checkinsTable, contactsTable, E1, E2, E3, eventRows, eventsTable, guestsTable } from '@/core/testing/tables';
@@ -208,22 +208,69 @@ describe('memoryDb optimistic concurrency and idempotency', () => {
   });
 });
 
+describe('memoryAuditWriter (sce_tcsk_audit_command, 202611041320_core_audit_writer.sql)', () => {
+  const row: CommandAuditRow = { command: 'guests.update', perm: 'guests.write', action: 'CẬP NHẬT KHÁCH MỜI', summary: 's', eventId: E1, entity: 'guest', entityId: '1' };
+  const writerOf = (seed: Parameters<typeof memoryDb>[0]) => memoryAuditWriter(memoryDb(seed, testActor('user', PTDN)))!;
+  const coreAction = 'PHÂN QUYỀN TÀI KHOẢN';
+
+  it('writes for the actor it is given, not the Db’s, with the action in canonical form', async () => {
+    const { seed, xtdt } = setup();
+    await writerOf(seed)(xtdt, { ...row, action: '  CẬP  NHẬT\u200b KHÁCH MỜI ' });
+    expect(inspectMemoryDb(seed, 'sce_tcsk_audit_logs')).toMatchObject([{ action: 'CẬP NHẬT KHÁCH MỜI', event_id: E1, entity: 'guest', actor_id: xtdt.profile.id, actor_email: xtdt.profile.email }]);
+  });
+
+  it('finds the store through a Db that only forwards table(), like the test wrappers', async () => {
+    const { seed, xtdt } = setup();
+    const inner = memoryDb(seed, xtdt);
+    const wrapped: Db = { rpc: inner.rpc.bind(inner), table: (def) => inner.table(def) };
+    await memoryAuditWriter(wrapped)!(xtdt, row);
+    expect(inspectMemoryDb(seed, 'sce_tcsk_audit_logs')).toHaveLength(1);
+  });
+
+  it('is null for a Db that is not a memoryDb', () => {
+    expect(memoryAuditWriter(supabaseDb({}, testActor('user', XTDT)))).toBeNull();
+  });
+
+  const admin = testActor('admin', null);
+  it.each<[string, ReturnType<typeof testActor>, Partial<CommandAuditRow>]>([
+    ['a locked account', testActor('user', XTDT, { status: 'locked' }), {}],
+    ['another department’s event', testActor('user', 'Phòng Tư vấn doanh nghiệp'), {}],
+    ['a core command', admin, { command: 'core.users.setRole', perm: 'core.users.manage', eventId: null }],
+    ['a permission of another feature', testActor('user', XTDT), { perm: 'progress.write' }],
+    ['a command of another feature', testActor('user', XTDT), { command: 'directory.createContact' }],
+    ['an unknown permission', admin, { perm: 'guests.everything' as never }],
+    ['a command without a verb', testActor('user', XTDT), { command: 'guests' }],
+    ['an event that does not exist, even for an admin', admin, { eventId: 'eeeeeeee-0000-4000-8000-0000000000ff' as typeof E1 }],
+    ['an event permission without an event, even for an admin', admin, { eventId: null }],
+    ['a global permission on an event', admin, { command: 'templates.create', perm: 'templates.admin' }],
+    ['an admin at aal1', testActor('admin', null, { aal: 'aal1' }), { command: 'templates.create', perm: 'templates.admin', eventId: null }],
+    ['a user with a verified factor at aal1', testActor('user', XTDT, { aal: 'aal1', hasVerifiedTotp: true }), {}],
+    ...[coreAction, coreAction.toLowerCase(), ` ${coreAction.replace(/ /g, '  ')}\t`, coreAction.normalize('NFD'), coreAction.replace(/ /g, '\u00a0'),
+      coreAction.replace('QUYỀN', 'QU\u200bYỀN'), coreAction.replace(/[A-Z]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0xfee0)), '\ufeffTẠO BẢN SAO LƯU']
+      .map((action): [string, ReturnType<typeof testActor>, Partial<CommandAuditRow>] => [`the core action ${JSON.stringify(action)}`, testActor('user', XTDT), { action }]),
+    ...['Profile', ' BACKUP ', 'pro\u200dfile', 'ｓｅｔｔｉｎｇｓ'].map((entity): [string, ReturnType<typeof testActor>, Partial<CommandAuditRow>] => [`the core entity ${JSON.stringify(entity)}`, testActor('user', XTDT), { entity }]),
+    ['an empty action', testActor('user', XTDT), { action: ' \u200b ' }],
+  ])('refuses %s and writes nothing', async (_label, actor, patch) => {
+    const { seed } = setup();
+    await rejectsWith(writerOf(seed)(actor, { ...row, ...patch }), 'forbidden');
+    expect(inspectMemoryDb(seed, 'sce_tcsk_audit_logs')).toEqual([]);
+  });
+
+  it('takes an admin at aal2, a factor at aal2 and the one cross-feature permission on the allowlist', async () => {
+    const { seed } = setup();
+    const write = writerOf(seed);
+    await write(admin, { ...row, command: 'templates.create', perm: 'templates.admin', eventId: null, entity: 'template' });
+    await write(testActor('user', XTDT, { aal: 'aal2', hasVerifiedTotp: true }), row);
+    await write(testActor('user', XTDT), { ...row, command: 'directory.importToEvent' });
+    expect(inspectMemoryDb(seed, 'sce_tcsk_audit_logs')).toHaveLength(3);
+  });
+});
+
 describe('memoryDb rpc', () => {
   const profiles = (adminId: string, userId: string) => [
     { id: adminId, email: 'admin@sce.vn', fullname: 'Admin', role: 'admin', department: null, status: 'active' },
     { id: userId, email: 'u@sce.vn', fullname: 'U', role: 'user', department: XTDT, status: 'pending' },
   ];
-
-  it('writes a command audit row only under a permission the caller holds, and never a core action', async () => {
-    const { seed, xtdt } = setup();
-    const row = { perm: 'guests.write', action: 'X', summary: 's', eventId: E1, entity: 'guest', entityId: '1' };
-    await memoryDb(seed, xtdt).rpc('sce_tcsk_audit_command', row);
-    await rejectsWith(memoryDb(seed, testActor('user', XTDT, { status: 'locked' })).rpc('sce_tcsk_audit_command', row), 'forbidden');
-    await rejectsWith(memoryDb(seed, testActor('user', 'Phòng Tư vấn doanh nghiệp')).rpc('sce_tcsk_audit_command', row), 'forbidden');
-    await rejectsWith(memoryDb(seed, xtdt).rpc('sce_tcsk_audit_command', { ...row, perm: 'core.users.manage' }), 'forbidden');
-    await rejectsWith(memoryDb(seed, xtdt).rpc('sce_tcsk_audit_command', { ...row, action: 'PHÂN QUYỀN TÀI KHOẢN' }), 'forbidden');
-    expect(inspectMemoryDb(seed, 'sce_tcsk_audit_logs')).toMatchObject([{ action: 'X', event_id: E1, actor_id: xtdt.profile.id }]);
-  });
 
   it('profile functions re-check core.users.manage and keep the last admin', async () => {
     const admin = testActor('admin', null);

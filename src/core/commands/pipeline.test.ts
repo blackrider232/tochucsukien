@@ -3,9 +3,9 @@ import { z } from 'zod';
 import type { EventId, GuestId, Instant, Version } from '@/core/brand';
 import type { Actor, RequestContext } from '@/core/auth';
 import { CommandError, defineCommands, type CommandResult } from '@/core/commands';
-import { commandLookup, runCommand, type AnyCommandSpec } from '@/core/commands/pipeline';
+import { commandLookup, runCommand, type AnyCommandSpec, type CommandLookup } from '@/core/commands/pipeline';
 import { buildWorkCalendar } from '@/core/dates';
-import { DbError, memoryDb } from '@/core/db';
+import { DbError, memoryDb, type AuditWriter, type Db } from '@/core/db';
 import { inspectMemoryDb } from '@/core/db/memory';
 import { DEFAULT_SETTINGS } from '@/core/settings';
 import { PTDN, testActor, XTDT } from '@/core/testing/actors';
@@ -53,7 +53,7 @@ const specs: Record<string, AnyCommandSpec> = {
     kind: 'mutation',
     input: z.object({ eventId: z.string() }),
     authorize: { perm: 'progress.delete', event: (i) => (i as { eventId: EventId }).eventId },
-    run: vi.fn(async () => ({ value: null, audit: { action: 'XÓA', summary: '', eventId: null, entity: null, entityId: null } })),
+    run: vi.fn(async (_ctx: unknown, raw: unknown) => ({ value: null, audit: { action: 'XÓA', summary: '', eventId: (raw as { eventId: EventId }).eventId, entity: null, entityId: null } })),
   },
   'guests.testNoAudit': {
     kind: 'mutation',
@@ -341,6 +341,50 @@ describe('pipeline: partial failures', () => {
     const w = world();
     expect(failureOf(await w.run(testActor('user', XTDT), 'guests.testRule', {}))).toMatchObject({ kind: 'invalid' });
     expect(w.audit()).toEqual([]);
+  });
+});
+
+describe('pipeline: the audit writer', () => {
+  const ctxWith = (actor: Actor, db: Db): RequestContext => ({
+    actor, db, settings: { ...DEFAULT_SETTINGS, version: 1 as Version }, calendar: buildWorkCalendar([]), now: '2026-11-04T01:00:00.000Z' as Instant,
+  });
+
+  it('is a separate argument: it gets ctx.actor and the command key, and run() never sees it', async () => {
+    const seed = { sce_tcsk_events: eventRows() };
+    const xtdt = testActor('user', XTDT);
+    const writer = vi.fn<AuditWriter>(async () => {});
+    let seen: object | null = null;
+    const spying: CommandLookup = (id) => {
+      const spec = lookup(id);
+      return spec && { ...spec, run: (ctx, input) => ((seen = ctx), spec.run(ctx, input)) };
+    };
+    const r = await runCommand(ctxWith(xtdt, memoryDb(seed, xtdt)), spying, 'guests.testCreate', { eventId: E1, id: G1, name: 'A' }, writer);
+    expect(r.ok).toBe(true);
+    expect(writer).toHaveBeenCalledWith(xtdt, { command: 'guests.testCreate', perm: 'guests.write', action: 'THÊM KHÁCH MỜI', summary: 'A', eventId: E1, entity: 'guest', entityId: G1 });
+    expect(Object.values(seen!)).not.toContain(writer);
+    expect(inspectMemoryDb(seed, 'sce_tcsk_audit_logs')).toEqual([]);
+  });
+
+  it('ctx.call hands the same writer to the inner command', async () => {
+    const seed = { sce_tcsk_events: eventRows() };
+    const xtdt = testActor('user', XTDT);
+    const writer = vi.fn<AuditWriter>(async () => {});
+    await runCommand(ctxWith(xtdt, memoryDb(seed, xtdt)), lookup, 'live.testWalkIn', { eventId: E1, id: G1, name: 'A' }, writer);
+    expect(writer.mock.calls.map(([actor, row]) => [actor, row.command, row.perm])).toEqual([[xtdt, 'guests.testCreate', 'guests.write'], [xtdt, 'live.testWalkIn', 'live.checkin']]);
+  });
+
+  it('without a writer, a mutation on a Db that is not a memoryDb fails before it runs', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const run = vi.mocked(specs['progress.testDelete']!.run);
+    const calls = run.mock.calls.length;
+    const actor = testActor('dept_leader', XTDT);
+    const inner = memoryDb({ sce_tcsk_events: eventRows() }, actor);
+    // Every table works, so authorize passes; only the store behind the audit log cannot be found.
+    const db: Db = { rpc: inner.rpc.bind(inner), table: (def) => (def.name === 'sce_tcsk_audit_logs' ? ({} as never) : inner.table(def)) };
+    const r = await runCommand(ctxWith(actor, db), lookup, 'progress.testDelete', { eventId: E1 });
+    expect(failureOf(r)).toMatchObject({ kind: 'unavailable' });
+    expect(run.mock.calls.length).toBe(calls);
+    spy.mockRestore();
   });
 });
 

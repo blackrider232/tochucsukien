@@ -1,14 +1,17 @@
 // The command pipeline: parse -> gate -> authorize -> run -> audit -> result.
-// The audit row is written as the caller under the command's permission, so the
-// database refuses a row the caller could not have earned.
-// dispatch() feeds it the request context; tests feed it a memoryDb context.
+// The audit row goes through the AuditWriter that dispatch() passes beside the
+// context (the service role), for ctx.actor and under the command's own
+// permission, and the database refuses a row that actor could not have earned.
+// Feature code gets the context only, so it cannot write a row itself.
+// dispatch() feeds it the request context; tests feed it a memoryDb context,
+// whose store the default writer finds.
 // ctx.call() re-enters it, so a command that asks another owner gets that
 // owner's permission check and audit too.
 
 import { z } from 'zod';
 import type { EventId, Instant, UserId, Version } from '@/core/brand';
 import { gateFor, type Gate, type RequestContext } from '@/core/auth';
-import { DbError, defineTable, type BaseRow, type DbErrorKind } from '@/core/db';
+import { DbError, defineTable, memoryAuditWriter, type AuditWriter, type BaseRow, type DbErrorKind } from '@/core/db';
 import { can, type ScopedResource } from '@/core/permissions';
 import type { DepartmentName } from '@/core/vocab';
 import { CommandError, type AuditEntry, type CommandContext, type CommandFailure, type CommandResult, type CommandSpec } from './index';
@@ -113,10 +116,15 @@ async function authorize(ctx: CommandContext, spec: AnyCommandSpec, input: unkno
   return can(ctx.actor, rule.perm, resource) ? null : failure('forbidden', MESSAGES.db.forbidden);
 }
 
+async function auditRow(audit: AuditWriter | null, ctx: RequestContext, id: string, spec: AnyCommandSpec, entry: AuditEntry): Promise<void> {
+  if (!audit) throw new Error(`command ${id}: no audit writer`);
+  await audit(ctx.actor, { ...entry, command: id, perm: spec.authorize.perm });
+}
+
 /** The partial-failure row of a CommandError. Its change already stuck, so a refused row is logged, never thrown. */
-async function auditPartialFailure(ctx: RequestContext, id: string, spec: AnyCommandSpec, entry: AuditEntry): Promise<void> {
+async function auditPartialFailure(audit: AuditWriter | null, ctx: RequestContext, id: string, spec: AnyCommandSpec, entry: AuditEntry): Promise<void> {
   try {
-    await ctx.db.rpc('sce_tcsk_audit_command', { ...entry, perm: spec.authorize.perm });
+    await auditRow(audit, ctx, id, spec, entry);
   } catch (e) {
     console.error(`command ${id}: partial-failure audit row not written`, entry, e);
   }
@@ -133,13 +141,25 @@ function failureFromError(e: unknown, id: string): CommandFailure {
   return failure('unavailable', MESSAGES.internal);
 }
 
-export async function runCommand(ctx: RequestContext, lookup: CommandLookup, id: string, rawInput: unknown, depth = 0): Promise<CommandResult<unknown>> {
+/**
+ * `audit` is the writer of every audit row this command and the ones it calls produce. dispatch passes the
+ * service-role writer; without one, a memoryDb's own store is used, and on any other Db mutations refuse to run.
+ */
+export function runCommand(ctx: RequestContext, lookup: CommandLookup, id: string, rawInput: unknown, audit: AuditWriter | null = memoryAuditWriter(ctx.db)): Promise<CommandResult<unknown>> {
+  return execute(ctx, lookup, audit, id, rawInput, 0);
+}
+
+async function execute(ctx: RequestContext, lookup: CommandLookup, audit: AuditWriter | null, id: string, rawInput: unknown, depth: number): Promise<CommandResult<unknown>> {
   const spec = lookup(id);
   if (!spec) return failure('unavailable', MESSAGES.unknownCommand);
 
   const { actor } = ctx;
   const gate = gateFor({ hasSession: true, profile: actor.profile, aal: actor.aal, hasVerifiedTotp: actor.hasVerifiedTotp });
   if (gate.kind !== 'ok') return failure('gate', MESSAGES.gate[gate.kind]);
+  if (!audit && spec.kind === 'mutation') {
+    console.error(`mutation ${id} refused: no audit writer`);
+    return failure('unavailable', MESSAGES.internal);
+  }
 
   const parsed = parseInput(spec, rawInput);
   if (!parsed.ok) return parsed;
@@ -148,7 +168,7 @@ export async function runCommand(ctx: RequestContext, lookup: CommandLookup, id:
     ...ctx,
     async call(nextId, nextInput) {
       if (depth + 1 > MAX_DEPTH) throw new Error(`command nesting deeper than ${MAX_DEPTH} at ${String(nextId)}`);
-      const result = await runCommand(ctx, lookup, nextId, nextInput, depth + 1);
+      const result = await execute(ctx, lookup, audit, nextId, nextInput, depth + 1);
       if (!result.ok) throw new NestedFailure(result);
       return result.value as never;
     },
@@ -161,13 +181,13 @@ export async function runCommand(ctx: RequestContext, lookup: CommandLookup, id:
     ran = true;
     const outcome = await spec.run(cmdCtx, parsed.value);
     if (outcome.audit && outcome.audit !== 'sql') {
-      await ctx.db.rpc('sce_tcsk_audit_command', { ...outcome.audit, perm: spec.authorize.perm });
+      await auditRow(audit, ctx, id, spec, outcome.audit);
     } else if (!outcome.audit && spec.kind === 'mutation') {
       throw new Error(`mutation ${id} returned no audit entry`);
     }
     return 'inverse' in outcome && outcome.inverse ? { ok: true, value: outcome.value, inverse: outcome.inverse } : { ok: true, value: outcome.value };
   } catch (e) {
-    if (ran && e instanceof CommandError && e.audit) await auditPartialFailure(ctx, id, spec, e.audit);
+    if (ran && e instanceof CommandError && e.audit) await auditPartialFailure(audit, ctx, id, spec, e.audit);
     return failureFromError(e, id);
   }
 }

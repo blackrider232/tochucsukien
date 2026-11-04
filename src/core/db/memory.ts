@@ -20,7 +20,7 @@ import { DbError } from './errors';
 import { draftMatches, filtersOf, fromColumns, toColumns, columnOf, type Filter } from './mapping';
 import { parseAuditRow, parseBackupRow, settingsPatchColumns } from './rpc';
 import { parseCatalog, type CatalogTable } from './sql-catalog';
-import type { BaseRow, Db, DraftOf, RpcMap, Table, TableDef, Where, WriteGuard } from './index';
+import type { AuditWriter, BaseRow, CommandAuditRow, Db, DraftOf, RpcMap, Table, TableDef, Where, WriteGuard } from './index';
 
 type Row = Record<string, unknown>;
 type Seed = Readonly<Record<string, ReadonlyArray<Record<string, unknown>>>>;
@@ -98,10 +98,6 @@ class Rls {
   hasPerm(perm: string): boolean {
     return this.active && aalOk(this.actor) && this.grant(perm) === 'all';
   }
-  /** Held at any scope: tcsk.grant_for(perm) <> 'none'. */
-  holdsPerm(perm: string): boolean {
-    return this.active && aalOk(this.actor) && this.grant(perm) !== 'none';
-  }
   canOnDepartments(perm: string, lead: unknown, supporting: unknown): boolean {
     if (!this.active || !aalOk(this.actor)) return false;
     const g = this.grant(perm);
@@ -151,7 +147,19 @@ class Rls {
   }
 }
 
+/**
+ * A TableDef no other module can name. memoryAuditWriter() finds a memoryDb's store by asking its table() for it,
+ * because every test wrapper of a Db forwards table().
+ */
+const STORE_PROBE = { name: 'sce_tcsk_audit_logs', owner: 'core', eventScoped: false, row: { parse: () => ({}) } } as unknown as TableDef<BaseRow>;
+const probedStores = new WeakMap<object, Store>();
+
 function memoryTable<R extends BaseRow>(store: Store, actor: Actor, rls: Rls, def: TableDef<R>): Table<R> {
+  if ((def as object) === STORE_PROBE) {
+    const probe = {} as Table<R>;
+    probedStores.set(probe, store);
+    return probe;
+  }
   const name = def.name;
   const meta = loadCatalog().get(name);
   const all = () => rowsOf(store, name);
@@ -306,6 +314,44 @@ const CORE_AUDIT_ACTIONS = new Set([
   'KHÓA TÀI KHOẢN', 'TẠO TÀI KHOẢN', 'TẠO BẢN SAO LƯU', 'KHÔI PHỤC SAO LƯU', 'TẢI BẢN SAO LƯU', 'KHỞI TẠO QUẢN TRỊ VIÊN',
 ]);
 const CORE_AUDIT_ENTITIES = new Set(['profile', 'backup', 'settings', 'holidays']);
+const CORE_AUDIT_ACTIONS_FOLDED = new Set([...CORE_AUDIT_ACTIONS].map((a) => a.toLowerCase()));
+/** The one command allowed to audit under another feature's permission: it asks guests to write. */
+const CROSS_FEATURE_AUDIT = new Set(['directory.importToEvent guests.write']);
+/** tcsk.audit_text: NFKC, invisible format characters dropped, white space collapsed, trimmed; null when empty. */
+const auditText = (t: string | null) =>
+  t === null ? null : t.normalize('NFKC').replace(/[\u00ad\u180e\u200b-\u200f\u202a-\u202e\u2060-\u2064\ufeff]/g, '').replace(/\s+/g, ' ').trim() || null;
+
+/** public.sce_tcsk_audit_command of 202611041320_core_audit_writer.sql, check for check. */
+function writeCommandAudit(store: Store, actor: Actor, row: CommandAuditRow): void {
+  const [feature = '', verb = ''] = row.command.split('.');
+  const action = auditText(row.action);
+  const entity = auditText(row.entity);
+  const def = permissionMatrix().get(row.perm);
+  const forbidden = feature === '' || feature === 'core' || verb === '' || action === null
+    || (row.perm.split('.')[0] !== feature && !CROSS_FEATURE_AUDIT.has(`${row.command} ${row.perm}`))
+    || CORE_AUDIT_ENTITIES.has(entity?.toLowerCase() ?? '') || CORE_AUDIT_ACTIONS_FOLDED.has(action.toLowerCase())
+    || actor.profile.status !== 'active' || !aalOk(actor) || !def;
+  if (forbidden) throw new DbError('forbidden');
+  const grant = grantOf(actor, def);
+  const dept = actor.profile.department;
+  const ev = row.eventId === null ? undefined : rowsOf(store, 'sce_tcsk_events').find((e) => e.id === row.eventId);
+  const allowed = row.eventId === null
+    ? def.scope === 'global' && grant === 'all'
+    : ev !== undefined && def.scope === 'event' && (grant === 'all' || (grant === 'department' && dept !== null
+      && (ev.department === dept || (Array.isArray(ev.supporting_departments) && ev.supporting_departments.includes(dept)))));
+  if (!allowed) throw new DbError('forbidden');
+  store.seq += 1;
+  rowsOf(store, 'sce_tcsk_audit_logs').push({
+    id: store.seq, actor_id: actor.profile.id, actor_email: actor.profile.email, action: action.slice(0, 120), summary: row.summary.slice(0, 2000),
+    event_id: row.eventId, entity, entity_id: row.entityId, created_at: new Date().toISOString(),
+  });
+}
+
+/** The audit writer over the store behind a memoryDb (tests, the dev memory runtime), or null for any other Db. */
+export function memoryAuditWriter(db: Db): AuditWriter | null {
+  const store = probedStores.get(db.table(STORE_PROBE));
+  return store ? async (actor, row) => writeCommandAudit(store, actor, row) : null;
+}
 const SETTINGS_AUDIT: ReadonlyArray<readonly [column: string, label: string, unit: string]> = [
   ['parent_agency', 'Đơn vị chủ quản (cấp trên)', ''],
   ['agency_name', 'Đơn vị tổ chức sự kiện', ''],
@@ -370,13 +416,6 @@ function rpcHandlers(store: Store, actor: Actor, rls: Rls): { readonly [K in key
     return id;
   };
   return {
-    sce_tcsk_audit_command: (a) => {
-      if (a.perm.startsWith('core.') || CORE_AUDIT_ENTITIES.has(a.entity ?? '') || CORE_AUDIT_ACTIONS.has(a.action)) throw new DbError('forbidden');
-      const ev = a.eventId === null ? undefined : rowsOf(store, 'sce_tcsk_events').find((e) => e.id === a.eventId);
-      const allowed = a.eventId === null ? rls.holdsPerm(a.perm) : ev ? rls.canOnDepartments(a.perm, ev.department, ev.supporting_departments) : rls.hasPerm(a.perm);
-      if (!allowed) throw new DbError('forbidden');
-      audit(a.action, a.summary, a.eventId, a.entity, a.entityId);
-    },
     sce_tcsk_create_backup: (a) => {
       if (!rls.hasPerm('core.backups.create')) throw new DbError('forbidden');
       const id = snapshot(a.note, a.kind);

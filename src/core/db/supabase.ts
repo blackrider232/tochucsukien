@@ -7,7 +7,7 @@ import type { Actor } from '@/core/auth';
 import { DbError } from './errors';
 import { draftMatches, filtersOf, fromColumns, toColumns, columnOf, type Filter } from './mapping';
 import { RPC_ALLOWLIST } from './rpc';
-import type { BaseRow, Db, DraftOf, RpcMap, Table, TableDef, Where, WriteGuard } from './index';
+import type { AuditWriter, BaseRow, Db, DraftOf, RpcMap, Table, TableDef, Where, WriteGuard } from './index';
 
 export interface PgError {
   code?: string;
@@ -182,6 +182,19 @@ function table<Row extends BaseRow>(client: PgClient, def: TableDef<Row>): Table
   }
 
   return { list, get, insert, insertMany, upsertOn, update, remove, removeWhere };
+}
+
+/**
+ * The audit writer over `service()`, the server's service-role client (core/auth builds it). The actor and
+ * its assurance level come from the request context; the SQL function re-checks both.
+ */
+export function supabaseAuditWriter(service: () => unknown): AuditWriter {
+  return async (actor, row) => {
+    await run((service() as PgClient).rpc('sce_tcsk_audit_command', {
+      actor_id: actor.profile.id, actor_aal: actor.aal, command: row.command, perm: row.perm, action: row.action,
+      summary: row.summary, event_id: row.eventId, entity: row.entity, entity_id: row.entityId,
+    }), 'sce_tcsk_audit_logs');
+  };
 }
 
 /** The actor is unused here: Postgres reads identity from the client's JWT. memoryDb needs it to emulate RLS. */

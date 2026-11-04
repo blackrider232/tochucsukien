@@ -74,10 +74,6 @@ const holidayArgs = (list: ReadonlyArray<Holiday>) => list.map((h) => ({ date: h
 const list = <T>(parse: (row: unknown) => T) => (d: unknown): T[] => (Array.isArray(d) ? d.map(parse) : []);
 
 export const RPC_ALLOWLIST: { readonly [K in keyof RpcMap]: RpcSpec<K> } = {
-  sce_tcsk_audit_command: {
-    args: (a) => ({ perm: a.perm, action: a.action, summary: a.summary, event_id: a.eventId, entity: a.entity, entity_id: a.entityId }),
-    result: none,
-  },
   sce_tcsk_create_backup: { args: (a) => ({ note: a.note, kind: a.kind }), result: (d) => ({ id: Number(d) }) },
   sce_tcsk_restore_backup: { args: (a) => ({ id: a.id }), result: none },
   sce_tcsk_set_profile_role: { args: (a) => ({ id: a.id, role: a.role }), result: none },

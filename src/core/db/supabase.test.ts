@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { GuestId, Version } from '@/core/brand';
-import { DbError, supabaseDb } from '@/core/db';
+import { DbError, supabaseAuditWriter, supabaseDb } from '@/core/db';
 import { translatePgError, type PgBuilder, type PgResponse } from '@/core/db/supabase';
 import { testActor, XTDT } from '@/core/testing/actors';
 import { checkinsTable, E1, guestsTable } from '@/core/testing/tables';
@@ -210,9 +210,8 @@ describe('supabaseDb rpc', () => {
   it('maps arguments to SQL parameter names and parses results', async () => {
     const { client, rpcs } = fakeClient((call) => ok(call.table === 'rpc:sce_tcsk_create_backup' ? 42 : null));
     const db = supabaseDb(client, actor);
-    await db.rpc('sce_tcsk_audit_command', { perm: 'guests.write', action: 'X', summary: 's', eventId: E1, entity: 'guest', entityId: G1 });
     expect(await db.rpc('sce_tcsk_create_backup', { note: 'n', kind: 'manual' })).toEqual({ id: 42 });
-    expect(rpcs[0]).toEqual({ fn: 'sce_tcsk_audit_command', args: { perm: 'guests.write', action: 'X', summary: 's', event_id: E1, entity: 'guest', entity_id: G1 } });
+    expect(rpcs[0]).toEqual({ fn: 'sce_tcsk_create_backup', args: { note: 'n', kind: 'manual' } });
   });
 
   it('translates function errors', async () => {
@@ -220,8 +219,26 @@ describe('supabaseDb rpc', () => {
     expect(await kindOf(supabaseDb(client, actor).rpc('sce_tcsk_set_profile_role', { id: actor.profile.id, role: 'admin' }))).toBe('forbidden');
   });
 
-  it('refuses functions outside the allowlist', async () => {
+  it('refuses functions outside the allowlist, the command audit writer among them', async () => {
     const { client } = fakeClient(() => ok(null));
     await expect(supabaseDb(client, actor).rpc('pg_sleep' as never, {} as never)).rejects.toThrow('not allowlisted');
+    await expect(supabaseDb(client, actor).rpc('sce_tcsk_audit_command' as never, {} as never)).rejects.toThrow('not allowlisted');
+  });
+});
+
+describe('supabaseAuditWriter', () => {
+  const row = { command: 'guests.update', perm: 'guests.write', action: 'X', summary: 's', eventId: E1, entity: 'guest', entityId: G1 } as const;
+
+  it('calls the writer on the service client with the actor and its assurance level from the server', async () => {
+    const { client, rpcs } = fakeClient(() => ok(null));
+    await supabaseAuditWriter(() => client)(actor, row);
+    expect(rpcs).toEqual([{ fn: 'sce_tcsk_audit_command', args: {
+      actor_id: actor.profile.id, actor_aal: actor.aal, command: 'guests.update', perm: 'guests.write', action: 'X', summary: 's', event_id: E1, entity: 'guest', entity_id: G1,
+    } }]);
+  });
+
+  it('translates a refusal', async () => {
+    const { client } = fakeClient(() => fail('42501', 'forbidden'));
+    expect(await kindOf(supabaseAuditWriter(() => client)(actor, row))).toBe('forbidden');
   });
 });

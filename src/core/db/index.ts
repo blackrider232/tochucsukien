@@ -9,15 +9,16 @@
 // There is no third way to touch data.
 
 import type { EventId, Instant, IsoDate, UserId, Uuid, Version } from '@/core/brand';
-import type { Profile } from '@/core/auth';
+import type { Actor, Profile } from '@/core/auth';
 import type { Holiday } from '@/core/dates';
+import type { Permission } from '@/core/permissions';
 import type { FeatureKey } from '@/core/registry';
 import type { SettingsPatch, SystemSettings } from '@/core/settings';
 import { DbError, type DbErrorKind } from './errors';
 
 export { DbError, type DbErrorKind };
-export { supabaseDb } from './supabase';
-export { memoryDb } from './memory';
+export { supabaseAuditWriter, supabaseDb } from './supabase';
+export { memoryAuditWriter, memoryDb } from './memory';
 
 /** Satisfied structurally by a zod schema. Rows are parsed at this boundary only. */
 export interface Schema<T> {
@@ -79,16 +80,25 @@ export interface Db {
   rpc<K extends keyof RpcMap>(name: K, args: RpcMap[K]['args']): Promise<RpcMap[K]['result']>;
 }
 
+/** The audit row of one command: `command` is its key, `perm` its authorize.perm. */
+export interface CommandAuditRow {
+  command: string;
+  perm: Permission;
+  action: string;
+  summary: string;
+  eventId: EventId | null;
+  entity: string | null;
+  entityId: string | null;
+}
+/**
+ * The command pipeline's audit writer. dispatch passes it to runCommand beside the context, never on it,
+ * so feature code has no handle on it. The database re-checks the row for `actor`
+ * (sce_tcsk_audit_command, 202611041320_core_audit_writer.sql).
+ */
+export type AuditWriter = (actor: Actor, row: CommandAuditRow) => Promise<void>;
+
 /** SQL functions callable from the app. Core-owned list; features ask core to add one. */
 export interface RpcMap {
-  /**
-   * The audit row of a command, as its caller, who must hold `perm` (on the event's departments when eventId is set).
-   * Core actions are refused: core's SQL functions write their own rows.
-   */
-  sce_tcsk_audit_command: {
-    args: { perm: string; action: string; summary: string; eventId: EventId | null; entity: string | null; entityId: string | null };
-    result: void;
-  };
   /** Both kinds need core.backups.create. */
   sce_tcsk_create_backup: { args: { note: string; kind: 'manual' | 'auto' }; result: { id: number } };
   sce_tcsk_restore_backup: { args: { id: number }; result: void };
