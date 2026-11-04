@@ -13,6 +13,9 @@ import { templateStepCount } from '../domain/instantiate';
 import { CHAIR_DEPARTMENTS, eventFields } from '../domain/schemas';
 import { TextArea } from './fields';
 
+/** m2 §1.7: the actor's own department, else this one. */
+const DEFAULT_LEAD_DEPARTMENT: DepartmentName = 'Phòng Xúc tiến đầu tư';
+
 const codeOf = (name: DepartmentName) => DEPARTMENTS.find((d) => d.name === name)!.code;
 
 /** The command's event fields, with checkboxes per department and an optional money field as the form presents them. */
@@ -47,7 +50,7 @@ export function EventForm({ event, departments, today, onDone, onCancel }: {
   const cal = useCalendar();
   const run = useCommand();
   const toast = useToast();
-  const lead = event?.department ?? (profile.department && departments.includes(profile.department) ? profile.department : departments[0]);
+  const lead = event?.department ?? [profile.department, DEFAULT_LEAD_DEPARTMENT].find((d) => d !== null && departments.includes(d)) ?? departments[0];
   const options = [...new Set([...(event ? [event.department] : []), ...departments])].map((d) => ({ value: d, label: d }));
 
   const form = useZodForm(eventFormSchema, {
