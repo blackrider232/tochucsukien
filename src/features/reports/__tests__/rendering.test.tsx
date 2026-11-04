@@ -228,6 +228,44 @@ describe('the NĐ30 document (BUG-07/08/16/17/19)', () => {
     expect(body.startsWith('<div style="font-family:\'Times New Roman\',Times,serif;font-size:14pt;">')).toBe(true);
   });
 
+  it('the header, the signature, the signer and the copies have the same pt size on the sheet and in the Word file', () => {
+    const SIZES = { body: 14, header: 13, signer: 14, recipientsHeading: 12, copies: 11 };
+    // The kit's own sizes (src/app/globals.css), which the header and the footer carry as classes; the sheet must beat them.
+    const kit = document.head.appendChild(document.createElement('style'));
+    kit.textContent = '.text-print-sm { font-size: 13px; } .text-print-xs { font-size: 12px; } .text-print-base { font-size: 14px; }';
+    const { container } = renderUi(withAppContext(<PrintDailyReport report={report} preview={false} />));
+    // jsdom reports a pt size in px (1 pt = 4/3 px).
+    const pt = (el: Element | null) => {
+      const px = el ? getComputedStyle(el).fontSize : '';
+      return px.endsWith('px') ? Math.round(parseFloat(px) * 0.75 * 100) / 100 : null;
+    };
+    const printed = {
+      body: pt(container.querySelector('.nd30-report')),
+      header: pt(container.querySelector('.nd30-report header')),
+      signer: pt(container.querySelector('.nd30-report footer')),
+      recipientsHeading: pt([...container.querySelectorAll('.nd30-report footer p')].find((p) => p.textContent === 'Nơi nhận:') ?? null),
+      copies: pt(container.querySelector('.nd30-report footer ul')),
+    };
+    kit.remove();
+    expect(printed).toEqual(SIZES);
+    // The kit's 11 pt wrapper had no effect once the footer set its own size, so it is gone.
+    expect(container.querySelector('.nd30-small')).toBeNull();
+
+    const word = new DOMParser().parseFromString(dailyReportWordBody(dailyReportDocument(report, org), org), 'text/html');
+    const [headerTable, signatureTable] = [...word.querySelectorAll('table')];
+    const inline = (el: Element | null | undefined) => Number(el?.closest('[style*="font-size"]')?.getAttribute('style')?.match(/font-size:\s*(\d+)pt/)?.[1]);
+    const [, signerCell] = [...signatureTable!.querySelectorAll('td')];
+    const [copiesCell] = [...signatureTable!.querySelectorAll('td')];
+    const wordSizes = {
+      body: inline(word.body.firstElementChild),
+      header: inline(headerTable!.querySelector('td')),
+      signer: inline(signerCell!.querySelector('p')),
+      recipientsHeading: inline(copiesCell!.querySelector('p')),
+      copies: inline([...copiesCell!.querySelectorAll('p')][1]),
+    };
+    expect(wordSizes).toEqual(SIZES);
+  });
+
   it('the Word body is tables with escaped text, and the file name keeps the letters', () => {
     const body = dailyReportWordBody(dailyReportDocument(report, org), org);
     expect(body).toContain('<table');

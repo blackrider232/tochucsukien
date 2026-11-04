@@ -63,7 +63,7 @@ const mutations = [
   ['Kính gửi in letterhead capitals (L9)', R, '`${agencyName(org.parentAgency, org.city)};`', '`${org.parentAgency};`'],
   ['export footer with the raw signed rate (L10)', BID, 'footer: { lines: [biddingTotalsSentence(totals)] },', 'footer: { lines: [`tiết kiệm ${formatPercent2(totals.savingsPercent)}`] },'],
   ['export cell a raw number (L10)', BID, 'value: (p) => exportedSaving(p) }', 'value: (p) => (p.winningPrice === null ? null : savingsPercent(p.budget, p.winningPrice)) }'],
-  ['print body at 13 pt (L8)', PR, 'font-size: ${ND30_BODY_PT}pt;', 'font-size: 13pt;'],
+  ['print body at 13 pt (L8)', PR, 'font-size: ${ND30_PT.body}pt;', 'font-size: 13pt;'],
   ['trigger keeps the forged event name (H1)', SQL_DERIVED, '  new.event_name := ev.name;\n', ''],
   ['trigger keeps the forged T-n (H1)', SQL_DERIVED, '  new.workdays_to_event := tcsk.reports_workdays_to_event(ev.event_date, today);\n', ''],
   ['SQL T-n over (today, T0] (H1, M4)', SQL_DERIVED, 'generate_series(least(today, event_date), greatest(today, event_date) - 1,', 'generate_series(least(today, event_date) + 1, greatest(today, event_date),'],

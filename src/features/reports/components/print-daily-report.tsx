@@ -7,11 +7,15 @@
 import { Nd30Header, PrintPage, SignatureBlock, useSettings } from '@/components/ui';
 import { orgIdentity } from '@/core/settings';
 import { dailyReportDocument, type IssuedReport } from '../domain/report';
-import { ND30_BODY_PT } from '../domain/word';
+import { ND30_PT } from '../domain/word';
 
-// The kit's paper uses the generic serif at 14 px, so this sheet names the face and the Word file's size itself.
-const ND30_TYPE = `.nd30-report { font-family: "Times New Roman", Times, serif; font-size: ${ND30_BODY_PT}pt; line-height: 1.5; }
-.nd30-report .nd30-small { font-size: 11pt; }`;
+// The kit's paper uses the generic serif at 14 px, and its header and footer carry 13 and 12 px classes,
+// so this sheet names the face and sets every size from the Word file's table (ND30_PT) over them.
+const ND30_TYPE = `.nd30-report { font-family: "Times New Roman", Times, serif; font-size: ${ND30_PT.body}pt; line-height: 1.5; }
+.nd30-report header { font-size: ${ND30_PT.header}pt; }
+.nd30-report footer { font-size: ${ND30_PT.signer}pt; }
+.nd30-report footer > div + div > p { font-size: ${ND30_PT.recipientsHeading}pt; }
+.nd30-report footer > div + div > ul { font-size: ${ND30_PT.copies}pt; }`;
 
 export function PrintDailyReport({ report, preview }: { report: IssuedReport; preview: boolean }) {
   const settings = useSettings();
@@ -39,9 +43,7 @@ export function PrintDailyReport({ report, preview }: { report: IssuedReport; pr
             {s.paragraphs.map((p, i) => <p key={i} className="indent-8 text-justify">{p}</p>)}
           </section>
         ))}
-        <div className="nd30-small">
-          <SignatureBlock right={{ title: doc.signer.title, note: '(Ký, ghi rõ họ tên)', name: doc.signer.name || undefined }} recipients={doc.copies} />
-        </div>
+        <SignatureBlock right={{ title: doc.signer.title, note: '(Ký, ghi rõ họ tên)', name: doc.signer.name || undefined }} recipients={doc.copies} />
       </article>
     </PrintPage>
   );
