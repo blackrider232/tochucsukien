@@ -89,6 +89,6 @@ export const issueFields = z.object({
   keyHighlight: required(4000, 'Nhập tình hình triển khai nổi bật trong ngày'),
   blockers: text(4000),
   signatory: required(120, 'Nhập họ tên người ký'),
-  documentNumber: text(60).transform((v) => (v === '' ? null : v)),
+  documentNumber: text(60).nullable().transform((v) => (v ? v : null)),
 });
 export type IssueDraft = z.output<typeof issueFields>;
