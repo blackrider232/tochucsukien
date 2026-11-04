@@ -3,11 +3,11 @@
 // it: the real registry and dev seeds, the registered commands (whose sheet
 // source is the dev fake) and the browser's runCampaign over the fake Gmail
 // transport. Invite, send, log, form response, guest RSVP through
-// guests.applyRsvp, audit; no second copy of a message; retry rules. Any
-// network call fails the test.
+// guests.applyRsvp, audit; no second copy of a message, from a second tab or
+// after a crash; retry rules. Any network call fails the test.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Email, EventId } from '@/core/brand';
+import { newId, type Email, type EventId } from '@/core/brand';
 import type { CommandId, InputOf, OutputOf } from '@/core/commands';
 import { commandLookup, runCommand } from '@/core/commands/pipeline';
 import { featureServers } from '@/features/registry-server';
@@ -60,23 +60,31 @@ async function scenario() {
   const raws: string[] = [];
   /** Every address a message was built for and handed to the fake Gmail, refused or not. */
   const sentTo: string[] = [];
-  const api: CampaignApi = {
-    claim: async (chunk) => run('comms.startCampaign', { eventId, senderEmail: mctx.from.email, subject: compose.subject, body: compose.body, recipients: chunk.map((r) => ({ guestId: r.guestId, email: r.email, recipientName: r.name })) }),
-    async record(campaignId, o) {
+  /** The page's api; `recordFails` names addresses whose result cannot be recorded, as when the tab dies right after Gmail answered. */
+  const apiFor = (recordFails: ReadonlySet<string> = new Set()): CampaignApi => ({
+    claim: async (chunk, r) =>
+      run('comms.startCampaign', {
+        eventId, senderEmail: mctx.from.email, subject: compose.subject, body: compose.body, runToken: r.token, takeOver: r.takeOver,
+        recipients: chunk.map((x) => ({ guestId: x.guestId, email: x.email, recipientName: x.name })),
+      }),
+    async record(campaignId, runToken, o) {
+      if (recordFails.has(o.recipient.email)) return false;
       const result = o.kind === 'sent'
         ? { guestId: o.recipient.guestId, email: o.recipient.email, recipientName: o.recipient.name, status: 'sent' as const, providerMessageId: o.messageId, error: null }
         : { guestId: o.recipient.guestId, email: o.recipient.email, recipientName: o.recipient.name, status: 'error' as const, providerMessageId: null, error: o.failure.message };
-      await run('comms.recordDeliveries', { eventId, campaignId, senderEmail: mctx.from.email, subject: invitationMessage(o.recipient, compose, mctx, null).subject, results: [result] });
-      return true;
+      const r = await runCommand(ctx, lookup, 'comms.recordDeliveries', { eventId, campaignId, runToken, senderEmail: mctx.from.email, subject: invitationMessage(o.recipient, compose, mctx, null).subject, results: [result] });
+      return r.ok;
     },
-    async release(campaignId, emails) {
-      await run('comms.releaseDeliveries', { eventId, campaignId, emails });
+    async release(campaignId, runToken, emails) {
+      await run('comms.releaseDeliveries', { eventId, campaignId, runToken, emails });
     },
-  };
-  const send = (transport: GmailTransport, recipients: ReadonlyArray<Recipient>) =>
+  });
+  /** One press of "Bắt đầu gửi" (or of "Tiếp quản phiên gửi" with takeOver), in a tab of its own. */
+  const send = (transport: GmailTransport, recipients: ReadonlyArray<Recipient>, o: { takeOver?: boolean; recordFails?: ReadonlySet<string> } = {}) =>
     runCampaign({
       recipients,
-      api,
+      api: apiFor(o.recordFails),
+      run: { token: newId<'CampaignRun'>(), takeOver: o.takeOver ?? false },
       signal: new AbortController().signal,
       sleep: async () => undefined,
       send: (r) => transport.send(invitationMessage(r, compose, mctx, null)),
@@ -111,7 +119,7 @@ describe('comms in the dev memory runtime, end to end', () => {
     const typo = fromManual({ email: 'loi.dia.chi@example.com' as Email, name: 'Sai Địa Chỉ', organization: '' });
 
     const report = await s.send(s.devGmail, [...s.guests, typo]);
-    expect(report).toMatchObject({ claimFailed: false, stoppedBy: null, skipped: [], unrecorded: [], alreadySent: [], inFlight: [] });
+    expect(report).toMatchObject({ claimFailed: false, stoppedBy: null, skipped: [], unrecorded: [], alreadySent: [], inFlight: [], ownInFlight: [] });
     expect(report.sent.map((x) => x.recipient.email).sort()).toEqual(['guest.g@example.org', 'thu.nghiem.e@example.com']);
     expect(report.failed.map((x) => x.recipient.email)).toEqual(['loi.dia.chi@example.com']);
     // The message that left is a real one: the merged name, the From of the mailbox, nothing unencoded.
@@ -179,12 +187,53 @@ describe('comms in the dev memory runtime, end to end', () => {
     expect(s.sentTo.filter((e) => e === a.email)).toHaveLength(1);
   });
 
+  it('two tabs of the same officer: the second sends nothing the first holds, and every guest gets the message once', async () => {
+    const s = await scenario();
+    let open!: () => void;
+    const gate = new Promise<void>((resolve) => (open = resolve));
+    const slow: GmailTransport = {
+      kind: s.devGmail.kind,
+      async send(m) {
+        await gate;
+        return s.devGmail.send(m);
+      },
+    };
+    const tabA = s.send(slow, s.guests);
+    // Let tab A claim and start on its first message.
+    await vi.waitFor(async () => expect((await deliveryLogData(s.ctx, s.eventId))!.rows).toHaveLength(2));
+    const tabB = await s.send(s.devGmail, s.guests);
+    expect(tabB).toMatchObject({ sent: [], failed: [], skipped: [], inFlight: [] });
+    expect(tabB.ownInFlight.map((r) => r.email).sort()).toEqual(s.guests.map((g) => g.email).sort());
+    open();
+    expect((await tabA).sent).toHaveLength(2);
+    expect(s.sentTo.sort()).toEqual(s.guests.map((g) => g.email).sort());
+  });
+
+  it('a crash between Gmail’s answer and the record: the next run does not mail that guest again; only an explicit take-over does', async () => {
+    const s = await scenario();
+    const [a, b] = s.guests as [Recipient, Recipient];
+    // Gmail accepts a's message, then the tab dies before the result is written.
+    const crashed = await s.send(s.devGmail, [a, b], { recordFails: new Set([a.email]) });
+    expect(crashed).toMatchObject({ stoppedBy: 'record' });
+    expect(crashed.unrecorded.map((u) => u.recipient.email)).toEqual([a.email]);
+    // The reloaded page is another run: a is still held by the dead one and is not mailed; b was released and goes.
+    const reloaded = await s.send(s.devGmail, [a, b]);
+    expect(reloaded.ownInFlight.map((r) => r.email)).toEqual([a.email]);
+    expect(reloaded.sent.map((x) => x.recipient.email)).toEqual([b.email]);
+    expect(s.sentTo.filter((e) => e === a.email)).toHaveLength(1);
+    // Taking over is the officer's explicit choice (the page warns it may mail a twice) and is audited.
+    const taken = await s.send(s.devGmail, [a], { takeOver: true });
+    expect(taken.sent.map((x) => x.recipient.email)).toEqual([a.email]);
+    expect((await s.audits()).some((x) => x.action === 'BẮT ĐẦU GỬI THƯ' && x.summary.includes('tiếp quản 1 người'))).toBe(true);
+  });
+
   it('a send outside the dev runtime refuses the fake transport’s results', async () => {
     const s = await scenario();
-    const claim = await s.run('comms.startCampaign', { eventId: s.eventId as EventId, senderEmail: 'ban.to.chuc@example.com' as Email, subject: 's', body: '<p>b</p>', recipients: [{ guestId: null, email: 'x@example.com' as Email, recipientName: '' }] });
+    const runToken = newId<'CampaignRun'>();
+    const claim = await s.run('comms.startCampaign', { eventId: s.eventId as EventId, senderEmail: 'ban.to.chuc@example.com' as Email, subject: 's', body: '<p>b</p>', runToken, takeOver: false, recipients: [{ guestId: null, email: 'x@example.com' as Email, recipientName: '' }] });
     vi.stubEnv('SCE_DEV_MEMORY', '');
     const r = await runCommand(s.ctx, lookup, 'comms.recordDeliveries', {
-      eventId: s.eventId, campaignId: claim.campaignId, senderEmail: 'ban.to.chuc@example.com', subject: 's',
+      eventId: s.eventId, campaignId: claim.campaignId, runToken, senderEmail: 'ban.to.chuc@example.com', subject: 's',
       results: [{ guestId: null, email: 'x@example.com', recipientName: '', status: 'sent', providerMessageId: 'dev-fake-abc', error: null }],
     });
     vi.stubEnv('SCE_DEV_MEMORY', '1');

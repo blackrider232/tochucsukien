@@ -38,6 +38,7 @@ export function SendPanel(props: {
   onStop: () => void;
   onRetryFailed: () => void;
   onResumeSkipped: () => void;
+  onTakeOver: () => void;
 }) {
   const { run } = props;
   const running = run.kind === 'running';
@@ -78,6 +79,15 @@ export function SendPanel(props: {
           >
             {report.claimFailed ? 'Không giữ chỗ được người nhận cho đợt gửi. Kiểm tra kết nối rồi bấm gửi lại.' : report.stoppedBy ? STOP_REASON[report.stoppedBy] : 'Kết quả từng thư được ghi ở Nhật ký gửi.'}
             {report.unrecorded.length > 0 && ` Đã gửi nhưng chưa ghi nhật ký: ${report.unrecorded.map((u) => u.recipient.email).join(', ')}.`}
+          </Alert>
+        )}
+        {report && report.ownInFlight.length > 0 && (
+          <Alert
+            tone="warning"
+            title={`${report.ownInFlight.length} người nhận đang được giữ chỗ bởi một phiên gửi khác của bạn.`}
+            action={<Button variant="secondary" icon="refresh" onClick={props.onTakeOver}>Tiếp quản phiên gửi</Button>}
+          >
+            {`Một tab khác, hoặc trang này trước khi tải lại, đang gửi thư này tới họ nên chưa gửi lại: ${report.ownInFlight.map((r) => r.email).join(', ')}. Chỉ tiếp quản khi phiên đó đã đóng hoặc đã dừng.`}
           </Alert>
         )}
         {props.log.length > 0 && (

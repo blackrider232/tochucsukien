@@ -13,6 +13,9 @@ export const guestIdSchema = uuidOf<'Guest'>() as z.ZodType<GuestId, string>;
 export const mailboxIdSchema = uuidOf<'Mailbox'>() as z.ZodType<MailboxId, string>;
 export const responseIdSchema = uuidOf<'RsvpResponse'>() as z.ZodType<RsvpResponseId, string>;
 export const campaignIdSchema = uuidOf<'EmailCampaign'>() as z.ZodType<CampaignId, string>;
+/** One run of the send loop: random per run, so a second tab or a reload is another run. */
+export type RunToken = Uuid<'CampaignRun'>;
+export const runTokenSchema = uuidOf<'CampaignRun'>() as z.ZodType<RunToken, string>;
 export const versionSchema = z.number().int().positive().transform((v) => v as Version);
 
 export const requiredEmailSchema = z

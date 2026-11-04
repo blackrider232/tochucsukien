@@ -1,10 +1,11 @@
-// The four tables comms owns (0002_domain_tables.sql and
-// 202611041200_comms_delivery_evidence_and_sync_state.sql).
+// The four tables comms owns (0002_domain_tables.sql and the *_comms_*.sql
+// migrations after it).
 
 import { z } from 'zod';
 import type { CampaignId, Email, EventId, GuestId, Instant, MailboxId, RsvpResponseId, SafeUrl, UserId, Version } from '@/core/brand';
 import { parseInstant } from '@/core/dates';
 import { defineTable, type BaseRow } from '@/core/db';
+import type { RunToken } from '../domain/schemas';
 import type { RsvpStatus } from '@/core/vocab';
 
 const instant = z.string().transform((v) => (parseInstant(v) ?? v) as Instant);
@@ -148,8 +149,10 @@ export interface DeliveryRow extends BaseRow {
   recipientName: string;
   subject: string;
   senderEmail: string;
-  /** 'queued' exists in the schema and is never written: a row is written only once Gmail has answered. */
+  /** 'queued' is a claim: the run named by claimToken is about to send, or is sending, this message. */
   status: DeliveryStatus | 'queued';
+  /** The run that claimed the row last (202611041300_comms_delivery_claim_token.sql). */
+  claimToken: RunToken | null;
   sentAt: Instant | null;
   error: string | null;
   providerMessageId: string | null;
@@ -171,6 +174,7 @@ export const deliveriesTable = defineTable<DeliveryRow>({
     subject: z.string(),
     senderEmail: z.string(),
     status: z.enum(['queued', 'sent', 'error']),
+    claimToken: z.string().nullable().transform((v) => v as RunToken | null),
     sentAt: instant.nullable(),
     error: z.string().nullable(),
     providerMessageId: z.string().nullable(),

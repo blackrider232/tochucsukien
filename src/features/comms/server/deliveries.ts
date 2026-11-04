@@ -2,11 +2,14 @@
 //
 // A campaign is one message: its id is derived from the event and the subject
 // and body templates, so composing the same message again, after a reload or
-// from the log's "Gửi lại thư lỗi", lands in the same campaign. Before a run
-// the client claims each address (startCampaign): the row becomes 'queued',
-// and an address that already received this message, or that another
-// officer's run holds, is refused, so nobody gets the same message twice.
-// Each outcome then completes its claim (recordDeliveries): 'sent' only with
+// from the log's "Gửi lại thư lỗi", lands in the same campaign. Each run of
+// the send loop carries a random token. Before it sends, the run claims each
+// address (startCampaign): the row becomes 'queued' under its token, and an
+// address that already received this message, or that another run holds, is
+// refused, so nobody gets the same message twice. Another run means another
+// token: a second tab or a reload of the same officer is one too, and may
+// only take over the claims explicitly. Each outcome then completes its claim
+// (recordDeliveries), only from the run that holds it: 'sent' only with
 // Gmail's message id, 'error' with Gmail's reason, and a later failure never
 // erases a success. Claims a stopped run did not use are released.
 // A real send marks the guest invited through guests.markInvited (m4a B33).
@@ -17,13 +20,13 @@ import type { CampaignId, Email, EventId, GuestId, Instant } from '@/core/brand'
 import { CommandError, type CommandContext, type CommandSpec, type InputOf, type OutputOf } from '@/core/commands';
 import { DbError } from '@/core/db';
 import { devMemoryEnabled } from '@/core/dev/mode';
-import { campaignIdSchema, deliveryResultSchema, eventIdSchema, guestIdSchema, MAX_CLAIM_BATCH, requiredEmailSchema } from '../domain/schemas';
+import { campaignIdSchema, deliveryResultSchema, eventIdSchema, guestIdSchema, MAX_CLAIM_BATCH, requiredEmailSchema, runTokenSchema } from '../domain/schemas';
 import { DEV_FAKE_ID_PREFIX } from '../domain/transport';
 import { asSchema, audit, auditPartial } from './command-kit';
 import { deliveriesTable, type DeliveryRow } from './tables';
 
 export const MAX_DELIVERY_BATCH = 50;
-/** A claim another officer made this recently is a run in progress; an older one is a run that died, and may be taken over. */
+/** A claim made this recently is a run in progress; an older one is a run that died, and any run may take it over. */
 export const CLAIM_LEASE_MS = 30 * 60_000;
 
 const send = { perm: 'comms.send', event: (i: { eventId: EventId }) => i.eventId } as const;
@@ -40,8 +43,7 @@ export function campaignIdFor(eventId: EventId, subject: string, body: string): 
 const byEmail = async (ctx: CommandContext, eventId: EventId, campaignId: CampaignId) =>
   new Map((await ctx.db.table(deliveriesTable).list({ eventId, campaignId })).map((d) => [d.email, d]));
 
-const heldByOther = (ctx: CommandContext, d: DeliveryRow) =>
-  d.updatedBy !== ctx.actor.profile.id && Date.parse(ctx.now) - Date.parse(d.updatedAt) < CLAIM_LEASE_MS;
+const leaseExpired = (ctx: CommandContext, d: DeliveryRow) => Date.parse(ctx.now) - Date.parse(d.updatedAt) >= CLAIM_LEASE_MS;
 
 const recipientSchema = z.object({ guestId: guestIdSchema.nullable(), email: requiredEmailSchema, recipientName: z.string().trim().max(300) });
 
@@ -53,30 +55,37 @@ export const startCampaign: CommandSpec<InputOf<'comms.startCampaign'>, OutputOf
       senderEmail: requiredEmailSchema,
       subject: z.string().trim().min(1).max(300),
       body: z.string().trim().min(1).max(100_000),
+      runToken: runTokenSchema,
+      takeOver: z.boolean(),
       recipients: z.array(recipientSchema).min(1).max(MAX_CLAIM_BATCH),
     }),
   ),
   authorize: send,
-  async run(ctx, { eventId, senderEmail, subject, body, recipients }) {
+  async run(ctx, { eventId, senderEmail, subject, body, runToken, takeOver, recipients }) {
     const campaignId = campaignIdFor(eventId, subject, body);
     const existing = await byEmail(ctx, eventId, campaignId);
     const claimed: Email[] = [];
     const alreadySent: Email[] = [];
     const inFlight: Email[] = [];
+    const ownInFlight: Email[] = [];
+    let takenOver = 0;
     const seen = new Set<string>();
     try {
       for (const r of recipients) {
         if (seen.has(r.email)) continue;
         seen.add(r.email);
         const before = existing.get(r.email);
+        const mine = before?.updatedBy === ctx.actor.profile.id;
+        const heldElsewhere = before?.status === 'queued' && before.claimToken !== runToken && !leaseExpired(ctx, before);
         if (before?.status === 'sent') alreadySent.push(r.email);
-        else if (before?.status === 'queued' && heldByOther(ctx, before)) inFlight.push(r.email);
+        else if (heldElsewhere && !(takeOver && mine)) (mine ? ownInFlight : inFlight).push(r.email);
         else {
-          const row = { guestId: r.guestId, recipientName: r.recipientName, subject, senderEmail, status: 'queued' as const, sentAt: null, error: null, providerMessageId: null, imported: false };
+          const row = { guestId: r.guestId, recipientName: r.recipientName, subject, senderEmail, status: 'queued' as const, claimToken: runToken, sentAt: null, error: null, providerMessageId: null, imported: false };
           try {
             if (before) await ctx.db.table(deliveriesTable).update(before.id, row, { expectedVersion: before.version });
             else await ctx.db.table(deliveriesTable).insert({ ...row, eventId, campaignId, email: r.email });
             claimed.push(r.email);
+            if (heldElsewhere) takenOver += 1;
           } catch (e) {
             // Another run claimed or completed it between the read and this write.
             if (e instanceof DbError && (e.kind === 'conflict' || e.kind === 'constraint')) inFlight.push(r.email);
@@ -91,9 +100,15 @@ export const startCampaign: CommandSpec<InputOf<'comms.startCampaign'>, OutputOf
       }
       throw e;
     }
-    const parts = [`giữ chỗ ${claimed.length} người nhận`, ...(alreadySent.length ? [`bỏ qua ${alreadySent.length} người đã nhận thư này`] : []), ...(inFlight.length ? [`bỏ qua ${inFlight.length} người đang được gửi ở phiên khác`] : [])];
+    const parts = [
+      `giữ chỗ ${claimed.length} người nhận`,
+      ...(takenOver ? [`trong đó tiếp quản ${takenOver} người từ một phiên gửi khác của bạn`] : []),
+      ...(alreadySent.length ? [`bỏ qua ${alreadySent.length} người đã nhận thư này`] : []),
+      ...(ownInFlight.length ? [`bỏ qua ${ownInFlight.length} người đang được gửi ở một phiên khác của bạn`] : []),
+      ...(inFlight.length ? [`bỏ qua ${inFlight.length} người đang được gửi ở phiên khác`] : []),
+    ];
     return {
-      value: { campaignId, claimed, alreadySent, inFlight },
+      value: { campaignId, claimed, alreadySent, inFlight, ownInFlight },
       audit: audit('BẮT ĐẦU GỬI THƯ', `Bắt đầu đợt gửi "${subject}" từ ${senderEmail}: ${parts.join(', ')}`, eventId, 'email_campaign', campaignId),
     };
   },
@@ -105,13 +120,14 @@ export const recordDeliveries: CommandSpec<InputOf<'comms.recordDeliveries'>, Ou
     z.object({
       eventId: eventIdSchema,
       campaignId: campaignIdSchema,
+      runToken: runTokenSchema,
       senderEmail: requiredEmailSchema,
       subject: z.string().trim().max(500),
       results: z.array(deliveryResultSchema).min(1).max(MAX_DELIVERY_BATCH),
     }),
   ),
   authorize: send,
-  async run(ctx, { eventId, campaignId, senderEmail, subject, results }) {
+  async run(ctx, { eventId, campaignId, runToken, senderEmail, subject, results }) {
     // The fake transport exists for the dev memory runtime; its ids are refused anywhere else.
     if (!devMemoryEnabled() && results.some((r) => r.providerMessageId?.startsWith(DEV_FAKE_ID_PREFIX))) {
       throw new CommandError('invalid', 'Kết quả gửi thử nghiệm không được ghi vào nhật ký thật.');
@@ -119,6 +135,11 @@ export const recordDeliveries: CommandSpec<InputOf<'comms.recordDeliveries'>, Ou
     const existing = await byEmail(ctx, eventId, campaignId);
     const unclaimed = results.find((r) => !existing.has(r.email));
     if (unclaimed) throw new CommandError('conflict', `Thư tới ${unclaimed.email} chưa được giữ chỗ trong đợt gửi này. Hãy bắt đầu lại đợt gửi.`);
+    const notHeld = results.find((r) => {
+      const d = existing.get(r.email)!;
+      return d.status !== 'sent' && (d.status !== 'queued' || d.claimToken !== runToken);
+    });
+    if (notHeld) throw new CommandError('conflict', `Thư tới ${notHeld.email} không còn do phiên gửi này giữ chỗ (đã có kết quả, hoặc một phiên khác đã tiếp quản). Kiểm tra Nhật ký gửi trước khi gửi tiếp.`);
 
     let sent = 0;
     let failed = 0;
@@ -180,18 +201,18 @@ export const recordDeliveries: CommandSpec<InputOf<'comms.recordDeliveries'>, Ou
   },
 };
 
-/** Frees the claims of addresses a stopped run never sent to. Only 'queued' rows go; a result already recorded stays. */
+/** Frees the claims of addresses a stopped run never sent to. Only this run's 'queued' rows go; a result already recorded stays. */
 export const releaseDeliveries: CommandSpec<InputOf<'comms.releaseDeliveries'>, OutputOf<'comms.releaseDeliveries'>> = {
   kind: 'mutation',
-  input: asSchema(z.object({ eventId: eventIdSchema, campaignId: campaignIdSchema, emails: z.array(requiredEmailSchema).min(1).max(MAX_CLAIM_BATCH) })),
+  input: asSchema(z.object({ eventId: eventIdSchema, campaignId: campaignIdSchema, runToken: runTokenSchema, emails: z.array(requiredEmailSchema).min(1).max(MAX_CLAIM_BATCH) })),
   authorize: send,
-  async run(ctx, { eventId, campaignId, emails }) {
+  async run(ctx, { eventId, campaignId, runToken, emails }) {
     const existing = await byEmail(ctx, eventId, campaignId);
     let released = 0;
     try {
       for (const email of new Set(emails)) {
         const d = existing.get(email);
-        if (d?.status !== 'queued' || heldByOther(ctx, d)) continue;
+        if (d?.status !== 'queued' || d.claimToken !== runToken) continue;
         await ctx.db.table(deliveriesTable).remove(d.id, { expectedVersion: d.version });
         released += 1;
       }

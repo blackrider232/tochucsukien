@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWatch } from 'react-hook-form';
 import { Alert, Badge, Button, Form, FormField, LinkTabs, SectionCard, Select, qrPngDataUrl, useDialogs, useToast, useZodForm } from '@/components/ui';
+import { newId } from '@/core/brand';
 import { encodeCheckinPayload } from '@/core/checkin-code';
 import { useCommand } from '@/core/commands';
 import { formatVNTime } from '@/core/dates';
@@ -116,39 +117,42 @@ export function InvitationsPage({ data }: { data: InvitationScreenData }) {
     [data.event.id, data.officer],
   );
 
-  const send = async (list: ReadonlyArray<Recipient>) => {
+  const send = async (list: ReadonlyArray<Recipient>, takeOver = false) => {
     if (!ctx || list.length === 0) return;
     const compose = form.getValues();
     const controller = new AbortController();
     abort.current = controller;
     setRunState({ kind: 'running', total: list.length, done: 0, current: null, stopping: false });
-    addLog('info', `Bắt đầu gửi ${list.length} thư từ ${ctx.from.email}`);
+    addLog('info', `${takeOver ? 'Tiếp quản và gửi' : 'Bắt đầu gửi'} ${list.length} thư từ ${ctx.from.email}`);
     const subjectOf = (r: Recipient) => invitationMessage(r, compose, ctx, null).subject;
     const report = await runCampaign({
       recipients: list,
+      run: { token: newId<'CampaignRun'>(), takeOver },
       signal: controller.signal,
       sleep: abortableSleep,
       api: {
-        claim: async (chunk) =>
+        claim: async (chunk, r) =>
           (await run('comms.startCampaign', {
             eventId: data.event.id,
             senderEmail: ctx.from.email,
             subject: compose.subject,
             body: compose.body,
-            recipients: chunk.map((r) => ({ guestId: r.guestId, email: r.email, recipientName: r.name })),
+            runToken: r.token,
+            takeOver: r.takeOver,
+            recipients: chunk.map((x) => ({ guestId: x.guestId, email: x.email, recipientName: x.name })),
           })) ?? null,
-        async record(campaignId, o) {
+        async record(campaignId, runToken, o) {
           const result = o.kind === 'sent'
             ? { guestId: o.recipient.guestId, email: o.recipient.email, recipientName: o.recipient.name, status: 'sent' as const, providerMessageId: o.messageId, error: null }
             : { guestId: o.recipient.guestId, email: o.recipient.email, recipientName: o.recipient.name, status: 'error' as const, providerMessageId: null, error: o.failure.message.slice(0, 500) };
-          const saved = await run('comms.recordDeliveries', { eventId: data.event.id, campaignId, senderEmail: ctx.from.email, subject: subjectOf(o.recipient), results: [result] });
+          const saved = await run('comms.recordDeliveries', { eventId: data.event.id, campaignId, runToken, senderEmail: ctx.from.email, subject: subjectOf(o.recipient), results: [result] });
           if (!saved) return false;
           addLog(o.kind === 'sent' ? 'success' : 'error', o.kind === 'sent' ? `Đã gửi: ${o.recipient.name || o.recipient.email} <${o.recipient.email}>` : `Lỗi: ${o.recipient.email}: ${o.failure.message}`);
           if (saved.notInvited > 0) addLog('error', `Chưa cập nhật được trạng thái giấy mời của ${o.recipient.name || o.recipient.email}; hãy cập nhật ở danh sách khách mời.`);
           return true;
         },
-        async release(campaignId, emails) {
-          await run('comms.releaseDeliveries', { eventId: data.event.id, campaignId, emails });
+        async release(campaignId, runToken, emails) {
+          await run('comms.releaseDeliveries', { eventId: data.event.id, campaignId, runToken, emails });
         },
       },
       async send(r) {
@@ -164,6 +168,7 @@ export function InvitationsPage({ data }: { data: InvitationScreenData }) {
     });
     if (report.alreadySent.length > 0) addLog('info', `Bỏ qua ${report.alreadySent.length} người đã nhận thư này: ${report.alreadySent.map((r) => r.email).join(', ')}`);
     if (report.inFlight.length > 0) addLog('info', `Bỏ qua ${report.inFlight.length} người đang được gửi ở phiên khác: ${report.inFlight.map((r) => r.email).join(', ')}`);
+    if (report.ownInFlight.length > 0) addLog('info', `Bỏ qua ${report.ownInFlight.length} người đang được gửi ở một phiên khác của bạn: ${report.ownInFlight.map((r) => r.email).join(', ')}`);
     abort.current = null;
     // Whoever has the message leaves the selection; the server refuses them again anyway (comms.startCampaign).
     const delivered = new Set<string>([...report.sent, ...report.unrecorded, ...report.alreadySent.map((recipient) => ({ recipient }))].map((s) => s.recipient.email));
@@ -183,6 +188,17 @@ export function InvitationsPage({ data }: { data: InvitationScreenData }) {
       tone: 'primary',
     });
     if (ok) await send(recipients);
+  };
+
+  const takeOver = async (list: ReadonlyArray<Recipient>) => {
+    const ok = await dialogs.confirm({
+      title: 'Tiếp quản phiên gửi khác?',
+      text: `${list.length} người nhận đang được giữ chỗ bởi một phiên gửi khác của bạn (một tab khác, hoặc trang này trước khi tải lại). Chỉ tiếp quản khi chắc chắn phiên đó đã đóng hoặc đã dừng. Nếu phiên đó vẫn đang gửi, hoặc đã gửi một thư mà chưa kịp ghi nhật ký, người nhận có thể nhận thư này hai lần.`,
+      confirmLabel: 'Tiếp quản và gửi',
+      cancelLabel: 'Để phiên kia gửi',
+      tone: 'warning',
+    });
+    if (ok) await send(list, true);
   };
 
   const sendTest = async () => {
@@ -291,6 +307,7 @@ export function InvitationsPage({ data }: { data: InvitationScreenData }) {
             }}
             onRetryFailed={() => report && void send(report.failed.map((f) => f.recipient))}
             onResumeSkipped={() => report && void send(report.skipped.map((s) => s.recipient))}
+            onTakeOver={() => report && void takeOver(report.ownInFlight)}
           />
         </Form>
       </div>

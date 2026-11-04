@@ -6,7 +6,7 @@ import type { CampaignId, Email, EventId, GuestId, MailboxId, RsvpResponseId, Ve
 import { defineCommands, type Sig } from '@/core/commands';
 import type { SenderMailbox } from '../contract';
 import type { ColumnMap } from '../domain/columns';
-import type { DeliveryResult, FormConfig, MailboxDraft } from '../domain/schemas';
+import type { DeliveryResult, FormConfig, MailboxDraft, RunToken } from '../domain/schemas';
 import { recordDeliveries, releaseDeliveries, startCampaign } from './deliveries';
 import type { SyncReport } from '../domain/sync-report';
 import { resolveResponse, saveColumnMap, saveForm, syncFormWith } from './form';
@@ -36,20 +36,25 @@ declare module '@/core/commands' {
       { applyStatus: ApplyStatus }
     >;
     /**
-     * Claims each address for one message before it is sent. The campaign id comes from the subject and body templates,
-     * so the same message composed again is the same campaign, and an address that already received it is refused.
+     * Claims each address for one message before it is sent, for the run `runToken` names. The campaign id comes from
+     * the subject and body templates, so the same message composed again is the same campaign, and an address that
+     * already received it is refused. A fresh claim of another run is left alone: `inFlight` when another officer
+     * holds it, `ownInFlight` when another run of this officer does, which `takeOver` claims for this run instead.
      */
     'comms.startCampaign': Sig<
-      { eventId: EventId; senderEmail: Email; subject: string; body: string; recipients: ReadonlyArray<{ guestId: GuestId | null; email: Email; recipientName: string }> },
-      { campaignId: CampaignId; claimed: ReadonlyArray<Email>; alreadySent: ReadonlyArray<Email>; inFlight: ReadonlyArray<Email> }
+      {
+        eventId: EventId; senderEmail: Email; subject: string; body: string; runToken: RunToken; takeOver: boolean;
+        recipients: ReadonlyArray<{ guestId: GuestId | null; email: Email; recipientName: string }>;
+      },
+      { campaignId: CampaignId; claimed: ReadonlyArray<Email>; alreadySent: ReadonlyArray<Email>; inFlight: ReadonlyArray<Email>; ownInFlight: ReadonlyArray<Email> }
     >;
-    /** Outcomes of real sends, recorded as Gmail answered them, each on the claim startCampaign made. */
+    /** Outcomes of real sends, recorded as Gmail answered them, each on the claim this run holds. */
     'comms.recordDeliveries': Sig<
-      { eventId: EventId; campaignId: CampaignId; senderEmail: Email; subject: string; results: ReadonlyArray<DeliveryResult> },
+      { eventId: EventId; campaignId: CampaignId; runToken: RunToken; senderEmail: Email; subject: string; results: ReadonlyArray<DeliveryResult> },
       { recorded: number; notInvited: number }
     >;
     /** Frees the claims a stopped run did not use. */
-    'comms.releaseDeliveries': Sig<{ eventId: EventId; campaignId: CampaignId; emails: ReadonlyArray<Email> }, { released: number }>;
+    'comms.releaseDeliveries': Sig<{ eventId: EventId; campaignId: CampaignId; runToken: RunToken; emails: ReadonlyArray<Email> }, { released: number }>;
   }
 }
 
