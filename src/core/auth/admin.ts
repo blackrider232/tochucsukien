@@ -24,10 +24,12 @@ function serviceClient(): SupabaseClient {
 
 /**
  * The audit writer dispatch hands to runCommand for this request's Db: the dev memory runtime's own store, or the
- * service role. Only dispatch calls it (audit-guards.test.ts).
+ * service role. Null without SUPABASE_SERVICE_ROLE_KEY, so a mutation is refused before it runs rather than saved
+ * without its row. Only dispatch calls it (audit-guards.test.ts).
  */
 export function commandAuditWriter(db: Db): AuditWriter | null {
-  return devMemoryEnabled() ? memoryAuditWriter(db) : supabaseAuditWriter(serviceClient);
+  if (devMemoryEnabled()) return memoryAuditWriter(db);
+  return process.env.SUPABASE_SERVICE_ROLE_KEY ? supabaseAuditWriter(serviceClient) : null;
 }
 
 export async function createAuthUser(input: { email: Email; password: string; fullname: string; department: DepartmentName }): Promise<UserId> {

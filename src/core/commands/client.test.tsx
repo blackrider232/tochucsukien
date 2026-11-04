@@ -62,6 +62,19 @@ describe('useCommand', () => {
     expect(refresh).toHaveBeenCalledTimes(1);
   });
 
+  it('a change saved without its audit row warns with that message instead of the success text, and keeps the value and the undo', async () => {
+    const unaudited = 'Đã lưu thay đổi nhưng chưa ghi được nhật ký hệ thống. Vui lòng báo quản trị viên, không thực hiện lại.';
+    dispatch.mockResolvedValueOnce({ ok: true, value: 7, inverse: inverse('Thêm A'), unaudited });
+    const { result } = hooks();
+    let value: unknown;
+    await act(async () => {
+      value = await result.current.run('guests.create' as never, {} as never, { success: 'Đã thêm: A' });
+    });
+    expect(value).toBe(7);
+    expect(notes).toEqual([['warning', unaudited]]);
+    expect(result.current.undo).toMatchObject({ canUndo: true, undoLabel: 'Thêm A' });
+  });
+
   it('a network failure becomes an error toast, not an exception', async () => {
     dispatch.mockRejectedValueOnce(new TypeError('Failed to fetch'));
     const { result } = hooks();

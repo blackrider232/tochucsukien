@@ -109,7 +109,11 @@ export type CommandFailure = {
   message: string;
   fieldErrors?: Readonly<Record<string, string>>;
 };
-export type CommandResult<O> = { ok: true; value: O; inverse?: Inverse } | CommandFailure;
+/**
+ * `unaudited` is set when the change was saved but one of its audit rows could not be written (the server log keeps
+ * the entry). The client shows it as a warning in place of the success text: the user must not repeat the change.
+ */
+export type CommandResult<O> = { ok: true; value: O; inverse?: Inverse; unaudited?: string } | CommandFailure;
 
 export interface RunOptions {
   /** Toast on success. Omit for silent (e.g. checkbox toggles that are visibly applied). */

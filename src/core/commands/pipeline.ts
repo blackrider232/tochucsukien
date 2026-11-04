@@ -38,6 +38,7 @@ export const MESSAGES = {
   invalid: 'Dữ liệu nhập chưa hợp lệ. Vui lòng kiểm tra lại.',
   eventNotFound: 'Không tìm thấy sự kiện, hoặc bạn không có quyền truy cập sự kiện này.',
   internal: 'Đã xảy ra lỗi khi xử lý. Vui lòng thử lại.',
+  unaudited: 'Đã lưu thay đổi nhưng chưa ghi được nhật ký hệ thống. Vui lòng báo quản trị viên, không thực hiện lại.',
   db: {
     conflict: 'Dữ liệu đã được người khác cập nhật. Đang tải lại…',
     not_found: 'Không tìm thấy dữ liệu, hoặc bạn không có quyền xem.',
@@ -121,12 +122,15 @@ async function auditRow(audit: AuditWriter | null, ctx: RequestContext, id: stri
   await audit(ctx.actor, { ...entry, command: id, perm: spec.authorize.perm });
 }
 
+/** The full entry, for the server log, when its row is lost. No secret is in it. */
+const logged = (ctx: RequestContext, id: string, spec: AnyCommandSpec, entry: AuditEntry) => ({ actorId: ctx.actor.profile.id, command: id, perm: spec.authorize.perm, ...entry });
+
 /** The partial-failure row of a CommandError. Its change already stuck, so a refused row is logged, never thrown. */
 async function auditPartialFailure(audit: AuditWriter | null, ctx: RequestContext, id: string, spec: AnyCommandSpec, entry: AuditEntry): Promise<void> {
   try {
     await auditRow(audit, ctx, id, spec, entry);
   } catch (e) {
-    console.error(`command ${id}: partial-failure audit row not written`, entry, e);
+    console.error(`command ${id}: partial-failure audit row not written`, logged(ctx, id, spec, entry), e);
   }
 }
 
@@ -145,11 +149,14 @@ function failureFromError(e: unknown, id: string): CommandFailure {
  * `audit` is the writer of every audit row this command and the ones it calls produce. dispatch passes the
  * service-role writer; without one, a memoryDb's own store is used, and on any other Db mutations refuse to run.
  */
-export function runCommand(ctx: RequestContext, lookup: CommandLookup, id: string, rawInput: unknown, audit: AuditWriter | null = memoryAuditWriter(ctx.db)): Promise<CommandResult<unknown>> {
-  return execute(ctx, lookup, audit, id, rawInput, 0);
+export async function runCommand(ctx: RequestContext, lookup: CommandLookup, id: string, rawInput: unknown, audit: AuditWriter | null = memoryAuditWriter(ctx.db)): Promise<CommandResult<unknown>> {
+  const lost = { audit: false };
+  const result = await execute(ctx, lookup, audit, lost, id, rawInput, 0);
+  return result.ok && lost.audit ? { ...result, unaudited: MESSAGES.unaudited } : result;
 }
 
-async function execute(ctx: RequestContext, lookup: CommandLookup, audit: AuditWriter | null, id: string, rawInput: unknown, depth: number): Promise<CommandResult<unknown>> {
+/** `lost.audit` is shared by the whole call tree: a row lost in a nested command marks the outermost result. */
+async function execute(ctx: RequestContext, lookup: CommandLookup, audit: AuditWriter | null, lost: { audit: boolean }, id: string, rawInput: unknown, depth: number): Promise<CommandResult<unknown>> {
   const spec = lookup(id);
   if (!spec) return failure('unavailable', MESSAGES.unknownCommand);
 
@@ -168,7 +175,7 @@ async function execute(ctx: RequestContext, lookup: CommandLookup, audit: AuditW
     ...ctx,
     async call(nextId, nextInput) {
       if (depth + 1 > MAX_DEPTH) throw new Error(`command nesting deeper than ${MAX_DEPTH} at ${String(nextId)}`);
-      const result = await execute(ctx, lookup, audit, nextId, nextInput, depth + 1);
+      const result = await execute(ctx, lookup, audit, lost, nextId, nextInput, depth + 1);
       if (!result.ok) throw new NestedFailure(result);
       return result.value as never;
     },
@@ -185,7 +192,13 @@ async function execute(ctx: RequestContext, lookup: CommandLookup, audit: AuditW
       console.error(`command ${id} returned audit 'sql'; only core's SQL functions write their own audit rows`);
       return failure('unavailable', MESSAGES.internal);
     } else if (outcome.audit && outcome.audit !== 'sql') {
-      await auditRow(audit, ctx, id, spec, outcome.audit);
+      try {
+        await auditRow(audit, ctx, id, spec, outcome.audit);
+      } catch (e) {
+        // The change already committed: a retry would repeat it, so report it saved and keep the entry in the log.
+        console.error(`command ${id}: saved, but its audit row was not written`, logged(ctx, id, spec, outcome.audit), e);
+        lost.audit = true;
+      }
     } else if (!outcome.audit && spec.kind === 'mutation') {
       throw new Error(`mutation ${id} returned no audit entry`);
     }

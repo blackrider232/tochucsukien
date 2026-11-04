@@ -71,4 +71,6 @@ async function releaseSeat(ctx: CommandContext, eventId: EventId, guestId: Guest
 
 A test asserts the failure kind and that the last audit row names the loss, as `src/features/guests/__tests__/rsvp.test.ts` does. When the database refuses the entry, the server log keeps it and the user still gets the error.
 
+The same holds on success. When the row of a command that returned cannot be written, the change stands, the server log keeps the entry, and `useCommand` shows "Đã lưu thay đổi nhưng chưa ghi được nhật ký hệ thống…" as a warning in place of your success text. The result still carries the value and the inverse.
+
 comms writes its partial-failure rows itself at five places on its branch. Its owner migrates them to a thrown entry before merging, because the direct writer is gone.

@@ -234,15 +234,18 @@ describe('pipeline: input, audit, errors', () => {
     spy.mockRestore();
   });
 
-  it('the audit row is refused when the caller does not hold the command’s permission on that event', async () => {
+  it('the audit row is refused when the caller does not hold the command’s permission on that event, and the saved change is reported unaudited', async () => {
     const w = world();
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const spec = specs['progress.testDelete']!;
     vi.mocked(spec.run).mockResolvedValueOnce({ value: null, audit: { action: 'XÓA', summary: '', eventId: E2, entity: null, entityId: null } });
     const calls = vi.mocked(spec.run).mock.calls.length;
     const r = await w.run(testActor('dept_leader', XTDT), 'progress.testDelete', { eventId: E1 });
     expect(vi.mocked(spec.run).mock.calls.length).toBe(calls + 1);
-    expect(r).toMatchObject({ ok: false, kind: 'forbidden' });
+    expect(r).toMatchObject({ ok: true, unaudited: expect.any(String) });
     expect(w.audit()).toEqual([]);
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('progress.testDelete'), expect.objectContaining({ eventId: E2 }), expect.objectContaining({ kind: 'forbidden' }));
+    spy.mockRestore();
   });
 
   it('queries need no audit', async () => {
@@ -385,6 +388,41 @@ describe('pipeline: the audit writer', () => {
     const writer = vi.fn<AuditWriter>(async () => {});
     await runCommand(ctxWith(xtdt, memoryDb(seed, xtdt)), lookup, 'live.testWalkIn', { eventId: E1, id: G1, name: 'A' }, writer);
     expect(writer.mock.calls.map(([actor, row]) => [actor, row.command, row.perm])).toEqual([[xtdt, 'guests.testCreate', 'guests.write'], [xtdt, 'live.testWalkIn', 'live.checkin']]);
+  });
+
+  it('a row the writer refuses after the change committed is logged in full, and the user is told it was saved without a log entry', async () => {
+    const seed = { sce_tcsk_events: eventRows() };
+    const xtdt = testActor('user', XTDT);
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const writer = vi.fn<AuditWriter>(async () => {
+      throw new DbError('unavailable', { table: 'service_role' });
+    });
+    const r = await runCommand(ctxWith(xtdt, memoryDb(seed, xtdt)), lookup, 'guests.testCreate', { eventId: E1, id: G1, name: 'A' }, writer);
+    expect(r).toMatchObject({ ok: true, unaudited: 'Đã lưu thay đổi nhưng chưa ghi được nhật ký hệ thống. Vui lòng báo quản trị viên, không thực hiện lại.' });
+    expect(inspectMemoryDb(seed, 'sce_tcsk_guests')).toHaveLength(1);
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('guests.testCreate'),
+      { actorId: xtdt.profile.id, command: 'guests.testCreate', perm: 'guests.write', action: 'THÊM KHÁCH MỜI', summary: 'A', eventId: E1, entity: 'guest', entityId: G1 }, expect.any(DbError));
+    spy.mockRestore();
+  });
+
+  it('an inner row lost inside ctx.call marks the outer result, which still writes its own row', async () => {
+    const seed = { sce_tcsk_events: eventRows() };
+    const xtdt = testActor('user', XTDT);
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const writer = vi.fn<AuditWriter>(async (_actor, row) => {
+      if (row.command === 'guests.testCreate') throw new DbError('forbidden');
+    });
+    const r = await runCommand(ctxWith(xtdt, memoryDb(seed, xtdt)), lookup, 'live.testWalkIn', { eventId: E1, id: G1, name: 'A' }, writer);
+    expect(r).toMatchObject({ ok: true, unaudited: expect.any(String) });
+    expect(writer.mock.calls.map(([, row]) => row.command)).toEqual(['guests.testCreate', 'live.testWalkIn']);
+    spy.mockRestore();
+  });
+
+  it('a result whose rows were all written carries no unaudited notice', async () => {
+    const seed = { sce_tcsk_events: eventRows() };
+    const xtdt = testActor('user', XTDT);
+    const r = await runCommand(ctxWith(xtdt, memoryDb(seed, xtdt)), lookup, 'guests.testCreate', { eventId: E1, id: G1, name: 'A' }, vi.fn<AuditWriter>(async () => {}));
+    expect(r.ok && 'unaudited' in r).toBe(false);
   });
 
   it('without a writer, a mutation on a Db that is not a memoryDb fails before it runs', async () => {

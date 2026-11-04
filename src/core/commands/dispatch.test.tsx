@@ -18,6 +18,9 @@ const ctx: RequestContext = {
   now: '2026-11-04T00:00:00.000Z' as Instant,
 };
 
+// The dev memory runtime: dispatch hands runCommand the memoryDb's own writer. Without it and without a service key
+// commandAuditWriter is null and every mutation is refused before it runs.
+vi.stubEnv('SCE_DEV_MEMORY', '1');
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: () => {} }) }));
 vi.mock('@/core/auth/server', () => ({ loadRequestContext: async () => ({ ok: true, ctx }), createAuthUser: vi.fn() }));
 vi.mock('@/features/progress/server', () => import('./__fixtures__/feature-server'));

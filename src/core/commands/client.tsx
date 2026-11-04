@@ -70,7 +70,8 @@ export function useCommand(): <K extends CommandId>(id: K, input: InputOf<K>, op
         if (result.kind === 'conflict' || result.kind === 'not_found' || result.kind === 'gate') router.refresh();
         return undefined;
       }
-      if (opts?.success) feedback.notify('success', opts.success);
+      if (result.unaudited) feedback.notify('warning', result.unaudited);
+      else if (opts?.success) feedback.notify('success', opts.success);
       if (result.inverse && opts?.undoable !== false) {
         setHistory({ undo: [...history.undo, result.inverse].slice(-UNDO_DEPTH), redo: [] });
       }
@@ -100,7 +101,8 @@ export function useUndo(): UndoApi {
         return;
       }
       if (result.inverse) setHistory({ ...history, [to]: [...history[to], result.inverse].slice(-UNDO_DEPTH) });
-      feedback.notify('info', from === 'undo' ? `Đã hoàn tác: ${inverse.label}` : `Đã làm lại: ${inverse.label}`);
+      if (result.unaudited) feedback.notify('warning', result.unaudited);
+      else feedback.notify('info', from === 'undo' ? `Đã hoàn tác: ${inverse.label}` : `Đã làm lại: ${inverse.label}`);
       router.refresh();
     },
     [feedback, router],
