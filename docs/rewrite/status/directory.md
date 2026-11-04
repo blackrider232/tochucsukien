@@ -73,6 +73,7 @@ Branch `t3/directory-crm-contacts`. The feature lives in `src/features/directory
 1. **Kit file input.** CSV import needs a file picker (the m4c "import formats" wish). Without one the admin pastes the text. Ask: a kit `FileInput` that returns text.
 2. **Query without refresh.** `useCommand` calls `router.refresh()` on every success and is the only client path to a query command, so each suggest search (and the event-match query) refreshes the page behind it. Ask: a `useQuery` or a `refresh: false` run option in `@/core/commands`. `ContactSuggest` caches per query to limit it.
 3. **`contract.ts` is unchanged.** The extra commands are declared in `server/commands.ts`.
+4. **Server-action body size (core, `next.config.ts`).** Next 16.4.5 refuses a server-action body over 1 MB (`action-handler.js`, `defaultBodySizeLimit`), and `next.config.ts` sets no `serverActions.bodySizeLimit`. Directory now sends imports and bulk deletes in chunks of at most 500 rows and 600 KB (`domain/chunks.ts`), so it no longer needs more. Ask: set `experimental.serverActions.bodySizeLimit` (or `serverActions.bodySizeLimit`, whichever this Next reads) to a stated value such as `'2mb'`, so a feature's largest command has headroom and the limit is a decision written down, not a default. Every other feature's bulk command (guests `upsertMany` with 2000 items) has the same cap today.
 
 ## Foundation feedback
 

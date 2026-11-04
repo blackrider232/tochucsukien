@@ -9,10 +9,8 @@ import type { GuestGroup } from '@/core/vocab';
 
 export const GROUP_VALUES = ['VIP', 'SoNganh', 'DoanhNghiep', 'QuocTe', 'BaoChi'] as const satisfies ReadonlyArray<GuestGroup>;
 
-/** One call may carry a whole directory segment, never an unbounded payload. */
+/** Rows one CSV paste may hold, and contacts one copy into an event takes (ids only). Imports go in chunks (chunks.ts). */
 export const MAX_BATCH = 2000;
-/** Rows a bulk delete or an undo of one carries: the undo ships every deleted row back. */
-export const MAX_BULK_DELETE = MAX_BATCH;
 export const MAX_SEARCH_LIMIT = 200;
 export const DEFAULT_SEARCH_LIMIT = 8;
 

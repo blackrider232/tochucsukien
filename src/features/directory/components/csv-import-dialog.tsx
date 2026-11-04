@@ -3,11 +3,12 @@
 import { useMemo, useState } from 'react';
 import { useWatch } from 'react-hook-form';
 import { z } from 'zod';
-import { Alert, Badge, Button, DataTable, Dialog, Form, FormField, KpiCard, Select, Textarea, downloadBlob, useZodForm, type Column } from '@/components/ui';
+import { Alert, Badge, Button, DataTable, Dialog, Form, FormField, KpiCard, Select, Textarea, downloadBlob, useToast, useZodForm, type Column } from '@/components/ui';
 import { useCommand } from '@/core/commands';
 import type { Tone } from '@/core/vocab';
 import { guestIdentityKey } from '@/features/guests';
 import type { MasterContact } from '../contract';
+import { chunkBySize, sendInChunks } from '../domain/chunks';
 import { CONTACT_CSV_COLUMNS, ROW_STATUS_LABEL, previewContactImport, type ImportRow, type RowStatus } from '../domain/csv-import';
 import { serializeCsv } from '../domain/csv';
 import { GROUP_OPTIONS } from '../domain/groups';
@@ -25,19 +26,28 @@ const SHOWN_ROWS = 200;
 /** Paste CSV, read the preview row by row, then commit what is valid (m4c Q10). Nothing is written before "Nhập". */
 export function CsvImportDialog({ contacts, onClose }: { contacts: ReadonlyArray<MasterContact>; onClose: () => void }) {
   const run = useCommand();
+  const toast = useToast();
   const form = useZodForm(schema, { defaultValues: { csv: '', defaultGroup: 'DoanhNghiep' } });
   const [csv, defaultGroup] = useWatch({ control: form.control, name: ['csv', 'defaultGroup'] });
   const existingKeys = useMemo(() => new Set(contacts.map(guestIdentityKey)), [contacts]);
   const preview = useMemo(() => (csv.trim() === '' ? null : previewContactImport(csv, { defaultGroup, existingKeys })), [csv, defaultGroup, existingKeys]);
-  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
 
+  // Each chunk is its own command with its own undo. After a refused chunk the list refreshes, so the preview then
+  // offers only the rows still missing and "Nhập" picks up where it stopped.
   const commit = async () => {
     if (!preview || preview.counts.created === 0) return;
     const items = preview.rows.flatMap((r) => (r.status === 'new' && r.draft ? [{ id: r.id, draft: r.draft }] : []));
-    setBusy(true);
-    const done = await run('directory.importCsv', { items }, { success: 'Đã nhập vào CSDL' });
-    setBusy(false);
-    if (done) onClose();
+    const total = items.length;
+    setProgress({ done: 0, total });
+    const done = await sendInChunks(
+      chunkBySize(items),
+      async (chunk, last) => (await run('directory.importCsv', { items: chunk }, last ? { success: `Đã nhập ${total} đối tượng vào CSDL` } : {})) !== undefined,
+      (n) => setProgress({ done: n, total }),
+    );
+    setProgress(null);
+    if (done === total) onClose();
+    else if (done > 0) toast.warning(`Đã nhập ${done} / ${total} đối tượng. Phần còn lại chưa được nhập.`);
   };
   const downloadTemplate = () => downloadBlob(serializeCsv(TEMPLATE_ROWS as MasterContact[], CONTACT_CSV_COLUMNS), 'Mau_Nhap_CSDL_KhachMoi.csv');
 
@@ -70,8 +80,10 @@ export function CsvImportDialog({ contacts, onClose }: { contacts: ReadonlyArray
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>Hủy</Button>
-          <Button icon="upload" disabled={!preview || preview.counts.created === 0} loading={busy} onClick={() => void commit()}>
-            {preview && preview.counts.created > 0 ? `Nhập ${preview.counts.created} đối tượng` : 'Nhập đối tượng'}
+          <Button icon="upload" disabled={!preview || preview.counts.created === 0} loading={progress !== null} onClick={() => void commit()}>
+            {progress && progress.total > progress.done && progress.done > 0
+              ? `Đang nhập ${progress.done} / ${progress.total}`
+              : preview && preview.counts.created > 0 ? `Nhập ${preview.counts.created} đối tượng` : 'Nhập đối tượng'}
           </Button>
         </>
       }

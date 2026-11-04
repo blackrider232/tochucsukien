@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { newId, type ContactId, type Email } from '@/core/brand';
 import type { MasterContact } from '../contract';
+import { chunkBySize } from '../domain/chunks';
 import { previewContactImport } from '../domain/csv-import';
 import { serializeCsv } from '../domain/csv';
 import { CONTACT_CSV_COLUMNS } from '../domain/csv-import';
@@ -44,24 +45,29 @@ describe('big lists', () => {
     });
   });
 
-  it('commits a 2000-row import into 3000 existing contacts', async () => {
+  it('commits a 2000-row import into 3000 existing contacts, in the chunks the dialog sends', async () => {
     const h = harness();
     const existing = contacts(3000).map((c, i) => ({ id: c.id, draft: draft({ name: c.name, organization: c.organization, email: c.email, phone: c.phone, group: c.group, hasBanquet: i % 2 === 0 }) }));
-    for (let i = 0; i < existing.length; i += 2000) await h.ok(admin, 'directory.importCsv', { items: existing.slice(i, i + 2000) });
+    for (const chunk of chunkBySize(existing)) await h.ok(admin, 'directory.importCsv', { items: chunk });
     // 1000 of the batch are the people already there, 1000 are new.
     const items = [...existing.slice(0, 1000), ...contacts(1000).map((c) => ({ id: c.id, draft: draft({ name: `Mới ${c.name}`, organization: c.organization, email: `moi.${c.email}` as Email }) }))];
     const started = performance.now();
-    const r = await h.ok(admin, 'directory.importCsv', { items });
+    let [created, skipped] = [0, 0];
+    for (const chunk of chunkBySize(items)) {
+      const r = await h.ok(admin, 'directory.importCsv', { items: chunk });
+      created += r.value.created;
+      skipped += r.value.skipped;
+    }
     const ms = performance.now() - started;
-    expect(r.value).toEqual({ created: 1000, skipped: 1000 });
+    expect({ created, skipped }).toEqual({ created: 1000, skipped: 1000 });
     expect(ms).toBeLessThan(15_000);
   }, 120_000);
 
   it('answers a ranked search over 5000 stored contacts', async () => {
     const h = harness();
     const rows = contacts(5000);
-    for (let i = 0; i < rows.length; i += 2000) {
-      await h.ok(admin, 'directory.importCsv', { items: rows.slice(i, i + 2000).map((c) => ({ id: c.id, draft: draft({ name: c.name, organization: c.organization, email: c.email, phone: c.phone, group: c.group }) })) });
+    for (const chunk of chunkBySize(rows)) {
+      await h.ok(admin, 'directory.importCsv', { items: chunk.map((c) => ({ id: c.id, draft: draft({ name: c.name, organization: c.organization, email: c.email, phone: c.phone, group: c.group }) })) });
     }
     const started = performance.now();
     const r = await h.ok(admin, 'directory.search', { q: 'nguyen van an' });

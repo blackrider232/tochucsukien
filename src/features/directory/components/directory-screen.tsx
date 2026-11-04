@@ -1,7 +1,7 @@
 'use client';
 
 import { useDeferredValue, useMemo, useState } from 'react';
-import { Button, DataTable, EmptyState, FilterBar, IconButton, RowMenu, SectionCard, downloadBlob, useDialogs, type Column } from '@/components/ui';
+import { Button, DataTable, EmptyState, FilterBar, IconButton, RowMenu, SectionCard, downloadBlob, useDialogs, useToast, type Column } from '@/components/ui';
 import { useCommand } from '@/core/commands';
 import { fileDateStamp } from '@/core/dates';
 import { foldVi } from '@/core/text';
@@ -9,7 +9,8 @@ import { GUEST_GROUPS, type GuestGroup } from '@/core/vocab';
 import type { MasterContact } from '../contract';
 import { serializeCsv } from '../domain/csv';
 import { CONTACT_CSV_COLUMNS } from '../domain/csv-import';
-import { MAX_BULK_DELETE } from '../domain/schemas';
+import { chunkBySize, jsonBytes, sendInChunks } from '../domain/chunks';
+import { draftOf } from '../domain/schemas';
 import { buildIndex, groupCounts, rankContacts } from '../domain/search';
 import { BanquetCell, ContactCell, GroupBadge, NameCell, OrgCell } from './cells';
 import { ContactFormDialog } from './contact-form';
@@ -31,6 +32,7 @@ export interface DirectoryScreenProps {
 export function DirectoryScreen({ contacts, canAdmin, events }: DirectoryScreenProps) {
   const run = useCommand();
   const dialogs = useDialogs();
+  const toast = useToast();
   const [q, setQ] = useState('');
   const [group, setGroup] = useState('all');
   const [shown, setShown] = useState(PAGE);
@@ -40,6 +42,7 @@ export function DirectoryScreen({ contacts, canAdmin, events }: DirectoryScreenP
   const [resetting, setResetting] = useState(false);
   const [pickingEvent, setPickingEvent] = useState(false);
   const [batchEvent, setBatchEvent] = useState<EventChoice | null>(null);
+  const [deleting, setDeleting] = useState<{ done: number; total: number } | null>(null);
 
   // Folded once per list, not per keystroke (m4c B50); the query is deferred so typing never waits for the ranking.
   const index = useMemo(() => buildIndex(contacts), [contacts]);
@@ -62,7 +65,6 @@ export function DirectoryScreen({ contacts, canAdmin, events }: DirectoryScreenP
     if (ok) await run('directory.delete', { id: c.id, version: c.version }, { success: 'Đã xóa đối tượng khỏi CSDL' });
   };
   const removeSelected = async () => {
-    if (picked.length > MAX_BULK_DELETE) return void dialogs.alert({ title: 'Chọn ít hơn', text: `Mỗi lần xóa tối đa ${MAX_BULK_DELETE} đối tượng.` });
     const ok = await dialogs.confirm({
       title: `Xóa ${picked.length} đối tượng đã chọn?`,
       text: 'Các đối tượng sẽ bị xóa khỏi CSDL dùng chung. Khách mời đã nhập vào sự kiện giữ nguyên. Có thể hoàn tác ngay sau khi xóa.',
@@ -70,8 +72,18 @@ export function DirectoryScreen({ contacts, canAdmin, events }: DirectoryScreenP
       tone: 'danger',
     });
     if (!ok) return;
-    const done = await run('directory.deleteMany', { items: picked.map((c) => ({ id: c.id, version: c.version })) }, { success: `Đã xóa ${picked.length} đối tượng khỏi CSDL` });
-    if (done) setSelected(new Set());
+    const total = picked.length;
+    setDeleting({ done: 0, total });
+    // A chunk is sized by what its undo carries back: every deleted row, in full.
+    const done = await sendInChunks(
+      chunkBySize(picked, (c) => jsonBytes({ id: c.id, draft: draftOf(c) })),
+      async (chunk, last) =>
+        (await run('directory.deleteMany', { items: chunk.map((c) => ({ id: c.id, version: c.version })) }, last ? { success: `Đã xóa ${total} đối tượng khỏi CSDL` } : {})) !== undefined,
+      (n) => setDeleting({ done: n, total }),
+    );
+    setDeleting(null);
+    if (done === total) setSelected(new Set());
+    else if (done > 0) toast.warning(`Đã xóa ${done} / ${total} đối tượng. Các đối tượng còn lại chưa bị xóa.`);
   };
   const exportCsv = () => downloadBlob(serializeCsv(contacts, CONTACT_CSV_COLUMNS), `CSDL_KhachMoi_DoanhNghiep_SCE_${fileDateStamp()}.csv`);
   const loadSample = async () => {
@@ -158,7 +170,11 @@ export function DirectoryScreen({ contacts, canAdmin, events }: DirectoryScreenP
                   {selection.size > 0 && (
                     <>
                       <Button variant="secondary" icon="download" onClick={() => setPickingEvent(true)}>Nhập {selection.size} vào sự kiện</Button>
-                      {canAdmin && <Button variant="danger" icon="trash" onClick={() => void removeSelected()}>Xóa {selection.size} đã chọn</Button>}
+                      {canAdmin && (
+                        <Button variant="danger" icon="trash" loading={deleting !== null} onClick={() => void removeSelected()}>
+                          {deleting && deleting.done > 0 ? `Đang xóa ${deleting.done} / ${deleting.total}` : `Xóa ${selection.size} đã chọn`}
+                        </Button>
+                      )}
                       <Button variant="ghost" onClick={() => setSelected(new Set())}>Bỏ chọn</Button>
                     </>
                   )}

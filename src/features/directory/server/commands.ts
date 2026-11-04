@@ -15,9 +15,10 @@ import { guestIdentityKey } from '@/features/guests';
 import { readRoster } from '@/features/guests/server';
 import type { MasterContact } from '../contract';
 import {
-  DEFAULT_SEARCH_LIMIT, GROUP_VALUES, MAX_BATCH, MAX_BULK_DELETE, MAX_SEARCH_LIMIT, RESET_PHRASE,
+  DEFAULT_SEARCH_LIMIT, GROUP_VALUES, MAX_BATCH, MAX_SEARCH_LIMIT, RESET_PHRASE,
   contactFields, contactIdSchema, contactPatchSchema, contactSnapshotSchema, draftOf, versionSchema, type ContactDraft, type ContactSnapshot,
 } from '../domain/schemas';
+import { MAX_CHUNK_ROWS } from '../domain/chunks';
 import { SAMPLE_CONTACTS } from '../domain/sample-contacts';
 import { searchTextOf } from '../domain/search';
 import { contactToGuestDraft, existingContactIds } from '../domain/to-guest';
@@ -185,7 +186,7 @@ const remove: Spec<InputOf<'directory.delete'>, null> = {
 
 const deleteMany: Spec<InputOf<'directory.deleteMany'>, { deleted: number }> = {
   kind: 'mutation',
-  input: asSchema(z.object({ items: z.array(z.object({ id: contactIdSchema, version: versionSchema })).min(1).max(MAX_BULK_DELETE) })),
+  input: asSchema(z.object({ items: z.array(z.object({ id: contactIdSchema, version: versionSchema })).min(1).max(MAX_CHUNK_ROWS) })),
   authorize: adminOnly,
   async run(ctx, { items }) {
     const wanted = new Map(items.map((i) => [i.id, i.version]));
@@ -206,7 +207,7 @@ const deleteMany: Spec<InputOf<'directory.deleteMany'>, { deleted: number }> = {
 
 const restore: Spec<InputOf<'directory.restore'>, { restored: number; alreadyThere: number }> = {
   kind: 'mutation',
-  input: asSchema(z.object({ contacts: z.array(contactSnapshotSchema).min(1).max(MAX_BULK_DELETE) })),
+  input: asSchema(z.object({ contacts: z.array(contactSnapshotSchema).min(1).max(MAX_CHUNK_ROWS) })),
   authorize: adminOnly,
   async run(ctx, { contacts }) {
     const there = new Set((await contactsByIds(ctx, contacts.map((c) => c.id))).map((r) => r.id));
@@ -222,7 +223,7 @@ const restore: Spec<InputOf<'directory.restore'>, { restored: number; alreadyThe
 
 const importCsv: Spec<InputOf<'directory.importCsv'>, { created: number; skipped: number }> = {
   kind: 'mutation',
-  input: asSchema(z.object({ items: z.array(z.object({ id: contactIdSchema, draft: contactFields })).min(1).max(MAX_BATCH) })),
+  input: asSchema(z.object({ items: z.array(z.object({ id: contactIdSchema, draft: contactFields })).min(1).max(MAX_CHUNK_ROWS) })),
   authorize: adminOnly,
   async run(ctx, { items }) {
     const { created, skipped } = await insertFresh(ctx, items);

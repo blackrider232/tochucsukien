@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { newId, type ContactId, type Email } from '@/core/brand';
 import { testActor, PTDN } from '@/core/testing/actors';
 import type { MasterContact } from '../contract';
+import { chunkBySize } from '../domain/chunks';
 import { contactToGuestDraft, existingContactIds, guestFieldsFromContact, planEventImport } from '../domain/to-guest';
 import { admin, draft, harness, staff } from './harness';
 
@@ -92,7 +93,7 @@ describe('directory.importToEvent', () => {
   it('copies 2000 contacts in one call within a generous time bound', async () => {
     const { h, eventId } = await setup();
     const rows = Array.from({ length: 2000 }, (_, i) => ({ id: newId<'MasterContact'>() as ContactId, draft: draft({ name: `Khách ${i}`, organization: `Đơn vị ${i % 40}`, email: `k${i}@example.com` as Email }) }));
-    await h.ok(admin, 'directory.importCsv', { items: rows });
+    for (const chunk of chunkBySize(rows)) await h.ok(admin, 'directory.importCsv', { items: chunk });
     const started = performance.now();
     const r = await h.ok(staff, 'directory.importToEvent', { eventId, ...importIds(rows.map((x) => x.id)) });
     const ms = performance.now() - started;

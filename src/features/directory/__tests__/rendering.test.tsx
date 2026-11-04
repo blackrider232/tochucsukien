@@ -30,7 +30,9 @@ function expectNoMarkup(root: HTMLElement) {
   expect((window as { __pwned?: number }).__pwned).toBeUndefined();
 }
 
-beforeEach(() => dispatch.mockReset());
+beforeEach(() => {
+  dispatch.mockReset();
+});
 
 describe('the directory screen renders contact text as text (m4c B1-B4, B12)', () => {
   it('shows markup in name, title, organization, address, phone and notes verbatim', () => {
@@ -78,6 +80,51 @@ describe('the CSV import commits once', () => {
     expect(commit).toHaveAttribute('aria-busy', 'true');
     settle({ ok: false, kind: 'unavailable', message: 'x' });
     await waitFor(() => expect(commit).not.toHaveAttribute('aria-busy'));
+  });
+});
+
+describe('a large import or bulk delete goes in chunks, each its own command with its own undo', () => {
+  it('imports 1200 CSV rows as three importCsv commands of at most 500', async () => {
+    const user = userEvent.setup();
+    const close = vi.fn();
+    dispatch.mockImplementation(async (_id: string, input: { items: unknown[] }) => ({ ok: true, value: { created: input.items.length, skipped: 0 } }));
+    renderUi(withAppContext(<CsvImportDialog contacts={[]} onClose={close} />));
+    await user.click(screen.getByRole('textbox', { name: 'Nội dung CSV' }));
+    await user.paste(['Họ tên,Cơ quan', ...Array.from({ length: 1200 }, (_, i) => `Khách ${i},Sở ${i}`)].join('\n'));
+    await user.click(await screen.findByRole('button', { name: 'Nhập 1200 đối tượng' }));
+    await waitFor(() => expect(close).toHaveBeenCalled());
+    const sent = dispatch.mock.calls.filter(([id]) => id === 'directory.importCsv').map(([, input]) => (input as { items: { draft: { name: string } }[] }).items);
+    expect(sent.map((items) => items.length)).toEqual([500, 500, 200]);
+    expect(new Set(sent.flat().map((i) => i.draft.name)).size).toBe(1200);
+  });
+
+  it('stops at the first refused chunk and keeps the dialog open', async () => {
+    const user = userEvent.setup();
+    const close = vi.fn();
+    dispatch
+      .mockResolvedValueOnce({ ok: true, value: { created: 500, skipped: 0 } })
+      .mockResolvedValueOnce({ ok: false, kind: 'unavailable', message: 'Không kết nối được máy chủ. Vui lòng thử lại.' });
+    renderUi(withAppContext(<CsvImportDialog contacts={[]} onClose={close} />));
+    await user.click(screen.getByRole('textbox', { name: 'Nội dung CSV' }));
+    await user.paste(['Họ tên,Cơ quan', ...Array.from({ length: 1200 }, (_, i) => `Khách ${i},Sở ${i}`)].join('\n'));
+    await user.click(await screen.findByRole('button', { name: 'Nhập 1200 đối tượng' }));
+    expect(await screen.findByText('Đã nhập 500 / 1200 đối tượng. Phần còn lại chưa được nhập.')).toBeInTheDocument();
+    expect(dispatch.mock.calls.filter(([id]) => id === 'directory.importCsv')).toHaveLength(2);
+    expect(close).not.toHaveBeenCalled();
+  });
+
+  it('deletes 1200 selected contacts as three deleteMany commands', async () => {
+    const user = userEvent.setup();
+    dispatch.mockImplementation(async (_id: string, input: { items: unknown[] }) => ({ ok: true, value: { deleted: input.items.length } }));
+    const many = Array.from({ length: 1200 }, (_, i) => contact({ name: `Khách ${i}`, organization: `Sở ${i}`, email: null }));
+    renderUi(withAppContext(<DirectoryScreen contacts={many} canAdmin events={[]} />));
+    await user.click(screen.getByRole('button', { name: 'Chọn cả 1200 kết quả' }));
+    await user.click(screen.getByRole('button', { name: 'Xóa 1200 đã chọn' }));
+    await user.click(await screen.findByRole('button', { name: 'Xóa 1200 đối tượng' }));
+    await waitFor(() => expect(dispatch.mock.calls.filter(([id]) => id === 'directory.deleteMany')).toHaveLength(3));
+    const sent = dispatch.mock.calls.filter(([id]) => id === 'directory.deleteMany').map(([, input]) => (input as { items: { id: string }[] }).items);
+    expect(sent.map((items) => items.length)).toEqual([500, 500, 200]);
+    expect(new Set(sent.flat().map((i) => i.id))).toEqual(new Set(many.map((c) => c.id)));
   });
 });
 
