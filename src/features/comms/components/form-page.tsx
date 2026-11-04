@@ -27,7 +27,7 @@ const APPLY: Record<ResponseView['applyStatus'], { label: string; tone: Tone }> 
   dismissed: { label: 'Đã bỏ qua', tone: 'slate' },
 };
 const MATCH: Record<ResponseView['match'], string> = {
-  email: 'Email', phone: 'SĐT', name: 'Họ tên và cơ quan', created: 'Khách đăng ký mới (đã nạp)', manual: 'Ghép thủ công', ambiguous: 'Nhiều khách trùng', none: 'Chưa khớp',
+  email: 'Email', phone: 'SĐT', name: 'Họ tên và cơ quan', created: 'Khách đăng ký mới (đã nạp)', manual: 'Ghép thủ công', ambiguous: 'Trùng tên hoặc SĐT, cần xác nhận', none: 'Chưa khớp',
 };
 
 const rsvpLabel = (r: ResponseView) => (r.rsvp ? RSVP[r.rsvp].short : 'Chưa rõ');
@@ -101,6 +101,7 @@ export function FormPage({ data }: { data: FormScreenData }) {
           <p className="font-semibold text-ink">{r.name || '(không có tên)'}</p>
           <p className="text-xs text-ink-muted">{r.organization}</p>
           <p className="text-xs text-ink-2">{[r.email, r.phone].filter(Boolean).join(' · ')}</p>
+          <p className="mt-1 md:hidden"><Badge tone={APPLY[r.applyStatus].tone}>{APPLY[r.applyStatus].label}</Badge></p>
         </div>
       ),
       sortValue: (r) => r.name,
@@ -156,9 +157,9 @@ export function FormPage({ data }: { data: FormScreenData }) {
         title="Google Form RSVP & đồng bộ phản hồi"
         subtitle="Mời và thu thập xác nhận tham dự qua Google Form; chỉ câu trả lời rõ ràng và mới hơn mới cập nhật khách mời"
         icon="refresh"
-        actions={data.canManage ? <Button icon="refresh" loading={syncing} disabled={!form?.sheetCsvUrl} onClick={() => void syncNow()}>Đồng bộ ngay</Button> : undefined}
       >
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+          {data.canManage && <Button icon="refresh" loading={syncing} disabled={!form?.sheetCsvUrl} onClick={() => void syncNow()}>Đồng bộ ngay</Button>}
           <span className="flex items-center gap-2">Trạng thái: <Badge tone={status.tone}>{status.label}</Badge></span>
           <span className="text-ink-2">{form?.lastSyncAt ? `Lần đồng bộ cuối: ${formatVNTime(form.lastSyncAt, { withDate: true })}` : 'Lần đồng bộ cuối: Chưa đồng bộ'}</span>
           {form?.autoSync && <Badge tone="blue" icon="clock">Tự động mỗi 5 phút</Badge>}
@@ -187,10 +188,12 @@ export function FormPage({ data }: { data: FormScreenData }) {
       <SectionCard
         title={`Danh sách phản hồi từ Form (${data.responses.length})`}
         icon="list-check"
-        actions={data.responses.length > 0 ? <Button variant="secondary" icon="file-spreadsheet" onClick={() => void exportXlsx()}>Xuất Excel</Button> : undefined}
       >
         <div className="space-y-3">
-          <FilterBar search={{ value: q, onChange: setQ, placeholder: 'Tìm theo tên, email, cơ quan...' }} />
+          <FilterBar
+            search={{ value: q, onChange: setQ, placeholder: 'Tìm theo tên, email, cơ quan...' }}
+            trailing={data.responses.length > 0 ? <Button variant="secondary" icon="file-spreadsheet" onClick={() => void exportXlsx()}>Xuất Excel</Button> : undefined}
+          />
           <DataTable
             rows={shown}
             columns={columns}

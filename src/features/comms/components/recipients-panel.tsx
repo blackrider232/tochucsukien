@@ -120,8 +120,9 @@ export function RecipientsPanel(props: {
       manualForm.setError('emails', { message: fresh.length ? 'Các email này đã có trong danh sách' : 'Nhập ít nhất một email (cách nhau bởi dấu phẩy, chấm phẩy hoặc xuống dòng)' });
       return;
     }
+    // What could not be read stays in the box to correct; the rest has been added.
+    manualForm.reset({ emails: parsed.invalid.join(', '), name: '', organization: '' });
     if (parsed.invalid.length > 0) manualForm.setError('emails', { message: `Không phải email hợp lệ: ${parsed.invalid.slice(0, 3).join(', ')}${parsed.invalid.length > 3 ? '…' : ''}` });
-    else manualForm.reset({ emails: '', name: '', organization: '' });
     if (added.length > 0) {
       onManual([...manual, ...added], new Set([...manualIds, ...added.map((m) => m.email)]));
       toast.success(`Đã thêm ${added.length} địa chỉ email nhận thư`);
@@ -137,15 +138,15 @@ export function RecipientsPanel(props: {
   const selectedManual = manual.filter((m) => manualIds.has(m.email)).length;
 
   return (
-    <SectionCard title="Đối tượng nhận thư" subtitle={`Đã chọn: ${props.total} người nhận`} icon="users">
+    <SectionCard title="Đối tượng nhận thư" subtitle={`Đã chọn: ${props.total} người nhận (${selectedGuests}/${guests.length} đại biểu, ${selectedManual}/${manual.length} tự nhập)`} icon="users">
       <div className="space-y-4">
         <Tabs
           variant="segmented"
           value={tab}
           onChange={(id) => setTab(id as 'guests' | 'manual')}
           items={[
-            { id: 'guests', label: `Đại biểu sự kiện (${selectedGuests}/${guests.length})` },
-            { id: 'manual', label: `Tự nhập email (${selectedManual}/${manual.length})` },
+            { id: 'guests', label: 'Đại biểu', count: selectedGuests },
+            { id: 'manual', label: 'Tự nhập email', count: selectedManual },
           ]}
         />
         {tab === 'guests' ? (

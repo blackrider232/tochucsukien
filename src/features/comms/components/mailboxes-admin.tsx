@@ -114,10 +114,13 @@ export function MailboxesAdmin({ data }: { data: MailboxesScreenData }) {
   return (
     <SectionCard
       title="Cấu hình hòm thư Google & Client ID gửi thư"
-      subtitle={`Admin cài đặt sẵn tên gợi nhớ, địa chỉ email, Google Client ID riêng và chọn email mặc định để chuyên viên chỉ việc chọn gửi thư. ${data.mailboxes.length} hòm thư đã được cấu hình.`}
+      subtitle={`${data.mailboxes.length} hòm thư đã được cấu hình`}
       icon="mail"
-      actions={<Button variant="secondary" icon="plus" onClick={() => setEditing('new')}>Thêm hòm thư Google</Button>}
     >
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-ink-2">Admin cài đặt sẵn tên gợi nhớ, địa chỉ email, Google Client ID riêng và chọn email mặc định để chuyên viên chỉ việc chọn gửi thư.</p>
+        <Button variant="secondary" icon="plus" onClick={() => setEditing('new')}>Thêm hòm thư Google</Button>
+      </div>
       <DataTable
         rows={data.mailboxes}
         columns={columns}

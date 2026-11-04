@@ -72,14 +72,14 @@ export function DeliveryLog({ data }: { data: DeliveryLogData }) {
         title="Nhật ký gửi thư"
         subtitle="Mỗi dòng là kết quả Gmail trả về cho một người nhận"
         icon="list-check"
-        actions={
-          failedCampaign && data.canSend ? (
-            <Button icon="refresh" href={`/events/${data.event.id}/invitations?retry=${failedCampaign}`}>Gửi lại thư lỗi</Button>
-          ) : undefined
-        }
       >
         <div className="space-y-3">
           <FilterBar
+            trailing={
+              failedCampaign && data.canSend ? (
+                <Button icon="refresh" href={`/events/${data.event.id}/invitations?retry=${failedCampaign}`}>Gửi lại thư lỗi</Button>
+              ) : undefined
+            }
             search={{ value: q, onChange: setQ, placeholder: 'Tìm theo người nhận, email, tiêu đề, lỗi...' }}
             filters={[
               { id: 'status', label: 'Trạng thái', value: status, options: STATUS_OPTIONS, onChange: setStatus },

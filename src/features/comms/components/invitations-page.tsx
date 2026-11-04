@@ -146,6 +146,10 @@ export function InvitationsPage({ data }: { data: InvitationScreenData }) {
       onProgress: (done, total, current) => setRunState((s) => (s.kind === 'running' ? { ...s, done, total, current } : s)),
     });
     abort.current = null;
+    // Whoever received the message leaves the selection, so the next "Bắt đầu gửi" cannot mail them twice.
+    const delivered = new Set<string>([...report.sent, ...report.unrecorded].map((s) => s.recipient.email));
+    setGuestIds((ids) => new Set([...ids].filter((id) => !list.some((r) => r.guestId === id && delivered.has(r.email)))));
+    setManualIds((ids) => new Set([...ids].filter((email) => !delivered.has(email))));
     setRunState({ kind: 'finished', report });
     addLog('info', `Hoàn tất: ${report.sent.length} thành công, ${report.failed.length} lỗi, ${report.skipped.length} chưa gửi.`);
   };
@@ -202,7 +206,7 @@ export function InvitationsPage({ data }: { data: InvitationScreenData }) {
       {!data.canSend && <Alert tone="info">{'Bạn chỉ có quyền xem. Gửi thư cần quyền "Gửi thư mời" của sự kiện này.'}</Alert>}
       {data.retry && <Alert tone="info">{`Đã chọn lại ${data.retry.guestIds.length + data.retry.manual.length} người nhận bị lỗi ở lần gửi trước.`}</Alert>}
       <div className="grid gap-4 lg:grid-cols-12">
-        <div className="lg:col-span-5">
+        <div className="min-w-0 lg:col-span-5">
           <RecipientsPanel
             guests={data.guests}
             guestIds={guestIds}
@@ -221,7 +225,7 @@ export function InvitationsPage({ data }: { data: InvitationScreenData }) {
             disabled={running}
           />
         </div>
-        <Form form={form} onSubmit={start} className="space-y-4 lg:col-span-7">
+        <Form form={form} onSubmit={start} className="min-w-0 space-y-4 lg:col-span-7">
           <SectionCard title="Hòm thư gửi" subtitle="Gmail gửi bằng tài khoản Google đang đăng nhập, nên phải đăng nhập đúng hòm thư đã chọn" icon="mail">
             <div className="space-y-3">
               <FormField label="Gửi từ hòm thư" name="senderId" required>
