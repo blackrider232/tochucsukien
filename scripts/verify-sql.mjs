@@ -386,6 +386,15 @@ await refusedRow('a locked account that otherwise holds the permission', {});
 await db.exec(`update public.sce_tcsk_profiles set status = 'active' where id = '${ids.xtdt}'`);
 await refusedRow('an account that does not exist', { actor: '00000000-0000-0000-0000-0000000000fe' });
 await refusedRow('an assurance level that is not one', { actor: ids.admin, aal: 'aal3' });
+await refusedRow('an assurance level that is not one, for a user without a factor', { aal: 'aal3' });
+// SQL's three-valued logic: a null argument must be refused, not skip a check (third review M2).
+await refusedRow('a null assurance level, for a user without a factor', { aal: null });
+await refusedRow('a null assurance level, for an admin', { actor: ids.admin, aal: null, command: 'templates.create', perm: 'templates.admin', event: null, entity: 'template' });
+await refusedRow('a null command under a core permission', { actor: ids.admin, aal: 'aal2', command: null, perm: 'core.users.manage', event: null, entity: 'user' });
+await refusedRow('a null command under its own permission', { command: null });
+await refusedRow('a null permission', { perm: null });
+await refusedRow('a null actor', { actor: null });
+await refusedRow('a null action', { action: null });
 await refusedRow('an admin at aal1', { actor: ids.admin, aal: 'aal1', command: 'templates.create', perm: 'templates.admin', event: null, entity: 'template' });
 await writtenRow('an admin at aal2', { actor: ids.admin, aal: 'aal2', command: 'templates.create', perm: 'templates.admin', event: null, entity: 'template' });
 await db.exec(`insert into auth.mfa_factors (user_id, status) values ('${ids.ptdn}', 'verified')`);

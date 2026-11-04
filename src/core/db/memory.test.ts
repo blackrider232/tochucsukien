@@ -250,6 +250,12 @@ describe('memoryAuditWriter (sce_tcsk_audit_command, 202611041320_core_audit_wri
       .map((action): [string, ReturnType<typeof testActor>, Partial<CommandAuditRow>] => [`the core action ${JSON.stringify(action)}`, testActor('user', XTDT), { action }]),
     ...['Profile', ' BACKUP ', 'pro\u200dfile', 'ｓｅｔｔｉｎｇｓ'].map((entity): [string, ReturnType<typeof testActor>, Partial<CommandAuditRow>] => [`the core entity ${JSON.stringify(entity)}`, testActor('user', XTDT), { entity }]),
     ['an empty action', testActor('user', XTDT), { action: ' \u200b ' }],
+    ['an assurance level that is not one, for a user without a factor', testActor('user', XTDT, { aal: 'aal3' as never }), {}],
+    ['a null assurance level, for a user without a factor', { ...testActor('user', XTDT), aal: null as never }, {}],
+    ['a null command under a core permission', admin, { command: null as never, perm: 'core.users.manage', eventId: null, entity: 'user' }],
+    ['a null command under its own permission', testActor('user', XTDT), { command: null as never }],
+    ['a null permission', testActor('user', XTDT), { perm: null as never }],
+    ['a null action', testActor('user', XTDT), { action: null as never }],
   ])('refuses %s and writes nothing', async (_label, actor, patch) => {
     const { seed } = setup();
     await rejectsWith(writerOf(seed)(actor, { ...row, ...patch }), 'forbidden');

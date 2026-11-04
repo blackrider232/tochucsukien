@@ -321,8 +321,12 @@ const CROSS_FEATURE_AUDIT = new Set(['directory.importToEvent guests.write']);
 const auditText = (t: string | null) =>
   t === null ? null : t.normalize('NFKC').replace(/[\u00ad\u180e\u200b-\u200f\u202a-\u202e\u2060-\u2064\ufeff]/g, '').replace(/\s+/g, ' ').trim() || null;
 
-/** public.sce_tcsk_audit_command of 202611041320_core_audit_writer.sql, check for check. */
+/** public.sce_tcsk_audit_command of 202611041320_core_audit_writer.sql and 202611041330, check for check. */
 function writeCommandAudit(store: Store, actor: Actor, row: CommandAuditRow): void {
+  // 202611041330_core_audit_writer_nulls.sql: a missing argument is refused before any check reads it.
+  if (typeof actor.profile.id !== 'string' || typeof row.command !== 'string' || typeof row.perm !== 'string' || (actor.aal !== 'aal1' && actor.aal !== 'aal2')) {
+    throw new DbError('forbidden');
+  }
   const [feature = '', verb = ''] = row.command.split('.');
   const action = auditText(row.action);
   const entity = auditText(row.entity);
