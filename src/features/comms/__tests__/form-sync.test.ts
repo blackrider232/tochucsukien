@@ -234,6 +234,25 @@ describe('comms.syncForm', () => {
     expect(by('b@a.vn')).toEqual([[expect.any(String), 'no_time']]);
   });
 
+  it('reads a US-locale sheet whose days are all 12 or less by the order of its rows', async () => {
+    const { h, eventId, sync, responses } = await setup();
+    const a = await h.addGuest(eventId, { email: 'a@a.vn' as Email });
+    sheet.text = csv('10/12/2026 09:00:00,A,Công ty A,a@a.vn,,Có,,', '11/4/2026 10:00:00,A,Công ty A,a@a.vn,,Không tham dự,,');
+    expect(await sync()).toMatchObject({ applied: 2, dateOrderUnclear: false });
+    expect(responses().map((r) => [r.responded_at, r.apply_status])).toEqual([['2026-10-12T02:00:00.000Z', 'applied'], ['2026-11-04T03:00:00.000Z', 'applied']]);
+    expect(await h.guest(eventId, a.id)).toMatchObject({ rsvpStatus: 'declined', rsvpAt: '2026-11-04T03:00:00.000Z' });
+  });
+
+  it('a sheet whose date order cannot be told keeps every answer for review, says so, and changes no guest', async () => {
+    const { h, eventId, sync, responses } = await setup();
+    const a = await h.addGuest(eventId, { email: 'a@a.vn' as Email, rsvpStatus: 'confirmed' });
+    sheet.text = csv('1/3/2026 09:00:00,A,Công ty A,a@a.vn,,Không tham dự,,', '4/3/2026 09:00:00,B,Công ty B,b@a.vn,,Có,,');
+    expect(await sync()).toMatchObject({ applied: 0, dateOrderUnclear: true });
+    expect(responses().map((r) => r.apply_status)).toEqual(['no_time', 'no_time']);
+    expect(await h.guest(eventId, a.id)).toMatchObject({ rsvpStatus: 'confirmed' });
+    expect(h.audits().at(-1)!.summary).toContain('không xác định được ngày/tháng');
+  });
+
   it('keeps a response with an unreadable time for review and never applies it on its own', async () => {
     const { h, eventId, sync, responses } = await setup();
     const g = await h.addGuest(eventId, { email: 'an@a.vn' as Email });

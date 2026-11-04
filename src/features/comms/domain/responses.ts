@@ -39,31 +39,41 @@ const cellOf = (row: ReadonlyArray<string>, map: ColumnMap, f: FormField) => {
 export type DateOrder = 'dmy' | 'mdy';
 const SLASH_DATE = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\b/;
 
-/**
- * Google Forms writes every timestamp of a sheet in its owner's locale: 'dd/mm/yyyy hh:mm:ss' in a Vietnamese sheet,
- * 'mm/dd/yyyy' in a US one. A day above 12 in either place tells which; a sheet with none is read as Vietnamese.
- */
-export function detectDateOrder(cells: ReadonlyArray<string>): DateOrder {
-  let dmy = false;
-  let mdy = false;
-  for (const c of cells) {
-    const m = SLASH_DATE.exec(c.trim());
-    if (!m) continue;
-    if (Number(m[1]) > 12) dmy = true;
-    if (Number(m[2]) > 12) mdy = true;
-  }
-  return mdy && !dmy ? 'mdy' : 'dmy';
-}
-
 /** A response cannot come from the future; allow for a few minutes of clock skew between Google and the server. */
 const FUTURE_SKEW_MS = 10 * 60_000;
+/** A sheet is synced while its answers come in (every few minutes with auto-sync): its newest answer is recent. */
+const RECENT_MS = 7 * 86_400_000;
+
+/**
+ * Google Forms writes every timestamp of a sheet in its owner's locale: 'dd/mm/yyyy hh:mm:ss' in a Vietnamese sheet,
+ * 'mm/dd/yyyy' in a US one, and appends the rows in the order the answers came. So the sheet's order is the reading
+ * that can read every date; when both can, the one that puts none in the future, then the one whose times only go forward, else the one
+ * whose newest answer is recent. When the rows cannot tell, null: no slash date is then read, and the responses wait
+ * for review.
+ */
+export function detectDateOrder(cells: ReadonlyArray<string>, now: Instant): DateOrder | null {
+  const dates = cells.map((c) => c.trim()).filter((c) => SLASH_DATE.test(c) && (readTimestamp(c, 'dmy') || readTimestamp(c, 'mdy')));
+  const readings = (['dmy', 'mdy'] as const)
+    .map((order) => ({ order, times: dates.map((c) => readTimestamp(c, order)) }))
+    .filter((r) => r.times.every((t) => t !== null))
+    .map((r) => ({ order: r.order, times: r.times.map((t) => Date.parse(t!)) }));
+  if (dates.length === 0 || (readings.length === 2 && readings[0]!.times.every((t, i) => t === readings[1]!.times[i]))) return 'dmy';
+  if (readings.length < 2) return readings[0]?.order ?? null;
+  const past = readings.filter((r) => r.times.every((t) => t <= Date.parse(now) + FUTURE_SKEW_MS));
+  if (past.length < 2) return past[0]?.order ?? null;
+  const forward = past.filter((r) => r.times.every((t, i) => i === 0 || t >= r.times[i - 1]!));
+  if (forward.length === 1) return forward[0]!.order;
+  const recent = past.filter((r) => Date.parse(now) - Math.max(...r.times) <= RECENT_MS);
+  return recent.length === 1 ? recent[0]!.order : null;
+}
 
 /**
  * A sheet timestamp, or an ISO instant through the API. The wall clock is read as Hà Nội time (the sheet's time zone
- * is not in the CSV). An unreadable time, or one after `now` (a day and month read the wrong way round), is null: the
- * response is then kept for review and never applied on its own.
+ * is not in the CSV). An unreadable time, a slash date when the sheet's order is unknown (null), or a time after `now`
+ * (a day and month read the wrong way round) is null: the response is then kept for review and never applied on its own.
  */
-export function parseSheetTimestamp(raw: string, o: { order?: DateOrder; now?: Instant } = {}): Instant | null {
+export function parseSheetTimestamp(raw: string, o: { order?: DateOrder | null; now?: Instant } = {}): Instant | null {
+  if (o.order === null && SLASH_DATE.test(raw.trim())) return null;
   const at = readTimestamp(raw, o.order ?? 'dmy');
   return at && o.now && Date.parse(at) > Date.parse(o.now) + FUTURE_SKEW_MS ? null : at;
 }
@@ -84,7 +94,7 @@ function readTimestamp(raw: string, order: DateOrder): Instant | null {
   return parseInstant(new Date(base + Number(m[6] ?? 0) * 1000).toISOString());
 }
 
-export function parseResponseRow(headers: ReadonlyArray<string>, row: ReadonlyArray<string>, map: ColumnMap, time: { order?: DateOrder; now?: Instant } = {}): ParsedResponse | null {
+export function parseResponseRow(headers: ReadonlyArray<string>, row: ReadonlyArray<string>, map: ColumnMap, time: { order?: DateOrder | null; now?: Instant } = {}): ParsedResponse | null {
   const get = (f: FormField) => cellOf(row, map, f);
   const name = get('name');
   const email = parseEmail(get('email'));

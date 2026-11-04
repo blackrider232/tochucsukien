@@ -217,7 +217,7 @@ export const syncFormWith = (sheets: SheetSource): CommandSpec<InputOf<'comms.sy
     if (!canIdentify(map)) return syncError(ctx, form, 'Không nhận diện được cột Họ và tên, Email hoặc Số điện thoại. Hãy ghép cột ở mục "Ghép cột".');
 
     const parsed = new Map<string, NonNullable<ReturnType<typeof parseResponseRow>>>();
-    const time = { order: detectDateOrder(map.timestamp === undefined ? [] : rows.slice(1).map((r) => r[map.timestamp!] ?? '')), now: ctx.now };
+    const time = { order: detectDateOrder(map.timestamp === undefined ? [] : rows.slice(1).map((r) => r[map.timestamp!] ?? ''), ctx.now), now: ctx.now };
     for (const cells of rows.slice(1)) {
       const r = parseResponseRow(headers, cells, map, time);
       if (r) parsed.set(rowHashOf(r.rowKey), r);
@@ -280,10 +280,12 @@ export const syncFormWith = (sheets: SheetSource): CommandSpec<InputOf<'comms.sy
       }
       throw e;
     }
-    const report: SyncReport = { status: 'ok', rows: parsed.size, fresh: inserted.length, ...t, failures: t.failures.slice(0, 10) };
+    const dateOrderUnclear = time.order === null;
+    const report: SyncReport = { status: 'ok', rows: parsed.size, fresh: inserted.length, ...t, failures: t.failures.slice(0, 10), dateOrderUnclear };
     const summary =
       `Đồng bộ Google Form: ${parsed.size} phản hồi, ${inserted.length} mới; áp dụng ${t.applied}, bỏ qua ${t.stale} (cũ hơn thay đổi gần nhất), ` +
-      `chưa có câu trả lời rõ ${t.noAnswer}, cần xem lại ${t.review}, thêm khách mới ${t.created}${t.failed ? `, lỗi ${t.failed}` : ''}`;
+      `chưa có câu trả lời rõ ${t.noAnswer}, cần xem lại ${t.review}, thêm khách mới ${t.created}${t.failed ? `, lỗi ${t.failed}` : ''}` +
+      (dateOrderUnclear ? '; không xác định được ngày/tháng trong cột thời gian của Sheet nên các phản hồi chờ xem lại' : '');
     return { value: report, audit: audit('ĐỒNG BỘ GOOGLE FORM', summary, eventId, 'rsvp_form', form.id) };
   },
 });

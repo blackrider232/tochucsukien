@@ -73,7 +73,9 @@ export function FormPage({ data }: { data: FormScreenData }) {
     setSyncing(false);
     if (!r) return;
     if (r.status === 'error') return toast.error(r.message);
-    toast.success(`Đồng bộ xong: ${r.fresh} phản hồi mới, cập nhật ${r.applied} khách mời, thêm ${r.created} khách mới, ${r.review} chờ xem lại.`);
+    const done = `Đồng bộ xong: ${r.fresh} phản hồi mới, cập nhật ${r.applied} khách mời, thêm ${r.created} khách mới, ${r.review} chờ xem lại.`;
+    if (r.dateOrderUnclear) return toast.warning(`${done} Không xác định được ngày/tháng trong cột thời gian của Sheet (ngày trước hay tháng trước), nên các phản hồi được giữ lại để xem lại.`);
+    toast.success(done);
   };
 
   const resolve = (r: ResponseView, kind: 'create' | 'dismiss' | 'reopen', success: string) =>

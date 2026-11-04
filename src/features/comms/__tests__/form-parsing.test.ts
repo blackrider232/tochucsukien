@@ -114,12 +114,31 @@ describe('parseResponseRow', () => {
   ])('timestamp %j -> %s (Hà Nội wall clock)', (raw, expected) => {
     expect(parseSheetTimestamp(raw)).toBe(expected);
   });
+  // Google appends rows in the order the answers came, so a sheet's times only go forward, and none is in the future.
+  const NOW_ = '2026-11-04T05:00:00.000Z' as Instant;
   it.each([
-    ['a Vietnamese sheet', ['04/11/2026 09:00:00', '13/10/2026 08:00:00', '1/11/2026 07:00:00'], 'dmy'],
-    ['a sheet whose owner uses a US locale', ['10/28/2026 09:00:00', '11/4/2026 10:00:00'], 'mdy'],
-    ['a sheet with nothing to tell (read as Vietnamese)', ['11/4/2026 10:00:00', '2026-11-04T02:15:30.000Z', ''], 'dmy'],
-  ])('reads the date order of %s from all its rows', (_, cells, order) => {
-    expect(detectDateOrder(cells)).toBe(order);
+    ['a Vietnamese sheet', ['13/10/2026 08:00:00', '1/11/2026 07:00:00', '04/11/2026 09:00:00'], 'dmy'],
+    ['a US-locale sheet with a day above 12', ['10/28/2026 09:00:00', '11/4/2026 10:00:00'], 'mdy'],
+    ['a US-locale sheet whose days are all 12 or less: day-first puts 10 December in the future', ['10/12/2026 09:00:00', '11/4/2026 10:00:00'], 'mdy'],
+    ['one US-locale answer from this morning: day-first is 11 April, months before the sheet was synced', ['11/4/2026 10:00:00'], 'mdy'],
+    ['one Vietnamese answer from this morning', ['04/11/2026 10:00:00'], 'dmy'],
+    ['Vietnamese answers of early November', ['1/11/2026 08:00:00', '2/11/2026 08:00:00', '4/11/2026 09:00:00'], 'dmy'],
+    ['US-locale answers that only go forward one way', ['3/5/2026 08:00:00', '4/3/2026 08:00:00'], 'mdy'],
+    ['a sheet whose day and month are the same in every row', ['11/11/2025 10:00:00', '2026-11-04T02:15:30.000Z', ''], 'dmy'],
+    ['a sheet with no slash dates', ['2026-11-04T02:15:30.000Z', 'hôm qua'], 'dmy'],
+  ])('reads the date order of %s from its rows', (_, cells, order) => {
+    expect(detectDateOrder(cells, NOW_)).toBe(order);
+  });
+  it.each([
+    ['old answers that go forward either way, nothing recent', ['1/3/2026 09:00:00', '4/3/2026 09:00:00']],
+    ['dates that are impossible either way', ['13/10/2026 08:00:00', '10/28/2026 09:00:00']],
+    ['every reading puts an answer in the future', ['12/11/2026 08:00:00']],
+  ])('cannot tell the date order of %s: null, the rows are kept for review', (_, cells) => {
+    expect(detectDateOrder(cells, NOW_)).toBeNull();
+  });
+  it('reads no slash date without a known order', () => {
+    expect(parseSheetTimestamp('04/11/2026 10:00:00', { order: null })).toBeNull();
+    expect(parseSheetTimestamp('2026-11-04T02:15:30.000Z', { order: null })).toBe('2026-11-04T02:15:30.000Z');
   });
   it('reads "11/4/2026 10:00:00" as 4 November in a US-locale sheet', () => {
     expect(parseSheetTimestamp('11/4/2026 10:00:00', { order: 'mdy' })).toBe('2026-11-04T03:00:00.000Z');
