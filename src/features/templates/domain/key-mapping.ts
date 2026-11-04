@@ -74,8 +74,8 @@ export function resolveTemplateKey(key: string, catalog?: ReadonlyArray<{ readon
 }
 
 function mapKey(k: string): TemplateId | null {
-  if (isBuiltinId(k)) return k as TemplateId;
   if (Object.hasOwn(STEP_TEMPLATE_KEYS, k)) return (STEP_TEMPLATE_KEYS[k as keyof typeof STEP_TEMPLATE_KEYS].template as TemplateId | null);
+  if (isBuiltinId(k)) return k as TemplateId;
   return parseUuid<'Template'>(k) as TemplateId | null;
 }
 
