@@ -1,5 +1,5 @@
-// Pure data, safe to import from the proxy. The owning worker extends it;
-// the foundation wrote this first version (nav, permissions, routes, tables).
+// Pure data, safe to import from the proxy: nav, the five sub-tabs,
+// permissions, routes, tables and the legacy blob keys reports imports.
 
 import { defineFeature } from '@/core/registry';
 
@@ -22,7 +22,13 @@ export const reportsManifest = defineFeature({
       },
     },
   ],
-  subTabs: [],
+  subTabs: [
+    { parentNav: 'reports', id: 'daily', order: 10, label: 'Báo cáo hàng ngày', href: { kind: 'event', segment: 'reports' }, permission: 'reports.read' },
+    { parentNav: 'reports', id: 'official', order: 20, label: 'Báo cáo UBND TP và Sở Tài chính', href: { kind: 'event', segment: 'reports/official' }, permission: 'reports.read' },
+    { parentNav: 'reports', id: 'media', order: 30, label: 'Truyền thông và thông cáo báo chí', href: { kind: 'event', segment: 'reports/media' }, permission: 'reports.read' },
+    { parentNav: 'reports', id: 'bidding', order: 40, label: 'Gói thầu và ngân sách', href: { kind: 'event', segment: 'reports/bidding' }, permission: 'reports.read' },
+    { parentNav: 'reports', id: 'dashboard', order: 50, label: 'Bảng điều khiển tổng hợp', href: { kind: 'event', segment: 'reports/dashboard' }, permission: 'reports.read' },
+  ],
   routes: [
     { dir: '(app)/events/[eventId]/reports', permission: 'reports.read' },
     { dir: '(print)/events/[eventId]/reports', permission: 'reports.read' },
