@@ -88,8 +88,9 @@ async function scenario() {
     },
     renew: async (campaignId, runToken) => (await run('comms.renewClaims', { eventId, campaignId, runToken })).held,
     async markSending(campaignId, runToken, email) {
+      // As the page reads it: the answer says whether the run still holds the claim; a failure is null.
       const r = await runCommand(at(), lookup, 'comms.markSending', { eventId, campaignId, runToken, email });
-      return r.ok ? true : r.kind === 'conflict' ? false : null;
+      return r.ok ? (r.value as OutputOf<'comms.markSending'>).held : null;
     },
   });
   /** One press of "Bắt đầu gửi" (or of "Tiếp quản phiên gửi" with takeOver), in a tab of its own. */

@@ -63,8 +63,8 @@ declare module '@/core/commands' {
     'comms.markNotSent': Sig<{ eventId: EventId; campaignId: CampaignId; emails: ReadonlyArray<Email> }, { marked: number }>;
     /** A live run's heartbeat: keeps its claims from looking like a dead run's, and names those it still holds. */
     'comms.renewClaims': Sig<{ eventId: EventId; campaignId: CampaignId; runToken: RunToken }, { held: ReadonlyArray<Email> }>;
-    /** Marks this run's claim of one address as being sent, just before the message goes to Gmail. */
-    'comms.markSending': Sig<{ eventId: EventId; campaignId: CampaignId; runToken: RunToken; email: Email }, null>;
+    /** Marks this run's claim of one address as being sent, just before the message goes to Gmail; `held` false when the run lost it. */
+    'comms.markSending': Sig<{ eventId: EventId; campaignId: CampaignId; runToken: RunToken; email: Email }, { held: boolean }>;
     /** Frees the claims a stopped run did not use. */
     'comms.releaseDeliveries': Sig<{ eventId: EventId; campaignId: CampaignId; runToken: RunToken; emails: ReadonlyArray<Email> }, { released: number }>;
   }

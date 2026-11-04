@@ -178,8 +178,8 @@ describe('a message being sent', () => {
     const h = harness();
     const eventId = await h.createEvent();
     const { campaignId } = await start(h, eventId, [to('a@x.vn'), to('b@x.vn')]);
-    expect(await marking(h, eventId, campaignId, 'a@x.vn', TAB_B)).toMatchObject({ ok: false, kind: 'conflict' });
-    expect(await marking(h, eventId, campaignId, 'a@x.vn')).toMatchObject({ ok: true });
+    expect(await marking(h, eventId, campaignId, 'a@x.vn', TAB_B)).toMatchObject({ ok: true, value: { held: false } });
+    expect(await marking(h, eventId, campaignId, 'a@x.vn')).toMatchObject({ ok: true, value: { held: true } });
     expect(deliveries(h)).toEqual([['a@x.vn', 'sending'], ['b@x.vn', 'queued']]);
     expect(await record(h, eventId, campaignId, [sent('a@x.vn')])).toMatchObject({ ok: true });
     expect(deliveries(h)).toEqual([['a@x.vn', 'sent'], ['b@x.vn', 'queued']]);
@@ -437,11 +437,11 @@ describe('comms.markSending', () => {
     const eventId = await h.createEvent();
     const { campaignId } = await start(h, eventId, [to('a@x.vn')]);
     const audits = h.audits().length;
-    expect(await marking(h, eventId, campaignId, 'a@x.vn')).toMatchObject({ ok: true });
+    expect(await marking(h, eventId, campaignId, 'a@x.vn')).toMatchObject({ ok: true, value: { held: true } });
     expect(deliveries(h)).toEqual([['a@x.vn', 'sending']]);
     // Marked again on a retry of the same message: nothing changes.
-    expect(await marking(h, eventId, campaignId, 'a@x.vn')).toMatchObject({ ok: true });
-    expect(await marking(h, eventId, campaignId, 'a@x.vn', TAB_B)).toMatchObject({ ok: false, kind: 'conflict' });
+    expect(await marking(h, eventId, campaignId, 'a@x.vn')).toMatchObject({ ok: true, value: { held: true } });
+    expect(await marking(h, eventId, campaignId, 'a@x.vn', TAB_B)).toMatchObject({ ok: true, value: { held: false } });
     expect(h.audits()).toHaveLength(audits);
   });
 });
@@ -466,7 +466,7 @@ describe('comms.releaseDeliveries', () => {
     const h = harness();
     const eventId = await h.createEvent();
     const { campaignId } = await start(h, eventId, [to('a@x.vn'), to('b@x.vn')]);
-    expect(await marking(h, eventId, campaignId, 'a@x.vn')).toMatchObject({ ok: true });
+    expect(await marking(h, eventId, campaignId, 'a@x.vn')).toMatchObject({ ok: true, value: { held: true } });
     // 202611041480: Postgres refuses to delete a 'sending' row; memoryDb does not emulate the guard.
     const postgresDeletes = (db: Db): Db => ({
       rpc: db.rpc.bind(db),

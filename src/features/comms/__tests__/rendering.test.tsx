@@ -89,6 +89,28 @@ describe('comms screens render untrusted text as text', () => {
     expect(screen.getByText('Môi trường phát triển')).toBeInTheDocument();
   });
 
+  it('a run whose next claim another run took stops as such, sends nothing and frees the rest', async () => {
+    const calls: string[] = [];
+    dispatched.mockImplementation(async (...args: unknown[]): Promise<never> => {
+      const id = args[0] as string;
+      calls.push(id);
+      if (id === 'comms.startCampaign') return { ok: true, value: { campaignId: '0b0e0b0e-0000-5000-8000-000000000009', claimed: ['a@x.vn'], alreadySent: [], inFlight: [], ownInFlight: [], unclear: [] } } as never;
+      if (id === 'comms.markSending') return { ok: true, value: { held: false } } as never;
+      return { ok: true, value: { released: 1 } } as never;
+    });
+    try {
+      const { user } = renderUi(withAppContext(<InvitationsPage data={invitationData({ devTransport: true })} />));
+      await user.click(screen.getAllByRole('checkbox', { name: 'Chọn dòng 1' })[0]!);
+      await user.click(screen.getByRole('button', { name: /Bắt đầu gửi \(1\)/ }));
+      await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Bắt đầu gửi' }));
+      expect(await screen.findByText(/Một phiên gửi khác đã tiếp quản những người nhận còn lại/)).toBeInTheDocument();
+      expect(calls).toEqual(['comms.startCampaign', 'comms.markSending', 'comms.releaseDeliveries']);
+    } finally {
+      dispatched.mockReset();
+      dispatched.mockImplementation(async () => ({ ok: true, value: null }));
+    }
+  });
+
   it('the Google Form screen shows public answers as text and offers review actions', async () => {
     const data: FormScreenData = {
       event,

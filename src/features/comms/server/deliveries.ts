@@ -347,9 +347,18 @@ export const markSending: CommandSpec<InputOf<'comms.markSending'>, OutputOf<'co
   authorize: send,
   async run(ctx, { eventId, campaignId, runToken, email }) {
     const d = (await byEmail(ctx, eventId, campaignId)).get(email);
-    if (!d || !heldBy(d, claimHash(runToken))) throw new CommandError('conflict', `Thư tới ${email} không còn do phiên gửi này giữ chỗ (đã có kết quả, hoặc một phiên khác đã tiếp quản). Kiểm tra Nhật ký gửi trước khi gửi tiếp.`);
-    if (d.status === 'queued') await ctx.db.table(deliveriesTable).update(d.id, { status: 'sending', claimProof: runToken }, { expectedVersion: d.version });
-    return { value: null, audit: null };
+    // A lost claim is an answer, not a failure: the run stops as claim_lost, which a failure could not tell apart.
+    if (!d || !heldBy(d, claimHash(runToken))) return { value: { held: false }, audit: null };
+    if (d.status === 'queued') {
+      try {
+        await ctx.db.table(deliveriesTable).update(d.id, { status: 'sending', claimProof: runToken }, { expectedVersion: d.version });
+      } catch (e) {
+        // Taken over or recorded between the read and the mark.
+        if (e instanceof DbError && e.kind === 'conflict') return { value: { held: false }, audit: null };
+        throw e;
+      }
+    }
+    return { value: { held: true }, audit: null };
   },
 };
 

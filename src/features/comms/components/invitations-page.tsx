@@ -161,7 +161,7 @@ export function InvitationsPage({ data }: { data: InvitationScreenData }) {
           await run('comms.releaseDeliveries', { eventId: data.event.id, campaignId, runToken, emails });
         },
         renew: async (campaignId, runToken) => (await run('comms.renewClaims', { eventId: data.event.id, campaignId, runToken }))?.held ?? null,
-        markSending: async (campaignId, runToken, email) => ((await run('comms.markSending', { eventId: data.event.id, campaignId, runToken, email })) === undefined ? null : true),
+        markSending: async (campaignId, runToken, email) => (await run('comms.markSending', { eventId: data.event.id, campaignId, runToken, email }))?.held ?? null,
       },
       async send(r) {
         let message: MailMessage;
