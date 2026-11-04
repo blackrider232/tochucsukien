@@ -242,7 +242,7 @@ export function InvitationsPage({ data }: { data: InvitationScreenData }) {
           />
         </div>
         <Form form={form} onSubmit={start} className="min-w-0 space-y-4 lg:col-span-7">
-          <SectionCard title="Hòm thư gửi" subtitle="Gmail gửi bằng tài khoản Google đang đăng nhập, nên phải đăng nhập đúng hòm thư đã chọn" icon="mail">
+          <SectionCard title="Hòm thư gửi" subtitle="Thư đi qua Gmail của tài khoản Google bạn đăng nhập ở đây (không phải tài khoản phần mềm), nên tài khoản đó phải đúng là hòm thư đã chọn" icon="mail">
             <div className="space-y-3">
               <FormField label="Gửi từ hòm thư" name="senderId" required>
                 <Select name="senderId" options={mailboxOptions} />
