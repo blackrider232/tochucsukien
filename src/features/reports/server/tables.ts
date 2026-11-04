@@ -1,5 +1,5 @@
 // The four tables reports owns (0002_domain_tables.sql, plus the snapshot
-// columns of 202611041300_reports_issue_snapshot.sql). Issued daily reports are
+// columns of 202611041400_reports_issue_snapshot.sql). Issued daily reports are
 // immutable: no update or delete policy exists for them.
 
 import { z } from 'zod';

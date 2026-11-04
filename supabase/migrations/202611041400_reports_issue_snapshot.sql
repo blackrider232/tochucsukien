@@ -1,4 +1,4 @@
--- 202611041300_reports_issue_snapshot.sql
+-- 202611041400_reports_issue_snapshot.sql
 -- An issued daily report is a snapshot (m6 BUG-12/13): it now also freezes the
 -- event name and date and the signer's title it was issued under, so a later
 -- rename or a moved T0 does not rewrite a document already sent to UBND TP.

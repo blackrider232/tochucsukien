@@ -9,7 +9,7 @@ Branch `t3/b312cd83`. The feature lives in `src/features/reports/`. The routes a
   - Progress, the invite quota and the booth counts come from `eventProgress`/`isInDailyReportWindow` (progress), `guestKpis`/`quotaProgress` (guests, decision 2) and `boothKpis` (venue). So a report never disagrees with the screen that owns the number.
   - `report.ts` is the NĐ30 document model (`dailyReportDocument`), built only from an issued snapshot or from today's figures for a preview. It also holds the signer title (decision 17) and the snapshot milestone.
   - `word.ts` renders that model as Word HTML: tables with inline styles, escaped by the `html` tag, and a folded file name. `schemas.ts` holds the zod rules the forms and the commands share, the closed lists with their registries, and `nextPackageCode`. `screen.ts` holds the screen data type.
-- **Data**. `202611041300_reports_issue_snapshot.sql`:
+- **Data**. `202611041400_reports_issue_snapshot.sql`:
   - It freezes the event name and date and the signer title on an issued report.
   - A trigger stamps `issued_by`, `issued_at` and `report_date` (VN day) from the server for any user session, so a report cannot be backdated or signed as someone else. The service-role import keeps its legacy values.
   - It adds check constraints for the media types and contract statuses, and non-blank code, name, outlet and title.
@@ -147,7 +147,7 @@ Choices made here that a product owner may want to revisit, each reversible:
 
 1. **progress.** Point the daily-report bell and its pop-up rows at `/events/<id>/reports` (BUG-21).
 2. **templates.** The three official templates should fill the event's data when opened with `?event=` (BUG-18). reports passes the event id.
-3. **Lead.** Apply `202611041300_reports_issue_snapshot.sql` on a local `supabase start`, and check the trigger with a real `auth.uid()` and the `Asia/Ho_Chi_Minh` day.
+3. **Lead.** Apply `202611041400_reports_issue_snapshot.sql` on a local `supabase start`, and check the trigger with a real `auth.uid()` and the `Asia/Ho_Chi_Minh` day.
 4. **comms.** Sending a press release, if product wants it.
 5. **Realtime.** The report screens do not subscribe to `useEventChanges`. They refresh after the actor's own command and on navigation.
 
