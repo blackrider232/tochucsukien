@@ -6,7 +6,9 @@
 // phrase right after a negation ("không tham dự", "không cử người đi thay")
 // counts as its opposite or not at all. Unsure, or both yes and no, is null,
 // and null never changes a guest (m4c B21): a declined answer frees a seat,
-// so only a clear one may.
+// so only a clear one may. Folding makes "vâng" (yes) and "vắng" (absent)
+// one word, so those two are read on the accented text, and "vang" typed
+// without diacritics is no answer.
 
 import type { RsvpStatus } from '@/core/vocab';
 import { words } from './columns';
@@ -15,29 +17,37 @@ type Cue = 'yes' | 'no' | 'unsure' | 'substitute' | 'none';
 
 /** Whole answers, as the Form's choices are written. Single words like "có", "bận" are read only here. */
 const LABELS: ReadonlyMap<string, 'yes' | 'no'> = new Map([
-  ...['co', 'yes', 'y', 'ok', 'dong y', 'xac nhan', 'chac chan', 'tham du', 'co tham du', 'se tham du'].map((l) => [l, 'yes'] as const),
-  ...['khong', 'no', 'n', 'ban', 'toi ban', 'em ban', 'ban viec', 'vang', 'vang mat', 'tu choi', 'khong tham du', 'khong co'].map((l) => [l, 'no'] as const),
+  ...['co', 'yes', 'y', 'ok', 'dong y', 'xac nhan', 'chac chan', 'tham du', 'co tham du', 'se tham du', 'vâng', 'xin vâng', 'da vâng'].map((l) => [l, 'yes'] as const),
+  ...['khong', 'no', 'n', 'ban', 'toi ban', 'em ban', 'ban viec', 'vắng', 'vắng mat', 'vang mat', 'tu choi', 'khong tham du', 'khong co'].map((l) => [l, 'no'] as const),
 ]);
 
-const UNSURE = ['co the', 'chua chac', 'chua biet', 'chua xac dinh', 'bao sau', 'bao lai sau', 'maybe', 'perhaps', 'not sure'];
+const UNSURE = ['co the', 'chua chac', 'chua biet', 'chua xac dinh', 'bao sau', 'bao lai sau', 'maybe', 'perhaps', 'not sure', 'vang'];
 const RSVP: ReadonlyArray<readonly [string, Cue]> = [
   ...UNSURE.map((p) => [p, 'unsure'] as const),
   ...['cu nguoi di thay', 'nguoi di thay', 'di thay', 'nguoi thay', 'cu dai dien', 'cu can bo', 'substitute'].map((p) => [p, 'substitute'] as const),
   // Banquet and organisation words are read, so that their "tham dự" or "có" is not taken for the RSVP.
   ...['tham du tiec', 'du tiec', 'an tiec', 'co quan'].map((p) => [p, 'none'] as const),
-  ...['tham du', 'tham gia', 'se den', 'se du', 'co mat', 'dong y', 'yes', 'attend', 'attending'].map((p) => [p, 'yes'] as const),
-  ...['tu choi', 'vang mat', 'xin vang', 'xin phep vang', 'bao vang', 'ban cong tac', 'ban viec', 'ban lich', 'trung lich', 'decline', 'declined'].map((p) => [p, 'no'] as const),
+  ...['tham du', 'tham gia', 'se den', 'se du', 'co mat', 'dong y', 'yes', 'attend', 'attending', 'vâng'].map((p) => [p, 'yes'] as const),
+  ...['tu choi', 'vắng', 'vang mat', 'xin phep vang', 'bao vang', 'ban cong tac', 'ban viec', 'ban lich', 'trung lich', 'decline', 'declined'].map((p) => [p, 'no'] as const),
 ];
 const BANQUET: ReadonlyArray<readonly [string, Cue]> = [
   ...UNSURE.map((p) => [p, 'unsure'] as const),
   ...['co quan'].map((p) => [p, 'none'] as const),
   ...['tham du tiec', 'du tiec', 'an tiec', 'tham du', 'tham gia', 'co mat', 'dong y', 'yes', 'attend'].map((p) => [p, 'yes'] as const),
-  ...['tu choi', 'vang mat', 'decline'].map((p) => [p, 'no'] as const),
+  ...['tu choi', 'vắng', 'vang mat', 'decline'].map((p) => [p, 'no'] as const),
 ];
 /** Words that turn the phrase after them around. */
 const NEGATIONS = ['khong the', 'chua the', 'khong co', 'khong can', 'khong', 'chua', 'chang', 'cannot', 'can t', 'won t', 'will not', 'not', 'unable to'];
 
-const tokens = (raw: string) => words(raw).trim().split(' ').filter(Boolean);
+/** Words kept as typed, since folding would make them one: vâng is yes, vắng is absent. */
+const ACCENTED: ReadonlySet<string> = new Set(['vâng', 'vắng']);
+const tokens = (raw: string) =>
+  raw
+    .normalize('NFC')
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .flatMap((w) => (ACCENTED.has(w) ? [w] : words(w).trim().split(' ')))
+    .filter(Boolean);
 const longestFirst = (table: ReadonlyArray<readonly [string, Cue]>) => [...table].map(([p, c]) => [p.split(' '), c] as const).sort((a, b) => b[0].length - a[0].length);
 const RSVP_PHRASES = longestFirst(RSVP);
 const BANQUET_PHRASES = longestFirst(BANQUET);

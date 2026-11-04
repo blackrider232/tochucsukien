@@ -69,6 +69,16 @@ describe('comms.syncForm', () => {
     expect(responses()).toHaveLength(3);
   });
 
+  it('"Vâng" is yes: a confirmed guest who answers it stays confirmed; "Vang" typed plain changes nothing', async () => {
+    const { h, eventId, sync } = await setup();
+    const g = await h.addGuest(eventId, { email: 'e@a.vn' as Email });
+    sheet.text = csv('04/11/2026 10:00:00,Guest E,Công ty E,e@a.vn,,Có,,');
+    await sync();
+    sheet.text = csv('04/11/2026 10:00:00,Guest E,Công ty E,e@a.vn,,Có,,', '04/11/2026 11:00:00,Guest E,Công ty E,e@a.vn,,Vâng,,', '04/11/2026 12:00:00,Guest E,Công ty E,e@a.vn,,Vang,,');
+    expect(await sync()).toMatchObject({ fresh: 2, applied: 1, noAnswer: 1 });
+    expect(await h.guest(eventId, g.id)).toMatchObject({ rsvpStatus: 'confirmed', rsvpAt: '2026-11-04T04:00:00.000Z' });
+  });
+
   it('"Cử người đi thay" without a name is no answer: the guest is left as is, nothing fails', async () => {
     const { h, eventId, sync, responses } = await setup();
     const g = await h.addGuest(eventId, { email: 'an@a.vn' as Email, rsvpStatus: 'confirmed' });

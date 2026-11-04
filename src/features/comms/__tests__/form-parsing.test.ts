@@ -85,7 +85,9 @@ describe('detectColumns', () => {
 describe('answers', () => {
   // Each phrasing is checked as typed and without diacritics (folded the way many people type on a phone).
   const plain = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
-  const both = (rows: ReadonlyArray<readonly [string, unknown]>) => rows.flatMap(([raw, v]) => (plain(raw) === raw ? [[raw, v] as const] : [[raw, v] as const, [plain(raw), v] as const]));
+  /** [answer, reading, reading without diacritics when it differs]: "vâng" (yes) and "vắng" (absent) are both "vang" typed plain, which reads as no answer. */
+  const both = (rows: ReadonlyArray<readonly [string, unknown, unknown?]>) =>
+    rows.flatMap(([raw, v, ...p]) => (plain(raw) === raw ? [[raw, v] as const] : [[raw, v] as const, [plain(raw), p.length ? p[0] : v] as const]));
 
   it.each(
     both([
@@ -118,6 +120,12 @@ describe('answers', () => {
       ['Từ chối', 'declined'],
       ['Trùng lịch, xin phép vắng', 'declined'],
       ['No', 'declined'],
+      ['Vâng', 'confirmed', null],
+      ['Xin vâng', 'confirmed', null],
+      ['Dạ vâng', 'confirmed', null],
+      ['vắng mặt', 'declined'],
+      ['em xin phép vắng', 'declined'],
+      ['vang', null],
       ['Cử người đi thay', 'substituted'],
       ['Không tham dự, cử người đi thay', 'substituted'],
       ['Có thể', null],
