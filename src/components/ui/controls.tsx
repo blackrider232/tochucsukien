@@ -1,13 +1,13 @@
 'use client';
 
 import { useId, useState, type ChangeEvent, type FocusEventHandler, type Ref } from 'react';
-import { useWatch } from 'react-hook-form';
+import { useController, useWatch } from 'react-hook-form';
 import type {
   CheckboxProps, DateInputProps, MoneyInputProps, NumberInputProps, SelectProps, TextInputProps, TimeInputProps,
 } from './kit.types';
 import { controlClass } from './filter-bar';
 import { useOptionalHolidays } from './app-env';
-import { useControl } from './use-control';
+import { useControl, useControlMeta } from './use-control';
 
 export function TextInput({ name, placeholder, type = 'text', autoComplete }: TextInputProps) {
   const { id, register, aria } = useControl(name);
@@ -25,26 +25,26 @@ const MAX_MONEY_DIGITS = 15;
 
 /** Whole dong with '.' thousands separators. The form value is a plain integer (or undefined when empty). */
 export function MoneyInput({ name }: MoneyInputProps) {
-  const { form } = useControl(name);
+  const { form } = useControlMeta(name);
   return form ? <MoneyInBound name={name} /> : <MoneyInFree name={name} />;
 }
 
 function MoneyInBound({ name }: MoneyInputProps) {
-  const { id, form, aria, register } = useControl(name);
-  const watched = useWatch({ name, control: form?.control }) as unknown;
-  const digits = typeof watched === 'number' && Number.isFinite(watched) ? String(Math.trunc(watched)) : '';
+  const { id, aria } = useControlMeta(name);
+  const { field } = useController({ name });
+  const digits = typeof field.value === 'number' && Number.isFinite(field.value) ? String(Math.trunc(field.value)) : '';
   return (
     <MoneyBox
       id={id} name={name} digits={digits} aria={aria}
-      inputRef={'ref' in register ? register.ref : undefined}
-      onBlur={'onBlur' in register ? register.onBlur : undefined}
-      onDigits={(clean) => form?.setValue(name, clean === '' ? undefined : Number(clean), { shouldDirty: true, shouldValidate: form.formState.isSubmitted })}
+      inputRef={field.ref}
+      onBlur={field.onBlur}
+      onDigits={(clean) => field.onChange(clean === '' ? undefined : Number(clean))}
     />
   );
 }
 
 function MoneyInFree({ name }: MoneyInputProps) {
-  const { id, aria } = useControl(name);
+  const { id, aria } = useControlMeta(name);
   const [digits, setDigits] = useState('');
   return <MoneyBox id={id} name={name} digits={digits} aria={aria} onDigits={setDigits} />;
 }

@@ -37,8 +37,8 @@ function TabContent({ item, active }: { item: TabItem; active: boolean }) {
             active ? 'bg-white/25 text-current' : 'bg-surface-3 text-ink-2',
           )}
         >
-          {item.count}
-          <span className="sr-only"> mục</span>
+          <span aria-hidden="true">{item.count}</span>
+          <span className="sr-only">, {item.count} mục</span>
         </span>
       )}
     </>

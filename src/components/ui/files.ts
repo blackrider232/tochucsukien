@@ -44,7 +44,7 @@ export async function buildWorkbook(sheets: ReadonlyArray<XlsxSheet>) {
 
   for (const box of sheets as unknown as ReadonlyArray<SheetBox>) {
     const spec = box.spec;
-    const ws = workbook.addWorksheet(spec.name.replace(INVALID_SHEET_NAME, ' ').slice(0, 31) || 'Sheet1');
+    const ws = workbook.addWorksheet(spec.name.replace(INVALID_SHEET_NAME, ' ').trim().slice(0, 31) || 'Sheet1');
     const span = Math.max(spec.columns.length, 1);
     ws.columns = spec.columns.map((c) => ({ width: c.width }));
 

@@ -112,11 +112,11 @@ export function PrintLink({ href, label = 'In' }: PrintLinkProps) {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
+      aria-label={`${label} (mở tab mới)`}
       className="inline-flex min-h-touch shrink-0 items-center justify-center gap-2 rounded-control border border-line-strong bg-surface px-4 text-sm font-semibold text-ink hover:bg-surface-3"
     >
       <Icon name="printer" />
       {label}
-      <span className="sr-only"> (mở tab mới)</span>
     </a>
   );
 }

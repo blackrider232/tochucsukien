@@ -124,7 +124,7 @@ export function Combobox<T>({ name, search, itemKey, itemLabel, renderItem, onPi
         {...aria}
       />
       <div aria-live="polite" className="sr-only">
-        {open && status === 'ready' && items.length > 0 ? `${items.length} kết quả` : message}
+        {open && status === 'ready' ? `${items.length} kết quả` : ''}
       </div>
       {open && (
         <ul
