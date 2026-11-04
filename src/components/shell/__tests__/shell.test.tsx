@@ -113,11 +113,11 @@ describe('AppShell', () => {
     expect(screen.getByRole('button', { name: 'Đăng xuất' }).closest('form')).toHaveAttribute('action', '/auth/signout');
   });
 
-  it('never imports a feature: only load-shell reads the features registry', () => {
+  it('never imports a feature: only load-shell reads the slots record', () => {
     const dir = resolve(process.cwd(), 'src/components/shell');
     const offenders = readdirSync(dir)
       .filter((f) => /\.tsx?$/.test(f))
-      .filter((f) => /from '@\/features\/(?!registry')/.test(readFileSync(join(dir, f), 'utf8')) || (f !== 'load-shell.tsx' && /@\/features\//.test(readFileSync(join(dir, f), 'utf8'))));
+      .filter((f) => (f !== 'load-shell.tsx' ? /@\/features\//.test(readFileSync(join(dir, f), 'utf8')) : /from '@\/features\/(?!registry-slots')/.test(readFileSync(join(dir, f), 'utf8'))));
     expect(offenders).toEqual([]);
   });
 });
