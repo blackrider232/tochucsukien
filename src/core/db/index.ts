@@ -9,8 +9,12 @@
 // There is no third way to touch data.
 
 import type { EventId, Instant, UserId, Uuid, Version } from '@/core/brand';
-import type { Actor } from '@/core/auth';
 import type { FeatureKey } from '@/core/registry';
+import { DbError, type DbErrorKind } from './errors';
+
+export { DbError, type DbErrorKind };
+export { supabaseDb } from './supabase';
+export { memoryDb } from './memory';
 
 /** Satisfied structurally by a zod schema. Rows are parsed at this boundary only. */
 export interface Schema<T> {
@@ -41,9 +45,11 @@ export interface TableDef<Row extends BaseRow> {
   readonly row: Schema<Row>;
   /** Default order for list(). */
   readonly orderBy?: ReadonlyArray<{ column: keyof Row & string; ascending: boolean }>;
+  /** Column names that are not the snake_case of the field ('group' -> 'guest_group', 'budget' -> 'budget_vnd'). */
+  readonly columns?: { readonly [K in keyof Row & string]?: string };
 }
 export function defineTable<Row extends BaseRow>(def: TableDef<Row>): TableDef<Row> {
-  throw new Error('not implemented');
+  return def;
 }
 
 export type Where<Row> = { readonly [K in keyof Row]?: Row[K] | ReadonlyArray<Row[K]> };
@@ -84,29 +90,4 @@ export interface RpcMap {
   sce_tcsk_set_profile_status: { args: { ids: ReadonlyArray<UserId>; status: 'active' | 'locked' }; result: number };
   /** Creates the caller's missing profile (users from the shared project's other apps). */
   sce_tcsk_ensure_profile: { args: Record<string, never>; result: void };
-}
-
-export type DbErrorKind =
-  /** expectedVersion did not match: someone else saved first. */
-  | 'conflict'
-  /** Row absent or hidden by RLS. Never distinguish the two to the client. */
-  | 'not_found'
-  | 'forbidden'
-  /** Unique or check constraint, carries the constraint name for a Vietnamese message. */
-  | 'constraint'
-  | 'unavailable';
-export class DbError extends Error {
-  constructor(
-    readonly kind: DbErrorKind,
-    readonly detail?: { table?: string; constraint?: string },
-  ) {
-    super(kind);
-  }
-}
-
-export function supabaseDb(client: unknown, actor: Actor): Db {
-  throw new Error('not implemented');
-}
-export function memoryDb(seed: Readonly<Record<string, ReadonlyArray<Record<string, unknown>>>>, actor: Actor): Db {
-  throw new Error('not implemented');
 }
