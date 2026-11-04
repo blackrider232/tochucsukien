@@ -187,7 +187,7 @@ const applySeats: Spec<'venue.applySeats'> = {
   },
 };
 
-/** Asked by live (walk-in) and the guest list. 'auto' picks findFreeSeat for the guest's group; a seated guest keeps the seat. */
+/** Asked by live (walk-in) and the guest list. 'auto' picks findFreeSeat for the guest's group, again once if another desk took that seat first; a seated guest keeps the seat. */
 const assignSeat: Spec<'venue.assignSeat'> = {
   kind: 'mutation',
   input: asSchema(z.object({ eventId: eventIdSchema, guestId: guestIdSchema, seatCode: z.union([z.literal('auto'), seatCodeSchema]) })),
@@ -197,22 +197,31 @@ const assignSeat: Spec<'venue.assignSeat'> = {
     const roster = await requireRoster(ctx, eventId);
     const guest = roster.find((g) => g.id === guestId);
     if (!guest) throw new CommandError('not_found', 'Không tìm thấy đại biểu trong danh sách khách mời của sự kiện.');
-    const seats = await seatsOf(ctx, eventId);
-    const own = seats.find((s) => s.guestId === guestId);
-    const target = seatCode === 'auto'
-      ? (own && zoneOfSeat(hall, own.seatCode) ? own.seatCode : findFreeSeat(hall, new Set(seats.map((s) => s.seatCode)), guest.group))
-      : seatCode;
-    const noop = (summary: string) => audit('XẾP CHỖ NGỒI', summary, eventId, 'seating', guestId);
-    if (!target) return { value: null, audit: noop(`Không còn ghế trống phù hợp cho ${guest.name}`) };
-    if (own?.seatCode === target) return { value: toSeat(own), audit: noop(`${guest.name} giữ nguyên ghế ${target}`) };
-    const occupant = seats.find((s) => s.seatCode === target);
-    if (occupant) throw new CommandError('conflict', `Ghế ${target} đã có ${nameOf(roster, occupant.guestId)} ngồi.`);
-    const changes: SeatChange[] = [{ seatCode: target, from: null, to: guestId }, ...(own ? [{ seatCode: own.seatCode, from: guestId, to: null }] : [])];
-    const done = await writeSeatChanges(ctx, eventId, hall, changes);
-    return {
-      value: toSeat(done.rows[0]!),
-      ...seatOutcome(eventId, hall, 'XẾP CHỖ NGỒI', `Xếp chỗ: ${seatSummary(done.changes, roster)}`, done.changes, `Xếp ${guest.name} vào ghế ${target}`),
+    const place = async () => {
+      const seats = await seatsOf(ctx, eventId);
+      const own = seats.find((s) => s.guestId === guestId);
+      const target = seatCode === 'auto'
+        ? (own && zoneOfSeat(hall, own.seatCode) ? own.seatCode : findFreeSeat(hall, new Set(seats.map((s) => s.seatCode)), guest.group))
+        : seatCode;
+      const noop = (summary: string) => audit('XẾP CHỖ NGỒI', summary, eventId, 'seating', guestId);
+      if (!target) return { value: null, audit: noop(`Không còn ghế trống phù hợp cho ${guest.name}`) };
+      if (own?.seatCode === target) return { value: toSeat(own), audit: noop(`${guest.name} giữ nguyên ghế ${target}`) };
+      const occupant = seats.find((s) => s.seatCode === target);
+      if (occupant) throw new CommandError('conflict', `Ghế ${target} đã có ${nameOf(roster, occupant.guestId)} ngồi.`);
+      const changes: SeatChange[] = [{ seatCode: target, from: null, to: guestId }, ...(own ? [{ seatCode: own.seatCode, from: guestId, to: null }] : [])];
+      const done = await writeSeatChanges(ctx, eventId, hall, changes);
+      return {
+        value: toSeat(done.rows[0]!),
+        ...seatOutcome(eventId, hall, 'XẾP CHỖ NGỒI', `Xếp chỗ: ${seatSummary(done.changes, roster)}`, done.changes, `Xếp ${guest.name} vào ghế ${target}`),
+      };
     };
+    try {
+      return await place();
+    } catch (e) {
+      // Two desks seating walk-ins at once pick the same free seat; the one that loses picks again, once.
+      if (seatCode !== 'auto' || !(e instanceof CommandError) || e.kind !== 'conflict') throw e;
+      return place();
+    }
   },
 };
 

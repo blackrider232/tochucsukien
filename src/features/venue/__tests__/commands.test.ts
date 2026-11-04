@@ -21,10 +21,10 @@ const seat = (c: string) => c as SeatCode;
 
 afterEach(() => rosterReady(true));
 
-/** A Db that runs `hook` once, right after the first `op` on `table`: a second writer acting in the middle of a command. */
-function interleave(table: string, op: 'removeWhere' | 'update', hook: () => Promise<unknown>) {
+/** A Db that runs `hook` once, right after the `nth` call of `op` on `table`: a second writer acting in the middle of a command. */
+function interleave(table: string, op: 'list' | 'removeWhere' | 'update', hook: () => Promise<unknown>, nth = 1) {
   return (db: Db): Db => {
-    let fired = false;
+    let calls = 0;
     return {
       ...db,
       table: (def) => {
@@ -35,10 +35,7 @@ function interleave(table: string, op: 'removeWhere' | 'update', hook: () => Pro
           ...t,
           [op]: async (...args: unknown[]) => {
             const out = await write(...args);
-            if (!fired) {
-              fired = true;
-              await hook();
-            }
+            if (++calls === nth) await hook();
             return out;
           },
         } as typeof t as Table<never> as never;
@@ -92,6 +89,14 @@ describe('venue.assignSeat (asked by live)', () => {
     expect((await h.ok(xtdtUser, 'venue.assignSeat', { eventId, guestId: g.dn1, seatCode: 'auto' })).value?.seatCode).toBe('C-01');
     expect((await h.ok(xtdtUser, 'venue.assignSeat', { eventId, guestId: g.so1, seatCode: 'auto' })).value?.seatCode).toBe('B-01');
     expect(h.rows('sce_tcsk_seat_assignments')).toHaveLength(2);
+  });
+
+  it.each([['after the pick', 1], ['after the check', 2]])("two desks seating walk-ins with 'auto' at once both get a seat when the rival acts %s (review finding 4)", async (_, nth) => {
+    const { h, eventId, g } = await setup();
+    const rival = () => h.ok(admin, 'venue.assignSeat', { eventId, guestId: g.dn1, seatCode: seat('B-01') });
+    const r = await h.runWith(xtdtUser, interleave('sce_tcsk_seat_assignments', 'list', rival, nth), 'venue.assignSeat', { eventId, guestId: g.so1, seatCode: 'auto' });
+    expect(r).toMatchObject({ ok: true, value: { seatCode: 'B-02' } });
+    expect(await h.seats(eventId)).toEqual({ 'B-01': g.dn1, 'B-02': g.so1 });
   });
 
   it('refuses a declined guest, a seat the hall does not have, and a guest of another event', async () => {
