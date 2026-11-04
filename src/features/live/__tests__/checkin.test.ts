@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { Instant } from '@/core/brand';
 import { testActor, XTDT } from '@/core/testing/actors';
-import { desk, harness, interleave, NOW } from './harness';
+import { checkinsTable } from '../server/tables';
+import { admin, desk, harness, interleave, NOW } from './harness';
 
 const LATER = '2026-12-15T00:46:00.000Z' as Instant;
 const actions = (h: ReturnType<typeof harness>) => h.audits().map((a) => a.action);
@@ -98,6 +99,16 @@ describe('declined guests (decision 7)', () => {
     expect(h.audits().at(-1)).toMatchObject({ action: 'CHECK-IN ĐẠI BIỂU BÁO VẮNG', summary: 'Xác nhận check-in đại biểu đã báo vắng: Lê Thị Vắng (Báo Thử)' });
   });
 
+  it('a declined guest already checked in through the confirmation re-scans as already, not as a new confirmation (review M02)', async () => {
+    const { h, eventId } = await setup();
+    const declined = await h.addGuest(eventId, { name: 'Lê Thị Vắng', rsvpStatus: 'declined' });
+    await h.ok(desk, 'live.checkInDeclined', { eventId, guestId: declined.id, desk: null });
+    h.clock.now = LATER;
+    const again = await h.run(desk, 'live.checkIn', { eventId, guestId: declined.id, desk: null });
+    expect(again).toMatchObject({ ok: true, value: { already: true, checkIn: { checkedInAt: NOW } } });
+    expect(actions(h).at(-1)).toBe('QUÉT LẠI CHECK-IN');
+  });
+
   it('an undone cancel is refused once the guest has declined in between', async () => {
     const { h, eventId, guest } = await setup();
     await h.ok(desk, 'live.checkIn', { eventId, guestId: guest.id, desk: null });
@@ -120,6 +131,21 @@ describe('cancel, restore and the welcome pack', () => {
 
     await h.ok(desk, 'live.checkIn', { eventId, guestId: guest.id, desk: null });
     expect(await h.undo(desk, cancel.inverse)).toMatchObject({ ok: false, kind: 'conflict' });
+  });
+
+  it('a legacy gift-only row: no gift on top without a check-in, taking the gift back removes the row, a check-in keeps the gift (review M12)', async () => {
+    const { h, eventId, guest } = await setup();
+    const legacy = () => h.ctx(admin).db.table(checkinsTable).insert({ eventId, guestId: guest.id, checkedInAt: null, checkedInBy: null, desk: null, giftGivenAt: NOW });
+    await legacy();
+    const r = await h.run(desk, 'live.setGift', { eventId, guestId: guest.id, given: true });
+    expect(r).toMatchObject({ ok: false, kind: 'invalid' });
+    expect(r.ok ? '' : r.message).toContain('chưa check-in');
+    await h.ok(desk, 'live.setGift', { eventId, guestId: guest.id, given: false });
+    expect(await h.checkins(eventId)).toEqual([]);
+    await legacy();
+    h.clock.now = LATER;
+    await h.ok(desk, 'live.checkIn', { eventId, guestId: guest.id, desk: null });
+    expect(await h.checkins(eventId)).toEqual([expect.objectContaining({ checkedInAt: LATER, giftGivenAt: NOW })]);
   });
 
   it('cancel without a check-in changes nothing and says so', async () => {

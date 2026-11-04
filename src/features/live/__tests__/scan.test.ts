@@ -67,10 +67,12 @@ describe('live.scan: every matchScan outcome against the live roster (m5 BUG-06,
     expect(await scan(` ${an.checkinCode.toLowerCase().replace(/0/g, 'o')} `)).toMatchObject({ kind: 'ok', guest: { id: an.id } });
   });
 
-  it('matches a normalized phone exactly, and lists both guests when two share it', async () => {
+  it('matches a normalized phone exactly, never by its tail, and lists both guests when two share it (review M16)', async () => {
     const { h, eventId, an, scan } = await setup();
     expect(await scan('0913210001')).toMatchObject({ kind: 'ok', guest: { id: an.id } });
     expect(await scan('091321000')).toEqual({ kind: 'not_found' });
+    expect(await scan('913210001')).toEqual({ kind: 'not_found' });
+    expect(await scan('13210001')).toEqual({ kind: 'not_found' });
     await h.addGuest(eventId, { name: 'Phạm Thị Cúc', phone: '0913-210-001' });
     const r = await scan('0913.210.001');
     expect(r.kind).toBe('ambiguous');
