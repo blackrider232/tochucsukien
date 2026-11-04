@@ -15,6 +15,7 @@ import { canIdentify, detectColumns } from '../domain/columns';
 import { CsvError, parseCsv } from '../domain/csv';
 import { buildMatchIndex, matchResponse, type MatchIndex } from '../domain/matching';
 import { parseColumnMap, parseResponseRow } from '../domain/responses';
+import type { SyncReport } from '../domain/sync-report';
 import { columnMapSchema, eventIdSchema, formConfigSchema, guestIdSchema, responseIdSchema, versionSchema } from '../domain/schemas';
 import { asSchema, audit, inverse } from './command-kit';
 import { fetchSheetCsv } from './sheet-fetch';
@@ -72,10 +73,6 @@ export const saveColumnMap: CommandSpec<InputOf<'comms.saveColumnMap'>, FormRow>
   },
 };
 
-/** What a sync did, counted from what actually happened to each row. */
-export type SyncReport =
-  | { status: 'ok'; rows: number; fresh: number; applied: number; stale: number; noAnswer: number; review: number; created: number; failed: number; failures: ReadonlyArray<string> }
-  | { status: 'error'; message: string };
 
 interface Tally {
   applied: number;

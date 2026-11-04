@@ -8,7 +8,8 @@ import type { SenderMailbox } from '../contract';
 import type { ColumnMap } from '../domain/columns';
 import type { DeliveryResult, FormConfig, MailboxDraft } from '../domain/schemas';
 import { recordDeliveries } from './deliveries';
-import { resolveResponse, saveColumnMap, saveForm, syncForm, type SyncReport } from './form';
+import type { SyncReport } from '../domain/sync-report';
+import { resolveResponse, saveColumnMap, saveForm, syncForm } from './form';
 import { deleteMailbox, restoreMailbox, saveMailbox } from './mailboxes';
 import type { ApplyStatus, FormRow } from './tables';
 

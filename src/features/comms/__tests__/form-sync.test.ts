@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Email, EventId } from '@/core/brand';
-import type { SyncReport } from '../server/form';
+import type { SyncReport } from '../domain/sync-report';
 import type { ResponseRow } from '../server/tables';
 import { admin, harness, xtdtUser } from './harness';
 
