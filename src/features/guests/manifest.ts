@@ -22,7 +22,7 @@ export const guestsManifest = defineFeature({
     },
   ],
   subTabs: [
-    { parentNav: 'guests', id: 'guest-list', order: 10, label: 'Danh sách khách mời', href: { kind: 'event', segment: 'guests' }, permission: 'guests.read' },
+    { parentNav: 'guests', id: 'guest-list', order: 10, label: 'Danh sách khách mời & RSVP', href: { kind: 'event', segment: 'guests' }, permission: 'guests.read' },
   ],
   routes: [
     { dir: '(app)/events/[eventId]/guests', permission: 'guests.read' },
