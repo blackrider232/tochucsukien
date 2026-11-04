@@ -165,6 +165,16 @@ describe('live.checkInSubstitute (m5 BUG-15)', () => {
     expect(await h.entry(eventId, guest.id)).toMatchObject({ rsvpStatus: 'confirmed', substituteName: '', checkedInAt: null, seatCode: 'B-02' });
   });
 
+  it('undo of a substitute refuses a plain check-in: no check-in removed, no RSVP rewritten (review LOW-1)', async () => {
+    const { h, eventId, guest } = await invited();
+    const c = await h.ok(desk, 'live.checkIn', { eventId, guestId: guest.id, desk: null });
+    const before = h.audits().length;
+    const r = await h.run(desk, 'live.undoSubstitute', { eventId, guestId: guest.id, checkedInAt: c.value.checkIn.checkedInAt!, guestVersion: guest.version, rsvpStatus: 'declined', substituteName: '' });
+    expect(r).toMatchObject({ ok: false, kind: 'conflict' });
+    expect(await h.entry(eventId, guest.id)).toMatchObject({ rsvpStatus: 'confirmed', checkedInAt: c.value.checkIn.checkedInAt });
+    expect(h.audits()).toHaveLength(before);
+  });
+
   it('refuses a guest already checked in, and a declined guest without the confirmation', async () => {
     const { h, eventId, guest } = await invited();
     const declined = await h.addGuest(eventId, { name: 'Người vắng', rsvpStatus: 'declined' });

@@ -197,7 +197,10 @@ export const checkInSubstitute: Spec<'live.checkInSubstitute'> = {
   },
 };
 
-/** Takes a substitute back: the check-in, then the RSVP as it was, both by their owners and only if nothing changed since. */
+/**
+ * Takes a substitute back: the check-in, then the RSVP as it was, both by their owners. Only a guest still marked
+ * substituted at the version the substitute left, with that check-in, is taken back.
+ */
 export const undoSubstitute: Spec<'live.undoSubstitute'> = {
   kind: 'mutation',
   input: asSchema(
@@ -213,6 +216,7 @@ export const undoSubstitute: Spec<'live.undoSubstitute'> = {
   authorize: checkinWrite,
   async run(ctx, { eventId, guestId, checkedInAt, guestVersion, rsvpStatus, substituteName }) {
     const guest = await guestOf(ctx, eventId, guestId);
+    if (guest.rsvpStatus !== 'substituted') throw new CommandError('conflict', `${guest.name} không có người đi thay để hoàn tác. Đang tải lại…`);
     if (guest.version !== guestVersion) throw new CommandError('conflict', `Hồ sơ ${guest.name} đã được sửa sau đó, nên không hoàn tác được. Đang tải lại…`);
     if (guest.checkedInAt !== checkedInAt) throw new CommandError('conflict', `Check-in của ${guest.name} đã thay đổi sau đó, nên không hoàn tác được. Đang tải lại…`);
     await ctx.call('live.undoCheckIn', { eventId, guestId, checkedInAt });
