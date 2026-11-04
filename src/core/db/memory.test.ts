@@ -136,6 +136,28 @@ describe('memoryDb rows, defaults and managed columns', () => {
   });
 });
 
+describe('memoryDb insertMany', () => {
+  it('inserts thousands of rows in linear time', async () => {
+    const { as, xtdt } = setup();
+    const t = as(xtdt).table(guestsTable);
+    const drafts = Array.from({ length: 6000 }, (_, i) => draft(E1, G(i + 1), `K${i}`));
+    const started = performance.now();
+    const rows = await t.insertMany(drafts);
+    expect(rows).toHaveLength(6000);
+    // One scan per row took 4.6 s for these 6000 rows; one pass takes about 0.15 s.
+    expect(performance.now() - started).toBeLessThan(1500);
+  });
+
+  it('returns a row already stored instead of a second copy, and checks unique keys within the batch', async () => {
+    const { as, xtdt } = setup();
+    const t = as(xtdt).table(guestsTable);
+    await t.insert(draft(E1, G(1), 'A'));
+    expect((await t.insertMany([draft(E1, G(1), 'A'), draft(E1, G(2), 'B')])).map((g) => g.name)).toEqual(['A', 'B']);
+    const err = await rejectsWith(t.insertMany([{ ...draft(E1, G(3), 'C'), checkinCode: 'TWICE1' }, { ...draft(E1, G(4), 'D'), checkinCode: 'TWICE1' }]), 'constraint');
+    expect(err.detail?.constraint).toBe('sce_tcsk_guests_event_id_checkin_code_key');
+  });
+});
+
 describe('memoryDb optimistic concurrency and idempotency', () => {
   it('bumps the version and refuses a stale expectedVersion', async () => {
     const { as, xtdt } = setup();

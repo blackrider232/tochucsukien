@@ -192,14 +192,42 @@ function memoryTable<R extends BaseRow>(store: Store, actor: Actor, rls: Rls, de
     }
   }
 
-  function insertRow(values: Row): Row {
+  /** The unique keys of the stored rows, for checking a batch in one pass instead of one scan per row. */
+  function uniqueIndex() {
+    const keyOf = (row: Row, columns: ReadonlyArray<string>) =>
+      columns.some((c) => row[c] === null || row[c] === undefined) ? null : JSON.stringify(columns.map((c) => row[c]));
+    const keys = (meta?.uniques ?? []).map((u) => ({ ...u, seen: new Set(all().flatMap((r) => keyOf(r, u.columns) ?? [])) }));
+    return {
+      assert(row: Row): void {
+        const clash = keys.find((u) => {
+          const key = keyOf(row, u.columns);
+          return key !== null && u.seen.has(key);
+        });
+        if (clash) throw new DbError('constraint', { table: name, constraint: clash.name });
+      },
+      add(row: Row): void {
+        for (const u of keys) {
+          const key = keyOf(row, u.columns);
+          if (key !== null) u.seen.add(key);
+        }
+      },
+    };
+  }
+
+  /** A new row as Postgres would store it, checked but not yet stored. */
+  function newRow(values: Row, assertKeys: (row: Row) => void): Row {
     const row = withDefaults(values);
     row.version = 1;
     row.created_at = row.updated_at = now();
     row.created_by = row.updated_by = actor.profile.id;
     if (!rls.allows(meta, 'insert', row)) throw new DbError('forbidden', { table: name });
     assertNotNull(row);
-    assertUnique(row);
+    assertKeys(row);
+    return row;
+  }
+
+  function insertRow(values: Row): Row {
+    const row = newRow(values, (r) => assertUnique(r));
     all().push(row);
     return row;
   }
@@ -251,14 +279,24 @@ function memoryTable<R extends BaseRow>(store: Store, actor: Actor, rls: Rls, de
       }
       return parse(insertRow({ ...toColumns(def, draft), id }));
     },
+    /** One statement: every row is checked before any is stored, so a refused batch stores nothing. */
     async insertMany(drafts) {
-      const out: R[] = [];
-      for (const d of drafts) {
+      const stored = new Map(all().map((r) => [r.id, r]));
+      const keys = uniqueIndex();
+      const added: Row[] = [];
+      const out = drafts.map((d) => {
         const id = d.id ?? newId();
-        const existing = visibleById(id);
-        out.push(existing ? parse(existing) : parse(insertRow({ ...toColumns(def, d), id })));
-      }
-      return out;
+        const existing = stored.get(id);
+        if (existing && rls.allows(meta, 'read', existing)) return existing;
+        const row = newRow({ ...toColumns(def, d), id }, (r) => keys.assert(r));
+        keys.add(row);
+        stored.set(id, row);
+        added.push(row);
+        return row;
+      });
+      const rows = all();
+      for (const row of added) rows.push(row);
+      return out.map(parse);
     },
     async upsertOn(key, draft) {
       const values = toColumns(def, draft);
