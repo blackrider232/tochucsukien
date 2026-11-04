@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { newId, type CampaignId, type Email, type EventId, type GuestId, type Instant } from '@/core/brand';
 import { testActor, XTDT } from '@/core/testing/actors';
-import { campaignIdFor, CLAIM_LEASE_MS } from '../server/deliveries';
+import { campaignIdFor, CLAIM_LEASE_MS, CLAIM_SKEW_MS } from '../server/deliveries';
 import { deliveryLogData, invitationScreenData } from '../server/screen-data';
 import { admin, failingWrites, harness, NOW, xtdtUser } from './harness';
 
@@ -84,8 +84,19 @@ describe('comms.startCampaign', () => {
     expect(await start(h, eventId, [to('a@x.vn')], colleague, MESSAGE, TAB_B, true)).toMatchObject({ claimed: [], inFlight: ['a@x.vn'] });
     // The run that holds it carries on.
     expect(await start(h, eventId, [to('a@x.vn')])).toMatchObject({ claimed: ['a@x.vn'], inFlight: [] });
-    h.clock.now = new Date(Date.parse(String((h.rows('sce_tcsk_email_deliveries') as Array<{ email: string; updated_at: string }>).find((r) => r.email === 'a@x.vn')!.updated_at)) + CLAIM_LEASE_MS + 1).toISOString() as Instant;
+    after(h, 'a@x.vn', CLAIM_LEASE_MS + CLAIM_SKEW_MS);
     expect(await start(h, eventId, [to('a@x.vn')], colleague, MESSAGE, TAB_B)).toMatchObject({ claimed: ['a@x.vn'], inFlight: [] });
+  });
+
+  it('a server clock that runs a little ahead of the database’s does not end a live claim early', async () => {
+    const h = harness();
+    const eventId = await h.createEvent();
+    await start(h, eventId, [to('a@x.vn')]);
+    // updated_at is the database's time; the command's clock is the app server's, here a minute ahead past the lease.
+    after(h, 'a@x.vn', CLAIM_LEASE_MS + 60_000);
+    expect(await start(h, eventId, [to('a@x.vn')], colleague, MESSAGE, TAB_B)).toMatchObject({ claimed: [], inFlight: ['a@x.vn'] });
+    after(h, 'a@x.vn', CLAIM_LEASE_MS + CLAIM_SKEW_MS);
+    expect(await start(h, eventId, [to('a@x.vn')], colleague, MESSAGE, TAB_B)).toMatchObject({ claimed: ['a@x.vn'] });
   });
 
   it('a second tab of the same officer claims nothing the first tab holds, so nobody is mailed twice', async () => {
@@ -366,8 +377,8 @@ describe('comms.renewClaims', () => {
     expect(renewed.value).toEqual({ held: ['b@x.vn'] });
     at(31);
     expect(await start(h, eventId, [to('a@x.vn'), to('b@x.vn')], colleague, MESSAGE, TAB_B)).toMatchObject({ claimed: [], alreadySent: ['a@x.vn'], inFlight: ['b@x.vn'] });
-    // Without a renewal the lease runs out and the claim may be taken over.
-    at(60);
+    // Without a renewal the lease (and the clock-skew margin) runs out and the claim may be taken over.
+    at(29 + (CLAIM_LEASE_MS + CLAIM_SKEW_MS) / 60_000);
     expect(await start(h, eventId, [to('b@x.vn')], colleague, MESSAGE, TAB_B)).toMatchObject({ claimed: ['b@x.vn'] });
     expect((await h.ok(xtdtUser, 'comms.renewClaims', { eventId, campaignId, runToken: TAB_A })).value).toEqual({ held: [] });
   });

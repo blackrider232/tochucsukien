@@ -24,14 +24,14 @@ import type { CampaignId, Email, EventId, GuestId, Instant } from '@/core/brand'
 import { CommandError, type CommandContext, type CommandSpec, type InputOf, type OutputOf } from '@/core/commands';
 import { DbError } from '@/core/db';
 import { devMemoryEnabled } from '@/core/dev/mode';
-import { CLAIM_LEASE_MS } from '../domain/campaign';
+import { CLAIM_LEASE_MS, CLAIM_SKEW_MS } from '../domain/campaign';
 import { campaignIdSchema, deliveryResultSchema, eventIdSchema, guestIdSchema, MAX_CLAIM_BATCH, requiredEmailSchema, runTokenSchema, type RunToken } from '../domain/schemas';
 import { DEV_FAKE_ID_PREFIX } from '../domain/transport';
 import { asSchema, audit, auditPartial } from './command-kit';
 import { campaignsTable, deliveriesTable, type DeliveryRow } from './tables';
 
 export const MAX_DELIVERY_BATCH = 50;
-export { CLAIM_LEASE_MS };
+export { CLAIM_LEASE_MS, CLAIM_SKEW_MS };
 
 const send = { perm: 'comms.send', event: (i: { eventId: EventId }) => i.eventId } as const;
 
@@ -47,7 +47,8 @@ export function campaignIdFor(eventId: EventId, subject: string, body: string): 
 const byEmail = async (ctx: CommandContext, eventId: EventId, campaignId: CampaignId) =>
   new Map((await ctx.db.table(deliveriesTable).list({ eventId, campaignId })).map((d) => [d.email, d]));
 
-const leaseExpired = (ctx: CommandContext, d: DeliveryRow) => Date.parse(ctx.now) - Date.parse(d.updatedAt) >= CLAIM_LEASE_MS;
+/** updated_at is the database's clock, ctx.now the app server's: the skew margin keeps a live claim from ending early. */
+const leaseExpired = (ctx: CommandContext, d: DeliveryRow) => Date.parse(ctx.now) - Date.parse(d.updatedAt) >= CLAIM_LEASE_MS + CLAIM_SKEW_MS;
 /** Held by the run `runToken` names: claimed, or being sent. */
 const heldBy = (d: DeliveryRow, runToken: RunToken) => (d.status === 'queued' || d.status === 'sending') && d.claimToken === runToken;
 const IN_FLIGHT_LOST = 'Phiên gửi đã dừng khi đang gửi thư này, nên chưa rõ thư đã đi hay chưa. Kiểm tra mục Đã gửi của Gmail.';

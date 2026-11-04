@@ -15,6 +15,11 @@ import { MAX_CLAIM_BATCH, type RunToken } from './schemas';
 
 /** A claim untouched this long belongs to a run that died, and any run may take it over. */
 export const CLAIM_LEASE_MS = 30 * 60_000;
+/**
+ * The lease compares the command's clock (the app server's) with the row's updated_at (the database's): a claim is
+ * taken for a dead run's only this much after the lease, so a server clock a little ahead never ends a live claim.
+ */
+export const CLAIM_SKEW_MS = 2 * 60_000;
 /** A live run renews its claims this often, before its next message. */
 export const CLAIM_RENEW_MS = 5 * 60_000;
 /**
