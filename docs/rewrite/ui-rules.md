@@ -4,7 +4,7 @@ Paste this into every module brief. `pnpm lint` and `pnpm test` enforce the rule
 
 1. Import UI only from `@/components/ui`. Never deep-import a kit file or an icon pack (guard).
 2. Colour only through token classes: `bg-surface`/`-2`/`-3`, `bg-app`, `text-ink`/`-2`/`-muted`, `text-link`, `text-danger-ink`, `text-success-ink`, `text-warning-ink`, `border-line`, `border-control-border`, `bg-primary`, `bg-selected`, and `bg-paper`/`text-paper-ink`/`border-paper-ink` on print. No palette classes, no hex, no arbitrary `[..]` values (guard). Print sizes are `text-print-lg`/`-base`/`-sm`/`-xs`.
-3. Coloured text is `text-link`, never `text-primary` (2.58:1 on dark surfaces).
+3. Coloured text is `text-link`, never `text-primary` (2.83:1 on the dark surface).
 4. Status colour comes from a vocab registry through `<StatusBadge>`, or a `Tone` on `<Badge>` and `rowTone`. Never pick a colour per screen.
 5. No emoji anywhere (guard). Use `<Icon name>`, `<Badge icon>` or an `icon` prop. The legacy meanings are `star`, `landmark`, `globe`, `briefcase`, `newspaper`, `map-pin`, `siren`, `circle-x`, `circle-check`. Never render `GUEST_GROUPS[].icon`. Missing icon: ask the lead.
 6. Actions: one `<Button>` (primary) per view. Navigation is `<Button href>` (add `newTab` for a new tab), never `router.push` in an `onClick`. `accent` is `emerald` or `amber` for a confirm only. A toggle is `<Button pressed>`. Saving is `<Button loading>`.
