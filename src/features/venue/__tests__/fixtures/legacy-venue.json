@@ -1,0 +1,57 @@
+{
+  "events": [
+    { "id": "evt_1", "name": "Hội nghị XTĐT Hà Nội - Hàn Quốc 2026", "eventDate": "2026-12-15" },
+    { "id": "evt_2", "name": "Hội chợ OCOP mùa thu", "type": "hoi_cho", "eventDate": "2026-10-20" },
+    { "id": "evt_demo", "name": "Hội chợ Đặc sản Vùng miền và Sản phẩm OCOP Hà Nội 2026", "eventDate": "2026-09-01" },
+    { "id": "evt_nohall", "name": "Tọa đàm doanh nghiệp", "eventDate": "2026-11-30" }
+  ],
+  "hallTemplates": [
+    {
+      "id": "hall_ncc", "name": "Trung tâm Hội nghị Quốc gia (NCC)", "location": "Mễ Trì", "description": "Đã sửa tại đơn vị", "totalSeats": 999,
+      "zones": [
+        { "id": "zone_A", "name": "Khu A: VIP", "prefix": "A-", "seatCount": 18, "colorScheme": "red", "assignedGroup": "VIP", "badgeText": "Biển tên để bàn chữ A" },
+        { "id": "zone_B", "name": "Khu B: Sở ngành", "prefix": "B-", "seatCount": 36, "colorScheme": "blue", "assignedGroup": "SoNganh", "badgeText": "Thẻ đại biểu" }
+      ]
+    },
+    {
+      "id": "hall_custom", "name": "<img src=x onerror=alert(1)> Hội trường riêng", "location": "", "totalSeats": 10,
+      "zones": [
+        { "id": "zone_A", "name": "Khu A", "prefix": "A-", "seatCount": 10, "colorScheme": "red", "assignedGroup": "VIP" },
+        { "id": "zone_C", "name": "Khu C trùng", "prefix": "a-", "seatCount": 100000, "colorScheme": "pink", "assignedGroup": "Khac" },
+        { "id": "zone_C", "name": "Khu không tiền tố", "prefix": "", "seatCount": -4 }
+      ]
+    },
+    { "id": "hall_empty", "name": "Không có khu", "zones": [] }
+  ],
+  "eventHallConfig": {
+    "evt_1": {
+      "hallId": "hall_custom",
+      "zones": [
+        { "id": "zone_A", "name": "Khu A", "prefix": "A-", "seatCount": 12, "colorScheme": "red", "assignedGroup": "VIP", "badgeText": "Biển tên để bàn chữ A" },
+        { "id": "zone_B", "name": "Khu B", "prefix": "B-", "seatCount": 18, "colorScheme": "blue", "assignedGroup": "SoNganh" },
+        { "id": "zone_C", "name": "Khu C", "prefix": "B-", "seatCount": 24, "colorScheme": "slate", "assignedGroup": "DoanhNghiep" }
+      ]
+    },
+    "evt_2": { "hallId": "hall_deleted", "zones": [{ "id": "zone_A", "name": "Khu A", "prefix": "A-", "seatCount": 5, "colorScheme": "slate", "assignedGroup": "all" }] },
+    "evt_gone": { "hallId": "hall_ncc", "zones": [] }
+  },
+  "eventGuests": {
+    "evt_1": [{ "id": "g1", "name": "Nguyễn Văn A" }, { "id": "g2", "name": "Trần Thị B" }, { "id": "g3", "name": "Lê C" }, { "id": "gst_vip_01", "name": "Khách mẫu" }],
+    "evt_nohall": [{ "id": "g9", "name": "Phạm D" }]
+  },
+  "eventSeating": {
+    "evt_1": { "A-01": "g1", "B-40": "g2", "A-02": "g1", "X": "g3", "C-01": "ghost", "A-03": "gst_vip_01" },
+    "evt_nohall": { "A-05": "g9" },
+    "evt_demo": { "A-01": "gst_vip_01" }
+  },
+  "eventBooths": {
+    "evt_2": [
+      { "id": "bth_01", "code": "A01", "company": "HTX Gốm sứ Bát Tràng", "status": "confirmed", "subsidyPercent": 50 },
+      { "id": "bth_1767000000000_ab12", "code": "a-1", "company": "<img src=x onerror=alert(1)>", "products": "Gốm", "status": "confirmed", "subsidyPercent": 100, "staff": "Đ/c Mai" },
+      { "id": "bth_1767000000001_cd34", "code": "A01", "company": "Trùng mã", "status": "weird", "subsidyPercent": 30 },
+      { "id": "bth_1767000000002_ef56", "code": "B02", "company": "", "status": "confirmed", "subsidyPercent": 0, "size": "" },
+      { "id": "bth_1767000000003_gh78", "code": "??", "company": "Mã hỏng" }
+    ],
+    "evt_demo": [{ "id": "bth_02", "code": "A02", "company": "Mẫu" }]
+  }
+}

@@ -33,6 +33,10 @@ export const venueManifest = defineFeature({
   ],
   subTabs: [
     { parentNav: 'guests', id: 'seating', order: 40, label: 'Sơ đồ chỗ ngồi', href: { kind: 'event', segment: 'seating' }, permission: 'venue.seating.read' },
+    // Real routes for the three booth views; the legacy switcher looked up ids that did not exist (m4b BUG-38).
+    { parentNav: 'booths', id: 'booth-floorplan', order: 10, label: 'Sơ đồ mặt bằng (3m x 3m = 9m²)', href: { kind: 'event', segment: 'booths' }, permission: 'venue.booths.read' },
+    { parentNav: 'booths', id: 'booth-list', order: 20, label: 'Danh sách doanh nghiệp & gian hàng', href: { kind: 'event', segment: 'booths/list' }, permission: 'venue.booths.read' },
+    { parentNav: 'booths', id: 'booth-schedule', order: 30, label: 'Lịch trực cán bộ SCE (Mục 9)', href: { kind: 'event', segment: 'booths/schedule' }, permission: 'venue.booths.read' },
   ],
   routes: [
     { dir: '(app)/events/[eventId]/seating', permission: 'venue.seating.read' },
