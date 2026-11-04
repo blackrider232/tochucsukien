@@ -83,6 +83,28 @@ const specs: Record<string, AnyCommandSpec> = {
       return { value: g, audit: { action: 'KHÁCH PHÁT SINH', summary: i.name, eventId: i.eventId, entity: 'guest', entityId: i.id } };
     },
   },
+  // Saves the guest, then fails a later step: the error carries what stuck.
+  'guests.testPartial': {
+    kind: 'mutation',
+    input: z.object({ eventId: z.string(), id: z.string(), auditEvent: z.string().optional() }),
+    authorize: { perm: 'guests.write', event: (i) => (i as { eventId: EventId }).eventId },
+    async run(ctx, raw) {
+      const i = raw as { eventId: EventId; id: GuestId; auditEvent?: EventId };
+      await ctx.db.table(guestsTable).insert({ id: i.id, eventId: i.eventId, name: 'A', group: 'VIP', organization: 'UBND', rsvpStatus: 'pending', checkinCode: 'K7M2PQ' });
+      throw new CommandError('conflict', 'Đã thêm khách nhưng chưa xếp được ghế.', undefined, {
+        action: 'THÊM KHÁCH MỜI', summary: 'A; chưa xếp được ghế', eventId: i.auditEvent ?? i.eventId, entity: 'guest', entityId: i.id,
+      });
+    },
+  },
+  'live.testPartialWalkIn': {
+    kind: 'mutation',
+    input: z.object({ eventId: z.string(), id: z.string() }),
+    authorize: { perm: 'live.checkin', event: (i) => (i as { eventId: EventId }).eventId },
+    async run(ctx, raw) {
+      await ctx.call('guests.testPartial' as never, raw as never);
+      return { value: null, audit: { action: 'KHÁCH PHÁT SINH', summary: '', eventId: (raw as { eventId: EventId }).eventId, entity: 'guest', entityId: null } };
+    },
+  },
   'core.testManage': {
     kind: 'mutation',
     input: z.object({}),
@@ -284,6 +306,40 @@ describe('pipeline: asking another owner', () => {
     const w = world();
     const r = await w.run(testActor('user', XTDT), 'live.testWalkIn', { eventId: E1, id: G1, name: '' });
     expect(failureOf(r)).toMatchObject({ kind: 'invalid', fieldErrors: { name: 'Nhập họ tên' } });
+    expect(w.audit()).toEqual([]);
+  });
+});
+
+describe('pipeline: partial failures', () => {
+  it('a CommandError that carries an audit entry is written under the command’s own permission, then the failure returns unchanged', async () => {
+    const w = world();
+    const xtdt = testActor('user', XTDT);
+    const r = await w.run(xtdt, 'guests.testPartial', { eventId: E1, id: G1 });
+    expect(failureOf(r)).toEqual({ kind: 'conflict', message: 'Đã thêm khách nhưng chưa xếp được ghế.', fieldErrors: undefined });
+    expect(w.guests()).toHaveLength(1);
+    expect(w.audit()).toMatchObject([{ action: 'THÊM KHÁCH MỜI', summary: 'A; chưa xếp được ghế', event_id: E1, entity: 'guest', entity_id: G1, actor_id: xtdt.profile.id }]);
+  });
+
+  it('inside ctx.call the inner command’s entry is written once, and the outer command writes none', async () => {
+    const w = world();
+    const r = await w.run(testActor('user', XTDT), 'live.testPartialWalkIn', { eventId: E1, id: G1 });
+    expect(failureOf(r)).toMatchObject({ kind: 'conflict', message: 'Đã thêm khách nhưng chưa xếp được ghế.' });
+    expect(w.audit().map((a) => a.action)).toEqual(['THÊM KHÁCH MỜI']);
+  });
+
+  it('an entry the audit writer refuses is logged on the server, and the user still gets the error that names the loss', async () => {
+    const w = world();
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const r = await w.run(testActor('user', XTDT), 'guests.testPartial', { eventId: E1, id: G1, auditEvent: E2 });
+    expect(failureOf(r)).toMatchObject({ kind: 'conflict', message: 'Đã thêm khách nhưng chưa xếp được ghế.' });
+    expect(w.audit()).toEqual([]);
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('guests.testPartial'), expect.objectContaining({ summary: 'A; chưa xếp được ghế' }), expect.anything());
+    spy.mockRestore();
+  });
+
+  it('a CommandError without an entry writes no row', async () => {
+    const w = world();
+    expect(failureOf(await w.run(testActor('user', XTDT), 'guests.testRule', {}))).toMatchObject({ kind: 'invalid' });
     expect(w.audit()).toEqual([]);
   });
 });

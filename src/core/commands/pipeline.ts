@@ -11,7 +11,7 @@ import { gateFor, type Gate, type RequestContext } from '@/core/auth';
 import { DbError, defineTable, type BaseRow, type DbErrorKind } from '@/core/db';
 import { can, type ScopedResource } from '@/core/permissions';
 import type { DepartmentName } from '@/core/vocab';
-import { CommandError, type CommandContext, type CommandFailure, type CommandResult, type CommandSpec } from './index';
+import { CommandError, type AuditEntry, type CommandContext, type CommandFailure, type CommandResult, type CommandSpec } from './index';
 
 export type AnyCommandSpec = CommandSpec<unknown, unknown>;
 export type CommandLookup = (id: string) => AnyCommandSpec | undefined;
@@ -113,6 +113,15 @@ async function authorize(ctx: CommandContext, spec: AnyCommandSpec, input: unkno
   return can(ctx.actor, rule.perm, resource) ? null : failure('forbidden', MESSAGES.db.forbidden);
 }
 
+/** The partial-failure row of a CommandError. Its change already stuck, so a refused row is logged, never thrown. */
+async function auditPartialFailure(ctx: RequestContext, id: string, spec: AnyCommandSpec, entry: AuditEntry): Promise<void> {
+  try {
+    await ctx.db.rpc('sce_tcsk_audit_command', { ...entry, perm: spec.authorize.perm });
+  } catch (e) {
+    console.error(`command ${id}: partial-failure audit row not written`, entry, e);
+  }
+}
+
 function failureFromError(e: unknown, id: string): CommandFailure {
   if (e instanceof NestedFailure) return e.failure;
   if (e instanceof CommandError) return failure(e.kind, e.message, e.fieldErrors);
@@ -145,9 +154,11 @@ export async function runCommand(ctx: RequestContext, lookup: CommandLookup, id:
     },
   };
 
+  let ran = false;
   try {
     const denied = await authorize(cmdCtx, spec, parsed.value);
     if (denied) return denied;
+    ran = true;
     const outcome = await spec.run(cmdCtx, parsed.value);
     if (outcome.audit && outcome.audit !== 'sql') {
       await ctx.db.rpc('sce_tcsk_audit_command', { ...outcome.audit, perm: spec.authorize.perm });
@@ -156,6 +167,7 @@ export async function runCommand(ctx: RequestContext, lookup: CommandLookup, id:
     }
     return 'inverse' in outcome && outcome.inverse ? { ok: true, value: outcome.value, inverse: outcome.inverse } : { ok: true, value: outcome.value };
   } catch (e) {
+    if (ran && e instanceof CommandError && e.audit) await auditPartialFailure(ctx, id, spec, e.audit);
     return failureFromError(e, id);
   }
 }

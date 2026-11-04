@@ -85,12 +85,17 @@ export function defineCommands<F extends FeatureKey>(feature: F, specs: NoInfer<
   return specs;
 }
 
-/** Thrown inside run() for business-rule failures; message is user-facing Vietnamese. */
+/**
+ * Thrown inside run() for business-rule failures; message is user-facing Vietnamese.
+ * `audit` records what a partial failure left changed (commands have no transaction): the pipeline
+ * writes it under this command's authorize.perm before it returns the failure. Omit it when nothing stuck.
+ */
 export class CommandError extends Error {
   constructor(
     readonly kind: 'invalid' | 'conflict' | 'not_found' | 'forbidden',
     message: string,
     readonly fieldErrors?: Readonly<Record<string, string>>,
+    readonly audit?: AuditEntry,
   ) {
     super(message);
   }

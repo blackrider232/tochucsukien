@@ -46,16 +46,18 @@ const seatOf = async (ctx: CommandContext, eventId: EventId, guestId: GuestId): 
 
 /**
  * A declined guest gives the seat back; venue owns the seat, so venue is asked (m4a B18, B57). Always after the guest
- * row is saved, so a stale version fails before any seat is freed. The pipeline audits only a command that succeeds, so
- * when venue refuses, the saved change is audited here before the error, through the writer the pipeline uses and
- * under the command's own permission: the decline stays applied and the seat is flagged for a person to release.
+ * row is saved, so a stale version fails before any seat is freed. When venue refuses, the error carries the saved
+ * change's audit entry, which the pipeline writes under the command's own permission: the decline stays applied and
+ * the seat is flagged for a person to release.
  */
 async function releaseSeat(ctx: CommandContext, eventId: EventId, guestId: GuestId, seat: SeatCode, saved: AuditEntry): Promise<void> {
   try {
     await ctx.call('venue.releaseGuestSeat', { eventId, guestId });
   } catch {
-    await ctx.db.rpc('sce_tcsk_audit_command', { ...saved, perm: writeOnEvent.perm, summary: `${saved.summary}; chưa giải phóng được ghế ${seat}, cần giải phóng thủ công` });
-    throw new CommandError('conflict', `Đã ghi nhận báo vắng nhưng chưa giải phóng được ghế ${seat}. Vui lòng giải phóng ghế này thủ công ở sơ đồ chỗ ngồi.`);
+    throw new CommandError('conflict', `Đã ghi nhận báo vắng nhưng chưa giải phóng được ghế ${seat}. Vui lòng giải phóng ghế này thủ công ở sơ đồ chỗ ngồi.`, undefined, {
+      ...saved,
+      summary: `${saved.summary}; chưa giải phóng được ghế ${seat}, cần giải phóng thủ công`,
+    });
   }
 }
 
