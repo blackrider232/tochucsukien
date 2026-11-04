@@ -6,3 +6,4 @@ export {
   validateZones, hallCapacity, seatCodes, zoneOfSeat, isVipSeat, findFreeSeat, orphanSeats, zoneOccupancy, parseSeatCode, ZONE_COLORS, ZONE_GROUPS,
 } from './domain/halls';
 export { boothKpis, BOOTH_STATUS, SUBSIDY } from './domain/booths';
+export { AdminHalls } from './components/admin-halls';

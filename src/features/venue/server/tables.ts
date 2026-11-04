@@ -22,7 +22,7 @@ export const hallTemplatesTable = defineTable<HallTemplateRow>({
   name: 'sce_tcsk_hall_templates',
   owner: 'venue',
   eventScoped: false,
-  orderBy: [{ column: 'createdAt', ascending: true }],
+  orderBy: [{ column: 'createdAt', ascending: true }, { column: 'name', ascending: true }],
   row: z.object({
     ...managed,
     id: z.string().transform((v) => v as HallTemplateId),

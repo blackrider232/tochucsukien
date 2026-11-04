@@ -6,8 +6,9 @@ import type { RequestContext } from '@/core/auth';
 import type { EventId } from '@/core/brand';
 import { CommandError } from '@/core/commands';
 import { readRoster, type RosterEntry } from '@/features/guests/server';
+import type { Upstream } from '../components/screen-types';
 
-export type Upstream<T> = { ready: true; value: T } | { ready: false };
+export type { Upstream };
 
 export const ROSTER_NOT_READY = 'Danh sách khách mời chưa sẵn sàng, nên chưa xếp chỗ được. Vui lòng thử lại sau khi phân hệ Khách mời hoạt động.';
 
