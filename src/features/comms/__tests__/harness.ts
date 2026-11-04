@@ -1,6 +1,7 @@
 // Runs comms commands through the real pipeline on a memoryDb, with the real
 // progress and guests commands behind ctx.call, so a guest effect is the one
-// guests would make in the app.
+// guests would make in the app. The sheet source is always a fake: no test
+// reaches Google.
 
 import type { Actor, RequestContext } from '@/core/auth';
 import { newId, type EventId, type GuestId, type Instant, type IsoDate, type Version } from '@/core/brand';
@@ -14,7 +15,8 @@ import { testActor, XTDT } from '@/core/testing/actors';
 import type { DepartmentName } from '@/core/vocab';
 import { commands as guestCommands, readRoster, type GuestDraft } from '@/features/guests/server';
 import { commands as progressCommands } from '@/features/progress/server';
-import { commands } from '../server/commands';
+import { createCommands } from '../server/commands';
+import { fakeSheetSource, type SheetSource } from '../server/sheet-source';
 
 export const SETTINGS = { ...DEFAULT_SETTINGS, version: 1 as Version };
 export const NOW = '2026-11-04T02:00:00.000Z' as Instant;
@@ -27,13 +29,14 @@ export const GUEST: GuestDraft = {
 export const xtdtUser = testActor('user', XTDT);
 export const admin = testActor('admin', null);
 
-export function harness(opts: { now?: Instant } = {}) {
+export function harness(opts: { now?: Instant; sheets?: SheetSource } = {}) {
   const seed = {
     sce_tcsk_events: [], sce_tcsk_task_groups: [], sce_tcsk_steps: [], sce_tcsk_guests: [], sce_tcsk_seat_assignments: [], sce_tcsk_checkins: [],
     sce_tcsk_audit_logs: [], sce_tcsk_sender_mailboxes: [], sce_tcsk_rsvp_forms: [], sce_tcsk_rsvp_responses: [], sce_tcsk_email_deliveries: [],
   };
   const clock = { now: opts.now ?? NOW };
-  const lookup = commandLookup({ comms: { commands }, guests: { commands: guestCommands }, progress: { commands: progressCommands } });
+  const sheets = opts.sheets ?? fakeSheetSource();
+  const lookup = commandLookup({ comms: { commands: createCommands({ sheets }) }, guests: { commands: guestCommands }, progress: { commands: progressCommands } });
   const ctx = (actor: Actor): RequestContext => ({ actor, db: memoryDb(seed, actor), settings: SETTINGS, calendar: buildWorkCalendar([]), now: clock.now });
   const run = <K extends CommandId>(actor: Actor, id: K, input: InputOf<K>) => runCommand(ctx(actor), lookup, id, input) as Promise<CommandResult<OutputOf<K>>>;
   /** As `actor`, on a Db that answers like an admin's: whatever is refused is refused by the command, not by emulated RLS. */
@@ -67,5 +70,5 @@ export function harness(opts: { now?: Instant } = {}) {
   const guest = async (eventId: EventId, id: GuestId) => (await roster(eventId)).find((g) => g.id === id)!;
   const rows = (table: string) => inspectMemoryDb(seed, table);
   const audits = () => rows('sce_tcsk_audit_logs') as Array<{ action: string; summary: string }>;
-  return { seed, clock, ctx, run, runWithoutRls, ok, undo, createEvent, addGuest, roster, guest, rows, audits };
+  return { seed, clock, sheets, ctx, run, runWithoutRls, ok, undo, createEvent, addGuest, roster, guest, rows, audits };
 }

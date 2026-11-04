@@ -3,6 +3,7 @@ import { newId, type Email, type EventId, type Version } from '@/core/brand';
 import type { CommandId } from '@/core/commands';
 import { PTDN, testActor } from '@/core/testing/actors';
 import { commands } from '../server/commands';
+import { fakeSheetSource } from '../server/sheet-source';
 import { harness, xtdtUser } from './harness';
 
 // Every role holds comms.read, comms.send and comms.rsvp.manage alike, so no actor in the matrix tells them apart.
@@ -12,13 +13,14 @@ vi.mock('@/core/permissions', async (importOriginal) => {
   const real = await importOriginal<typeof import('@/core/permissions')>();
   return { ...real, can: (...args: Parameters<typeof real.can>) => args[1] !== grants.withhold && real.can(...args) };
 });
-vi.mock('../server/sheet-fetch', () => ({ fetchSheetCsv: async () => ({ ok: true, text: 'Dấu thời gian,Họ và tên,Email,Xác nhận tham dự\n04/11/2026 10:00:00,An,an@a.vn,Có' }) }));
 
 beforeEach(() => {
   grants.withhold = null;
 });
 
 const SHEET = 'https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789/edit';
+const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789/export?format=csv';
+const answering = () => fakeSheetSource({ [SHEET_CSV_URL]: 'Dấu thời gian,Họ và tên,Email,Xác nhận tham dự\n04/11/2026 10:00:00,An,an@a.vn,Có' });
 const EVENT_COMMANDS = {
   saveForm: 'comms.rsvp.manage',
   saveColumnMap: 'comms.rsvp.manage',
@@ -28,7 +30,7 @@ const EVENT_COMMANDS = {
 } as const;
 
 async function fixture() {
-  const h = harness();
+  const h = harness({ sheets: answering() });
   const eventId = await h.createEvent();
   const form = (await h.ok(xtdtUser, 'comms.saveForm', { eventId, version: null, config: { formUrl: null, sheetUrl: SHEET, autoSync: false, autoAddNewGuests: false } } as never)).value;
   await h.ok(xtdtUser, 'comms.syncForm', { eventId });
@@ -82,7 +84,7 @@ describe('every event command asks for its own permission', () => {
   });
 
   it('a nested guest effect keeps guests’ own check: without guests.write a sync applies nothing', async () => {
-    const h = harness();
+    const h = harness({ sheets: answering() });
     const eventId: EventId = await h.createEvent();
     await h.addGuest(eventId, { email: 'an@a.vn' as Email });
     await h.ok(xtdtUser, 'comms.saveForm', { eventId, version: null, config: { formUrl: null, sheetUrl: SHEET, autoSync: false, autoAddNewGuests: false } } as never);

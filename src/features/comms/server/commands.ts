@@ -9,8 +9,9 @@ import type { ColumnMap } from '../domain/columns';
 import type { DeliveryResult, FormConfig, MailboxDraft } from '../domain/schemas';
 import { recordDeliveries } from './deliveries';
 import type { SyncReport } from '../domain/sync-report';
-import { resolveResponse, saveColumnMap, saveForm, syncForm } from './form';
+import { resolveResponse, saveColumnMap, saveForm, syncFormWith } from './form';
 import { deleteMailbox, restoreMailbox, saveMailbox } from './mailboxes';
+import { defaultSheetSource, type SheetSource } from './sheet-source';
 import type { ApplyStatus, FormRow } from './tables';
 
 declare module '@/core/commands' {
@@ -42,13 +43,21 @@ declare module '@/core/commands' {
   }
 }
 
-export const commands = defineCommands('comms', {
-  saveMailbox,
-  deleteMailbox,
-  restoreMailbox,
-  saveForm,
-  saveColumnMap,
-  syncForm,
-  resolveResponse,
-  recordDeliveries,
-});
+/** What the commands reach outside the database. Tests pass fakes; `commands` gets the defaults. */
+export interface CommsDeps {
+  sheets: SheetSource;
+}
+
+export const createCommands = (deps: CommsDeps) =>
+  defineCommands('comms', {
+    saveMailbox,
+    deleteMailbox,
+    restoreMailbox,
+    saveForm,
+    saveColumnMap,
+    syncForm: syncFormWith(deps.sheets),
+    resolveResponse,
+    recordDeliveries,
+  });
+
+export const commands = createCommands({ sheets: defaultSheetSource });

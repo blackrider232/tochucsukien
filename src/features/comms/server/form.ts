@@ -18,7 +18,7 @@ import { parseColumnMap, parseResponseRow } from '../domain/responses';
 import type { SyncReport } from '../domain/sync-report';
 import { columnMapSchema, eventIdSchema, formConfigSchema, guestIdSchema, responseIdSchema, versionSchema } from '../domain/schemas';
 import { asSchema, audit, inverse } from './command-kit';
-import { fetchSheetCsv } from './sheet-fetch';
+import type { SheetSource } from './sheet-source';
 import { formsTable, responsesTable, type FormRow, type ResponseRow } from './tables';
 
 const manage = { perm: 'comms.rsvp.manage', event: (i: { eventId: EventId }) => i.eventId } as const;
@@ -176,14 +176,15 @@ async function syncError(ctx: CommandContext, form: FormRow, message: string) {
 
 const UNRESOLVED: ReadonlySet<ResponseRow['match']> = new Set(['none', 'ambiguous']);
 
-export const syncForm: CommandSpec<InputOf<'comms.syncForm'>, SyncReport> = {
+/** The sync, reading the sheet through `sheets` (Google in the app, the fake in dev memory and tests). */
+export const syncFormWith = (sheets: SheetSource): CommandSpec<InputOf<'comms.syncForm'>, SyncReport> => ({
   kind: 'mutation',
   input: asSchema(z.object({ eventId: eventIdSchema })),
   authorize: manage,
   async run(ctx, { eventId }) {
     const form = await formOf(ctx, eventId);
     if (!form?.sheetCsvUrl) throw new CommandError('invalid', 'Chưa gắn link Google Sheet phản hồi. Hãy dán link Sheet ở mục cấu hình.');
-    const fetched = await fetchSheetCsv(form.sheetCsvUrl);
+    const fetched = await sheets.read(form.sheetCsvUrl);
     if (!fetched.ok) return syncError(ctx, form, fetched.message);
     let rows: string[][];
     try {
@@ -252,7 +253,7 @@ export const syncForm: CommandSpec<InputOf<'comms.syncForm'>, SyncReport> = {
       `chưa có câu trả lời rõ ${t.noAnswer}, cần xem lại ${t.review}, thêm khách mới ${t.created}${t.failed ? `, lỗi ${t.failed}` : ''}`;
     return { value: report, audit: audit('ĐỒNG BỘ GOOGLE FORM', summary, eventId, 'rsvp_form', form.id) };
   },
-};
+});
 
 async function autoAdd(ctx: CommandContext, eventId: EventId, rows: ReadonlyArray<ResponseRow>, t: Tally): Promise<void> {
   const ids = new Map(rows.map((r) => [r.id, newId<'Guest'>()]));

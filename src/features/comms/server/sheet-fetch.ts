@@ -5,7 +5,6 @@
 // bytes and the whole fetch in time, and an HTML answer (a sign-in page for a
 // sheet that is not shared) is an error, never data.
 
-import { devMemoryEnabled } from '@/core/dev/mode';
 import { isSheetCsvUrl } from '../domain/sheet-url';
 
 export const SHEET_MAX_BYTES = 5 * 1024 * 1024;
@@ -16,26 +15,9 @@ export type SheetFetchResult = { ok: true; text: string } | { ok: false; message
 
 const NOT_SHARED = 'Không đọc được Google Sheet. Hãy chia sẻ Sheet ở chế độ "Bất kỳ ai có đường liên kết đều có thể xem".';
 
-export function isAllowedHop(url: URL, devOrigin: string | null): boolean {
-  if (devOrigin && url.origin === devOrigin) return true;
+export function isAllowedHop(url: URL): boolean {
   if (url.protocol !== 'https:' || url.username || url.password || (url.port && url.port !== '443')) return false;
   return url.hostname === 'docs.google.com' || /^[a-z0-9-]+\.googleusercontent\.com$/.test(url.hostname);
-}
-
-/**
- * Dev memory runtime only: SCE_DEV_SHEET_ORIGIN (e.g. http://127.0.0.1:4555) serves fixture sheets in place of
- * https://docs.google.com, after the stored URL has passed the same guard. Never read in production.
- */
-function devSheetOrigin(): string | null {
-  if (!devMemoryEnabled()) return null;
-  const raw = process.env.SCE_DEV_SHEET_ORIGIN;
-  if (!raw) return null;
-  try {
-    const u = new URL(raw);
-    return u.hostname === '127.0.0.1' || u.hostname === 'localhost' ? u.origin : null;
-  } catch {
-    return null;
-  }
 }
 
 async function readCapped(res: Response, max: number): Promise<string | null> {
@@ -69,19 +51,16 @@ export interface SheetFetchOptions {
   maxBytes?: number;
   timeoutMs?: number;
   maxRedirects?: number;
-  /** Tests pass it; the app takes it from devSheetOrigin(). */
-  devOrigin?: string | null;
 }
 
 export async function fetchSheetCsv(storedUrl: string, o: SheetFetchOptions = {}): Promise<SheetFetchResult> {
   if (!isSheetCsvUrl(storedUrl)) return { ok: false, message: 'Link Google Sheet đã lưu không hợp lệ. Hãy dán lại link Sheet phản hồi.' };
   const fetchImpl = o.fetch ?? fetch;
-  const devOrigin = o.devOrigin === undefined ? devSheetOrigin() : o.devOrigin;
   const signal = AbortSignal.timeout(o.timeoutMs ?? SHEET_TIMEOUT_MS);
-  let url = new URL(devOrigin ? storedUrl.replace('https://docs.google.com', devOrigin) : storedUrl);
+  let url = new URL(storedUrl);
   try {
     for (let hop = 0; ; hop += 1) {
-      if (!isAllowedHop(url, devOrigin)) return { ok: false, message: 'Google Sheet chuyển hướng tới địa chỉ không được phép.' };
+      if (!isAllowedHop(url)) return { ok: false, message: 'Google Sheet chuyển hướng tới địa chỉ không được phép.' };
       const res = await fetchImpl(url.href, { redirect: 'manual', signal, headers: { accept: 'text/csv' }, cache: 'no-store' });
       if (res.status >= 300 && res.status < 400) {
         const location = res.headers.get('location');

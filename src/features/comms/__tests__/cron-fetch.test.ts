@@ -1,7 +1,9 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { EventId } from '@/core/brand';
 import { bearerMatches, handleCronSync } from '../server/cron';
+import { DEV_SHEET_URL } from '../server/dev-sheets';
 import { fetchSheetCsv, isAllowedHop } from '../server/sheet-fetch';
+import { defaultSheetSource, FAKE_UNKNOWN_SHEET } from '../server/sheet-source';
 import { admin, harness, xtdtUser } from './harness';
 
 const SECRET = 'a-long-random-cron-secret-value';
@@ -81,7 +83,7 @@ describe('fetchSheetCsv (no open proxy)', () => {
   it('reads the export through a redirect to Google’s content host', async () => {
     const hop = 'https://doc-0s-4c-sheets.googleusercontent.com/export/abc';
     const f = fakeFetch({ [CSV_URL]: redirect(hop), [hop]: csvResponse('Họ và tên\nAn') });
-    expect(await fetchSheetCsv(CSV_URL, { fetch: f.impl, devOrigin: null })).toEqual({ ok: true, text: 'Họ và tên\nAn' });
+    expect(await fetchSheetCsv(CSV_URL, { fetch: f.impl })).toEqual({ ok: true, text: 'Họ và tên\nAn' });
     expect(f.asked).toEqual([CSV_URL, hop]);
   });
 
@@ -94,7 +96,7 @@ describe('fetchSheetCsv (no open proxy)', () => {
     'file:///etc/passwd',
   ])('refuses the stored URL %s without fetching', async (url) => {
     const f = fakeFetch({});
-    expect((await fetchSheetCsv(url, { fetch: f.impl, devOrigin: null })).ok).toBe(false);
+    expect((await fetchSheetCsv(url, { fetch: f.impl })).ok).toBe(false);
     expect(f.asked).toEqual([]);
   });
 
@@ -106,7 +108,7 @@ describe('fetchSheetCsv (no open proxy)', () => {
     ['localhost', 'http://localhost:3000/api'],
   ])('refuses a redirect to %s and never fetches it', async (_, location) => {
     const f = fakeFetch({ [CSV_URL]: redirect(location) });
-    const r = await fetchSheetCsv(CSV_URL, { fetch: f.impl, devOrigin: null });
+    const r = await fetchSheetCsv(CSV_URL, { fetch: f.impl });
     expect(r).toEqual({ ok: false, message: 'Google Sheet chuyển hướng tới địa chỉ không được phép.' });
     expect(f.asked).toEqual([CSV_URL]);
   });
@@ -114,31 +116,58 @@ describe('fetchSheetCsv (no open proxy)', () => {
   it('stops after three redirects', async () => {
     const hops = [1, 2, 3, 4].map((i) => `https://docs.google.com/spreadsheets/d/${ID}/export?format=csv&hop=${i}`);
     const f = fakeFetch({ [CSV_URL]: redirect(hops[0]!), [hops[0]!]: redirect(hops[1]!), [hops[1]!]: redirect(hops[2]!), [hops[2]!]: redirect(hops[3]!) });
-    expect(await fetchSheetCsv(CSV_URL, { fetch: f.impl, devOrigin: null })).toEqual({ ok: false, message: 'Google Sheet chuyển hướng quá nhiều lần.' });
+    expect(await fetchSheetCsv(CSV_URL, { fetch: f.impl })).toEqual({ ok: false, message: 'Google Sheet chuyển hướng quá nhiều lần.' });
     expect(f.asked).toHaveLength(4);
   });
 
   it('refuses a response over the size cap, declared or streamed', async () => {
     const declared = fakeFetch({ [CSV_URL]: () => new Response('x', { status: 200, headers: { 'content-type': 'text/csv', 'content-length': String(6 * 1024 * 1024) } }) });
-    expect((await fetchSheetCsv(CSV_URL, { fetch: declared.impl, devOrigin: null })).ok).toBe(false);
+    expect((await fetchSheetCsv(CSV_URL, { fetch: declared.impl })).ok).toBe(false);
     const streamed = fakeFetch({ [CSV_URL]: csvResponse('a,b\n'.repeat(400)) });
-    expect(await fetchSheetCsv(CSV_URL, { fetch: streamed.impl, devOrigin: null, maxBytes: 1000 })).toMatchObject({ ok: false, message: expect.stringContaining('lớn hơn') });
+    expect(await fetchSheetCsv(CSV_URL, { fetch: streamed.impl, maxBytes: 1000 })).toMatchObject({ ok: false, message: expect.stringContaining('lớn hơn') });
   });
 
   it('reads an HTML answer (a sheet that is not shared) as an error, not as data', async () => {
     const f = fakeFetch({ [CSV_URL]: () => new Response('<html>Sign in</html>', { status: 200, headers: { 'content-type': 'text/html' } }) });
-    expect(await fetchSheetCsv(CSV_URL, { fetch: f.impl, devOrigin: null })).toMatchObject({ ok: false, message: expect.stringContaining('chia sẻ') });
+    expect(await fetchSheetCsv(CSV_URL, { fetch: f.impl })).toMatchObject({ ok: false, message: expect.stringContaining('chia sẻ') });
   });
 
   it('gives up after the time limit', async () => {
     const slow = vi.fn((_: string, init?: RequestInit) => new Promise<Response>((_, reject) => init?.signal?.addEventListener('abort', () => reject(Object.assign(new Error('timeout'), { name: 'TimeoutError' })))));
-    expect(await fetchSheetCsv(CSV_URL, { fetch: slow as unknown as typeof fetch, devOrigin: null, timeoutMs: 20 })).toMatchObject({ ok: false, message: expect.stringContaining('không phản hồi kịp') });
+    expect(await fetchSheetCsv(CSV_URL, { fetch: slow as unknown as typeof fetch, timeoutMs: 20 })).toMatchObject({ ok: false, message: expect.stringContaining('không phản hồi kịp') });
   });
 
-  it('a dev origin is used only in place of docs.google.com and only when given', async () => {
-    expect(isAllowedHop(new URL('http://127.0.0.1:4555/x'), null)).toBe(false);
-    expect(isAllowedHop(new URL('http://127.0.0.1:4555/x'), 'http://127.0.0.1:4555')).toBe(true);
-    const f = fakeFetch({ [`http://127.0.0.1:4555/spreadsheets/d/${ID}/export?format=csv`]: csvResponse('a') });
-    expect(await fetchSheetCsv(CSV_URL, { fetch: f.impl, devOrigin: 'http://127.0.0.1:4555' })).toEqual({ ok: true, text: 'a' });
+  it.each(['https://10.0.0.1/x', 'https://192.168.1.10/x', 'https://[::1]/x', 'https://169.254.169.254/x', 'https://docs.google.com:8443/x', 'https://user:pw@docs.google.com/x'])(
+    'never treats %s as an allowed hop, https or not',
+    (href) => expect(isAllowedHop(new URL(href))).toBe(false),
+  );
+});
+
+describe('the sheet source the app commands use', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it('under SCE_DEV_MEMORY answers the dev fixture and any other sheet without opening a connection', async () => {
+    vi.stubEnv('SCE_DEV_MEMORY', '1');
+    vi.stubEnv('NODE_ENV', 'development');
+    const net = vi.fn(async () => new Response('should not be asked'));
+    vi.stubGlobal('fetch', net);
+    expect(defaultSheetSource.kind).toBe('fake');
+    expect(await defaultSheetSource.read(DEV_SHEET_URL)).toMatchObject({ ok: true, text: expect.stringContaining('thu.nghiem.e@example.com') });
+    expect(await defaultSheetSource.read(CSV_URL)).toEqual({ ok: false, message: FAKE_UNKNOWN_SHEET });
+    expect(net).not.toHaveBeenCalled();
+  });
+
+  it('outside dev memory reads Google through the guarded fetch', async () => {
+    vi.stubEnv('SCE_DEV_MEMORY', '');
+    const net = vi.fn(async () => new Response('Họ và tên\nAn', { status: 200, headers: { 'content-type': 'text/csv' } }));
+    vi.stubGlobal('fetch', net);
+    expect(defaultSheetSource.kind).toBe('google');
+    expect(await defaultSheetSource.read(CSV_URL)).toEqual({ ok: true, text: 'Họ và tên\nAn' });
+    expect(net).toHaveBeenCalledWith(CSV_URL, expect.objectContaining({ redirect: 'manual' }));
+    expect(await defaultSheetSource.read('http://169.254.169.254/latest/meta-data/')).toMatchObject({ ok: false });
+    expect(net).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,16 +1,18 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { Email, EventId } from '@/core/brand';
 import type { SyncReport } from '../domain/sync-report';
+import type { SheetSource } from '../server/sheet-source';
 import type { ResponseRow } from '../server/tables';
 import { admin, harness, xtdtUser } from './harness';
 
-const sheet = vi.hoisted(() => ({ text: '', result: null as null | { ok: false; message: string }, calls: [] as string[] }));
-vi.mock('../server/sheet-fetch', () => ({
-  fetchSheetCsv: async (url: string) => {
+const sheet = { text: '', result: null as null | { ok: false; message: string }, calls: [] as string[] };
+const sheets: SheetSource = {
+  kind: 'fake',
+  async read(url) {
     sheet.calls.push(url);
     return sheet.result ?? { ok: true, text: sheet.text };
   },
-}));
+};
 
 const SHEET = 'https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789/edit#gid=0';
 const HEADER = 'Dấu thời gian,Họ và tên,Tên cơ quan,Email,Số điện thoại,Xác nhận tham dự,Anh/chị có dự tiệc chiêu đãi?,Họ tên người đi thay';
@@ -23,7 +25,7 @@ beforeEach(() => {
 });
 
 async function setup(config: { autoAddNewGuests?: boolean } = {}) {
-  const h = harness();
+  const h = harness({ sheets });
   const eventId = await h.createEvent();
   await h.ok(xtdtUser, 'comms.saveForm', { eventId, version: null, config: { formUrl: 'https://forms.gle/abc', sheetUrl: SHEET, autoSync: false, autoAddNewGuests: config.autoAddNewGuests ?? false } } as never);
   const sync = async () => (await h.ok(xtdtUser, 'comms.syncForm', { eventId })).value as Extract<SyncReport, { status: 'ok' }>;
@@ -152,7 +154,7 @@ describe('comms.syncForm', () => {
   });
 
   it('refuses to sync without a sheet link and refuses a non-sheet link at save', async () => {
-    const h = harness();
+    const h = harness({ sheets });
     const eventId = await h.createEvent();
     expect(await h.run(xtdtUser, 'comms.syncForm', { eventId })).toMatchObject({ ok: false, kind: 'invalid' });
     const bad = await h.run(xtdtUser, 'comms.saveForm', { eventId, version: null, config: { formUrl: null, sheetUrl: 'https://evil.com/spreadsheets/d/x', autoSync: false, autoAddNewGuests: false } } as never);
