@@ -158,6 +158,49 @@ describe('memoryDb insertMany', () => {
   });
 });
 
+describe('memoryDb foreign keys (the ON DELETE of the migrations)', () => {
+  const M = 'cccccccc-0000-4000-8000-000000000001';
+
+  it('cascades a deleted guest to its check-in, past RLS, as Postgres does', async () => {
+    const { as, xtdt, seed } = setup();
+    await as(xtdt).table(guestsTable).insertMany([draft(E1, G(1), 'A'), draft(E1, G(2), 'B')]);
+    await as(xtdt).table(checkinsTable).insertMany([{ eventId: E1, guestId: G(1), desk: 'D1', checkedInAt: null }, { eventId: E1, guestId: G(2), desk: 'D1', checkedInAt: null }]);
+    await as(xtdt).table(guestsTable).remove(G(1));
+    expect(inspectMemoryDb(seed, 'sce_tcsk_checkins').map((c) => c.guest_id)).toEqual([G(2)]);
+  });
+
+  it('cascades a purged event through its guests to their check-ins', async () => {
+    const { as, xtdt, admin, seed } = setup();
+    await as(xtdt).table(guestsTable).insert(draft(E1, G(1), 'A'));
+    await as(xtdt).table(checkinsTable).insert({ eventId: E1, guestId: G(1), desk: null, checkedInAt: null });
+    expect(await as(admin).table(eventsTable).removeWhere({ id: E1 })).toBe(1);
+    expect([inspectMemoryDb(seed, 'sce_tcsk_guests'), inspectMemoryDb(seed, 'sce_tcsk_checkins')]).toEqual([[], []]);
+  });
+
+  it('sets a guest’s master contact to null when the contact goes', async () => {
+    const seed = {
+      sce_tcsk_events: eventRows(),
+      sce_tcsk_master_contacts: [{ id: M, name: 'C', guest_group: 'VIP', organization: '', version: 1 }],
+      sce_tcsk_guests: [{ id: G(1), event_id: E1, name: 'A', master_contact_id: M, version: 1 }],
+    };
+    await memoryDb(seed, testActor('admin', null)).table(contactsTable).remove(M);
+    expect(inspectMemoryDb(seed, 'sce_tcsk_guests')[0]).toMatchObject({ id: G(1), master_contact_id: null });
+  });
+});
+
+describe('memoryDb created_at', () => {
+  it('orders rows inserted in the same millisecond by insertion, and gives one batch one timestamp', async () => {
+    const { as, xtdt, seed } = setup();
+    const t = as(xtdt).table(guestsTable);
+    for (const n of [1, 2, 3]) await t.insert(draft(E1, G(n), `K${n}`));
+    await t.insertMany([draft(E1, G(4), 'K4'), draft(E1, G(5), 'K5')]);
+    const at = inspectMemoryDb(seed, 'sce_tcsk_guests').map((g) => String(g.created_at));
+    expect(new Set(at.slice(0, 4)).size).toBe(4);
+    expect([...at.slice(0, 4)].sort()).toEqual(at.slice(0, 4));
+    expect(at[4]).toBe(at[3]);
+  });
+});
+
 describe('memoryDb optimistic concurrency and idempotency', () => {
   it('bumps the version and refuses a stale expectedVersion', async () => {
     const { as, xtdt } = setup();

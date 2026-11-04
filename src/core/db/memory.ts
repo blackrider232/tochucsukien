@@ -4,8 +4,11 @@
 // policies parsed from supabase/migrations, so a module's new table is covered
 // as soon as its migration exists. Two memoryDb calls on the same seed object
 // share one database, so a test can act as two users.
-// Known gaps against Postgres: CHECK constraints, FK cascades and triggers
-// other than the managed columns are not emulated.
+// Foreign keys between app tables act on delete as the migrations declare
+// (cascade, set null, no action), past RLS as in Postgres. created_at is
+// strictly increasing per store, and one insertMany shares one timestamp, as
+// one statement does. Known gaps against Postgres: CHECK constraints, FK checks
+// on insert and update, and triggers other than the managed columns.
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -28,6 +31,50 @@ type Seed = Readonly<Record<string, ReadonlyArray<Record<string, unknown>>>>;
 interface Store {
   tables: Map<string, Row[]>;
   seq: number;
+  /** The last created_at or updated_at handed out, in ms. Absent on a store made before a hot reload added it. */
+  lastStamp?: number;
+}
+
+/** Now, or 1 ms after the previous stamp, so rows written in the same millisecond keep their order. */
+function stamp(store: Store): string {
+  const at = Math.max(Date.now(), (store.lastStamp ?? 0) + 1);
+  store.lastStamp = at;
+  return new Date(at).toISOString();
+}
+
+const keyOf = (row: Row, columns: ReadonlyArray<string>) => JSON.stringify(columns.map((c) => row[c]));
+
+/**
+ * Deletes rows the way one DELETE statement does: every foreign key into them cascades, sets null or, for no action
+ * and restrict, refuses the whole statement. These actions run past RLS, as Postgres runs them.
+ */
+function deleteRows(store: Store, table: string, doomed: ReadonlyArray<Row>): void {
+  const deletes = new Map<string, Set<Row>>();
+  const nulls: Array<{ row: Row; columns: ReadonlyArray<string> }> = [];
+  const blocked: Array<{ refs: ReadonlyArray<Row>; table: string; constraint: string }> = [];
+  const visit = (name: string, rows: ReadonlyArray<Row>) => {
+    const set = deletes.get(name) ?? new Set<Row>();
+    deletes.set(name, set);
+    const fresh = rows.filter((r) => !set.has(r));
+    for (const r of fresh) set.add(r);
+    if (fresh.length === 0) return;
+    for (const child of loadCatalog().values()) {
+      for (const fk of child.foreignKeys) {
+        if (fk.table !== name) continue;
+        const keys = new Set(fresh.map((r) => keyOf(r, fk.refColumns)));
+        const refs = rowsOf(store, child.name).filter((r) => fk.columns.every((c) => r[c] !== null && r[c] !== undefined) && keys.has(keyOf(r, fk.columns)));
+        if (refs.length === 0) continue;
+        if (fk.onDelete === 'cascade') visit(child.name, refs);
+        else if (fk.onDelete === 'set null') nulls.push(...refs.map((row) => ({ row, columns: fk.columns })));
+        else blocked.push({ refs, table: child.name, constraint: fk.name });
+      }
+    }
+  };
+  visit(table, doomed);
+  const stillThere = blocked.find((b) => b.refs.some((r) => !deletes.get(b.table)?.has(r)));
+  if (stillThere) throw new DbError('constraint', { table: stillThere.table, constraint: stillThere.constraint });
+  for (const [name, set] of deletes) store.tables.set(name, rowsOf(store, name).filter((r) => !set.has(r)));
+  for (const { row, columns } of nulls) for (const c of columns) row[c] = null;
 }
 
 // On globalThis so the dev memory runtime (src/core/dev) keeps its data across a hot reload of this module.
@@ -165,15 +212,15 @@ function memoryTable<R extends BaseRow>(store: Store, actor: Actor, rls: Rls, de
   const all = () => rowsOf(store, name);
   const visible = () => all().filter((r) => rls.allows(meta, 'read', r));
   const parse = (r: Row) => fromColumns(def, structuredClone(r));
-  const now = () => new Date().toISOString();
+  const now = () => stamp(store);
 
-  function withDefaults(values: Row): Row {
+  function withDefaults(values: Row, at: string): Row {
     const row: Row = { ...values };
     for (const col of meta?.columns ?? []) {
       if (row[col.name] !== undefined) continue;
       const d = col.default;
       row[col.name] =
-        d === null ? null : d.kind === 'now' ? now() : d.kind === 'uuid' ? newId() : d.kind === 'random_code' ? randomCode(d.length) : structuredClone(d.value ?? null);
+        d === null ? null : d.kind === 'now' ? at : d.kind === 'uuid' ? newId() : d.kind === 'random_code' ? randomCode(d.length) : structuredClone(d.value ?? null);
     }
     return row;
   }
@@ -194,31 +241,31 @@ function memoryTable<R extends BaseRow>(store: Store, actor: Actor, rls: Rls, de
 
   /** The unique keys of the stored rows, for checking a batch in one pass instead of one scan per row. */
   function uniqueIndex() {
-    const keyOf = (row: Row, columns: ReadonlyArray<string>) =>
-      columns.some((c) => row[c] === null || row[c] === undefined) ? null : JSON.stringify(columns.map((c) => row[c]));
-    const keys = (meta?.uniques ?? []).map((u) => ({ ...u, seen: new Set(all().flatMap((r) => keyOf(r, u.columns) ?? [])) }));
+    const uniqueKey = (row: Row, columns: ReadonlyArray<string>) =>
+      columns.some((c) => row[c] === null || row[c] === undefined) ? null : keyOf(row, columns);
+    const keys = (meta?.uniques ?? []).map((u) => ({ ...u, seen: new Set(all().flatMap((r) => uniqueKey(r, u.columns) ?? [])) }));
     return {
       assert(row: Row): void {
         const clash = keys.find((u) => {
-          const key = keyOf(row, u.columns);
+          const key = uniqueKey(row, u.columns);
           return key !== null && u.seen.has(key);
         });
         if (clash) throw new DbError('constraint', { table: name, constraint: clash.name });
       },
       add(row: Row): void {
         for (const u of keys) {
-          const key = keyOf(row, u.columns);
+          const key = uniqueKey(row, u.columns);
           if (key !== null) u.seen.add(key);
         }
       },
     };
   }
 
-  /** A new row as Postgres would store it, checked but not yet stored. */
-  function newRow(values: Row, assertKeys: (row: Row) => void): Row {
-    const row = withDefaults(values);
+  /** A new row as Postgres would store it, checked but not yet stored. `at` is the statement's timestamp. */
+  function newRow(values: Row, assertKeys: (row: Row) => void, at = now()): Row {
+    const row = withDefaults(values, at);
     row.version = 1;
-    row.created_at = row.updated_at = now();
+    row.created_at = row.updated_at = at;
     row.created_by = row.updated_by = actor.profile.id;
     if (!rls.allows(meta, 'insert', row)) throw new DbError('forbidden', { table: name });
     assertNotNull(row);
@@ -283,12 +330,13 @@ function memoryTable<R extends BaseRow>(store: Store, actor: Actor, rls: Rls, de
     async insertMany(drafts) {
       const stored = new Map(all().map((r) => [r.id, r]));
       const keys = uniqueIndex();
+      const at = now();
       const added: Row[] = [];
       const out = drafts.map((d) => {
         const id = d.id ?? newId();
         const existing = stored.get(id);
         if (existing && rls.allows(meta, 'read', existing)) return existing;
-        const row = newRow({ ...toColumns(def, d), id }, (r) => keys.assert(r));
+        const row = newRow({ ...toColumns(def, d), id }, (r) => keys.assert(r), at);
         keys.add(row);
         stored.set(id, row);
         added.push(row);
@@ -323,7 +371,7 @@ function memoryTable<R extends BaseRow>(store: Store, actor: Actor, rls: Rls, de
       const target = rows[i];
       const versionOk = target && (!guard || !('expectedVersion' in guard) || target.version === guard.expectedVersion);
       if (target && versionOk && rls.allows(meta, 'read', target) && rls.allows(meta, 'delete', target)) {
-        rows.splice(i, 1);
+        deleteRows(store, name, [target]);
         return;
       }
       if (!visibleById(id) && !(guard && 'expectedVersion' in guard)) return;
@@ -334,7 +382,7 @@ function memoryTable<R extends BaseRow>(store: Store, actor: Actor, rls: Rls, de
       if (filters.length === 0) throw new Error(`${name}: removeWhere needs at least one condition`);
       const rows = all();
       const doomed = rows.filter((r) => matches(r, filters) && rls.allows(meta, 'read', r) && rls.allows(meta, 'delete', r));
-      store.tables.set(name, rows.filter((r) => !doomed.includes(r)));
+      deleteRows(store, name, doomed);
       return doomed.length;
     },
   };

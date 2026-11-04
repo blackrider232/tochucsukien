@@ -1,7 +1,7 @@
 // Reads what the TypeScript side needs to know about the schema straight from
 // the migration files: each table's owner comment, its register_table policy
-// (scope, read and write permission, immutable), column defaults, NOT NULL and
-// unique keys. memoryDb emulates RLS and defaults from it; check:contract
+// (scope, read and write permission, immutable), column defaults, NOT NULL,
+// unique keys and foreign keys between app tables. memoryDb emulates RLS and defaults from it; check:contract
 // compares owners with the manifests. Parsing the SQL keeps one source of truth.
 
 export type ColumnDefault =
@@ -17,6 +17,15 @@ export interface CatalogColumn {
   default: ColumnDefault | null;
 }
 
+/** A foreign key to another app table; keys into auth.* are left out. */
+export interface CatalogForeignKey {
+  name: string;
+  columns: ReadonlyArray<string>;
+  table: string;
+  refColumns: ReadonlyArray<string>;
+  onDelete: 'cascade' | 'set null' | 'restrict' | 'no action';
+}
+
 export interface CatalogTable {
   name: string;
   owner: string | null;
@@ -24,6 +33,7 @@ export interface CatalogTable {
   columns: ReadonlyArray<CatalogColumn>;
   /** Primary key first, then unique constraints, each with Postgres' default constraint name. */
   uniques: ReadonlyArray<{ name: string; columns: ReadonlyArray<string> }>;
+  foreignKeys: ReadonlyArray<CatalogForeignKey>;
 }
 
 export interface SqlFile {
@@ -36,7 +46,7 @@ const TABLE_REF = String.raw`(?:public\.)?(sce_tcsk_\w+)`;
 export function parseCatalog(files: ReadonlyArray<SqlFile>): ReadonlyMap<string, CatalogTable> {
   const tables = new Map<string, CatalogTable>();
   const upsert = (name: string, patch: Partial<CatalogTable>) => {
-    const prev = tables.get(name) ?? { name, owner: null, policy: null, columns: [], uniques: [] };
+    const prev = tables.get(name) ?? { name, owner: null, policy: null, columns: [], uniques: [], foreignKeys: [] };
     tables.set(name, { ...prev, ...patch });
   };
 
@@ -52,6 +62,11 @@ export function parseCatalog(files: ReadonlyArray<SqlFile>): ReadonlyMap<string,
       if (table && !table.columns.some((c) => c.name === m[2])) {
         upsert(table.name, { columns: [...table.columns, parseColumn(m[2]!, m[3]!)] });
       }
+    }
+    for (const m of sql.matchAll(new RegExp(String.raw`alter table ${TABLE_REF} add constraint (\w+)\s+foreign key\s*\(([^)]+)\)\s*(references[^;]+);`, 'gi'))) {
+      const table = tables.get(m[1]!);
+      const fk = foreignKey(m[1]!, m[2]!, m[3]!, m[4]!);
+      if (table && fk && !table.foreignKeys.some((k) => k.name === fk.name)) upsert(table.name, { foreignKeys: [...table.foreignKeys, fk] });
     }
     for (const m of sql.matchAll(new RegExp(String.raw`comment on table ${TABLE_REF} is '([^']*)'`, 'gi'))) {
       const owner = /^sce:owner=([a-z]+)/.exec(m[2]!)?.[1] ?? null;
@@ -132,25 +147,46 @@ function splitTopLevel(body: string): string[] {
   return parts;
 }
 
-function parseTableBody(table: string, body: string): Pick<CatalogTable, 'columns' | 'uniques'> {
+const listOf = (cols: string) => cols.split(',').map((c) => c.trim());
+
+/** `references public.x(cols) on delete …` of the key on `columns`; null for a key into another schema. */
+function foreignKey(table: string, name: string | null, columns: string, clause: string): CatalogForeignKey | null {
+  const ref = /^references\s+(\w+\.)?(\w+)\s*(?:\(([^)]*)\))?/i.exec(clause.trim());
+  if (!ref || (ref[1] && ref[1].toLowerCase() !== 'public.') || !ref[2]!.startsWith('sce_tcsk_')) return null;
+  const cols = listOf(columns);
+  const action = /\bon delete (cascade|set null|restrict|no action)\b/i.exec(clause)?.[1]?.toLowerCase() as CatalogForeignKey['onDelete'] | undefined;
+  return { name: name ?? `${table}_${cols.join('_')}_fkey`, columns: cols, table: ref[2]!, refColumns: ref[3] ? listOf(ref[3]) : ['id'], onDelete: action ?? 'no action' };
+}
+
+function parseTableBody(table: string, body: string): Pick<CatalogTable, 'columns' | 'uniques' | 'foreignKeys'> {
   const columns: CatalogColumn[] = [];
   const uniques: Array<{ name: string; columns: string[] }> = [];
+  const foreignKeys: CatalogForeignKey[] = [];
   for (const part of splitTopLevel(body)) {
     const unique = /^(primary key|unique)\s*\(([^)]+)\)/i.exec(part);
     if (unique) {
-      const cols = unique[2]!.split(',').map((c) => c.trim());
+      const cols = listOf(unique[2]!);
       uniques.push(unique[1]!.toLowerCase() === 'primary key' ? { name: `${table}_pkey`, columns: cols } : { name: `${table}_${cols.join('_')}_key`, columns: cols });
       continue;
     }
-    if (/^(foreign key|check|constraint|exclude)\b/i.test(part)) continue;
+    const tableKey = /^(?:constraint (\w+)\s+)?foreign key\s*\(([^)]+)\)\s*(references.*)$/is.exec(part);
+    if (tableKey) {
+      const fk = foreignKey(table, tableKey[1] ?? null, tableKey[2]!, tableKey[3]!);
+      if (fk) foreignKeys.push(fk);
+      continue;
+    }
+    if (/^(check|constraint|exclude)\b/i.test(part)) continue;
     const col = /^(\w+)\s+(.*)$/s.exec(part);
     if (!col) continue;
     const parsed = parseColumn(col[1]!, col[2]!);
     columns.push(parsed);
+    const inline = /\b(references\b.*)$/is.exec(col[2]!);
+    const fk = inline ? foreignKey(table, null, col[1]!, inline[1]!) : null;
+    if (fk) foreignKeys.push(fk);
     if (/\bprimary key\b/i.test(col[2]!)) uniques.unshift({ name: `${table}_pkey`, columns: [parsed.name] });
     else if (/\bunique\b/i.test(col[2]!)) uniques.push({ name: `${table}_${parsed.name}_key`, columns: [parsed.name] });
   }
-  return { columns, uniques };
+  return { columns, uniques, foreignKeys };
 }
 
 function parseColumn(name: string, rest: string): CatalogColumn {
