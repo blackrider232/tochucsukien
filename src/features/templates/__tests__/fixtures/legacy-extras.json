@@ -1,0 +1,38 @@
+{
+  "edited": {
+    "id": "form_giaymoi_ubnd",
+    "group": "cap_ubnd",
+    "groupName": "👥 Chung / Tất cả nhóm",
+    "code": "GM-UBND",
+    "title": "Giấy mời Đại biểu (Admin đã sửa tiêu đề)",
+    "type": "doc",
+    "description": "Bản Admin đã chỉnh",
+    "content": "<div><p>Kính mời <b>ông/bà</b> dự {{TEN_SU_KIEN}}</p><script>alert('xss')</script><img src=x onerror=alert(1)></div>",
+    "isCustom": true,
+    "updatedAt": "2026-09-30T08:15:00.000Z"
+  },
+  "custom": {
+    "id": "form_custom_1767225600000",
+    "group": "cap_trungtam",
+    "groupName": "👥 Chung / Tất cả nhóm",
+    "code": "",
+    "title": "Phiếu đăng ký gian hàng",
+    "type": "grid",
+    "description": "Do Admin tạo",
+    "content": "<table border=\"1\"><tr><th>STT</th><th>Doanh nghiệp</th></tr><tr><td>1</td><td>{{TEN_SU_KIEN}}</td></tr></table>",
+    "isCustom": true,
+    "updatedAt": "2026-10-02T03:00:00.000Z"
+  },
+  "badGroup": {
+    "id": "form_custom_1767225600001",
+    "group": "nhom_la",
+    "code": "BM-X",
+    "title": "Mẫu nhóm lạ",
+    "type": "khac",
+    "description": "",
+    "content": "<p>Nội dung</p>"
+  },
+  "noTitle": { "id": "form_custom_1767225600002", "group": "cap_stc", "code": "X", "title": "  ", "type": "doc", "content": "<p>a</p>" },
+  "noContent": { "id": "form_custom_1767225600003", "group": "cap_stc", "code": "X", "title": "Rỗng", "type": "doc", "content": "" },
+  "noId": { "group": "cap_stc", "title": "Không mã", "type": "doc", "content": "<p>a</p>" }
+}
