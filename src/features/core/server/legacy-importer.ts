@@ -1,6 +1,11 @@
-// Imports the legacy systemSettings into the settings singleton. unitSenderEmails
-// belong to comms (sender mailboxes) and are left to its importer; the legacy
-// departments list was never read (core B22) and is dropped.
+// Imports the legacy systemSettings into the settings singleton. Its six form
+// fields and googleClientId land in typed columns; unitSenderEmails belong to
+// comms (sender mailboxes) and are left to its importer; the legacy departments
+// list was never read (core B22) and is dropped. Profiles, the legacy audit rows
+// and the whole-blob backups are not blob keys: 0001 converts them in place
+// (is_active -> status, '' department -> null, old backups -> kind auto, format 1),
+// and scripts/import-legacy.ts writes the pre-migration backup and demotes
+// admins outside --keep-admins (core B1).
 
 import type { ImportIssue, LegacyImporter } from '@/core/legacy';
 
@@ -10,6 +15,7 @@ const RANGES = {
   guestQuotaPercent: ['guest_quota_percent', 100, 200],
   badgeQuotaPercent: ['badge_quota_percent', 100, 200],
 } as const;
+const TEXT_MAX = { agency_name: 300, agency_short_name: 40, parent_agency: 300, google_client_id: 300 } as const;
 
 export const legacyImporter: LegacyImporter = {
   feature: 'core',
@@ -24,20 +30,26 @@ export const legacyImporter: LegacyImporter = {
     const s = raw as Record<string, unknown>;
     const row: Record<string, unknown> = { id: 1 };
 
-    const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null);
-    const agency = text(s.agencyName);
-    if (agency) {
-      // Legacy stored 'TRUNG TÂM … HÀ NỘI (SCE)'; the short name has its own column now.
-      const m = /^(.*?)\s*\(([^()]+)\)$/.exec(agency);
-      row.agency_name = m ? m[1] : agency;
-      if (m) row.agency_short_name = m[2]!.trim();
-    }
-    if (text(s.parentAgency)) row.parent_agency = text(s.parentAgency);
-    if (text(s.googleClientId)) row.google_client_id = text(s.googleClientId);
+    const put = (column: keyof typeof TEXT_MAX, field: string, value: unknown) => {
+      const text = typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : '';
+      if (!text) return;
+      if (text.length > TEXT_MAX[column]) {
+        issues.push({ severity: 'coerced', blobKey: 'systemSettings', legacyId: field, message: `${field} dài hơn ${TEXT_MAX[column]} ký tự; giữ giá trị mặc định.` });
+        return;
+      }
+      row[column] = text;
+    };
+    const agency = typeof s.agencyName === 'string' ? s.agencyName.replace(/\s+/g, ' ').trim() : '';
+    // Legacy stored 'TRUNG TÂM … HÀ NỘI (SCE)'; the short name has its own column now.
+    const m = /^(.*?)\s*\(([^()]+)\)$/.exec(agency);
+    put('agency_name', 'agencyName', m ? m[1] : agency);
+    if (m) put('agency_short_name', 'agencyName', m[2]);
+    put('parent_agency', 'parentAgency', s.parentAgency);
+    put('google_client_id', 'googleClientId', s.googleClientId);
 
     for (const [field, [column, min, max]] of Object.entries(RANGES)) {
-      const value = Number(s[field]);
       if (s[field] === undefined || s[field] === null || s[field] === '') continue;
+      const value = Number(s[field]);
       if (Number.isInteger(value) && value >= min && value <= max) row[column] = value;
       else issues.push({ severity: 'coerced', blobKey: 'systemSettings', legacyId: field, message: `${field} = ${JSON.stringify(s[field])} ngoài khoảng ${min}..${max}; giữ giá trị mặc định.` });
     }
