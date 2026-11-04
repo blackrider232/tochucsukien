@@ -7,7 +7,7 @@
 // pending 'user' profile whatever the metadata says (core B1/B2).
 
 import { createBrowserClient } from '@supabase/ssr';
-import type { AuthError, SupabaseClient } from '@supabase/supabase-js';
+import { createClient, type AuthError, type SupabaseClient } from '@supabase/supabase-js';
 import { devMemoryEnabled } from '@/core/dev/mode';
 import type { DepartmentName } from '@/core/vocab';
 import { supabaseEnv } from './env';
@@ -140,11 +140,42 @@ export function setNewPassword(password: string): Promise<FlowResult> {
   });
 }
 
-/** A signed-in password change re-checks the current password (core B37, Q3). */
+const WRONG_CURRENT_PASSWORD = 'Mật khẩu hiện tại không đúng.';
+
+/**
+ * Signs in with the current password on a throwaway client that keeps no session, writes no cookie or storage
+ * and never touches the browser's session, then ends that sign-in. Any refusal but a rate limit or the network
+ * reads as a wrong password, so the form reveals nothing else about the account.
+ */
+async function currentPasswordHolds(email: string, password: string): Promise<FlowResult> {
+  const env = supabaseEnv();
+  if (!env) return { ok: false, message: AUTH_UNAVAILABLE };
+  const check = createClient(env.url, env.publishableKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: 'sce-password-check' },
+  });
+  const { error } = await check.auth.signInWithPassword({ email, password });
+  if (error) {
+    const passThrough = error.code === 'over_request_rate_limit' || error.name === 'AuthRetryableFetchError' || error.status === 0;
+    return passThrough ? failed(error) : { ok: false, message: WRONG_CURRENT_PASSWORD };
+  }
+  await check.auth.signOut({ scope: 'local' });
+  return { ok: true, value: null };
+}
+
+/**
+ * A signed-in password change checks the current password first (core B37, Q3), then sends it to GoTrue as
+ * well. GoTrue itself refuses a direct updateUser without it only once the project requires the current password
+ * (status/core.md, Before go-live).
+ */
 export function changePassword(current: string, password: string): Promise<FlowResult> {
   return attempt(async (a) => {
-    const { error } = await a.updateUser({ password, current_password: current });
-    return error ? failed(error, { invalid_credentials: 'Mật khẩu hiện tại không đúng.' }) : { ok: true, value: null };
+    const { data, error } = await a.getUser();
+    if (error) return failed(error);
+    if (!data.user?.email) return { ok: false, message: MESSAGES.session_not_found! };
+    const checked = await currentPasswordHolds(data.user.email, current);
+    if (!checked.ok) return checked;
+    const updated = await a.updateUser({ password, current_password: current });
+    return updated.error ? failed(updated.error, { invalid_credentials: WRONG_CURRENT_PASSWORD }) : { ok: true, value: null };
   });
 }
 
