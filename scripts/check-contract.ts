@@ -8,7 +8,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
-import { permissionMatrix } from '@/core/permissions';
+import { permissionMatrix, SYSTEM_JOBS } from '@/core/permissions';
 import { parseCatalog, tablesTouched, type SqlFile } from '@/core/db/sql-catalog';
 import { PERMISSIONS_SQL_PATH, renderPermissionsSql } from './gen-permissions-sql';
 
@@ -35,6 +35,12 @@ export interface ContractSnapshot {
   migrations: ReadonlyArray<SqlFile>;
   /** Non-test files that return `audit: 'sql'`, by feature. */
   sqlAudits: ReadonlyArray<{ feature: string; file: string }>;
+  /** SYSTEM_JOBS as rows. */
+  systemGrants: ReadonlyArray<{ job: string; command: string; perm: string }>;
+  /** authorize.perm of every implemented command, by id. */
+  commandPerms: Readonly<Record<string, string>>;
+  /** SYSTEM_JOBS as 'job|label|command|perm|seconds', and the same rows the latest tcsk.system_grants() migration defines. */
+  systemGrantRows: { expected: ReadonlyArray<string>; sql: ReadonlyArray<string> };
 }
 
 export const REQUIRED_FEATURE_FILES = ['manifest.ts', 'slots.tsx', 'index.ts', 'contract.ts', 'server/index.ts'] as const;
@@ -121,6 +127,23 @@ export function checkContract(s: ContractSnapshot): string[] {
     errors.push('supabase/migrations/0004_permissions_seed.sql is stale: run pnpm tsx scripts/gen-permissions-sql.ts');
   }
 
+  // 4b. A scheduled job holds only commands outside core, each under the permission it authorizes with. A command not
+  // implemented yet (its feature unmerged) is checked once it is; the pipeline refuses it until then.
+  for (const g of s.systemGrants) {
+    if (g.command.startsWith('core.')) errors.push(`system job ${g.job} lists ${g.command}: a scheduled job never runs a core command`);
+    else if (!seenPerms.has(g.perm)) errors.push(`system job ${g.job} lists ${g.command} under ${g.perm}, which no manifest declares`);
+    else if (g.command in s.commandPerms && s.commandPerms[g.command] !== g.perm) {
+      errors.push(`system job ${g.job} lists ${g.command} under ${g.perm}, but the command authorizes with ${s.commandPerms[g.command]}`);
+    }
+  }
+
+  // 4c. The SQL job table is the one SYSTEM_JOBS declares (a change ships a new migration that replaces the function).
+  const wantRows = [...s.systemGrantRows.expected].sort();
+  const haveRows = [...s.systemGrantRows.sql].sort();
+  if (wantRows.join('\n') !== haveRows.join('\n')) {
+    errors.push('tcsk.system_grants() in the migrations differs from SYSTEM_JOBS: add a migration that replaces it');
+  }
+
   // 5. Table owner comments match the manifests' tables.
   const catalog = parseCatalog(s.migrations);
   const listedBy = new Map<string, string>();
@@ -137,6 +160,16 @@ export function checkContract(s: ContractSnapshot): string[] {
   for (const t of catalog.values()) {
     if (t.owner && !listedBy.has(t.name)) errors.push(`table ${t.name} has sce:owner=${t.owner} but no manifest lists it`);
     if (t.owner && !keys.has(t.owner)) errors.push(`table ${t.name} names unknown owner "${t.owner}"`);
+  }
+
+  // 6a. The Supabase CLI keys schema_migrations by the numeric prefix, so two files must not share it.
+  const byVersion = new Map<string, string[]>();
+  for (const file of s.migrations) {
+    const version = file.name.split('_')[0]!;
+    byVersion.set(version, [...(byVersion.get(version) ?? []), file.name]);
+  }
+  for (const [version, names] of byVersion) {
+    if (names.length > 1) errors.push(`migrations ${names.sort().join(' and ')} share version ${version}; the Supabase CLI keys on it`);
   }
 
   // 6. Module migrations touch only their own feature's tables.
@@ -186,6 +219,14 @@ function opaqueAudit(e: ts.Expression): boolean {
   return ts.isTemplateExpression(v) || ts.isBinaryExpression(v) || ts.isAsExpression(v) || ts.isTypeAssertionExpression(v);
 }
 
+/** The rows of the latest migration that defines tcsk.system_grants(), as 'job|label|command|perm|seconds'. */
+export function systemGrantRowsIn(migrations: ReadonlyArray<SqlFile>): string[] {
+  const latest = [...migrations].reverse().find((m) => /create\s+(or\s+replace\s+)?function\s+tcsk\.system_grants\s*\(/i.test(m.sql));
+  if (!latest) return [];
+  const rows = latest.sql.matchAll(/\(\s*'([^']*)'\s*,\s*'([^']*)'\s*,\s*'([^']*)'\s*,\s*'([^']*)'\s*,\s*(\d+)\s*\)/g);
+  return [...rows].map((m) => m.slice(1, 6).join('|'));
+}
+
 /**
  * Whether feature source can return `audit: 'sql'`: a 'sql' string anywhere (a variable may carry it), or an
  * `audit` property whose value is concatenated, templated or cast. A heuristic over the syntax tree; the pipeline's
@@ -231,6 +272,10 @@ export async function collectSnapshot(root: string): Promise<ContractSnapshot> {
 
   const manifests = featureManifests();
   const migrationsDir = join(root, 'supabase', 'migrations');
+  const migrations = readdirSync(migrationsDir)
+    .filter((f) => f.endsWith('.sql'))
+    .sort()
+    .map((name) => ({ name, sql: readFileSync(join(migrationsDir, name), 'utf8') }));
   return {
     featureDirs,
     featureFiles,
@@ -245,11 +290,18 @@ export async function collectSnapshot(root: string): Promise<ContractSnapshot> {
     augmentations,
     commandVerbs: Object.fromEntries(Object.entries(featureServers).map(([k, v]) => [k, Object.keys(v.commands)])),
     permissionsSql: { onDisk: readFileSync(PERMISSIONS_SQL_PATH, 'utf8'), generated: renderPermissionsSql(permissionMatrix()) },
-    migrations: readdirSync(migrationsDir)
-      .filter((f) => f.endsWith('.sql'))
-      .sort()
-      .map((name) => ({ name, sql: readFileSync(join(migrationsDir, name), 'utf8') })),
+    migrations,
     sqlAudits,
+    systemGrantRows: {
+      expected: Object.entries(SYSTEM_JOBS).flatMap(([job, def]) => Object.entries(def.commands).map(([command, perm]) => `${job}|${def.label}|${command}|${perm}|${def.minIntervalSeconds}`)),
+      sql: systemGrantRowsIn(migrations),
+    },
+    systemGrants: Object.entries(SYSTEM_JOBS).flatMap(([job, def]) => Object.entries(def.commands).map(([command, perm]) => ({ job, command, perm }))),
+    commandPerms: Object.fromEntries(
+      Object.entries(featureServers).flatMap(([key, server]) =>
+        Object.entries(server.commands as Record<string, { authorize: { perm: string } }>).map(([verb, spec]) => [`${key}.${verb}`, spec.authorize.perm]),
+      ),
+    ),
   };
 }
 

@@ -38,10 +38,40 @@ export interface ScopedResource {
   departments: ReadonlyArray<DepartmentName>;
 }
 
-/** Pure. Mirrors tcsk.has_perm(); the server checks it again and RLS checks it a third time. */
+/**
+ * Scheduled jobs that run commands with no person behind them (runCommandAsSystem, src/core/auth/cron.ts). A job holds
+ * exact (command, permission) pairs, never a role and never a core command: the pipeline runs a command for it only
+ * when the pair is listed here, and sce_tcsk_audit_system re-checks the pair from tcsk.system_grants(). That SQL table
+ * is hand-written in the migration that last replaced the function (202611041600) and is not generated: check:contract
+ * rule 4c fails while its latest definition differs from this table, so a change here ships a new migration with it.
+ * `minIntervalSeconds` is the replay window: a second start inside it is refused.
+ */
+export const SYSTEM_JOBS = {
+  'rsvp-sync': {
+    label: 'Đồng bộ Google Form RSVP tự động',
+    // Scheduled every 5 minutes (comms status, Before go-live); 4 leaves room for the scheduler's jitter.
+    minIntervalSeconds: 240,
+    commands: {
+      'comms.syncForm': 'comms.rsvp.manage',
+      'guests.applyRsvp': 'guests.write',
+      'guests.upsertMany': 'guests.write',
+      'venue.releaseGuestSeat': 'venue.seating.write',
+    },
+  },
+} as const satisfies Record<string, { label: string; minIntervalSeconds: number; commands: Readonly<Record<string, Permission>> }>;
+export type SystemJob = keyof typeof SYSTEM_JOBS;
+
+/** The permission `job` holds for `command`, or null. */
+export function systemGrant(job: SystemJob, command: string): Permission | null {
+  if (!Object.hasOwn(SYSTEM_JOBS, job) || command.startsWith('core.')) return null;
+  const commands: Readonly<Record<string, Permission>> = SYSTEM_JOBS[job].commands;
+  return Object.hasOwn(commands, command) ? commands[command]! : null;
+}
+
+/** Pure. Mirrors tcsk.has_perm(); the server checks it again and RLS checks it a third time. A system actor holds nothing here. */
 export function can(actor: Actor, perm: Permission, resource?: ScopedResource): boolean {
   const def = permissionMatrix().get(perm);
-  if (!def || actor.profile.status !== 'active' || !aalOk(actor)) return false;
+  if (!def || actor.system || actor.profile.status !== 'active' || !aalOk(actor)) return false;
   switch (grantOf(actor, def)) {
     case 'all':
       return true;

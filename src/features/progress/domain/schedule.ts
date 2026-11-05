@@ -43,9 +43,18 @@ export const eventProgress: typeof C.eventProgress = (cal, plan, today) => {
 
 export const eventCountdown: typeof C.eventCountdown = (cal, event, today) => countdown(cal, event.eventDate, today);
 
+/**
+ * Working days from today up to, not including, T0: the count of reports' `workdaysToEvent` and of the T-n deadlines
+ * (the step due n working days before T0 is the one with n of them from its day to T0). A weekend or holiday T0 or
+ * today therefore reads as the next working day, and a Sunday event opens its window on the weekend before T-10,
+ * not a working day earlier as (today, T0] would.
+ */
+const workdaysBeforeEvent = (cal: WorkCalendar, today: IsoDate, eventDate: IsoDate): number =>
+  workdaysBetween(cal, addCalendarDays(today, -1), addCalendarDays(eventDate, -1));
+
 /** Today or later, and at most the settings' threshold of working days away (m2 §3.5 intended, BUG-03/BUG-07). */
 export const isInDailyReportWindow: typeof C.isInDailyReportWindow = (cal, event, today, s) =>
-  calendarDaysBetween(today, event.eventDate) >= 0 && workdaysBetween(cal, today, event.eventDate) <= s.dailyReportThresholdDays;
+  calendarDaysBetween(today, event.eventDate) >= 0 && workdaysBeforeEvent(cal, today, event.eventDate) <= s.dailyReportThresholdDays;
 
 /** Decision 3: "Đã hoàn thành" iff the event has steps and every one is completed. */
 export function isPlanComplete(plan: { groups: ReadonlyArray<{ steps: ReadonlyArray<Pick<Step, 'completedAt'>> }> }): boolean {

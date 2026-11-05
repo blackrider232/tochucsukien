@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { Button, DataTable, FilterBar, IconButton, KpiCard, RowMenu, SectionCard, StatusBadge, useDialogs, type Column, type RowMenuItem } from '@/components/ui';
 import { useSettings } from '@/core/auth';
 import { useCommand } from '@/core/commands';
+import { BatchImportDialog } from '@/features/directory';
 import { foldVi } from '@/core/text';
 import { GUEST_GROUPS, INVITE, RSVP, SEND_METHOD, enumOptions, type GuestGroup, type RsvpStatus } from '@/core/vocab';
 import type { Guest, RosterEntry } from '../contract';
@@ -53,6 +54,13 @@ export function GuestsPage({ data, initialPopup }: { data: GuestScreenData; init
   const [editing, setEditing] = useState<Guest | 'new' | null>(null);
   const [popup, setPopup] = useState<KpiPopup | null>(initialPopup);
   const { event, roster, canWrite } = data;
+  // The contacts come with the page only for ?import=1; the route keys this page on it, so a fresh visit opens the dialog.
+  const [importing, setImporting] = useState(data.directoryContacts !== null);
+  const guestsHref = `/events/${event.id}/guests`;
+  const closeImport = () => {
+    setImporting(false);
+    router.replace(guestsHref, { scroll: false });
+  };
   const { menu } = useGuestActions(event.id);
 
   const kpis = guestKpis(roster, event.targetGuests);
@@ -81,7 +89,7 @@ export function GuestsPage({ data, initialPopup }: { data: GuestScreenData; init
     },
     { id: 'rsvp', header: 'Xác nhận (RSVP)', cell: (g) => <RsvpCell g={g} />, sortValue: (g) => RSVP_ORDER[g.rsvpStatus] },
     { id: 'banquet', header: 'Tiệc', cell: (g) => <BanquetCell g={g} />, align: 'center', hideOnMobile: true },
-    { id: 'seat', header: 'Ghế ngồi', cell: (g) => <SeatCell g={g} />, sortValue: (g) => g.seatCode ?? '~', align: 'center', hideOnMobile: true },
+    { id: 'seat', header: 'Ghế ngồi', cell: (g) => <SeatCell g={g} linked={data.canSeeSeating} />, sortValue: (g) => g.seatCode ?? '~', align: 'center', hideOnMobile: true },
     ...(canWrite
       ? [{
           id: 'actions', header: 'Thao tác', align: 'right' as const,
@@ -131,6 +139,9 @@ export function GuestsPage({ data, initialPopup }: { data: GuestScreenData; init
           <>
             <Button variant="secondary" icon="printer" href={`/events/${event.id}/guests/namecards`}>Biển tên VIP & thẻ QR</Button>
             <ExportButton data={data} />
+            {canWrite && data.canReadDirectory && (
+              <Button variant="secondary" icon="contact" onClick={() => router.push(`${guestsHref}?import=1`, { scroll: false })}>Nhập từ CSDL Master</Button>
+            )}
             {canWrite && <Button icon="plus" onClick={() => setEditing('new')}>Thêm khách mời</Button>}
           </>
         }
@@ -163,7 +174,8 @@ export function GuestsPage({ data, initialPopup }: { data: GuestScreenData; init
         </div>
       </SectionCard>
 
-      {editing && <GuestFormDialog eventId={event.id} guest={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
+      {editing && <GuestFormDialog eventId={event.id} guest={editing === 'new' ? null : editing} lookup={data.canReadDirectory} onClose={() => setEditing(null)} />}
+      {importing && data.directoryContacts && <BatchImportDialog eventId={event.id} eventName={event.name} contacts={data.directoryContacts} onClose={closeImport} />}
       {popup && (
         <KpiDialog
           popup={popup}

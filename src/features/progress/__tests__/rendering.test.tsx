@@ -32,7 +32,7 @@ const plan: EventPlan = {
 
 describe('plan rendering (m2 BUG-18, design: HTML injection)', () => {
   it('renders every user-entered field as text, never as markup', () => {
-    renderUi(withAppContext(<PlanView data={{ plans: [plan], perms: { [E]: { write: true, edit: true, remove: true } }, today: '2026-11-04' as IsoDate, createDepartments: [] }} />));
+    renderUi(withAppContext(<PlanView data={{ plans: [plan], perms: { [E]: { write: true, edit: true, remove: true } }, today: '2026-11-04' as IsoDate, createDepartments: [], templates: [] }} />));
     const card = screen.getByRole('article', { name: `${XSS} Hội nghị` });
     expect(card.querySelector('img, script')).toBeNull();
     expect(within(card).getByText(`${XSS} Bước`)).toBeInTheDocument();
@@ -45,7 +45,7 @@ describe('plan rendering (m2 BUG-18, design: HTML injection)', () => {
 
 describe('delete confirmation (review finding 2)', () => {
   it('promises only the undo that exists, not a restore screen', async () => {
-    const { user } = renderUi(withAppContext(<PlanView data={{ plans: [plan], perms: { [E]: { write: true, edit: true, remove: true } }, today: '2026-11-04' as IsoDate, createDepartments: [] }} />));
+    const { user } = renderUi(withAppContext(<PlanView data={{ plans: [plan], perms: { [E]: { write: true, edit: true, remove: true } }, today: '2026-11-04' as IsoDate, createDepartments: [], templates: [] }} />));
     await user.click(screen.getByRole('button', { name: 'Xóa sự kiện' }));
     const dialog = await screen.findByRole('alertdialog');
     expect(dialog).toHaveTextContent('Có thể hoàn tác ngay sau khi xóa.');

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { Badge, Button, Icon, StatusBadge, downloadBlob, useToast } from '@/components/ui';
 import { useAppContext } from '@/core/auth';
@@ -50,8 +51,11 @@ export function BanquetCell({ g }: { g: RosterEntry }) {
   return isBanquetGuest(g) ? <Badge tone="amber">Có</Badge> : <span className="text-sm text-ink-muted">Có (đã báo vắng)</span>;
 }
 
-export function SeatCell({ g, empty = 'Chưa xếp' }: { g: RosterEntry; empty?: string }) {
-  return g.seatCode ? <span className="font-mono text-sm font-semibold text-ink">{g.seatCode}</span> : <span className="text-sm text-ink-muted">{empty}</span>;
+/** The seat code, linking to venue's seating chart of the guest's event when `linked` (the actor may open it). */
+export function SeatCell({ g, empty = 'Chưa xếp', linked = false }: { g: RosterEntry; empty?: string; linked?: boolean }) {
+  if (!g.seatCode) return <span className="text-sm text-ink-muted">{empty}</span>;
+  const code = <span className="font-mono text-sm font-semibold text-ink">{g.seatCode}</span>;
+  return linked ? <Link href={`/events/${g.eventId}/seating`} title="Xem sơ đồ chỗ ngồi" className="rounded-control underline decoration-dotted underline-offset-2 hover:text-link">{code}</Link> : code;
 }
 
 /** The styled guest-list workbook (m4c §1.6), built in the browser from the roster on screen. */

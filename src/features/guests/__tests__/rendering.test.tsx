@@ -27,6 +27,9 @@ function data(roster: ReadonlyArray<RosterEntry>): GuestScreenData {
     roster,
     vipSeats: [],
     canWrite: true,
+    canSeeSeating: true,
+    canReadDirectory: true,
+    directoryContacts: null,
   };
 }
 const hostile = () => entry({ name: `${XSS} Đại biểu`, organization: `${SCRIPT} Công ty`, title: XSS, notes: XSS, rsvpStatus: 'substituted', substituteName: XSS, email: 'a@b.vn', phone: XSS });

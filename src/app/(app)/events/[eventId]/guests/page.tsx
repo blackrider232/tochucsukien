@@ -10,8 +10,11 @@ export default async function GuestListPage({ params, searchParams }: {
 }) {
   const id = parseUuid<'Event'>((await params).eventId);
   const ctx = await requestContext();
-  const data = id ? await guestScreenData(ctx, id) : null;
+  const sp = await searchParams;
+  const importing = sp.import === '1';
+  const data = id ? await guestScreenData(ctx, id, { contacts: importing }) : null;
   if (!data) notFound();
-  const popup = (await searchParams).popup;
-  return <GuestsPage data={data} initialPopup={KPI_POPUPS.includes(popup as KpiPopup) ? (popup as KpiPopup) : null} />;
+  const popup = sp.popup;
+  // Keyed so "Nhập từ CSDL Master" (?import=1) opens its dialog even though the list is already mounted.
+  return <GuestsPage key={importing ? 'import' : ''} data={data} initialPopup={KPI_POPUPS.includes(popup as KpiPopup) ? (popup as KpiPopup) : null} />;
 }

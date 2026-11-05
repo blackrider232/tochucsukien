@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { augmentationsIn, checkContract, collectSnapshot, sqlAuditIn, type ContractSnapshot } from './check-contract';
+import { augmentationsIn, checkContract, collectSnapshot, sqlAuditIn, systemGrantRowsIn, type ContractSnapshot } from './check-contract';
 
 // collectSnapshot loads the feature servers, which reach the server-only core/auth/admin.ts.
 vi.mock('next/dist/compiled/server-only', () => ({}));
@@ -144,9 +144,9 @@ describe('each rule fails when broken', () => {
 
   it('a module migration that touches another owner’s table', () => {
     const errors = broken((s) =>
-      s.migrations.push({ name: '202611041200_venue_seat_notes.sql', sql: 'alter table public.sce_tcsk_guests add column if not exists seat_note text;\nupdate public.sce_tcsk_seat_assignments set seat_code = seat_code;' }),
+      s.migrations.push({ name: '209901010000_venue_seat_notes.sql', sql: 'alter table public.sce_tcsk_guests add column if not exists seat_note text;\nupdate public.sce_tcsk_seat_assignments set seat_code = seat_code;' }),
     );
-    expect(errors).toEqual(['migration 202611041200_venue_seat_notes.sql (venue) touches sce_tcsk_guests, owned by guests']);
+    expect(errors).toEqual(['migration 209901010000_venue_seat_notes.sql (venue) touches sce_tcsk_guests, owned by guests']);
   });
 
   it('a module migration may change its own tables and add a registered table', () => {
@@ -160,23 +160,76 @@ select tcsk.register_table('public.sce_tcsk_booth_photos', 'venue', 'event', 've
 alter table public.sce_tcsk_booths add column if not exists photo_count int not null default 0;`;
     expect(
       broken((s) => {
-        s.migrations.push({ name: '202611041200_venue_booth_photos.sql', sql });
+        s.migrations.push({ name: '209901010000_venue_booth_photos.sql', sql });
         manifest(s, 'venue').tables.push('sce_tcsk_booth_photos');
       }),
     ).toEqual([]);
   });
 
+  it('two migrations sharing a version, which the Supabase CLI keys schema_migrations on', () => {
+    expect(
+      broken((s) => {
+        s.migrations.push({ name: '209901010000_venue_a.sql', sql: '' });
+        s.migrations.push({ name: '209901010000_live_b.sql', sql: '' });
+      }),
+    ).toEqual(['migrations 209901010000_live_b.sql and 209901010000_venue_a.sql share version 209901010000; the Supabase CLI keys on it']);
+    expect(broken((s) => s.migrations.push({ name: '0002_other.sql', sql: '' }))).toEqual(
+      expect.arrayContaining([expect.stringContaining('share version 0002')]),
+    );
+  });
+
   it('a module migration that creates a table without register_table, or is misnamed', () => {
     expect(
       broken((s) => {
-        s.migrations.push({ name: '202611041200_live_notes.sql', sql: "create table if not exists public.sce_tcsk_live_notes (id uuid primary key);\ncomment on table public.sce_tcsk_live_notes is 'sce:owner=live';" });
+        s.migrations.push({ name: '209901010000_live_notes.sql', sql: "create table if not exists public.sce_tcsk_live_notes (id uuid primary key);\ncomment on table public.sce_tcsk_live_notes is 'sce:owner=live';" });
         manifest(s, 'live').tables.push('sce_tcsk_live_notes');
       }),
-    ).toEqual(['migration 202611041200_live_notes.sql creates sce_tcsk_live_notes without calling tcsk.register_table']);
+    ).toEqual(['migration 209901010000_live_notes.sql creates sce_tcsk_live_notes without calling tcsk.register_table']);
     expect(broken((s) => s.migrations.push({ name: 'add_stuff.sql', sql: '' }))).toEqual(['migration add_stuff.sql must be named <yyyymmddhhmm>_<feature>_<desc>.sql with a known feature']);
-    expect(broken((s) => s.migrations.push({ name: '202611041200_nobody_x.sql', sql: '' }))).toEqual([
-      'migration 202611041200_nobody_x.sql must be named <yyyymmddhhmm>_<feature>_<desc>.sql with a known feature',
+    expect(broken((s) => s.migrations.push({ name: '209901010000_nobody_x.sql', sql: '' }))).toEqual([
+      'migration 209901010000_nobody_x.sql must be named <yyyymmddhhmm>_<feature>_<desc>.sql with a known feature',
     ]);
+  });
+});
+
+describe('scheduled jobs', () => {
+  it('see the job table and the implemented commands’ permissions', () => {
+    expect(real.systemGrants).toEqual(expect.arrayContaining([{ job: 'rsvp-sync', command: 'guests.applyRsvp', perm: 'guests.write' }]));
+    expect(real.commandPerms['guests.applyRsvp']).toBe('guests.write');
+  });
+
+  it('a job that lists a core command, an unknown permission, or a command under another permission than its own', () => {
+    expect(broken((s) => s.systemGrants.push({ job: 'rsvp-sync', command: 'core.settings.update', perm: 'core.settings.edit' }))).toEqual([
+      'system job rsvp-sync lists core.settings.update: a scheduled job never runs a core command',
+    ]);
+    expect(broken((s) => s.systemGrants.push({ job: 'rsvp-sync', command: 'guests.update', perm: 'guests.everything' }))).toEqual([
+      'system job rsvp-sync lists guests.update under guests.everything, which no manifest declares',
+    ]);
+    expect(broken((s) => (s.systemGrants.find((g) => g.command === 'guests.applyRsvp')!.perm = 'guests.read'))).toEqual([
+      'system job rsvp-sync lists guests.applyRsvp under guests.read, but the command authorizes with guests.write',
+    ]);
+  });
+});
+
+describe('the SQL job table', () => {
+  it('matches SYSTEM_JOBS, and fails when the SQL or SYSTEM_JOBS moves alone', () => {
+    expect(real.systemGrantRows.sql.length).toBeGreaterThan(0);
+    const stale = 'tcsk.system_grants() in the migrations differs from SYSTEM_JOBS: add a migration that replaces it';
+    expect(broken((s) => s.systemGrantRows.sql.pop())).toEqual([stale]);
+    expect(broken((s) => s.systemGrantRows.expected.push('rsvp-sync|x|guests.update|guests.write|240'))).toEqual([stale]);
+    expect(broken((s) => (s.systemGrantRows.sql[0] = s.systemGrantRows.sql[0]!.replace(/\|240$/, '|600')))).toEqual([stale]);
+  });
+
+  it('reads the latest definition among the migrations', () => {
+    const fn = (rows: string) => `create or replace function tcsk.system_grants() returns table (job text) as $$ select * from (values ${rows}) g $$;`;
+    expect(
+      systemGrantRowsIn([
+        { name: 'a.sql', sql: fn(`('j', 'L', 'x.y', 'x.z', 60)`) },
+        { name: 'b.sql', sql: fn(`('j', 'L', 'x.y', 'x.z', 60), ('k', 'M', 'a.b', 'a.c', 120)`) },
+        { name: 'c.sql', sql: 'select 1;' },
+      ]),
+    ).toEqual(['j|L|x.y|x.z|60', 'k|M|a.b|a.c|120']);
+    expect(systemGrantRowsIn([])).toEqual([]);
   });
 });
 

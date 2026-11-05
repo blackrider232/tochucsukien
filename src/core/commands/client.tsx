@@ -9,13 +9,14 @@
 
 import { createContext, useCallback, useContext, useSyncExternalStore, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import type { CommandId, CommandResult, Inverse, InputOf, OutputOf, RunOptions, UndoApi } from './index';
+import type { CommandFailure, CommandId, CommandResult, Inverse, InputOf, OutputOf, RunOptions, UndoApi } from './index';
 
 export interface CommandFeedback {
   notify(tone: 'success' | 'info' | 'warning' | 'error', text: string): void;
 }
 
 const NETWORK_FAILURE = 'Không kết nối được máy chủ. Vui lòng thử lại.';
+const OFFLINE = 'Ngoại tuyến: chưa gửi được thay đổi. Chờ có mạng lại rồi thử lại.';
 const UNDO_DEPTH = 30;
 
 const FeedbackContext = createContext<CommandFeedback>({
@@ -50,7 +51,12 @@ export function clearUndo(): void {
   setHistory(EMPTY);
 }
 
+// Decision 6: no offline writes. Read at send time, not render time, so a dialog opened before the drop is refused too.
+const offline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
+const OFFLINE_FAILURE: CommandFailure = { ok: false, kind: 'offline', message: OFFLINE };
+
 async function send(id: CommandId, input: unknown): Promise<CommandResult<unknown>> {
+  if (offline()) return OFFLINE_FAILURE;
   try {
     const { dispatch } = await import('./dispatch');
     return await dispatch(id, input as never);
@@ -59,16 +65,17 @@ async function send(id: CommandId, input: unknown): Promise<CommandResult<unknow
   }
 }
 
-export function useCommand(): <K extends CommandId>(id: K, input: InputOf<K>, opts?: RunOptions) => Promise<OutputOf<K> | undefined> {
+/** Like useCommand, but answers the whole result, so a caller can word a refusal apart from a failed request. */
+export function useCommandResult(): <K extends CommandId>(id: K, input: InputOf<K>, opts?: RunOptions) => Promise<CommandResult<OutputOf<K>>> {
   const router = useRouter();
   const feedback = useContext(FeedbackContext);
   return useCallback(
-    async <K extends CommandId>(id: K, input: InputOf<K>, opts?: RunOptions): Promise<OutputOf<K> | undefined> => {
-      const result = await send(id, input);
+    async <K extends CommandId>(id: K, input: InputOf<K>, opts?: RunOptions): Promise<CommandResult<OutputOf<K>>> => {
+      const result = (await send(id, input)) as CommandResult<OutputOf<K>>;
       if (!result.ok) {
-        feedback.notify(result.kind === 'conflict' ? 'warning' : 'error', result.message);
+        feedback.notify(result.kind === 'conflict' || result.kind === 'offline' ? 'warning' : 'error', result.message);
         if (result.kind === 'conflict' || result.kind === 'not_found' || result.kind === 'gate') router.refresh();
-        return undefined;
+        return result;
       }
       if (result.unaudited) feedback.notify('warning', result.unaudited);
       else if (opts?.success) feedback.notify('success', opts.success);
@@ -76,9 +83,20 @@ export function useCommand(): <K extends CommandId>(id: K, input: InputOf<K>, op
         setHistory({ undo: [...history.undo, result.inverse].slice(-UNDO_DEPTH), redo: [] });
       }
       router.refresh();
-      return result.value as OutputOf<K>;
+      return result;
     },
     [feedback, router],
+  );
+}
+
+export function useCommand(): <K extends CommandId>(id: K, input: InputOf<K>, opts?: RunOptions) => Promise<OutputOf<K> | undefined> {
+  const run = useCommandResult();
+  return useCallback(
+    async <K extends CommandId>(id: K, input: InputOf<K>, opts?: RunOptions): Promise<OutputOf<K> | undefined> => {
+      const result = await run(id, input, opts);
+      return result.ok ? result.value : undefined;
+    },
+    [run],
   );
 }
 
@@ -92,6 +110,10 @@ export function useUndo(): UndoApi {
       const stack = history[from];
       const inverse = stack[stack.length - 1];
       if (!inverse) return;
+      if (offline()) {
+        feedback.notify('warning', OFFLINE);
+        return;
+      }
       const to = from === 'undo' ? 'redo' : 'undo';
       setHistory({ ...history, [from]: stack.slice(0, -1) });
       const result = await send(inverse.command, inverse.input);

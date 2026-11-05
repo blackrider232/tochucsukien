@@ -45,6 +45,10 @@ const nextConfig: NextConfig = {
   generateBuildId: async () => buildId,
   // Inlined into client bundles so useEventChanges() can tell it runs on the dev memory runtime.
   env: { SCE_DEV_MEMORY: process.env.SCE_DEV_MEMORY ?? '' },
+  // dispatch is the one server action, so this caps every command's input. Next's 1 MB default refuses a full guests
+  // batch (MAX_BATCH 2000 rows, about 1.1 MB of typical rows); directory chunks its imports at 600 KB. 2 MB fits both
+  // with headroom (src/core/commands/body-limit.test.ts).
+  experimental: { serverActions: { bodySizeLimit: '2mb' } },
   async redirects() {
     return [{ source: '/code/index.html', destination: '/', permanent: true }];
   },
