@@ -14,9 +14,9 @@ import type { Email, Instant, IsoDate, SanitizedHtml, UserId, Version } from '@/
 import { DEFAULT_SETTINGS } from '@/core/settings';
 import type { EnumRegistry, Tone } from '@/core/vocab';
 import {
-  Alert, Badge, Button, Checkbox, Combobox, DataTable, DateInput, Dialog, EmptyState, FilterBar, Form, FormField,
+  Alert, Badge, Button, Checkbox, CodeScanner, Combobox, DataTable, DateInput, Dialog, EmptyState, FileInput, FilterBar, Form, FormField,
   ICON_NAMES, Icon, IconButton, KpiCard, LinkTabs, MoneyInput, Nd30Header, NumberInput, PrintLink, PrintPage, ProgressBar,
-  QrCode, RadioGroup, RichHtml, RowMenu, SectionCard, Select, SignatureBlock, StatusBadge, Switch, Tabs, Textarea, TextInput,
+  QrCode, RadioGroup, RichEditor, RichHtml, RowMenu, SectionCard, Select, SignatureBlock, StatusBadge, Switch, Tabs, Textarea, TextInput,
   ThemeToggle, TimeInput, downloadBlob, downloadWordHtml, downloadXlsx, qrPngDataUrl, useBeep, useDialogs, useTheme, useToast,
   useZodForm, xlsxSheet,
   type Column,
@@ -337,6 +337,15 @@ function Specimens() {
           <QrCode payload="SCE-CHK:00000000-0000-4000-8000-000000000001:00000000-0000-4000-8000-000000000002" size={140} caption="K7M2QX" />
           <QrPng />
         </div>
+      </Spec>
+      <Spec kit="RichEditor" title="RichEditor: thanh định dạng, bàn phím, dán đã làm sạch">
+        <RichEditor label="Nội dung mẫu" initialHtml="<p>Kính gửi: <b>Sở Tài chính</b></p>" onChange={() => {}} />
+      </Spec>
+      <Spec kit="FileInput" title="FileInput: loại tệp, dung lượng, xóa">
+        <FileInput name="demoFile" label="Tệp CSV" accept=".csv,text/csv" maxBytes={1024 * 1024} onChange={() => {}} />
+      </Spec>
+      <Spec kit="CodeScanner" title="CodeScanner: camera quét mã, mọi trạng thái bằng lời">
+        <CodeScanner onCode={(raw) => toast.info(`Quét được ${raw}`)} />
       </Spec>
       <Spec kit="RichHtml" title="RichHtml">
         <RichHtml html={'<p>Nội dung <strong>đã làm sạch</strong></p>' as SanitizedHtml} className="text-sm text-ink" />
