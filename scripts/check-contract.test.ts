@@ -144,9 +144,9 @@ describe('each rule fails when broken', () => {
 
   it('a module migration that touches another owner’s table', () => {
     const errors = broken((s) =>
-      s.migrations.push({ name: '202611041200_venue_seat_notes.sql', sql: 'alter table public.sce_tcsk_guests add column if not exists seat_note text;\nupdate public.sce_tcsk_seat_assignments set seat_code = seat_code;' }),
+      s.migrations.push({ name: '209901010000_venue_seat_notes.sql', sql: 'alter table public.sce_tcsk_guests add column if not exists seat_note text;\nupdate public.sce_tcsk_seat_assignments set seat_code = seat_code;' }),
     );
-    expect(errors).toEqual(['migration 202611041200_venue_seat_notes.sql (venue) touches sce_tcsk_guests, owned by guests']);
+    expect(errors).toEqual(['migration 209901010000_venue_seat_notes.sql (venue) touches sce_tcsk_guests, owned by guests']);
   });
 
   it('a module migration may change its own tables and add a registered table', () => {
@@ -160,22 +160,34 @@ select tcsk.register_table('public.sce_tcsk_booth_photos', 'venue', 'event', 've
 alter table public.sce_tcsk_booths add column if not exists photo_count int not null default 0;`;
     expect(
       broken((s) => {
-        s.migrations.push({ name: '202611041200_venue_booth_photos.sql', sql });
+        s.migrations.push({ name: '209901010000_venue_booth_photos.sql', sql });
         manifest(s, 'venue').tables.push('sce_tcsk_booth_photos');
       }),
     ).toEqual([]);
   });
 
+  it('two migrations sharing a version, which the Supabase CLI keys schema_migrations on', () => {
+    expect(
+      broken((s) => {
+        s.migrations.push({ name: '209901010000_venue_a.sql', sql: '' });
+        s.migrations.push({ name: '209901010000_live_b.sql', sql: '' });
+      }),
+    ).toEqual(['migrations 209901010000_live_b.sql and 209901010000_venue_a.sql share version 209901010000; the Supabase CLI keys on it']);
+    expect(broken((s) => s.migrations.push({ name: '0002_other.sql', sql: '' }))).toEqual(
+      expect.arrayContaining([expect.stringContaining('share version 0002')]),
+    );
+  });
+
   it('a module migration that creates a table without register_table, or is misnamed', () => {
     expect(
       broken((s) => {
-        s.migrations.push({ name: '202611041200_live_notes.sql', sql: "create table if not exists public.sce_tcsk_live_notes (id uuid primary key);\ncomment on table public.sce_tcsk_live_notes is 'sce:owner=live';" });
+        s.migrations.push({ name: '209901010000_live_notes.sql', sql: "create table if not exists public.sce_tcsk_live_notes (id uuid primary key);\ncomment on table public.sce_tcsk_live_notes is 'sce:owner=live';" });
         manifest(s, 'live').tables.push('sce_tcsk_live_notes');
       }),
-    ).toEqual(['migration 202611041200_live_notes.sql creates sce_tcsk_live_notes without calling tcsk.register_table']);
+    ).toEqual(['migration 209901010000_live_notes.sql creates sce_tcsk_live_notes without calling tcsk.register_table']);
     expect(broken((s) => s.migrations.push({ name: 'add_stuff.sql', sql: '' }))).toEqual(['migration add_stuff.sql must be named <yyyymmddhhmm>_<feature>_<desc>.sql with a known feature']);
-    expect(broken((s) => s.migrations.push({ name: '202611041200_nobody_x.sql', sql: '' }))).toEqual([
-      'migration 202611041200_nobody_x.sql must be named <yyyymmddhhmm>_<feature>_<desc>.sql with a known feature',
+    expect(broken((s) => s.migrations.push({ name: '209901010000_nobody_x.sql', sql: '' }))).toEqual([
+      'migration 209901010000_nobody_x.sql must be named <yyyymmddhhmm>_<feature>_<desc>.sql with a known feature',
     ]);
   });
 });

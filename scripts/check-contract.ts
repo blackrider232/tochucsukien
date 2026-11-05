@@ -162,6 +162,16 @@ export function checkContract(s: ContractSnapshot): string[] {
     if (t.owner && !keys.has(t.owner)) errors.push(`table ${t.name} names unknown owner "${t.owner}"`);
   }
 
+  // 6a. The Supabase CLI keys schema_migrations by the numeric prefix, so two files must not share it.
+  const byVersion = new Map<string, string[]>();
+  for (const file of s.migrations) {
+    const version = file.name.split('_')[0]!;
+    byVersion.set(version, [...(byVersion.get(version) ?? []), file.name]);
+  }
+  for (const [version, names] of byVersion) {
+    if (names.length > 1) errors.push(`migrations ${names.sort().join(' and ')} share version ${version}; the Supabase CLI keys on it`);
+  }
+
   // 6. Module migrations touch only their own feature's tables.
   for (const file of s.migrations) {
     if (FOUNDATION_MIGRATION.test(file.name)) continue;
