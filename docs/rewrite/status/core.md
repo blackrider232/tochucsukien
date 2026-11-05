@@ -189,7 +189,7 @@ Each fix has a test that fails on the code before it.
 
 `/private/tmp/claude-501/-Users-ngotuananh-ProjectCode-SEC-tochucsukien/f9cf2612-e9a6-4262-826e-d594e5255aff/scratchpad/core/`, at 360 and 1440 px, light and dark. They cover users (admin, leader, dept_leader), settings, backups (admin, leader), audit, profile, login (empty, invalid, failed), register (empty, invalid), reset, pending, locked, and the flow states (settings invalid, holiday dialog, backup prompt, restore confirm, after restore, audit filtered, last-admin menu, role dialog, create-account errors).
 
-## Foundation-B (branch `t3/bccb67a4`, from `dev` at `8215cee`)
+## Foundation-B (branches `t3/foundation-b-core-progress-integration`, then `t3/foundation-b-cron-identity-progress`, from `dev` at `8215cee`)
 
 Each item has a test that fails before its fix, unless it says otherwise.
 
