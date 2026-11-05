@@ -10,7 +10,7 @@
 // token: a second tab or a reload of the same officer is one too, and may
 // only take over the claims explicitly. A row keeps only the token's hash
 // (claimHash); a write that acts for the run carries the token as proof,
-// which the database checks (202611041460_comms_delivery_guard.sql), so an
+// which the database checks (202611041560_comms_delivery_guard.sql), so an
 // officer writing to the table directly cannot act for another run either.
 // Just before handing a message to Gmail the run marks its claim 'sending'
 // (markSending). A run that dies there leaves the row 'sending', which nobody
@@ -42,7 +42,7 @@ const send = { perm: 'comms.send', event: (i: { eventId: EventId }) => i.eventId
 
 /**
  * What a row keeps of the run's token: the first 128 bits of its sha256, as a uuid, so that reading a row does not
- * reveal the token. The database computes the same to check claim_proof (202611041460_comms_delivery_guard.sql).
+ * reveal the token. The database computes the same to check claim_proof (202611041560_comms_delivery_guard.sql).
  */
 export function claimHash(runToken: RunToken): ClaimHash {
   const hex = createHash('sha256').update(runToken.toLowerCase(), 'utf8').digest('hex');
@@ -388,7 +388,7 @@ export const markSending: CommandSpec<InputOf<'comms.markSending'>, OutputOf<'co
 /**
  * Frees the claims of addresses a stopped run never handed to Gmail. Only this run's 'queued' or 'sending' rows go (the
  * run knows which messages it never sent); a result already recorded stays. A 'sending' row is put back to 'queued'
- * before it is deleted (202611041480_comms_delivery_delete_guard.sql).
+ * before it is deleted (202611041570_comms_delivery_delete_guard.sql).
  */
 export const releaseDeliveries: CommandSpec<InputOf<'comms.releaseDeliveries'>, OutputOf<'comms.releaseDeliveries'>> = {
   kind: 'mutation',

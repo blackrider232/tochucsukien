@@ -1,4 +1,4 @@
--- 202611041400_comms_delivery_evidence_and_sync_state.sql
+-- 202611041530_comms_delivery_evidence_and_sync_state.sql
 -- comms only (sce:owner=comms tables). Idempotent.
 --
 -- Deliveries: a 'sent' row needs the Gmail message id and a time, so no

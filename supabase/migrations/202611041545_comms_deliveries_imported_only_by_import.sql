@@ -1,4 +1,4 @@
--- 202611041430_comms_deliveries_imported_only_by_import.sql
+-- 202611041545_comms_deliveries_imported_only_by_import.sql
 -- comms only (sce:owner=comms tables). Idempotent.
 --
 -- `imported` exempts a 'sent' row from the Gmail-evidence check, because the

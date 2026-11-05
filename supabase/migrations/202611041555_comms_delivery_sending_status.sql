@@ -1,4 +1,4 @@
--- 202611041450_comms_delivery_sending_status.sql
+-- 202611041555_comms_delivery_sending_status.sql
 -- comms only (sce:owner=comms tables). Idempotent.
 --
 -- 'sending': the run that holds the claim marked it just before handing the

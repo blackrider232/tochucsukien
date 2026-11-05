@@ -1,4 +1,4 @@
--- 202611041440_comms_delivery_unknown_status.sql
+-- 202611041550_comms_delivery_unknown_status.sql
 -- comms only (sce:owner=comms tables). Idempotent.
 --
 -- 'unknown': Gmail's answer to a send was lost (the connection dropped), so

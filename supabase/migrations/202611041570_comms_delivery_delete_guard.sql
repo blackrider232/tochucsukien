@@ -1,4 +1,4 @@
--- 202611041480_comms_delivery_delete_guard.sql
+-- 202611041570_comms_delivery_delete_guard.sql
 -- comms only (sce:owner=comms tables). Idempotent.
 --
 -- A message being sent ('sending') may have reached Gmail, so it is never
@@ -8,7 +8,7 @@
 -- ('queued') when the run stopped before Gmail was asked; that claim the run
 -- may then free. An unsent claim ('queued') is deleted, as before, by the
 -- officer whose run holds it or once it lapsed. The owner, the import script
--- and foreign-key actions are not checked (202611041460).
+-- and foreign-key actions are not checked (202611041560).
 
 create or replace function tcsk.comms_delivery_guard() returns trigger
 language plpgsql set search_path = '' as $$

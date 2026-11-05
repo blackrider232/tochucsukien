@@ -163,10 +163,10 @@ export interface DeliveryRow extends BaseRow {
   senderEmail: string;
   /**
    * 'queued' is a claim: the run named by claimToken is about to send this message. 'sending': that run handed it to
-   * Gmail, or is about to; if the run dies there, the row becomes 'unknown' (202611041450_comms_delivery_sending_status.sql).
+   * Gmail, or is about to; if the run dies there, the row becomes 'unknown' (202611041555_comms_delivery_sending_status.sql).
    */
   status: DeliveryStatus | 'queued' | 'sending';
-  /** The run that claimed the row last, as claimHash of its token (202611041410 and 202611041460 migrations). */
+  /** The run that claimed the row last, as claimHash of its token (202611041535 and 202611041560 migrations). */
   claimToken: ClaimHash | null;
   /**
    * Write-only: the run's own token, on a write that acts for the run that holds the claim. The database checks it

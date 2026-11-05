@@ -516,7 +516,7 @@ describe('comms.releaseDeliveries', () => {
     const eventId = await h.createEvent();
     const { campaignId } = await start(h, eventId, [to('a@x.vn'), to('b@x.vn')]);
     expect(await marking(h, eventId, campaignId, 'a@x.vn')).toMatchObject({ ok: true, value: { held: true } });
-    // 202611041480: Postgres refuses to delete a 'sending' row; memoryDb does not emulate the guard.
+    // 202611041570: Postgres refuses to delete a 'sending' row; memoryDb does not emulate the guard.
     const postgresDeletes = (db: Db): Db => ({
       rpc: db.rpc.bind(db),
       table(def) {

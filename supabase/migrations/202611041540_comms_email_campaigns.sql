@@ -1,4 +1,4 @@
--- 202611041420_comms_email_campaigns.sql
+-- 202611041540_comms_email_campaigns.sql
 -- comms only (sce:owner=comms tables). Idempotent.
 --
 -- The message of each campaign: its subject and body templates, as composed

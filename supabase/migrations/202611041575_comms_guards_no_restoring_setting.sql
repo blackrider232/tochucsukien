@@ -1,4 +1,4 @@
--- 202611041490_comms_guards_no_restoring_setting.sql
+-- 202611041575_comms_guards_no_restoring_setting.sql
 -- comms only (sce:owner=comms tables). Idempotent.
 --
 -- The delivery and campaign guards skipped their checks when the session
