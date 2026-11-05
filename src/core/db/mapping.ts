@@ -1,24 +1,24 @@
 // Field <-> column mapping and row parsing, shared by both Db implementations
 // so memoryDb exercises exactly the mapping production uses.
 
-import type { BaseRow, TableDef, Where } from './index';
+import type { AnyTableDef, BaseRow, Where } from './index';
 
 const MANAGED = new Set(['version', 'createdAt', 'createdBy', 'updatedAt', 'updatedBy']);
 
 const snake = (key: string) => key.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 const camel = (column: string) => column.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase());
 
-export function columnOf<Row extends BaseRow>(def: TableDef<Row>, field: string): string {
+export function columnOf<Row extends BaseRow>(def: AnyTableDef<Row>, field: string): string {
   return (def.columns as Record<string, string | undefined> | undefined)?.[field] ?? snake(field);
 }
 
-function fieldOf<Row extends BaseRow>(def: TableDef<Row>, column: string): string {
+function fieldOf<Row extends BaseRow>(def: AnyTableDef<Row>, column: string): string {
   for (const [field, col] of Object.entries(def.columns ?? {})) if (col === column) return field;
   return camel(column);
 }
 
 /** Domain fields -> columns for a write. Managed columns are the DB's, so they never leave here. */
-export function toColumns<Row extends BaseRow>(def: TableDef<Row>, fields: object): Record<string, unknown> {
+export function toColumns<Row extends BaseRow>(def: AnyTableDef<Row>, fields: object): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [field, value] of Object.entries(fields)) {
     if (value === undefined || MANAGED.has(field)) continue;
@@ -28,7 +28,7 @@ export function toColumns<Row extends BaseRow>(def: TableDef<Row>, fields: objec
 }
 
 /** A row as PostgREST returns it -> the parsed domain row. A schema mismatch is a bug, not a user error. */
-export function fromColumns<Row extends BaseRow>(def: TableDef<Row>, row: Record<string, unknown>): Row {
+export function fromColumns<Row extends BaseRow>(def: AnyTableDef<Row>, row: Record<string, unknown>): Row {
   const fields: Record<string, unknown> = {};
   for (const [column, value] of Object.entries(row)) fields[fieldOf(def, column)] = value;
   try {
@@ -40,7 +40,7 @@ export function fromColumns<Row extends BaseRow>(def: TableDef<Row>, row: Record
 
 export type Filter = { column: string; op: 'eq'; value: unknown } | { column: string; op: 'in'; values: ReadonlyArray<unknown> } | { column: string; op: 'is_null' };
 
-export function filtersOf<Row extends BaseRow>(def: TableDef<Row>, where: Where<Row> | undefined): Filter[] {
+export function filtersOf<Row extends BaseRow>(def: AnyTableDef<Row>, where: Where<Row> | undefined): Filter[] {
   return Object.entries(where ?? {}).flatMap(([field, value]): Filter[] => {
     if (value === undefined) return [];
     const column = columnOf(def, field);

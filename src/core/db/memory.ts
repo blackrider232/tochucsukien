@@ -26,7 +26,7 @@ import { DbError } from './errors';
 import { draftMatches, filtersOf, fromColumns, toColumns, columnOf, type Filter } from './mapping';
 import { parseAuditRow, parseBackupRow, settingsPatchColumns } from './rpc';
 import { parseCatalog, parseViews, type CatalogTable, type CatalogView } from './sql-catalog';
-import type { AuditWriter, BaseRow, CommandAuditRow, Db, DraftOf, RpcMap, Table, TableDef, Where, WriteGuard } from './index';
+import type { AnyTable, AnyTableDef, AuditWriter, BaseRow, CommandAuditRow, Db, DraftOf, RpcMap, Table, TableDef, Where, WriteGuard } from './index';
 
 type Row = Record<string, unknown>;
 type Seed = Readonly<Record<string, ReadonlyArray<Record<string, unknown>>>>;
@@ -225,7 +225,7 @@ const STORE_PROBE = { name: 'sce_tcsk_audit_logs', owner: 'core', eventScoped: f
 const probedStores = new WeakMap<object, Store>();
 
 /** list(): the rows that match `where`, in the def's order and then by id, up to `limit`. */
-function listed<R extends BaseRow>(def: TableDef<R>, rows: ReadonlyArray<Row>, where?: Where<R>, opts?: { limit?: number }): Row[] {
+function listed<R extends BaseRow>(def: AnyTableDef<R>, rows: ReadonlyArray<Row>, where?: Where<R>, opts?: { limit?: number }): Row[] {
   const filters = filtersOf(def, where);
   const hits = rows.filter((r) => matches(r, filters));
   const order = [...(def.orderBy ?? []).map((o) => ({ column: columnOf(def, o.column), ascending: o.ascending })), { column: 'id', ascending: true }];
@@ -243,7 +243,7 @@ function listed<R extends BaseRow>(def: TableDef<R>, rows: ReadonlyArray<Row>, w
  * A security_invoker view as parseViews reads it: the from table's visible rows, each left joined to the visible rows
  * of every joined table (one output row per match, nulls without one). Writes fail, as on a join view in Postgres.
  */
-function memoryView<R extends BaseRow>(store: Store, rls: Rls, def: TableDef<R>, view: CatalogView): Table<R> {
+function memoryView<R extends BaseRow>(store: Store, rls: Rls, def: AnyTableDef<R>, view: CatalogView): AnyTable<R> {
   const rows = (): Row[] => {
     if ('unsupported' in view) throw new Error(`${view.name}: memoryDb emulates only a security_invoker view of one table and its left joins on equal columns`);
     const visibleIn = (table: string) => rowsOf(store, table).filter((r) => rls.allows(loadCatalog().get(table), 'read', r));
@@ -275,9 +275,9 @@ function memoryView<R extends BaseRow>(store: Store, rls: Rls, def: TableDef<R>,
   };
 }
 
-function memoryTable<R extends BaseRow>(store: Store, actor: Actor, rls: Rls, def: TableDef<R>): Table<R> {
+function memoryTable<R extends BaseRow>(store: Store, actor: Actor, rls: Rls, def: AnyTableDef<R>): AnyTable<R> {
   if ((def as object) === STORE_PROBE) {
-    const probe = {} as Table<R>;
+    const probe = {} as AnyTable<R>;
     probedStores.set(probe, store);
     return probe;
   }
@@ -285,6 +285,10 @@ function memoryTable<R extends BaseRow>(store: Store, actor: Actor, rls: Rls, de
   if (view) return memoryView(store, rls, def, view);
   const name = def.name;
   const meta = loadCatalog().get(name);
+  for (const field of def.defaulted ?? []) {
+    const column = columnOf(def, field);
+    if (meta?.columns.find((c) => c.name === column)?.default == null) throw new Error(`${name}: ${field} is listed as defaulted but ${column} has no default in the migrations`);
+  }
   const all = () => rowsOf(store, name);
   const visible = () => all().filter((r) => rls.allows(meta, 'read', r));
   const parse = (r: Row) => fromColumns(def, structuredClone(r));
@@ -387,7 +391,7 @@ function memoryTable<R extends BaseRow>(store: Store, actor: Actor, rls: Rls, de
       const row = visibleById(id);
       return row ? parse(row) : null;
     },
-    async insert(draft: DraftOf<R>) {
+    async insert(draft: DraftOf<R, keyof R & string>) {
       const id = draft.id ?? newId();
       const existing = all().find((r) => r.id === id);
       if (existing) {
@@ -728,7 +732,8 @@ export function memoryDb(seed: Seed, actor: Actor): Db {
   const rls = new Rls(store, actor);
   const handlers = rpcHandlers(store, actor, rls);
   return {
-    table: (def) => memoryTable(store, actor, rls, def),
+    // A def that names fewer defaulted columns demands more of a draft than the table accepts; the cast only widens.
+    table: (def) => memoryTable(store, actor, rls, def as never) as never,
     async rpc<K extends keyof RpcMap>(name: K, args: RpcMap[K]['args']): Promise<RpcMap[K]['result']> {
       const handler = handlers[name] as ((a: RpcMap[K]['args']) => RpcMap[K]['result']) | undefined;
       if (!handler) throw new Error(`rpc ${String(name)} is not allowlisted`);

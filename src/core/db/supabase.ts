@@ -7,7 +7,7 @@ import type { Actor } from '@/core/auth';
 import { DbError } from './errors';
 import { draftMatches, filtersOf, fromColumns, toColumns, columnOf, type Filter } from './mapping';
 import { RPC_ALLOWLIST } from './rpc';
-import type { AuditWriter, BaseRow, Db, DraftOf, RpcMap, Table, TableDef, Where, WriteGuard } from './index';
+import type { AnyTable, AnyTableDef, AuditWriter, BaseRow, Db, DraftOf, RpcMap, Table, Where, WriteGuard } from './index';
 
 export interface PgError {
   code?: string;
@@ -77,7 +77,7 @@ function applyFilters(q: PgBuilder, filters: ReadonlyArray<Filter>): PgBuilder {
   return filters.reduce((acc, f) => (f.op === 'eq' ? acc.eq(f.column, f.value) : f.op === 'in' ? acc.in(f.column, f.values) : acc.is(f.column, null)), q);
 }
 
-function table<Row extends BaseRow>(client: PgClient, def: TableDef<Row>): Table<Row> {
+function table<Row extends BaseRow>(client: PgClient, def: AnyTableDef<Row>): AnyTable<Row> {
   const name = def.name;
   const parse = (r: Record<string, unknown>) => fromColumns(def, r);
 
@@ -110,7 +110,7 @@ function table<Row extends BaseRow>(client: PgClient, def: TableDef<Row>): Table
     throw new DbError('forbidden', { table: name });
   }
 
-  async function insert(draft: DraftOf<Row>): Promise<Row> {
+  async function insert(draft: DraftOf<Row, keyof Row & string>): Promise<Row> {
     const id = draft.id ?? newId();
     try {
       const rows = rowsOf(await run(client.from(name).insert({ ...toColumns(def, draft), id }).select('*'), name));
@@ -125,7 +125,7 @@ function table<Row extends BaseRow>(client: PgClient, def: TableDef<Row>): Table
     }
   }
 
-  async function insertMany(drafts: ReadonlyArray<DraftOf<Row>>): Promise<Row[]> {
+  async function insertMany(drafts: ReadonlyArray<DraftOf<Row, keyof Row & string>>): Promise<Row[]> {
     const withIds = drafts.map((d) => ({ ...toColumns(def, d), id: d.id ?? newId() }));
     const byId = new Map<unknown, Row>();
     for (let i = 0; i < withIds.length; i += CHUNK) {
@@ -140,7 +140,7 @@ function table<Row extends BaseRow>(client: PgClient, def: TableDef<Row>): Table
     return withIds.map((r) => byId.get(r.id)).filter((r): r is Row => r !== undefined);
   }
 
-  async function upsertOn(key: ReadonlyArray<keyof Row & string>, draft: DraftOf<Row>): Promise<Row> {
+  async function upsertOn(key: ReadonlyArray<keyof Row & string>, draft: DraftOf<Row, keyof Row & string>): Promise<Row> {
     const values = toColumns(def, draft);
     // On a conflict of another key, writing id would re-key the existing row and break its references.
     if (!key.includes('id' as keyof Row & string)) delete values.id;
@@ -201,7 +201,7 @@ export function supabaseAuditWriter(service: () => unknown): AuditWriter {
 export function supabaseDb(client: unknown, actor: Actor): Db {
   const pg = client as PgClient;
   return {
-    table: (def) => table(pg, def),
+    table: (def) => table(pg, def as never) as never,
     async rpc<K extends keyof RpcMap>(name: K, args: RpcMap[K]['args']): Promise<RpcMap[K]['result']> {
       const spec = RPC_ALLOWLIST[name] as { args(a: unknown): Record<string, unknown>; result(d: unknown): RpcMap[K]['result'] } | undefined;
       if (!spec) throw new Error(`rpc ${String(name)} is not allowlisted`);

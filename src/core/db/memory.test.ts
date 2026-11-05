@@ -251,6 +251,24 @@ describe('declareGuard (a CHECK, restrictive policy or trigger rule memoryDb can
   });
 });
 
+describe('defaulted columns (DraftOf leaves them optional)', () => {
+  const defaultedGuests = defineTable<TestGuest, 'checkinCode' | 'rsvpStatus'>({ ...guestsTable, defaulted: ['checkinCode', 'rsvpStatus'] });
+
+  it('lets a draft leave out a column the SQL fills, and the database fills it', async () => {
+    const { as, xtdt } = setup();
+    const g = await as(xtdt).table(defaultedGuests).insert({ id: G(1), eventId: E1, name: 'A', group: 'VIP', organization: '' });
+    expect([g.checkinCode, g.rsvpStatus]).toEqual([expect.stringMatching(/^[0-9A-HJKMNP-TV-Z]{6}$/), 'pending']);
+    // @ts-expect-error A column without a DB default stays required.
+    await rejectsWith(as(xtdt).table(defaultedGuests).insert({ id: G(2), eventId: E1, group: 'VIP', organization: '' }), 'constraint');
+  });
+
+  it('refuses a def that calls a column defaulted when the migrations give it no default', () => {
+    const { as, xtdt } = setup();
+    const lying = defineTable<TestGuest, 'name'>({ ...guestsTable, defaulted: ['name'] });
+    expect(() => as(xtdt).table(lying)).toThrow(/name.*no default/);
+  });
+});
+
 describe('memoryDb created_at', () => {
   it('orders rows inserted in the same millisecond by insertion, and gives one batch one timestamp', async () => {
     const { as, xtdt, seed } = setup();
