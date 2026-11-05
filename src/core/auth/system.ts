@@ -60,9 +60,11 @@ export async function checkCron(request: Request, job: SystemJob, deps: CronDeps
   const secret = deps.secret?.trim();
   if (!secret || secret.length < MIN_CRON_SECRET) return refuse(503, `CRON_SECRET chưa được cấu hình (tối thiểu ${MIN_CRON_SECRET} ký tự).`);
   if (!bearerMatches(request.headers.get('authorization'), secret)) return refuse(401, 'unauthorized');
-  if (!(await deps.startRun(job))) return refuse(429, 'Tác vụ vừa chạy; lần gọi lặp lại bị bỏ qua.');
+  // The context first: no service key answers 503 and a failed read answers 500, and neither burns the replay window
+  // (the claim is audited and holds for the whole window). A replay pays for the read.
   const ctx = await deps.context(job);
   if (!ctx) return refuse(503, 'Chưa cấu hình khóa dịch vụ để chạy tác vụ hệ thống.');
+  if (!(await deps.startRun(job))) return refuse(429, 'Tác vụ vừa chạy; lần gọi lặp lại bị bỏ qua.');
   return { ok: true, ctx };
 }
 

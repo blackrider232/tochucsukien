@@ -56,14 +56,13 @@ describe('checkCron', () => {
     }
   });
 
-  it('a replay inside the job’s window is 429 and builds no context; the next scheduled call runs', async () => {
+  it('a replay inside the job’s window is 429 and hands out no context; the next scheduled call runs', async () => {
     const d = deps();
     expect((await checkCron(request(`Bearer ${SECRET}`), 'rsvp-sync', d.deps)).ok).toBe(true);
     d.advance(239_000);
     const replay = await checkCron(request(`Bearer ${SECRET}`), 'rsvp-sync', d.deps);
     expect(replay.ok).toBe(false);
     if (!replay.ok) expect(replay.response.status).toBe(429);
-    expect(d.context).toHaveBeenCalledTimes(1);
     d.advance(1_000);
     expect((await checkCron(request(`Bearer ${SECRET}`), 'rsvp-sync', d.deps)).ok).toBe(true);
   });
@@ -74,11 +73,18 @@ describe('checkCron', () => {
     expect((await checkCron(request(`Bearer ${SECRET}`), 'rsvp-sync', d.deps)).ok).toBe(true);
   });
 
-  it('no system context (no service key) is 503', async () => {
+  it('no system context (no service key) is 503 and claims no window', async () => {
     const d = deps({ context: async () => null });
     const r = await checkCron(request(`Bearer ${SECRET}`), 'rsvp-sync', d.deps);
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.response.status).toBe(503);
+    expect(d.startRun).not.toHaveBeenCalled();
+  });
+
+  it('a context that throws claims no window, so the next call is not locked out', async () => {
+    const d = deps({ context: async () => { throw new Error('db down'); } });
+    await expect(checkCron(request(`Bearer ${SECRET}`), 'rsvp-sync', d.deps)).rejects.toThrow('db down');
+    expect(d.startRun).not.toHaveBeenCalled();
   });
 
   it('answers are never cached and never echo the secret', async () => {
