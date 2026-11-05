@@ -67,6 +67,19 @@ describe('the directory screen renders contact text as text (m4c B1-B4, B12)', (
   });
 });
 
+describe('the CSV file picker', () => {
+  it('reads a chosen .csv into the preview, and refuses a file that is not CSV', async () => {
+    const user = userEvent.setup({ applyAccept: false });
+    renderUi(withAppContext(<CsvImportDialog contacts={[]} onClose={() => undefined} />));
+    const picker = screen.getByLabelText('Tệp CSV');
+    await user.upload(picker, new File(['Họ tên,Cơ quan\nAn,Sở A\nBình,Sở B'], 'khach.csv', { type: 'text/csv' }));
+    expect(await screen.findByRole('button', { name: 'Nhập 2 đối tượng' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Nội dung CSV' })).toHaveValue('Họ tên,Cơ quan\nAn,Sở A\nBình,Sở B');
+    await user.upload(picker, new File(['x'], 'anh.png', { type: 'image/png' }));
+    expect(await screen.findByText(/Chỉ nhận tệp/)).toBeInTheDocument();
+  });
+});
+
 describe('the CSV import commits once', () => {
   it('a double click on "Nhập" sends one command', async () => {
     const user = userEvent.setup();

@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useWatch } from 'react-hook-form';
 import { z } from 'zod';
-import { Alert, Badge, Button, DataTable, Dialog, Form, FormField, KpiCard, Select, Textarea, downloadBlob, useToast, useZodForm, type Column } from '@/components/ui';
+import { Alert, Badge, Button, DataTable, Dialog, FileInput, Form, FormField, KpiCard, Select, Textarea, downloadBlob, useToast, useZodForm, type Column } from '@/components/ui';
 import { useCommand } from '@/core/commands';
 import type { Tone } from '@/core/vocab';
 import { guestIdentityKey } from '@/features/guests';
@@ -22,6 +22,8 @@ const TEMPLATE_ROWS: ReadonlyArray<Partial<MasterContact>> = [
   { name: 'Trần Văn Mẫu', group: 'DoanhNghiep', title: 'Giám đốc', organization: 'Công ty Mẫu', phone: '0912.345.678', email: 'mau@example.com' as MasterContact['email'], address: '', taxCode: '', notes: '', hasBanquet: false },
 ];
 const SHOWN_ROWS = 200;
+/** A CSV of a few thousand contacts is well under this; a larger file is not a contact list. */
+const MAX_CSV_BYTES = 5 * 1024 * 1024;
 
 /** Paste CSV, read the preview row by row, then commit what is valid (m4c Q10). Nothing is written before "Nhập". */
 export function CsvImportDialog({ contacts, onClose }: { contacts: ReadonlyArray<MasterContact>; onClose: () => void }) {
@@ -75,7 +77,7 @@ export function CsvImportDialog({ contacts, onClose }: { contacts: ReadonlyArray
       size="xl"
       icon="upload"
       title="Nhập đối tượng từ CSV"
-      subtitle="Dán nội dung tệp CSV, kiểm tra từng dòng rồi mới nhập"
+      subtitle="Chọn tệp CSV hoặc dán nội dung, kiểm tra từng dòng rồi mới nhập"
       dirty={csv.trim() !== ''}
       footer={
         <>
@@ -91,8 +93,11 @@ export function CsvImportDialog({ contacts, onClose }: { contacts: ReadonlyArray
       <div className="space-y-4">
         <Form form={form} onSubmit={() => undefined} className="space-y-4">
           <Alert tone="info" action={<Button variant="secondary" icon="download" onClick={downloadTemplate}>Tải tệp mẫu</Button>}>
-            Dòng đầu là tiêu đề cột, cần có {'"Họ Và Tên" và "Cơ Quan / Doanh Nghiệp"'}. Các cột khác (Nhóm Đối Tượng, Chức Danh, Số Điện Thoại, Email, Địa Chỉ, Mã Số Thuế, Tiệc VIP, Ghi Chú) có thể bỏ. Tệp xuất từ CSDL nhập lại được. Mở tệp bằng Excel hoặc Notepad, chọn tất cả, sao chép rồi dán vào ô dưới.
+            Dòng đầu là tiêu đề cột, cần có {'"Họ Và Tên" và "Cơ Quan / Doanh Nghiệp"'}. Các cột khác (Nhóm Đối Tượng, Chức Danh, Số Điện Thoại, Email, Địa Chỉ, Mã Số Thuế, Tiệc VIP, Ghi Chú) có thể bỏ. Tệp xuất từ CSDL nhập lại được. Chọn tệp .csv, hoặc mở tệp bằng Excel hay Notepad, chọn tất cả, sao chép rồi dán vào ô dưới.
           </Alert>
+          <FormField label="Tệp CSV" name="file" hint="Hoặc dán nội dung vào ô dưới. Chọn tệp sẽ thay nội dung đang có.">
+            <FileInput name="file" accept=".csv,.txt,text/csv,text/plain" maxBytes={MAX_CSV_BYTES} onChange={(file) => { if (file) void file.text().then((text) => form.setValue('csv', text, { shouldDirty: true })); }} />
+          </FormField>
           <FormField label="Nội dung CSV" name="csv">
             <Textarea name="csv" rows={6} placeholder={'Họ Và Tên,Cơ Quan / Doanh Nghiệp,Nhóm Đối Tượng\nTrần Văn Mẫu,Công ty Mẫu,Doanh nghiệp'} />
           </FormField>
