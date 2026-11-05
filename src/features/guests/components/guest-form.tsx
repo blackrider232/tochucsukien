@@ -5,6 +5,7 @@ import { Button, Checkbox, Dialog, Form, FormField, Select, Textarea, TextInput,
 import { newId, type EventId } from '@/core/brand';
 import { useCommand } from '@/core/commands';
 import { GUEST_GROUPS, INVITE, RSVP, SEND_METHOD, enumOptions } from '@/core/vocab';
+import { ContactLookup, guestFieldsFromContact } from '@/features/directory';
 import type { Guest, GuestDraft } from '../contract';
 import { GUEST_DRAFT_KEYS, NEW_GUEST_DEFAULTS, draftOf, guestFields } from '../domain/schemas';
 
@@ -18,10 +19,15 @@ const RSVP_OPTIONS = options(RSVP);
 const toForm = (d: GuestDraft) => ({ ...d, email: d.email ?? '' });
 
 /** Add or edit one guest (m4a §1.6.1). The form parses with the command's own field rules. */
-export function GuestFormDialog({ eventId, guest, onClose }: { eventId: EventId; guest: Guest | null; onClose: () => void }) {
+export function GuestFormDialog({ eventId, guest, lookup = false, onClose }: { eventId: EventId; guest: Guest | null; lookup?: boolean; onClose: () => void }) {
   const run = useCommand();
   const form = useZodForm(guestFields, { defaultValues: toForm(guest ? draftOf(guest) : NEW_GUEST_DEFAULTS) });
   const rsvp = useWatch({ control: form.control, name: 'rsvpStatus' });
+
+  // Copying a contact into a new guest links it (masterContactId, set by the lookup field itself). Editing never overwrites what staff typed.
+  const fillFrom = (c: Parameters<typeof guestFieldsFromContact>[0]) => {
+    for (const [key, value] of Object.entries(guestFieldsFromContact(c))) form.setValue(key as keyof GuestDraft, (value ?? '') as never, { shouldDirty: true, shouldValidate: form.formState.isSubmitted });
+  };
 
   const submit = async (values: GuestDraft) => {
     const done = guest
@@ -51,6 +57,11 @@ export function GuestFormDialog({ eventId, guest, onClose }: { eventId: EventId;
       dirty={form.formState.isDirty}
     >
       <Form form={form} onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
+        {lookup && !guest && (
+          <div className="sm:col-span-2">
+            <ContactLookup name="masterContactId" onPick={fillFrom} />
+          </div>
+        )}
         <div className="sm:col-span-2">
           <FormField label="Họ và tên đại biểu" name="name" required>
             <TextInput name="name" placeholder="Ví dụ: Nguyễn Văn An" autoComplete="off" />

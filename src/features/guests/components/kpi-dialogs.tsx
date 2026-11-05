@@ -59,7 +59,7 @@ export function KpiDialog({ popup, data, sets, onClose, onAdd }: { popup: KpiPop
             { id: 'group', header: 'Nhóm', cell: (g) => <GroupCell g={g} />, hideOnMobile: true },
             { id: 'rsvp', header: 'RSVP', cell: (g) => <RsvpCell g={g} /> },
             { id: 'banquet', header: 'Tiệc', cell: (g) => <BanquetCell g={g} />, hideOnMobile: true },
-            { id: 'seat', header: 'Ghế ngồi', cell: (g) => <SeatCell g={g} />, hideOnMobile: true },
+            { id: 'seat', header: 'Ghế ngồi', cell: (g) => <SeatCell g={g} linked={data.canSeeSeating} />, hideOnMobile: true },
           ]}>
           {(shown) => footnote(`Hiển thị ${shown}/${roster.length} đại biểu`)}
         </GuestList>
@@ -77,7 +77,7 @@ export function KpiDialog({ popup, data, sets, onClose, onAdd }: { popup: KpiPop
             { id: 'name', header: 'Họ và tên đại biểu', cell: (g) => <div className="space-y-1"><NameCell g={g} contact={false} /><GroupCell g={g} /></div> },
             orgCol,
             { id: 'substitute', header: 'Người đi thay (nếu có)', cell: (g) => (g.rsvpStatus === 'substituted' && g.substituteName ? g.substituteName : '-'), hideOnMobile: true },
-            { id: 'seat', header: 'Ghế ngồi', cell: (g) => <SeatCell g={g} /> },
+            { id: 'seat', header: 'Ghế ngồi', cell: (g) => <SeatCell g={g} linked={data.canSeeSeating} /> },
             { id: 'banquet', header: 'Tiệc', cell: (g) => <BanquetCell g={g} />, hideOnMobile: true },
             { id: 'phone', header: 'Điện thoại', cell: (g) => g.phone || '-', hideOnMobile: true },
           ]} />
@@ -95,7 +95,7 @@ export function KpiDialog({ popup, data, sets, onClose, onAdd }: { popup: KpiPop
             { id: 'name', header: 'Họ và tên đại biểu', cell: (g) => <NameCell g={g} contact={false} /> },
             orgCol,
             { id: 'group', header: 'Nhóm', cell: (g) => <GroupCell g={g} />, hideOnMobile: true },
-            { id: 'seat', header: 'Ghế hội trường', cell: (g) => <SeatCell g={g} empty="Hội trường" />, hideOnMobile: true },
+            { id: 'seat', header: 'Ghế hội trường', cell: (g) => <SeatCell g={g} empty="Hội trường" linked={data.canSeeSeating} />, hideOnMobile: true },
             { id: 'table', header: 'Bàn tiệc / phục vụ', cell: (g) => (g.group === 'VIP' ? 'Bàn VIP chủ tọa' : 'Bàn tiệc khách mời') },
             { id: 'notes', header: 'Yêu cầu đặc biệt', cell: (g) => g.notes || `Tiêu chuẩn ${settings.agencyShortName}`, hideOnMobile: true },
           ]} />
@@ -103,10 +103,10 @@ export function KpiDialog({ popup, data, sets, onClose, onAdd }: { popup: KpiPop
     );
   }
 
-  return <PrintSetsDialog eventId={event.id} sets={sets} onClose={onClose} close={close} />;
+  return <PrintSetsDialog eventId={event.id} seatLinks={data.canSeeSeating} sets={sets} onClose={onClose} close={close} />;
 }
 
-function PrintSetsDialog({ eventId, sets, onClose, close }: { eventId: string; sets: Sets; onClose: () => void; close: ReactNode }) {
+function PrintSetsDialog({ eventId, seatLinks, sets, onClose, close }: { eventId: string; seatLinks: boolean; sets: Sets; onClose: () => void; close: ReactNode }) {
   const [tab, setTab] = useState<'namecards' | 'badges'>('namecards');
   return (
     <Dialog open onClose={onClose} size="3xl" icon="printer" title="Chi tiết biển tên VIP & thẻ đại biểu cần in"
@@ -119,7 +119,7 @@ function PrintSetsDialog({ eventId, sets, onClose, close }: { eventId: string; s
             columns={[
               { id: 'name', header: 'Đại biểu VIP', cell: (g) => <span className="font-semibold uppercase text-ink">{g.name}</span> },
               { id: 'org', header: 'Chức vụ & đơn vị', cell: (g) => <OrgCell g={g} />, hideOnMobile: true },
-              { id: 'seat', header: 'Vị trí ghế', cell: (g) => <SeatCell g={g} empty="Hàng VIP" />, hideOnMobile: true },
+              { id: 'seat', header: 'Vị trí ghế', cell: (g) => <SeatCell g={g} empty="Hàng VIP" linked={seatLinks} />, hideOnMobile: true },
               { id: 'print', header: 'In riêng', align: 'right', cell: (g) => <PrintLink href={printHref(eventId, 'namecards', { guest: g.id })} label="In biển" /> },
             ]}>
             {() => (

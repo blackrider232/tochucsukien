@@ -4,6 +4,7 @@
 import type { RequestContext } from '@/core/auth';
 import type { EventId, SeatCode } from '@/core/brand';
 import { can } from '@/core/permissions';
+import { listContacts } from '@/features/directory/server';
 import { readEvent } from '@/features/progress/server';
 import { zoneOfSeat } from '@/features/venue';
 import { readEventHall } from '@/features/venue/server';
@@ -24,10 +25,14 @@ async function vipSeatsOf(ctx: RequestContext, eventId: EventId, roster: Readonl
   }
 }
 
-export async function guestScreenData(ctx: RequestContext, eventId: EventId): Promise<GuestScreenData | null> {
+/** `contacts`: also load the directory, for the batch copy "Nhập từ CSDL Master" (only for someone who may write the list). */
+export async function guestScreenData(ctx: RequestContext, eventId: EventId, opts: { contacts?: boolean } = {}): Promise<GuestScreenData | null> {
   const event = await readEvent(ctx, eventId);
   if (!event) return null;
   const roster = await readRoster(ctx, eventId);
+  const scope = { departments: [event.department, ...event.supportingDepartments] };
+  const canWrite = can(ctx.actor, 'guests.write', scope);
+  const canReadDirectory = can(ctx.actor, 'directory.read');
   return {
     event: {
       id: event.id, name: event.name, eventDate: event.eventDate, eventTime: event.eventTime, location: event.location,
@@ -35,6 +40,9 @@ export async function guestScreenData(ctx: RequestContext, eventId: EventId): Pr
     },
     roster,
     vipSeats: await vipSeatsOf(ctx, eventId, roster),
-    canWrite: can(ctx.actor, 'guests.write', { departments: [event.department, ...event.supportingDepartments] }),
+    canWrite,
+    canSeeSeating: can(ctx.actor, 'venue.seating.read', scope),
+    canReadDirectory,
+    directoryContacts: opts.contacts && canWrite && canReadDirectory ? await listContacts(ctx) : null,
   };
 }

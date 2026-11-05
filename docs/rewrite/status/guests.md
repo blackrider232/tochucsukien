@@ -97,7 +97,7 @@ From m4c §6, for the guest-list export: B6 (formula injection), B7 and B66 (no 
 | Q13 | Phones are free text with 8 to 15 digits (Vietnamese and foreign forms). Email is `parseEmail`. |
 | Q14 | Not built (change request 3). |
 
-Other choices. Declined guests get no tent or badge. The xlsx signature title uses the exporter's department, or the event's lead department for an admin or Ban Giám đốc. Field labels keep the spec's words in sentence case (ui-rules 18), and the xlsx column headers keep the legacy text. Inline RSVP moved to the row menu because the kit `Select` works only inside a form. "Substituted" from the menu prompts for the substitute's name. The master-directory suggest and picker in the form wait for `directory.search`.
+Other choices. Declined guests get no tent or badge. The xlsx signature title uses the exporter's department, or the event's lead department for an admin or Ban Giám đốc. Field labels keep the spec's words in sentence case (ui-rules 18), and the xlsx column headers keep the legacy text. Inline RSVP moved to the row menu because the kit `Select` works only inside a form. "Substituted" from the menu prompts for the substitute's name. The master-directory suggest and picker are mounted since Foundation-B (below).
 
 ## Contract change requests
 
@@ -118,3 +118,13 @@ Other choices. Declined guests get no tent or badge. The xlsx signature title us
 6. exceljs reads font sizes back as integers, so a read-back test cannot assert 10.5.
 7. The T3 preview tool timed out on screenshots in this session. Headless Chrome through playwright-core did the browser checks.
 8. memoryDb's `insertMany` is quadratic (each row scans the table for its id, its uniques and its read policy), so an import test with thousands of new rows times the test double, not the command. The `upsertMany` timing test imports mostly existing guests for that reason.
+
+## Foundation-B: wiring to venue and directory (branch `t3/foundation-b-cron-identity-progress`)
+
+Through public entries only; no frozen contract changed. Tests: `wiring.test.tsx` (10), `screen-data.test.ts` (2).
+
+- **Seat to the seating chart (venue).** The seat code in the list and in the KPI pop-ups links to `/events/<id>/seating` when `GuestScreenData.canSeeSeating` (`venue.seating.read` on the event) is true; otherwise it stays text. The link opens the chart, not the seat: highlighting a seat needs a query parameter that venue's `SeatingView` does not read (an ask to venue: `?seat=<code>`).
+- **Directory lookup in the add form.** `ContactLookup` (`name="masterContactId"`) sits at the top of "Thêm khách mời mới" when `canReadDirectory`. Picking a contact sets every field of `guestFieldsFromContact(c)` (marked dirty) and the link `masterContactId`, so `upsertMany`'s link-first match (B27) finds it later. It is not offered when editing a guest, because a pick would overwrite what staff typed. The suggest runs `directory.search` through `useCommand`, so each search refreshes the route behind it (directory change request 2 is still open).
+- **"Nhập từ CSDL Master".** The toolbar button (for `guests.write` and `directory.read`) goes to `?import=1`. The page then calls `guestScreenData(ctx, id, { contacts: true })`, which adds `listContacts(ctx)` as `directoryContacts`, and `GuestsPage` (keyed on that) mounts directory's `BatchImportDialog`. The directory is therefore not shipped with every visit of the list (it is read in full: 5000 contacts is a large payload). Closing the dialog replaces the URL with the plain list. Directory's own copy flow (with an event picker) is unchanged.
+- **New fields of `GuestScreenData`** (`domain/screen.ts`, not frozen): `canSeeSeating`, `canReadDirectory`, `directoryContacts`.
+- **Not done.** A browser walk of the three flows (jsdom only). Linking a guest row to the directory record it came from (`masterContactId` has no screen). A seat deep link (above).
