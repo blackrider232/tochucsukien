@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 const ROOT = process.cwd();
@@ -43,5 +44,24 @@ describe('who can reach the audit writer', () => {
     expect(mentioning(/rpc\('sce_tcsk_(audit_system|start_system_run)'/)).toEqual(['src/core/auth/admin.ts']);
     expect(mentioning(/\b(systemAuditWriter|startSystemRun|systemContext)\b/)).toEqual(['src/core/auth/admin.ts', 'src/core/auth/cron.ts']);
     expect(mentioning(/@\/core\/auth\/cron|\.\/cron'/).filter((f) => !f.startsWith('src/app/api/cron/'))).toEqual([]);
+  });
+
+  it('a system actor is built by systemActor() in core/auth/system.ts and by nothing else', () => {
+    // A feature that could build `{ ...actor, system: 'rsvp-sync' }` would hold the job's pipeline rights.
+    const settingSystem = (file: string): boolean => {
+      const code = readFileSync(join(ROOT, file), 'utf8');
+      const source = ts.createSourceFile(file, code, ts.ScriptTarget.Latest, true, file.endsWith('x') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
+      let found = false;
+      const visit = (node: ts.Node): void => {
+        if ((ts.isPropertyAssignment(node) || ts.isShorthandPropertyAssignment(node)) && node.name.getText(source).replace(/['"]/g, '') === 'system') found = true;
+        else ts.forEachChild(node, visit);
+      };
+      visit(source);
+      return found;
+    };
+    expect(files.map((f) => relative(ROOT, f)).filter(settingSystem).sort()).toEqual(['src/core/auth/system.ts']);
+    expect(mentioning(/\bsystemActor\b/)).toEqual(['src/core/auth/admin.ts', 'src/core/auth/index.ts', 'src/core/auth/system.ts']); // index.ts: its doc comment
+    expect(mentioning(/\bSYSTEM_ACTOR_ID\b/)).toEqual(['src/core/auth/system.ts']);
+    expect(mentioning(/@\/core\/auth\/system|\.\/system'/)).toEqual(['src/core/auth/admin.ts', 'src/core/auth/cron.ts']);
   });
 });
