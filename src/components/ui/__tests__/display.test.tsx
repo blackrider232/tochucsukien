@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import type { EnumRegistry } from '@/core/vocab';
 import { Badge, StatusBadge } from '../badge';
+import { FilterBar } from '../filter-bar';
 import { Icon } from '../icons';
 import { KpiCard } from '../kpi-card';
 import { ProgressBar, progressPercent } from '../progress-bar';
@@ -111,5 +112,20 @@ describe('Badge with long text', () => {
     expect(chip.className).not.toMatch(/whitespace-nowrap/);
     expect(chip.className).toMatch(/max-w-full/);
     expect(chip.className).toMatch(/break-words/);
+  });
+});
+
+describe('FilterBar', () => {
+  it('calls search.onSubmit with the typed text on Enter, and only then', async () => {
+    const onSubmit = vi.fn();
+    function Harness() {
+      const [value, setValue] = useState('');
+      return <FilterBar search={{ value, onChange: setValue, placeholder: 'Tìm khách', onSubmit }} />;
+    }
+    const { user } = renderUi(<Harness />);
+    await user.type(screen.getByRole('searchbox'), 'an');
+    expect(onSubmit).not.toHaveBeenCalled();
+    await user.keyboard('{Enter}');
+    expect(onSubmit).toHaveBeenCalledExactlyOnceWith('an');
   });
 });

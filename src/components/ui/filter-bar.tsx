@@ -20,6 +20,12 @@ export function FilterBar({ search, filters, trailing }: FilterBarProps) {
             type="search"
             value={search.value}
             onChange={(e) => search.onChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && search.onSubmit) {
+                e.preventDefault();
+                search.onSubmit(e.currentTarget.value);
+              }
+            }}
             placeholder={search.placeholder}
             autoComplete="off"
             className={`${controlClass} pl-9`}

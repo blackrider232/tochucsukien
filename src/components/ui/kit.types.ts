@@ -234,7 +234,7 @@ export interface DataTableProps<Row> {
 }
 export interface FilterBarProps {
   /** label defaults to 'Tìm kiếm'; every control in the bar has a visible label, like a FormField. */
-  search: { value: string; onChange: (v: string) => void; placeholder: string; label?: string };
+  search: { value: string; onChange: (v: string) => void; placeholder: string; label?: string; /** Enter in the search box, for a bar that searches on demand instead of on every keystroke. */ onSubmit?: (v: string) => void };
   filters?: ReadonlyArray<{ id: string; label: string; value: string; options: ReadonlyArray<{ value: string; label: string }>; onChange: (v: string) => void }>;
   trailing?: ReactNode;
 }
