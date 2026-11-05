@@ -1,6 +1,6 @@
 import { screen, within } from '@testing-library/react';
 import { useState } from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { DataTable, sortRows } from '../data-table';
 import type { Column } from '../kit.types';
 import { renderUi } from './helpers';
@@ -75,5 +75,16 @@ describe('DataTable', () => {
     expect(phoneAll).toBeChecked();
     await user.click(phoneAll!);
     expect(screen.queryByText(/Đã chọn/)).not.toBeInTheDocument();
+  });
+
+  it('select-all covers only the rows it is given and leaves other selected keys alone', async () => {
+    const onChange = vi.fn();
+    const { user } = renderUi(
+      <DataTable rows={GUESTS.slice(0, 2)} columns={COLUMNS} rowKey={(g) => g.id} empty={EMPTY} selection={{ selected: new Set(['elsewhere']), onChange }} />,
+    );
+    expect(screen.queryByText(/Đã chọn/)).not.toBeInTheDocument();
+    const headerAll = screen.getAllByRole('checkbox', { name: 'Chọn tất cả' }).find((c) => c.closest('[role="columnheader"]'));
+    await user.click(headerAll!);
+    expect([...onChange.mock.calls[0]![0] as Set<string>].sort()).toEqual(['a', 'b', 'elsewhere']);
   });
 });

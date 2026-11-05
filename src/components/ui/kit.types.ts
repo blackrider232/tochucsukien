@@ -227,6 +227,11 @@ export interface DataTableProps<Row> {
   maxHeight?: string;
   minWidth?: string;
   rowTone?: (row: Row) => Tone | null;
+  /**
+   * "Chọn tất cả" toggles only the rows in `rows` (the page the table was given, in its current sort), never the whole
+   * result set, and keeps selected keys the table does not show. "Đã chọn n / m dòng" counts those rows only. A paged
+   * list that offers "select all results" needs its own button in `toolbar`.
+   */
   selection?: { selected: ReadonlySet<string>; onChange: (next: ReadonlySet<string>) => void };
   toolbar?: ReactNode;
   /** Skeleton rows and aria-busy while the rows are being fetched; the empty state waits. */
