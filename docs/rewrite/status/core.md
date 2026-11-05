@@ -197,7 +197,7 @@ Owned: `src/components/**` (kit and shell), `src/core/db/**`, `src/core/text/**`
 | `pnpm typecheck` regenerates `.next/types` instead of reading stale ones | `4b7d674` | none (script) |
 | Tests and scripts resolve `server-only` by its package name | `bef856c` | `scripts/server-only-alias.test.ts` |
 | The sanitizer bounds every length and sees hex alpha | `479c8b7` | `text.test.ts` (`#0000`, `text-indent: 99999px`, `100cqw`, ...) |
-| `tcsk.audit_text` collapses Unicode White_Space, in SQL and in memory | `69e2854` (`202611041530_core_audit_text_white_space.sql`) | `audit-text.sql.test.ts` (U+0085 and U+1680) |
+| `tcsk.audit_text` collapses Unicode White_Space, in SQL and in memory | `69e2854` (`202611041620_core_audit_text_white_space.sql` (first numbered 1530, renamed after comms took that version)) | `audit-text.sql.test.ts` (U+0085 and U+1680) |
 | memoryDb `insertMany` is linear and all or nothing | `c628551` | "inserts thousands of rows in linear time" (4636 ms against 1500) |
 | memoryDb deletes follow the migrations' foreign keys, `created_at` keeps insert order | `61b99d5` | cascade, set-null and ordering cases in `memory.test.ts` |
 | memoryDb reads `security_invoker` views (guests' change request 1) | `310fe91` | view cases in `memory.test.ts`. Guests' own join in `readRoster` stays until its owner switches. |

@@ -39,7 +39,11 @@ interface Store {
   lastStamp?: number;
 }
 
-/** Now, or 1 ms after the previous stamp, so rows written in the same millisecond keep their order. */
+/**
+ * For an insert: now, or 1 ms after the previous stamp, so rows written in the same millisecond keep their order.
+ * An update stamps the plain clock instead: a frozen test clock must see updated_at exactly where it set it, because
+ * leases and windows compare against it.
+ */
 function stamp(store: Store): string {
   const at = Math.max(Date.now(), (store.lastStamp ?? 0) + 1);
   store.lastStamp = at;
@@ -365,7 +369,7 @@ function memoryTable<R extends BaseRow>(store: Store, actor: Actor, rls: Rls, de
 
   function writeRow(target: Row, values: Row): Row {
     if ('event_id' in values && values.event_id !== target.event_id) throw new DbError('constraint', { table: name, constraint: 'event_id is immutable' });
-    const next: Row = { ...target, ...values, version: Number(target.version) + 1, updated_at: now(), updated_by: actor.profile.id };
+    const next: Row = { ...target, ...values, version: Number(target.version) + 1, updated_at: new Date().toISOString(), updated_by: actor.profile.id };
     if (!rls.allows(meta, 'update_check', next)) throw new DbError('forbidden', { table: name });
     assertNotNull(next);
     runGuards('update', next, target);
@@ -482,7 +486,7 @@ const CORE_AUDIT_ENTITIES = new Set(['profile', 'backup', 'settings', 'holidays'
 const CORE_AUDIT_ACTIONS_FOLDED = new Set([...CORE_AUDIT_ACTIONS].map((a) => a.toLowerCase()));
 /** The one command allowed to audit under another feature's permission: it asks guests to write. */
 const CROSS_FEATURE_AUDIT = new Set(['directory.importToEvent guests.write']);
-/** tcsk.audit_text (202611041530): NFKC, invisible format characters dropped, Unicode White_Space collapsed, trimmed; null when empty. */
+/** tcsk.audit_text (202611041620): NFKC, invisible format characters dropped, Unicode White_Space collapsed, trimmed; null when empty. */
 const auditText = (t: string | null) =>
   t === null
     ? null

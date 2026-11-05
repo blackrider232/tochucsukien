@@ -217,7 +217,7 @@ function InsertTableTool() {
 function OnlineAndCounts() {
   const online = useOnline();
   useSubTabCount('gallery', 4);
-  return <p className="text-sm text-ink-2">{online ? 'Đang có mạng (useOnline)' : 'Ngoại tuyến (useOnline)'}. useSubTabCount('mã-phân-mục', '4/10') gắn số đếm lên phân mục của trang.</p>;
+  return <p className="text-sm text-ink-2">{online ? 'Đang có mạng (useOnline)' : 'Ngoại tuyến (useOnline)'}. {'useSubTabCount("mã-phân-mục", "4/10")'} gắn số đếm lên phân mục của trang.</p>;
 }
 
 function Specimens() {
