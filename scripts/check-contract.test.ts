@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { augmentationsIn, checkContract, collectSnapshot, sqlAuditIn, type ContractSnapshot } from './check-contract';
+import { augmentationsIn, checkContract, collectSnapshot, sqlAuditIn, systemGrantRowsIn, type ContractSnapshot } from './check-contract';
 
 // collectSnapshot loads the feature servers, which reach the server-only core/auth/admin.ts.
 vi.mock('next/dist/compiled/server-only', () => ({}));
@@ -177,6 +177,47 @@ alter table public.sce_tcsk_booths add column if not exists photo_count int not 
     expect(broken((s) => s.migrations.push({ name: '202611041200_nobody_x.sql', sql: '' }))).toEqual([
       'migration 202611041200_nobody_x.sql must be named <yyyymmddhhmm>_<feature>_<desc>.sql with a known feature',
     ]);
+  });
+});
+
+describe('scheduled jobs', () => {
+  it('see the job table and the implemented commands’ permissions', () => {
+    expect(real.systemGrants).toEqual(expect.arrayContaining([{ job: 'rsvp-sync', command: 'guests.applyRsvp', perm: 'guests.write' }]));
+    expect(real.commandPerms['guests.applyRsvp']).toBe('guests.write');
+  });
+
+  it('a job that lists a core command, an unknown permission, or a command under another permission than its own', () => {
+    expect(broken((s) => s.systemGrants.push({ job: 'rsvp-sync', command: 'core.settings.update', perm: 'core.settings.edit' }))).toEqual([
+      'system job rsvp-sync lists core.settings.update: a scheduled job never runs a core command',
+    ]);
+    expect(broken((s) => s.systemGrants.push({ job: 'rsvp-sync', command: 'guests.update', perm: 'guests.everything' }))).toEqual([
+      'system job rsvp-sync lists guests.update under guests.everything, which no manifest declares',
+    ]);
+    expect(broken((s) => (s.systemGrants.find((g) => g.command === 'guests.applyRsvp')!.perm = 'guests.read'))).toEqual([
+      'system job rsvp-sync lists guests.applyRsvp under guests.read, but the command authorizes with guests.write',
+    ]);
+  });
+});
+
+describe('the SQL job table', () => {
+  it('matches SYSTEM_JOBS, and fails when the SQL or SYSTEM_JOBS moves alone', () => {
+    expect(real.systemGrantRows.sql.length).toBeGreaterThan(0);
+    const stale = 'tcsk.system_grants() in the migrations differs from SYSTEM_JOBS: add a migration that replaces it';
+    expect(broken((s) => s.systemGrantRows.sql.pop())).toEqual([stale]);
+    expect(broken((s) => s.systemGrantRows.expected.push('rsvp-sync|x|guests.update|guests.write|240'))).toEqual([stale]);
+    expect(broken((s) => (s.systemGrantRows.sql[0] = s.systemGrantRows.sql[0]!.replace(/\|240$/, '|600')))).toEqual([stale]);
+  });
+
+  it('reads the latest definition among the migrations', () => {
+    const fn = (rows: string) => `create or replace function tcsk.system_grants() returns table (job text) as $$ select * from (values ${rows}) g $$;`;
+    expect(
+      systemGrantRowsIn([
+        { name: 'a.sql', sql: fn(`('j', 'L', 'x.y', 'x.z', 60)`) },
+        { name: 'b.sql', sql: fn(`('j', 'L', 'x.y', 'x.z', 60), ('k', 'M', 'a.b', 'a.c', 120)`) },
+        { name: 'c.sql', sql: 'select 1;' },
+      ]),
+    ).toEqual(['j|L|x.y|x.z|60', 'k|M|a.b|a.c|120']);
+    expect(systemGrantRowsIn([])).toEqual([]);
   });
 });
 

@@ -538,4 +538,59 @@ assert.deepEqual(freshSave.rows[0].prev, [{ date: '2031-01-23', name: 'Tết Ngu
 assert.deepEqual(await year2031(), [], 'and the save goes through');
 await as(ids.leader, 'aal2', () => assert.rejects(db.query(`select public.sce_tcsk_replace_holidays(2031, '[]')`), /does not exist/, 'the unguarded two-argument replace is gone'));
 
+// The system actor of a scheduled job (202611041600_core_system_actor.sql): no person, only the (command, permission)
+// pairs tcsk.system_grants() lists for its job, a null actor id and 'system:<job>' as its email.
+const systemSig = 'public.sce_tcsk_audit_system(text, text, text, text, text, uuid, text, text)';
+const startSig = 'public.sce_tcsk_start_system_run(text)';
+for (const [sig, label] of [[systemSig, 'the system audit writer'], [startSig, 'the system run claim'], ['tcsk.system_grants()', 'the system grants']]) {
+  assert.deepEqual((await db.query(`select has_function_privilege('authenticated', '${sig}', 'execute') as u, has_function_privilege('anon', '${sig}', 'execute') as a`)).rows[0],
+    { u: false, a: false }, `no signed-in user or anon executes ${label}`);
+}
+assert.deepEqual((await db.query(`select has_function_privilege('service_role', '${systemSig}', 'execute') as w, has_function_privilege('service_role', '${startSig}', 'execute') as s`)).rows[0],
+  { w: true, s: true }, 'the service role executes the system writer and the run claim');
+const goneEvent = (await as(ids.admin, 'aal2', () => db.query(`insert into public.sce_tcsk_events (name, type, event_date, department) values ('HN đã xóa', 'hoi_nghi', '2026-12-22', 'Phòng Xúc tiến đầu tư') returning id`))).rows[0].id;
+await as(ids.admin, 'aal2', () => db.exec(`update public.sce_tcsk_events set deleted_at = now() where id = '${goneEvent}'`));
+const sysRow = { job: 'rsvp-sync', command: 'guests.applyRsvp', perm: 'guests.write', action: 'CẬP NHẬT RSVP', event: tvdnEvent, entity: 'guest' };
+const writeSystemAudit = (row) => db.query(`select public.sce_tcsk_audit_system($1, $2, $3, $4, 'tóm tắt', $5, $6, 'x')`,
+  [row.job, row.command, row.perm, row.action, row.event, row.entity]);
+await as(ids.admin, 'aal2', () => assert.rejects(writeSystemAudit(sysRow), /permission denied/, 'a signed-in admin cannot write a system audit row'));
+async function refusedSystemRow(label, patch) {
+  const before = await commandAuditCount();
+  await asService(() => assert.rejects(writeSystemAudit({ ...sysRow, ...patch }), /forbidden/, label));
+  assert.equal(await commandAuditCount(), before, `${label}: no row`);
+}
+const before = await commandAuditCount();
+await asService(() => writeSystemAudit(sysRow));
+assert.equal(await commandAuditCount(), before + 1, 'a system row: one row');
+assert.deepEqual(await lastAudit(), { actor_id: null, actor_email: 'system:rsvp-sync', action: 'CẬP NHẬT RSVP', summary: 'tóm tắt', entity: 'guest', entity_id: 'x' },
+  'a system row names system:<job> and no person, on any department’s event');
+await refusedSystemRow('a command the job does not list', { command: 'guests.create' });
+await refusedSystemRow('a listed command under another permission', { perm: 'guests.read' });
+await refusedSystemRow('a listed command under a permission of another feature', { perm: 'comms.rsvp.manage' });
+await refusedSystemRow('a core command', { command: 'core.settings.update', perm: 'core.settings.edit', event: null, entity: 'settings' });
+await refusedSystemRow('a job that does not exist', { job: 'backup' });
+await refusedSystemRow('a job named like a person', { job: 'admin@x.vn' });
+await refusedSystemRow('an event that does not exist', { event: '00000000-0000-0000-0000-0000000000ff' });
+await refusedSystemRow('a deleted event', { event: goneEvent });
+await refusedSystemRow('an event permission without an event', { event: null });
+await refusedSystemRow('the core action "PHÂN QUYỀN TÀI KHOẢN"', { action: 'PHÂN QUYỀN TÀI KHOẢN' });
+await refusedSystemRow('a core action look-alike', { action: 'PHÂN QUYỀN TÀI KHOẢN'.replace('P', 'Р') });
+await refusedSystemRow('the core entity "profile"', { entity: 'Profile' });
+await refusedSystemRow('the run action of the claim', { action: 'CHẠY TÁC VỤ HỆ THỐNG' });
+for (const key of ['job', 'command', 'perm', 'action']) await refusedSystemRow(`a null ${key}`, { [key]: null });
+
+const startRun = (job) => asService(() => db.query(`select public.sce_tcsk_start_system_run($1) as ok`, [job]));
+const runRows = async () => (await db.query(`select actor_id, actor_email, action, summary from public.sce_tcsk_audit_logs where action = 'CHẠY TÁC VỤ HỆ THỐNG' order by id`)).rows;
+assert.equal((await startRun('rsvp-sync')).rows[0].ok, true, 'the first start of a job runs');
+assert.deepEqual(await runRows(), [{ actor_id: null, actor_email: 'system:rsvp-sync', action: 'CHẠY TÁC VỤ HỆ THỐNG', summary: 'Bắt đầu: Đồng bộ Google Form RSVP tự động' }],
+  'each start is audited as system:<job>');
+assert.equal((await startRun('rsvp-sync')).rows[0].ok, false, 'a replay inside the window does not run');
+assert.equal((await runRows()).length, 1, 'and writes no row');
+await asService(() => assert.rejects(db.query(`select public.sce_tcsk_start_system_run('backup')`), /forbidden/, 'an unknown job cannot start'));
+await asService(() => assert.rejects(db.query(`select public.sce_tcsk_start_system_run(null)`), /forbidden/, 'a null job cannot start'));
+// Age the start past the window. The audit log refuses UPDATE by trigger, so this test steps around the triggers.
+await db.exec(`set session_replication_role = replica; update public.sce_tcsk_audit_logs set created_at = created_at - interval '241 seconds' where action = 'CHẠY TÁC VỤ HỆ THỐNG'; set session_replication_role = origin`);
+assert.equal((await startRun('rsvp-sync')).rows[0].ok, true, 'the next scheduled start after the window runs');
+await as(ids.xtdt, 'aal1', () => assert.rejects(db.query(`select public.sce_tcsk_start_system_run('rsvp-sync')`), /permission denied/, 'a signed-in user cannot start a job'));
+
 console.log('all RLS and function checks passed');

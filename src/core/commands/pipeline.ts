@@ -13,7 +13,7 @@ import type { EventId, Instant, UserId, Version } from '@/core/brand';
 import { gateFor, type Gate, type RequestContext } from '@/core/auth';
 import { DbError, defineTable, type AuditWriter, type BaseRow, type DbErrorKind } from '@/core/db';
 import { memoryAuditWriter } from '@/core/db/memory';
-import { can, type ScopedResource } from '@/core/permissions';
+import { can, systemGrant, type ScopedResource, type SystemJob } from '@/core/permissions';
 import type { DepartmentName } from '@/core/vocab';
 import { CommandError, type AuditEntry, type CommandContext, type CommandFailure, type CommandResult, type CommandSpec } from './index';
 
@@ -66,21 +66,24 @@ interface EventScope extends BaseRow {
   department: DepartmentName;
   supportingDepartments: DepartmentName[];
 }
+const eventScopeRow = z.object({
+  id: z.string().transform((v) => v as EventId),
+  department: z.string().transform((v) => v as DepartmentName),
+  supportingDepartments: z.array(z.string()).transform((v) => v as DepartmentName[]),
+  version: z.number().transform((v) => v as Version),
+  createdAt: z.string().transform((v) => v as Instant),
+  createdBy: z.string().nullable().transform((v) => v as UserId | null),
+  updatedAt: z.string().transform((v) => v as Instant),
+  updatedBy: z.string().nullable().transform((v) => v as UserId | null),
+});
 /** Only what authorization needs; RLS still decides whether the actor sees the event at all. */
-const eventScopeTable = defineTable<EventScope>({
+const eventScopeTable = defineTable<EventScope>({ name: 'sce_tcsk_events', owner: 'progress', eventScoped: false, row: eventScopeRow });
+/** A system job may act on live events only: the service role it runs as also sees deleted ones. */
+const systemEventTable = defineTable<EventScope & { deletedAt: string | null }>({
   name: 'sce_tcsk_events',
   owner: 'progress',
   eventScoped: false,
-  row: z.object({
-    id: z.string().transform((v) => v as EventId),
-    department: z.string().transform((v) => v as DepartmentName),
-    supportingDepartments: z.array(z.string()).transform((v) => v as DepartmentName[]),
-    version: z.number().transform((v) => v as Version),
-    createdAt: z.string().transform((v) => v as Instant),
-    createdBy: z.string().nullable().transform((v) => v as UserId | null),
-    updatedAt: z.string().transform((v) => v as Instant),
-    updatedBy: z.string().nullable().transform((v) => v as UserId | null),
-  }),
+  row: eventScopeRow.extend({ deletedAt: z.string().nullish().transform((v) => v ?? null) }),
 });
 
 /** A nested ctx.call failed: unwind to the outermost command and return its failure unchanged. */
@@ -116,6 +119,20 @@ async function authorize(ctx: CommandContext, spec: AnyCommandSpec, input: unkno
     resource = await rule.resource(ctx, input);
   }
   return can(ctx.actor, rule.perm, resource) ? null : failure('forbidden', MESSAGES.db.forbidden);
+}
+
+/**
+ * A scheduled job's actor: only the (command, permission) pairs its job lists, never a core command, and an event
+ * scope only on an existing, live event. Its departments do not matter, and a profile-scoped rule never passes.
+ */
+async function authorizeSystem(ctx: CommandContext, job: SystemJob, id: string, spec: AnyCommandSpec, input: unknown): Promise<CommandFailure | null> {
+  const rule = spec.authorize;
+  if (systemGrant(job, id) !== rule.perm || 'resource' in rule) return failure('forbidden', MESSAGES.db.forbidden);
+  if ('event' in rule) {
+    const event = await ctx.db.table(systemEventTable).get(rule.event(input));
+    if (!event || event.deletedAt) return failure('not_found', MESSAGES.eventNotFound);
+  }
+  return null;
 }
 
 /** An audit entry reached the pipeline with no writer to take it (dispatch without a service key, on a query). */
@@ -191,7 +208,7 @@ async function execute(ctx: RequestContext, lookup: CommandLookup, audit: AuditW
 
   let ran = false;
   try {
-    const denied = await authorize(cmdCtx, spec, parsed.value);
+    const denied = actor.system ? await authorizeSystem(cmdCtx, actor.system, id, spec, parsed.value) : await authorize(cmdCtx, spec, parsed.value);
     if (denied) return denied;
     ran = true;
     const outcome = await spec.run(cmdCtx, parsed.value);

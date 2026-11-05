@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { can, mergePermissions, permissionMatrix, type Permission } from '@/core/permissions';
+import { can, mergePermissions, permissionMatrix, SYSTEM_JOBS, systemGrant, type Permission } from '@/core/permissions';
 import { PTDN, testActor, XTDT } from '@/core/testing/actors';
 import { PERMISSIONS_SQL_PATH, renderPermissionsSql } from '../../../scripts/gen-permissions-sql';
 
@@ -74,6 +74,23 @@ describe('permissionMatrix()', () => {
 
   it('is exactly what 0004_permissions_seed.sql seeds', () => {
     expect(renderPermissionsSql(permissionMatrix())).toBe(readFileSync(PERMISSIONS_SQL_PATH, 'utf8'));
+  });
+
+  it('holds no scheduled job’s permission for any role: a job’s pairs are in tcsk.system_grants(), not the matrix rows', () => {
+    const sql = renderPermissionsSql(permissionMatrix());
+    for (const [job, def] of Object.entries(SYSTEM_JOBS)) {
+      expect(sql).not.toContain(job);
+      for (const perm of Object.values(def.commands)) expect(permissionMatrix().has(perm)).toBe(true);
+    }
+    expect(sql).not.toContain('system_grants');
+  });
+
+  it('a job holds no core command and no command it does not list', () => {
+    expect(systemGrant('rsvp-sync', 'comms.syncForm')).toBe('comms.rsvp.manage');
+    expect(systemGrant('rsvp-sync', 'guests.create')).toBeNull();
+    expect(systemGrant('rsvp-sync', 'constructor')).toBeNull();
+    expect(systemGrant('nope' as never, 'comms.syncForm')).toBeNull();
+    for (const def of Object.values(SYSTEM_JOBS)) for (const command of Object.keys(def.commands)) expect(command.startsWith('core.')).toBe(false);
   });
 
   it('refuses a key declared by two manifests', () => {

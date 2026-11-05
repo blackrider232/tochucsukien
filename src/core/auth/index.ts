@@ -7,6 +7,7 @@ import type { WorkCalendar } from '@/core/dates';
 import type { SystemSettings } from '@/core/settings';
 import type { DepartmentName, Role } from '@/core/vocab';
 import type { Db } from '@/core/db';
+import type { SystemJob } from '@/core/permissions';
 
 export type ProfileStatus = 'pending' | 'active' | 'locked';
 
@@ -29,6 +30,11 @@ export interface Actor {
   readonly profile: Profile;
   readonly aal: Aal;
   readonly hasVerifiedTotp: boolean;
+  /**
+   * Set only on the actor of a scheduled job (systemActor in ./system), which no person signs in as. Its profile is a
+   * label: can() grants it nothing, and the pipeline runs only the commands SYSTEM_JOBS lists for its job.
+   */
+  readonly system?: SystemJob;
 }
 
 /**

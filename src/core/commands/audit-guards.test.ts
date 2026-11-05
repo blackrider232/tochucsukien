@@ -38,4 +38,10 @@ describe('who can reach the audit writer', () => {
   it('no feature names a writer or the service client', () => {
     expect(mentioning(/\b(memoryAuditWriter|supabaseAuditWriter|serviceClient|AuditWriter)\b/).filter((f) => f.startsWith('src/features/'))).toEqual([]);
   });
+
+  it('a scheduled job reaches its writer, run claim and service-role context only through core/auth/cron.ts', () => {
+    expect(mentioning(/rpc\('sce_tcsk_(audit_system|start_system_run)'/)).toEqual(['src/core/auth/admin.ts']);
+    expect(mentioning(/\b(systemAuditWriter|startSystemRun|systemContext)\b/)).toEqual(['src/core/auth/admin.ts', 'src/core/auth/cron.ts']);
+    expect(mentioning(/@\/core\/auth\/cron|\.\/cron'/).filter((f) => !f.startsWith('src/app/api/cron/'))).toEqual([]);
+  });
 });
