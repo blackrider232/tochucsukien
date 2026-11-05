@@ -387,6 +387,12 @@ export interface PrintPageProps {
   orientation: 'portrait' | 'landscape';
   /** NĐ30 margins (top 20-25mm, bottom 20-25mm, left 30-35mm, right 15-20mm) or none for cards. */
   margins: 'nd30' | 'none';
+  /**
+   * 'nd30': a NĐ 30/2020 document set in Times New Roman at the Word file's pt sizes (14 pt body, 13 pt letterhead,
+   * 14 pt signer, 12 pt "Nơi nhận", 11 pt copies), including Nd30Header and SignatureBlock inside it. Default: the
+   * kit's px scale in the generic serif.
+   */
+  type?: 'nd30';
   children: ReactNode;
 }
 /** Two-column Quốc hiệu/Tiêu ngữ header; issuer lines from orgIdentity(settings). */

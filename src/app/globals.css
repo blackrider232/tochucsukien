@@ -29,6 +29,13 @@
   --text-print-sm: 13px;
   --text-print-xs: 12px;
 
+  /* NĐ 30/2020 documents (PrintPage type="nd30"): Times New Roman, in the pt sizes the Word export writes inline. */
+  --font-print: "Times New Roman", Times, serif;
+  --text-nd30: 14pt;
+  --text-nd30-header: 13pt;
+  --text-nd30-note: 12pt;
+  --text-nd30-copies: 11pt;
+
   --radius-control: 0.625rem;
   --radius-card: 0.875rem;
   --radius-modal: 1rem;

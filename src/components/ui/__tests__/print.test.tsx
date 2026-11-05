@@ -76,4 +76,33 @@ describe('print primitives', () => {
     expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
     expect(link).toHaveAccessibleName('In kế hoạch (mở tab mới)');
   });
+
+  describe('type="nd30" (Times New Roman, the Word file\'s pt sizes)', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/app/globals.css'), 'utf8');
+    const token = (name: string) => css.match(new RegExp(`--${name}:\\s*([^;]+);`))?.[1];
+
+    it('defines the print face and the pt sizes once, as theme tokens', () => {
+      expect(token('font-print')).toBe('"Times New Roman", Times, serif');
+      expect([token('text-nd30'), token('text-nd30-header'), token('text-nd30-note'), token('text-nd30-copies')]).toEqual(['14pt', '13pt', '12pt', '11pt']);
+    });
+
+    it('the page, letterhead, signer, recipients heading and copies take them, and a plain page does not', () => {
+      const { container } = render(withAppContext(
+        <PrintPage size="A4" orientation="portrait" margins="nd30" type="nd30">
+          <Nd30Header issuer="trung_tam" />
+          <SignatureBlock right={{ title: 'GIÁM ĐỐC' }} recipients={['Lưu: VT']} />
+        </PrintPage>,
+      ));
+      const page = container.querySelector('.print-page')!;
+      expect(page).toHaveClass('font-print', 'text-nd30');
+      expect(container.querySelector('header')).toHaveClass('text-nd30-header');
+      expect(container.querySelector('footer')).toHaveClass('text-nd30');
+      expect(screen.getByText('Nơi nhận:')).toHaveClass('text-nd30-note');
+      expect(container.querySelector('footer ul')).toHaveClass('text-nd30-copies');
+
+      const plain = render(withAppContext(<PrintPage size="A4" orientation="portrait" margins="nd30"><Nd30Header issuer="trung_tam" /></PrintPage>)).container;
+      expect(plain.querySelector('.print-page')).not.toHaveClass('font-print');
+      expect(plain.querySelector('header')).toHaveClass('text-print-sm');
+    });
+  });
 });

@@ -1,10 +1,15 @@
 'use client';
 
+import { createContext, useContext } from 'react';
 import type { Nd30HeaderProps, PrintLinkProps, PrintPageProps, SignatureBlockProps } from './kit.types';
 import { formatNd30Date } from '@/core/dates';
 import { orgIdentity } from '@/core/settings';
 import { useSettings } from '@/core/auth';
 import { Button } from './button';
+import { cn } from './cn';
+
+/** The type scale of the PrintPage around a header or signature block. */
+const PrintTypeContext = createContext<PrintPageProps['type']>(undefined);
 
 const PAPER = {
   A4: { portrait: ['210mm', '297mm'], landscape: ['297mm', '210mm'] },
@@ -23,7 +28,7 @@ export function pageCss({ size, orientation, margins }: Pick<PrintPageProps, 'si
  * A sheet of paper. On screen it is a preview at true size; when printing, the @page rule sets
  * the size and margins and the sheet padding disappears. Use one PrintPage size per document.
  */
-export function PrintPage({ size, orientation, margins, children }: PrintPageProps) {
+export function PrintPage({ size, orientation, margins, type, children }: PrintPageProps) {
   const [width, height] = PAPER[size][orientation];
   const css = `${pageCss({ size, orientation, margins })}
 @media screen { .print-page { width: ${width}; min-height: ${height}; padding: ${MARGIN[margins]}; } }
@@ -33,9 +38,12 @@ export function PrintPage({ size, orientation, margins, children }: PrintPagePro
       <style>{css}</style>
       <div
         data-print-page={`${size}-${orientation}`}
-        className="print-page mx-auto my-4 box-border max-w-none bg-paper font-serif text-print-base leading-snug text-paper-ink shadow-pop"
+        className={cn(
+          'print-page mx-auto my-4 box-border max-w-none bg-paper text-paper-ink shadow-pop',
+          type === 'nd30' ? 'font-print text-nd30 leading-normal' : 'font-serif text-print-base leading-snug',
+        )}
       >
-        {children}
+        <PrintTypeContext.Provider value={type}>{children}</PrintTypeContext.Provider>
       </div>
     </>
   );
@@ -56,8 +64,9 @@ export function Nd30Header({ issuer, documentNumber, date }: Nd30HeaderProps) {
   const settings = useSettings();
   const org = orgIdentity(settings);
   const lines = ISSUER_LINES[issuer](org);
+  const nd30 = useContext(PrintTypeContext) === 'nd30';
   return (
-    <header className="mb-4 grid grid-cols-[1fr_1.15fr] gap-4 text-center text-print-sm">
+    <header className={cn('mb-4 grid grid-cols-[1fr_1.15fr] gap-4 text-center', nd30 ? 'text-nd30-header' : 'text-print-sm')}>
       <div>
         {lines.parent && <p className="uppercase">{lines.parent}</p>}
         {lines.name.map((line) => <p key={line} className="font-bold uppercase">{line}</p>)}
@@ -89,16 +98,17 @@ function Signatory({ title, note, name }: { title: string; note?: string; name?:
 
 /** Signatories at the bottom, with the "Nơi nhận" list on the left when given. */
 export function SignatureBlock({ left, right, recipients }: SignatureBlockProps) {
+  const nd30 = useContext(PrintTypeContext) === 'nd30';
   return (
-    <footer className="mt-6 break-inside-avoid text-print-sm">
+    <footer className={cn('mt-6 break-inside-avoid', nd30 ? 'text-nd30' : 'text-print-sm')}>
       <div className="grid grid-cols-2 gap-4">
         <div>{left && <Signatory {...left} />}</div>
         <Signatory {...right} />
       </div>
       {recipients && recipients.length > 0 && (
         <div className="mt-4">
-          <p className="font-bold italic">Nơi nhận:</p>
-          <ul className="text-print-xs">
+          <p className={cn('font-bold italic', nd30 && 'text-nd30-note')}>Nơi nhận:</p>
+          <ul className={nd30 ? 'text-nd30-copies' : 'text-print-xs'}>
             {recipients.map((r) => (
               <li key={r}>- {r}</li>
             ))}
