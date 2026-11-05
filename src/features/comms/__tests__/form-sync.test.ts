@@ -423,10 +423,34 @@ describe('the review list: a person decides an answer the reader would not apply
     const now = await h.guest(eventId, g.id);
     // Staff called the guest after the answer and set the RSVP back to pending.
     await h.ok(xtdtUser, 'guests.update', { eventId, id: g.id, version: now.version, patch: { rsvpStatus: 'pending' } });
-    const r = await h.ok(xtdtUser, 'comms.resolveResponse', { eventId, id: row.id, version: row.version, action: { kind: 'answer', status: 'declined' } });
-    expect(r.value).toEqual({ applyStatus: 'stale' });
+    const audits = h.audits().length;
+    const r = await h.run(xtdtUser, 'comms.resolveResponse', { eventId, id: row.id, version: row.version, action: { kind: 'answer', status: 'declined' } });
+    // Not ok: the toast must not say the decision was recorded when the guest is unchanged.
+    expect(r).toMatchObject({ ok: false, kind: 'conflict', message: expect.stringContaining('cũ hơn') });
     expect((await h.guest(eventId, g.id)).rsvpStatus).toBe('pending');
-    expect(responses()[0]).toMatchObject({ apply_status: 'stale' });
+    expect(responses()[0]!.apply_status).not.toBe('applied');
+    expect(h.audits().slice(audits).filter((a) => a.action === 'XỬ LÝ PHẢN HỒI FORM')).toEqual([expect.objectContaining({ summary: expect.stringContaining('bỏ qua vì cũ hơn thay đổi gần nhất') })]);
+  });
+
+  it('a decision guests could not apply fails, keeps the audit and leaves the response waiting', async () => {
+    const { h, eventId, g, row, responses } = await waiting();
+    const audits = h.audits().length;
+    const r = await h.runWith(failingWrites((t, op) => t === 'sce_tcsk_guests' && op === 'update'), xtdtUser, 'comms.resolveResponse', { eventId, id: row.id, version: row.version, action: { kind: 'answer', status: 'declined' } });
+    expect(r).toMatchObject({ ok: false, kind: 'conflict', message: expect.stringContaining('Chưa ghi được quyết định') });
+    expect((await h.guest(eventId, g.id)).rsvpStatus).toBe('confirmed');
+    expect(responses()[0]).toMatchObject({ apply_status: 'review' });
+    expect(h.audits().slice(audits).filter((a) => a.action === 'XỬ LÝ PHẢN HỒI FORM')).toEqual([expect.objectContaining({ summary: expect.stringContaining('lỗi:') })]);
+  });
+
+  it('a response that is no longer in review cannot be decided, even with a matched guest', async () => {
+    const { h, eventId, g, row, responses } = await waiting();
+    const dismissed = await h.ok(xtdtUser, 'comms.resolveResponse', { eventId, id: row.id, version: row.version, action: { kind: 'dismiss' } });
+    expect(dismissed.value).toEqual({ applyStatus: 'dismissed' });
+    const fresh = responses()[0]!;
+    expect(fresh).toMatchObject({ apply_status: 'dismissed', matched_guest_id: g.id });
+    const r = await h.run(xtdtUser, 'comms.resolveResponse', { eventId, id: row.id, version: fresh.version as ResponseRow['version'], action: { kind: 'answer', status: 'declined' } });
+    expect(r).toMatchObject({ ok: false, kind: 'invalid' });
+    expect((await h.guest(eventId, g.id)).rsvpStatus).toBe('confirmed');
   });
 
   it('is refused for a response that is not waiting for a decision, before any guest changes', async () => {

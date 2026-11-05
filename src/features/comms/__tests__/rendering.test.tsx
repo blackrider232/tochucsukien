@@ -1,6 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { CampaignId, Email, EventId, GuestId, HHmm, Instant, IsoDate, MailboxId, RsvpResponseId, Version } from '@/core/brand';
+import { CommandFeedbackProvider } from '@/core/commands/client';
 import { DEFAULT_SETTINGS, orgIdentity } from '@/core/settings';
 import { renderUi, withAppContext } from '@/components/ui/__tests__/helpers';
 import { DeliveryLog } from '../components/delivery-log';
@@ -155,6 +156,22 @@ describe('comms screens render untrusted text as text', () => {
     expect(actions.className).toContain('flex-wrap');
     expect(within(list).getByText(`Tham dự ko đc ${XSS}`).className).toContain('break-words');
     expect(list.querySelector('table')).toBeNull();
+  });
+
+  it('a decision the server refuses shows its reason and never the success toast', async () => {
+    const stale = 'Quyết định này cũ hơn thay đổi RSVP gần nhất của khách nên chưa được áp dụng; khách mời giữ nguyên.';
+    const notify = vi.fn();
+    dispatched.mockImplementationOnce(async () => ({ ok: false, kind: 'conflict', message: stale }) as never);
+    const waiting = response({ id: 'r3' as RsvpResponseId, version: 4 as Version, applyStatus: 'review', rsvp: null, match: 'email', matchedGuest: { id: 'g1' as GuestId, name: 'Trần Văn Bình' }, rsvpAnswer: 'Tham dự ko đc' });
+    const data: FormScreenData = { event, form: null, responses: [waiting], guests: [], canManage: true, serverSync: false };
+    const { user } = renderUi(<CommandFeedbackProvider value={{ notify }}>{withAppContext(<FormPage data={data} />)}</CommandFeedbackProvider>);
+    const list = screen.getByText('Câu trả lời cần xem lại').closest('section')!;
+    await user.click(within(list).getByRole('button', { name: 'Xác nhận tham dự' }));
+    await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('warning', stale));
+    expect(notify).not.toHaveBeenCalledWith('success', expect.anything());
+    // A decision the server accepts does report success.
+    await user.click(within(list).getByRole('button', { name: 'Xác nhận tham dự' }));
+    await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('success', 'Đã ghi nhận xác nhận tham dự'));
   });
 
   it('the Form choices card lists each answer waiting for review once, and saves the meaning chosen', async () => {

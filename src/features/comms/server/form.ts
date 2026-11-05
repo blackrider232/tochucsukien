@@ -410,10 +410,17 @@ export const resolveResponse: CommandSpec<InputOf<'comms.resolveResponse'>, Outp
       const decision = action.status === 'confirmed' ? 'Xác nhận tham dự' : 'Từ chối';
       const outcome = t.applied ? 'áp dụng' : t.stale ? 'bỏ qua vì cũ hơn thay đổi gần nhất' : `lỗi: ${t.failures[0] ?? ''}`;
       const after = await ctx.db.table(responsesTable).get(id);
-      return {
-        value: { applyStatus: after?.applyStatus ?? row.applyStatus },
-        audit: audit('XỬ LÝ PHẢN HỒI FORM', `${decision} theo phản hồi Google Form của "${who}" (câu trả lời chờ xem lại): ${outcome}`, eventId, 'rsvp_response', id),
-      };
+      const entry = audit('XỬ LÝ PHẢN HỒI FORM', `${decision} theo phản hồi Google Form của "${who}" (câu trả lời chờ xem lại): ${outcome}`, eventId, 'rsvp_response', id);
+      // A decision that changed no guest is not a success: the toast would say it was recorded.
+      if (!t.applied) {
+        throw new CommandError(
+          'conflict',
+          t.stale ? 'Quyết định này cũ hơn thay đổi RSVP gần nhất của khách nên chưa được áp dụng; khách mời giữ nguyên.' : `Chưa ghi được quyết định cho khách mời: ${t.failures[0] ?? 'lỗi không rõ'}`,
+          undefined,
+          entry,
+        );
+      }
+      return { value: { applyStatus: after?.applyStatus ?? row.applyStatus }, audit: entry };
     }
     const labels = parseAnswerLabels((await formOf(ctx, eventId))?.answerLabels);
     if (action.kind === 'match') {
