@@ -46,7 +46,9 @@ describe('who can reach the audit writer', () => {
     // `systemContext` is also a field name in feature code (comms' CronDeps), so match the import of admin.ts's function.
     expect(mentioning(/export (async )?function systemContext\b/)).toEqual(['src/core/auth/admin.ts']);
     expect(mentioning(/import\s*\{[^}]*\bsystemContext\b[^}]*\}\s*from\s*'(@\/core\/auth\/admin|\.\/admin)'/)).toEqual(['src/core/auth/cron.ts']);
-    expect(mentioning(/@\/core\/auth\/cron|\.\/cron'/).filter((f) => !f.startsWith('src/app/api/cron/'))).toEqual([]);
+    expect(mentioning(/@\/core\/auth\/cron/).filter((f) => !f.startsWith('src/app/api/cron/'))).toEqual([]);
+    // A feature's own ./cron (comms') is not core's; inside core/auth nothing imports it.
+    expect(mentioning(/from '\.\/cron'/).filter((f) => f.startsWith('src/core/auth/'))).toEqual([]);
   });
 
   it('a system actor is built by systemActor() in core/auth/system.ts and by nothing else', () => {
