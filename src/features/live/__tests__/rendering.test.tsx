@@ -163,14 +163,19 @@ describe('offline (decision 6, review LOW-4)', () => {
 describe('offline with the scan dialog already open (review LOW-4)', () => {
   it('a scan answered before the network dropped is not checked in', async () => {
     const g = guest({ name: 'Khách quét khi mất mạng' });
+    const onLine = vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(true);
     dispatch.mockReset();
-    dispatch.mockImplementation(async (id: string) => (id === 'live.scan' ? { ok: true, value: { kind: 'ok', guest: g } } : { ok: true, value: { already: false, checkIn: { checkedInAt: AT } } }));
+    // The network drops while the scan is in flight: the answer arrives, the check-in that follows must not be sent.
+    dispatch.mockImplementation(async (id: string) => {
+      if (id !== 'live.scan') return { ok: true, value: { already: false, checkIn: { checkedInAt: AT } } };
+      onLine.mockReturnValue(false);
+      act(() => window.dispatchEvent(new Event('offline')));
+      return { ok: true, value: { kind: 'ok', guest: g } };
+    });
     const { user } = show(data([g]), 'checkin');
     await user.click(screen.getByRole('button', { name: 'Quét mã QR check-in' }));
     const dialog = await screen.findByRole('dialog', { name: /Quét mã QR check-in/ });
-    const onLine = vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
     try {
-      act(() => window.dispatchEvent(new Event('offline')));
       await user.type(within(dialog).getByLabelText(/Hoặc nhập/), 'K7Q2ZX');
       await user.click(within(dialog).getByRole('button', { name: 'Check-in' }));
       expect(await within(dialog.querySelector<HTMLElement>('[aria-live="polite"]')!).findByText(/Chưa check-in được/)).toBeInTheDocument();
