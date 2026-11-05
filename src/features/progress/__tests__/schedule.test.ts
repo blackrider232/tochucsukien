@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { EventId, GroupId, Instant, IsoDate, StepId, Version } from '@/core/brand';
-import { buildWorkCalendar, countdown, formatCountdown, workdaysBetween } from '@/core/dates';
+import { addCalendarDays, addWorkdays, buildWorkCalendar, countdown, formatCountdown, workdaysBetween } from '@/core/dates';
 import type { EventPlan, SceEvent, Step } from '../contract';
 import { stepsByDeadline } from '../domain/dashboard';
 import { countdownBadge, deadlineOf, eventProgress, isInDailyReportWindow, offsetLabel, stepState } from '../domain/schedule';
@@ -165,5 +165,46 @@ describe('countdown and the daily-report window, m2 §3.4 "intended" column (BUG
   });
   it('a holiday shortens nothing: Quốc khánh is not a working day of the countdown', () => {
     expect(formatCountdown(countdown(withHolidays, d('2026-09-03'), d('2026-09-01')))).toBe('Còn 1 ngày làm việc');
+  });
+});
+
+describe('the daily-report window opens where the T-n deadlines and the reports module count (workdays in [today, T0))', () => {
+  const ten = { ...SETTINGS, dailyReportThresholdDays: 10 };
+
+  it('a Sunday event opens on the weekend before its T-10 Monday, not a working day earlier', () => {
+    const sunday = event('2026-11-22');
+    expect(deadlineOf(weekendsOnly, sunday.eventDate, { offsetDays: 10, dayType: 'workday', targetPhase: 'before' })).toBe('2026-11-09');
+    const opens = (today: string) => isInDailyReportWindow(weekendsOnly, sunday, d(today), ten);
+    expect([opens('2026-11-05'), opens('2026-11-06')]).toEqual([false, false]);
+    expect([opens('2026-11-07'), opens('2026-11-08'), opens('2026-11-09'), opens('2026-11-21'), opens('2026-11-22')]).toEqual([true, true, true, true, true]);
+    expect(opens('2026-11-23')).toBe(false);
+  });
+
+  it('a Saturday event opens on its T-10 Monday too', () => {
+    const saturday = event('2026-11-21');
+    const opens = (today: string) => isInDailyReportWindow(weekendsOnly, saturday, d(today), ten);
+    expect([opens('2026-11-05'), opens('2026-11-06')]).toEqual([false, false]);
+    expect([opens('2026-11-07'), opens('2026-11-09')]).toEqual([true, true]);
+  });
+
+  it('an event on a public holiday: the holiday is not a working day before it', () => {
+    const holiday = event('2026-09-02');
+    const one = { ...SETTINGS, dailyReportThresholdDays: 1 };
+    expect(isInDailyReportWindow(withHolidays, holiday, d('2026-08-31'), one)).toBe(false);
+    expect(isInDailyReportWindow(withHolidays, holiday, d('2026-09-01'), one)).toBe(true);
+  });
+
+  it('agrees with deadlineOf for every T0 and every day: in the window exactly from the day a weekend or holiday reads as the T-n working day', () => {
+    const isWork = (date: IsoDate) => withHolidays.isWorkday(date);
+    const firstWorkdayFrom = (date: IsoDate) => (isWork(date) ? date : addWorkdays(withHolidays, date, 1));
+    for (const threshold of [1, 3, 10]) {
+      for (let t0 = d('2026-08-24'); t0 <= d('2026-09-13'); t0 = addCalendarDays(t0, 1)) {
+        const deadline = deadlineOf(withHolidays, t0, { offsetDays: threshold, dayType: 'workday', targetPhase: 'before' });
+        for (let today = addCalendarDays(t0, -30); today <= t0; today = addCalendarDays(today, 1)) {
+          const expected = firstWorkdayFrom(today) >= deadline;
+          expect(isInDailyReportWindow(withHolidays, event(t0), today, { ...SETTINGS, dailyReportThresholdDays: threshold }), `T0 ${t0}, today ${today}, T-${threshold}`).toBe(expected);
+        }
+      }
+    }
   });
 });
