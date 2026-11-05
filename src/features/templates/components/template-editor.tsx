@@ -1,19 +1,29 @@
 'use client';
 
 import { useState } from 'react';
-import { Alert, Button, Dialog, Form, FormField, Select, Textarea, TextInput, useDialogs, useToast, useZodForm } from '@/components/ui';
+import { Alert, Button, Dialog, Form, FormField, IconButton, RichEditor, Select, Textarea, TextInput, useDialogs, useRichEditor, useToast, useZodForm } from '@/components/ui';
 import { newId, type TemplateId, type Uuid } from '@/core/brand';
 import { useCommand } from '@/core/commands';
+import { sanitizeRichHtml } from '@/core/text';
 import type { DocumentTemplate } from '../contract';
 import { builtinDraft, draftOf, type TemplateDraft } from '../domain/catalog';
 import { TEMPLATE_KINDS, TEMPLATE_KIND_VALUES, TEMPLATE_LEVELS, TEMPLATE_LEVEL_VALUES } from '../domain/levels';
 import { unknownTags, tagToken } from '../domain/merge-tags';
-import { NEW_TEMPLATE_DRAFT } from '../domain/new-template';
+import { NEW_TABLE_HTML, NEW_TEMPLATE_DRAFT } from '../domain/new-template';
+import { MergeTagPicker } from './merge-tag-picker';
 import { templateDraftSchema } from '../domain/schemas';
-import { RichEditor } from './rich-editor';
 
 const LEVEL_OPTIONS = TEMPLATE_LEVEL_VALUES.map((value) => ({ value, label: TEMPLATE_LEVELS[value].label }));
 const KIND_OPTIONS = TEMPLATE_KIND_VALUES.map((value) => ({ value, label: TEMPLATE_KINDS[value].optionLabel }));
+
+function InsertTableButton() {
+  const editor = useRichEditor();
+  return <IconButton icon="table" label="Chèn bảng" onClick={() => editor.insertHtml(sanitizeRichHtml(NEW_TABLE_HTML))} />;
+}
+
+function MergeTagInserter() {
+  return <MergeTagPicker onPick={useRichEditor().insertText} />;
+}
 
 export type EditorTarget = { kind: 'create' } | { kind: 'edit'; template: DocumentTemplate };
 
@@ -103,9 +113,13 @@ export function TemplateEditor({ target, onClose }: { target: EditorTarget; onCl
         )}
         <RichEditor
           key={editor.token}
+          label="Nội dung biểu mẫu"
           initialHtml={editor.html}
           onChange={(html) => form.setValue('content', html, { shouldDirty: true, shouldValidate: form.formState.isSubmitted })}
-        />
+          toolbarExtras={<InsertTableButton />}
+        >
+          <MergeTagInserter />
+        </RichEditor>
         {contentError && <p role="alert" className="text-sm font-medium text-danger-ink">{contentError}</p>}
       </Form>
     </Dialog>

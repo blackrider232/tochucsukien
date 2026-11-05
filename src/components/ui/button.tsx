@@ -65,8 +65,8 @@ const ICON_BASE =
   'inline-flex size-touch shrink-0 items-center justify-center rounded-control transition-colors active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50';
 
 /** Icon-only: `label` is the accessible name and the tooltip. A tone colours the glyph and its hover tint. */
-export function IconButton({ icon, label, onClick, href, disabled, tone }: IconButtonProps) {
-  const cls = cn(ICON_BASE, tone ? 'text-(--tone-fg) hover:bg-(--tone-bg) active:bg-(--tone-bg)' : 'text-ink-muted hover:bg-surface-3 hover:text-ink active:bg-surface-3');
+export function IconButton({ icon, label, onClick, href, disabled, tone, pressed }: IconButtonProps) {
+  const cls = cn(ICON_BASE, tone ? 'text-(--tone-fg) hover:bg-(--tone-bg) active:bg-(--tone-bg)' : 'text-ink-muted hover:bg-surface-3 hover:text-ink active:bg-surface-3 aria-pressed:bg-selected aria-pressed:text-link');
   if (href && !disabled) {
     return (
       <Link href={href} aria-label={label} title={label} data-tone={tone} className={cls}>
@@ -75,7 +75,7 @@ export function IconButton({ icon, label, onClick, href, disabled, tone }: IconB
     );
   }
   return (
-    <button type="button" aria-label={label} title={label} onClick={onClick} disabled={disabled} data-tone={tone} className={cls}>
+    <button type="button" aria-label={label} title={label} onClick={onClick} disabled={disabled} aria-pressed={pressed} data-tone={tone} className={cls}>
       <Icon name={icon} size={18} />
     </button>
   );

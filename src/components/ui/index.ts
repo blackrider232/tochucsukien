@@ -27,6 +27,7 @@ export { CodeScanner } from './code-scanner';
 export { PrintPage, Nd30Header, SignatureBlock, PrintLink } from './print';
 export { QrCode, qrPngDataUrl } from './qr';
 export { RichHtml } from './rich-html';
+export { RichEditor, useRichEditor } from './rich-editor';
 export { downloadBlob, downloadXlsx, downloadWordHtml, xlsxSheet } from './files';
 export { useBeep } from './beep';
 export { useOnline } from './use-online';

@@ -1,9 +1,9 @@
 import {
-  AlertTriangle, Armchair, ArrowLeft, ArrowLeftRight, Bell, Briefcase, Building, Calendar, CalendarCheck, ChartLine, Check,
+  AlertTriangle, AlignCenter, AlignJustify, AlignLeft, AlignRight, Armchair, Bold, ArrowLeft, ArrowLeftRight, Bell, Briefcase, Building, Calendar, CalendarCheck, ChartLine, Check,
   ChevronDown, ChevronRight, CircleCheck, CircleX, Clock, Cloud, Contact, Copy, Download, Ellipsis, ExternalLink, Eye,
-  FileSignature, FileSpreadsheet, FileText, Filter, Globe, Info, Landmark, Layers, LayoutTemplate, ListChecks, LoaderCircle,
+  FileSignature, FileSpreadsheet, FileText, Filter, Globe, Info, Italic, Landmark, Layers, LayoutTemplate, ListChecks, LoaderCircle,
   Lock, LogOut, Mail, Map as MapIcon, MapPin, Menu, Moon, Newspaper, Paperclip, Pencil, Phone, Plus, Printer,
-  QrCode as QrIcon, Redo2, RefreshCw, Search, Settings, Shield, Siren, Smartphone, Star, Store, Sun, Trash2, Undo2, Unlock,
+  QrCode as QrIcon, Redo2, RefreshCw, Search, Settings, Shield, Siren, Smartphone, Star, Store, Sun, Table as TableIcon, Trash2, Underline, Undo2, Unlock,
   Upload, UserCog, Users, X,
   type LucideIcon,
 } from 'lucide-react';
@@ -74,6 +74,14 @@ const ICONS: Readonly<Record<IconName, LucideIcon>> = {
   'list-check': ListChecks,
   paperclip: Paperclip,
   layers: Layers,
+  bold: Bold,
+  italic: Italic,
+  underline: Underline,
+  'align-left': AlignLeft,
+  'align-center': AlignCenter,
+  'align-right': AlignRight,
+  'align-justify': AlignJustify,
+  table: TableIcon,
 };
 
 export const ICON_NAMES = Object.keys(ICONS) as ReadonlyArray<IconName>;

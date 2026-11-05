@@ -26,7 +26,9 @@ export type IconName =
   // venue map-pin, emergency siren, red/green/yellow status circle-x / circle-check / alert-triangle. Then kit controls.
   | 'star' | 'landmark' | 'globe' | 'briefcase' | 'newspaper' | 'map-pin' | 'siren' | 'info' | 'circle-x'
   | 'circle-check' | 'filter' | 'ellipsis' | 'arrow-left' | 'arrow-left-right' | 'calendar' | 'phone' | 'eye'
-  | 'refresh' | 'list-check' | 'paperclip' | 'layers';
+  | 'refresh' | 'list-check' | 'paperclip' | 'layers'
+  // Text formatting, for the RichEditor toolbar and anything that offers the same choices.
+  | 'bold' | 'italic' | 'underline' | 'align-left' | 'align-center' | 'align-right' | 'align-justify' | 'table';
 
 // ---------- actions ----------
 // Three colour vocabularies, on purpose: `accent` is a module colour (Accent), `tone` is a status colour (Tone, from
@@ -58,6 +60,8 @@ export interface IconButtonProps {
   disabled?: boolean;
   /** Status colour of the glyph (red for delete, emerald for approve). Every Tone is styled. */
   tone?: Tone;
+  /** A toggle (a text format): sets aria-pressed and tints the button. */
+  pressed?: boolean;
 }
 
 // ---------- overlays ----------
@@ -344,6 +348,26 @@ export interface CodeScannerProps {
   onCode: (raw: string) => void;
   /** What to do instead when the camera cannot work, appended to those messages. Defaults to 'Dùng cách nhập mã khác.' */
   fallback?: string;
+}
+/** What a caller's own tool does to the page: insert at the caret (or the end). `useRichEditor()` returns it inside a RichEditor. */
+export interface RichEditorApi {
+  insertHtml(html: SanitizedHtml): void;
+  insertText(text: string): void;
+}
+/**
+ * The admin's document editor: bold, italic, underline, four alignments and undo/redo in a labelled, keyboard-navigable
+ * toolbar over a contenteditable page. `onChange` receives sanitized HTML (sanitizeRichHtml), so what it holds is
+ * what the server will keep. The initial document is read once: remount with a `key` to load another.
+ */
+export interface RichEditorProps {
+  initialHtml: string;
+  onChange: (html: SanitizedHtml) => void;
+  /** Accessible name of the page, e.g. 'Nội dung biểu mẫu'. */
+  label: string;
+  /** Extra buttons at the end of the toolbar (a table). Buttons join the arrow-key row; they call useRichEditor() to insert. */
+  toolbarExtras?: ReactNode;
+  /** Content between the toolbar and the page (a merge-field picker); it calls useRichEditor() to insert. */
+  children?: ReactNode;
 }
 export interface CheckboxProps {
   name: string;
