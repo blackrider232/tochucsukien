@@ -15,7 +15,7 @@ type Status = 'idle' | 'loading' | 'ready' | 'error';
  * Server-backed search box following the ARIA 1.2 combobox pattern: ArrowDown/Up move,
  * Enter picks, Esc closes (then clears), Tab leaves. The form value is the picked item key.
  */
-export function Combobox<T>({ name, search, itemKey, itemLabel, renderItem, onPick }: ComboboxProps<T>) {
+export function Combobox<T>({ name, search, itemKey, itemLabel, matchText = itemLabel, inputLabel = itemLabel, emptyMessage = 'Không tìm thấy kết quả.', renderItem, onPick }: ComboboxProps<T>) {
   const { id, form, aria } = useControl(name);
   const listId = useId();
   const [query, setQuery] = useState('');
@@ -36,7 +36,7 @@ export function Combobox<T>({ name, search, itemKey, itemLabel, renderItem, onPi
       try {
         const found = await search(q);
         if (mine !== seq.current) return;
-        const ranked = rank(found, q, itemLabel);
+        const ranked = rank(found, q, matchText);
         setItems(ranked);
         setActive(ranked.length > 0 ? 0 : -1);
         setStatus('ready');
@@ -51,11 +51,17 @@ export function Combobox<T>({ name, search, itemKey, itemLabel, renderItem, onPi
   const pick = (item: T) => {
     seq.current++;
     clearTimeout(timer.current);
-    setQuery(itemLabel(item));
+    setQuery(inputLabel(item));
     setOpen(false);
     setStatus('idle');
     form?.setValue(name, itemKey(item), { shouldDirty: true, shouldValidate: form.formState.isSubmitted });
     onPick(item);
+  };
+
+  /** Focus and click both open the list; the first time (or after a failure) it fetches for what is typed, so an empty box offers the default results. */
+  const openList = () => {
+    setOpen(true);
+    if (status === 'idle' || status === 'error') run(query);
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -63,7 +69,7 @@ export function Combobox<T>({ name, search, itemKey, itemLabel, renderItem, onPi
       e.preventDefault();
       if (!open) {
         setOpen(true);
-        if (status === 'idle') run(query);
+        if (status === 'idle' || status === 'error') run(query);
         return;
       }
       if (items.length === 0) return;
@@ -95,7 +101,7 @@ export function Combobox<T>({ name, search, itemKey, itemLabel, renderItem, onPi
   const activeItem = items[active];
   const optionId = (i: number) => `${listId}-opt-${i}`;
   const message =
-    status === 'loading' ? 'Đang tìm…' : status === 'error' ? 'Không tìm thấy kết quả do lỗi kết nối. Thử lại sau.' : status === 'ready' && items.length === 0 ? 'Không tìm thấy kết quả.' : null;
+    status === 'loading' ? 'Đang tìm…' : status === 'error' ? 'Không tìm thấy kết quả do lỗi kết nối. Thử lại sau.' : status === 'ready' && items.length === 0 ? emptyMessage : null;
 
   return (
     <div className="relative">
@@ -114,10 +120,8 @@ export function Combobox<T>({ name, search, itemKey, itemLabel, renderItem, onPi
           setOpen(true);
           run(e.target.value);
         }}
-        onFocus={() => {
-          if (query === '' && status === 'idle') return;
-          setOpen(true);
-        }}
+        onFocus={openList}
+        onClick={openList}
         onBlur={() => setOpen(false)}
         onKeyDown={onKeyDown}
         className={controlClass}

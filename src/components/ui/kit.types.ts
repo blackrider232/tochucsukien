@@ -302,7 +302,14 @@ export interface ComboboxProps<T> {
   /** Server-backed search via useQuery; results ranked by matchesQuery. */
   search: (q: string) => Promise<ReadonlyArray<T>>;
   itemKey: (t: T) => string;
+  /** The option's text, and the box's text after a pick unless inputLabel says otherwise. */
   itemLabel: (t: T) => string;
+  /** What the typed text is matched and ranked against. Defaults to itemLabel; give it every searched field (name, organization, phone). */
+  matchText?: (t: T) => string;
+  /** The box's text after a pick. Defaults to itemLabel. */
+  inputLabel?: (t: T) => string;
+  /** Shown when the search found nothing. Defaults to 'Không tìm thấy kết quả.' */
+  emptyMessage?: string;
   renderItem?: (t: T) => ReactNode;
   onPick: (t: T) => void;
 }

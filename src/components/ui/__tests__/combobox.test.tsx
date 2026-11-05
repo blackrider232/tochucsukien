@@ -87,4 +87,47 @@ describe('Combobox', () => {
     await new Promise((r) => setTimeout(r, 20));
     expect(screen.getAllByRole('option')).toHaveLength(2);
   });
+
+  it('opens on focus and on click with the unfiltered results, and reopens after Escape on click', async () => {
+    const { user, search, input } = setup();
+    await user.click(input());
+    expect(await screen.findAllByRole('option')).toHaveLength(3);
+    expect(search).toHaveBeenLastCalledWith('');
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    await user.click(input());
+    expect(await screen.findAllByRole('option')).toHaveLength(3);
+  });
+
+  it('shows the empty message the caller gives', async () => {
+    const { user } = renderUi(
+      <Combobox name="c" search={async () => []} itemKey={(c: Contact) => c.id} itemLabel={(c: Contact) => c.name} emptyMessage="Chưa có trong danh bạ" onPick={() => {}} />,
+    );
+    await user.type(screen.getByRole('combobox'), 'abc');
+    expect(await screen.findByText('Chưa có trong danh bạ')).toBeInTheDocument();
+    expect(screen.queryByText('Không tìm thấy kết quả.')).not.toBeInTheDocument();
+  });
+
+  it('filters by matchText and writes inputLabel into the box after a pick', async () => {
+    const people = [{ id: '1', name: 'Nguyễn Văn An', org: 'Sở Tài chính' }, { id: '2', name: 'Trần Thị Bình', org: 'Sở Du lịch' }];
+    const onPick = vi.fn();
+    const { user } = renderUi(
+      <Combobox
+        name="c"
+        search={async () => people}
+        itemKey={(p) => p.id}
+        itemLabel={(p) => `${p.name} (${p.org})`}
+        matchText={(p) => `${p.name} ${p.org}`}
+        inputLabel={(p) => p.name}
+        onPick={onPick}
+      />,
+    );
+    await user.type(screen.getByRole('combobox'), 'du lich');
+    const options = await screen.findAllByRole('option');
+    expect(options).toHaveLength(1);
+    expect(options[0]).toHaveTextContent('Trần Thị Bình (Sở Du lịch)');
+    await user.keyboard('{Enter}');
+    expect(screen.getByRole('combobox')).toHaveValue('Trần Thị Bình');
+    expect(onPick).toHaveBeenCalledWith(people[1]);
+  });
 });
