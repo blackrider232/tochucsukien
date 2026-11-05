@@ -11,6 +11,7 @@ export { UiProviders, SkipLink } from './providers';
 export { SectionCard } from './section-card';
 export { KpiCard } from './kpi-card';
 export { Tabs, LinkTabs } from './tabs';
+export { useSubTabCount } from './sub-tab-counts';
 export { ProgressBar } from './progress-bar';
 export { Badge, StatusBadge } from './badge';
 export { EmptyState } from './empty-state';

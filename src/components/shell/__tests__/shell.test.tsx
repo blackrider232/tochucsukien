@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useSubTabCount } from '@/components/ui';
 import { prefStorage, renderUi } from '@/components/ui/__tests__/helpers';
 import { AppShell, EventSubTabs, type ShellSlots } from '../app-shell';
 import { EventSwitcher, switchHref } from '../event-switcher';
@@ -85,6 +86,20 @@ describe('AppShell', () => {
     expect(within(tabs).getByRole('link', { name: 'Sơ đồ chỗ ngồi' })).toHaveAttribute('aria-current', 'page');
     expect(within(tabs).getByRole('link', { name: 'Danh sách' })).toHaveAttribute('href', '/events/e1/guests');
     await waitFor(() => expect(screen.getByRole('banner')).toHaveTextContent('Hội nghị XTĐT 2026'));
+  });
+
+  it('shows the count a page gives its sub-tab, as text for screen readers too, and drops it with the page', () => {
+    function Counted({ value }: { value: number | string }) {
+      useSubTabCount('seating', value);
+      return <><EventSubTabs eventName="Hội nghị" /><p>Trang có số đếm</p></>;
+    }
+    const view = renderUi(<AppShell model={MODEL} slots={SLOTS}><Counted value="4/10" /></AppShell>);
+    const tabs = screen.getByRole('navigation', { name: 'Phân mục Khách mời & Chỗ ngồi' });
+    expect(within(tabs).getByRole('link', { name: 'Sơ đồ chỗ ngồi, 4/10 mục' })).toBeInTheDocument();
+    expect(within(tabs).getByRole('link', { name: 'Danh sách' })).toBeInTheDocument();
+    view.unmount();
+    renderUi(<AppShell model={MODEL} slots={SLOTS}><EventSubTabs eventName="Hội nghị" /></AppShell>);
+    expect(screen.getByRole('link', { name: 'Sơ đồ chỗ ngồi' })).toBeInTheDocument();
   });
 
   it('renders exactly one main and one h1', () => {

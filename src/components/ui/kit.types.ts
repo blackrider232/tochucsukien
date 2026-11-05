@@ -135,7 +135,8 @@ export interface KpiCardProps {
 export interface TabItem {
   id: string;
   label: string;
-  count?: number;
+  /** A number, or text such as '4/10'. Read to screen readers as "<count> mục". */
+  count?: number | string;
   icon?: IconName;
 }
 /** URL-driven: each tab is a link, so state survives reload and is shareable. */

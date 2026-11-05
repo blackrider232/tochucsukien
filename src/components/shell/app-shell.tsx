@@ -1,9 +1,10 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { LinkTabs } from '@/components/ui/tabs';
 import { cn } from '@/components/ui/cn';
+import { SubTabCountContext } from '@/components/ui/sub-tab-counts';
 import { useBoolPref } from '@/core/prefs';
 import { AccountMenu } from './account-menu';
 import { Drawer } from './drawer';
@@ -54,13 +55,23 @@ export function AppShell({ model, slots, children }: { model: ShellModel; slots:
   const sub = current && current.subTabs.length > 0 ? activeSubTab(current, pathname) : null;
   const eventId = eventIdFromPath(pathname);
   const [eventName, setEventName] = useState<string | null>(null);
+  const [counts, setCounts] = useState<Readonly<Record<string, number | string>>>({});
+  const setSubTabCount = useCallback((id: string, count: number | string | null) => {
+    setCounts((prev) => {
+      if (count === null) {
+        if (!(id in prev)) return prev;
+        return Object.fromEntries(Object.entries(prev).filter(([key]) => key !== id));
+      }
+      return prev[id] === count ? prev : { ...prev, [id]: count };
+    });
+  }, []);
 
   const subTabs = current && current.subTabs.length > 0 && (
     <LinkTabs
       variant="underline"
       label={`Phân mục ${current.label}`}
       activeId={sub?.id ?? ''}
-      items={current.subTabs.map((t) => ({ id: t.id, label: t.label, href: resolveHref(t.href, current.id, eventId) }))}
+      items={current.subTabs.map((t) => ({ id: t.id, label: t.label, href: resolveHref(t.href, current.id, eventId), count: counts[t.id] }))}
     />
   );
 
@@ -107,7 +118,9 @@ export function AppShell({ model, slots, children }: { model: ShellModel; slots:
         />
         {!eventId && subTabs && <div data-shell className="border-b border-line bg-surface px-3 sm:px-5">{subTabs}</div>}
         <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 p-3 outline-none sm:p-5">
-          <EventChromeContext.Provider value={{ subTabs: eventId ? subTabs : null, setEventName }}>{children}</EventChromeContext.Provider>
+          <SubTabCountContext.Provider value={setSubTabCount}>
+            <EventChromeContext.Provider value={{ subTabs: eventId ? subTabs : null, setEventName }}>{children}</EventChromeContext.Provider>
+          </SubTabCountContext.Provider>
         </main>
       </div>
 
