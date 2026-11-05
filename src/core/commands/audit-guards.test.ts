@@ -42,7 +42,10 @@ describe('who can reach the audit writer', () => {
 
   it('a scheduled job reaches its writer, run claim and service-role context only through core/auth/cron.ts', () => {
     expect(mentioning(/rpc\('sce_tcsk_(audit_system|start_system_run)'/)).toEqual(['src/core/auth/admin.ts']);
-    expect(mentioning(/\b(systemAuditWriter|startSystemRun|systemContext)\b/)).toEqual(['src/core/auth/admin.ts', 'src/core/auth/cron.ts']);
+    expect(mentioning(/\b(systemAuditWriter|startSystemRun)\b/)).toEqual(['src/core/auth/admin.ts', 'src/core/auth/cron.ts']);
+    // `systemContext` is also a field name in feature code (comms' CronDeps), so match the import of admin.ts's function.
+    expect(mentioning(/export (async )?function systemContext\b/)).toEqual(['src/core/auth/admin.ts']);
+    expect(mentioning(/import\s*\{[^}]*\bsystemContext\b[^}]*\}\s*from\s*'(@\/core\/auth\/admin|\.\/admin)'/)).toEqual(['src/core/auth/cron.ts']);
     expect(mentioning(/@\/core\/auth\/cron|\.\/cron'/).filter((f) => !f.startsWith('src/app/api/cron/'))).toEqual([]);
   });
 
