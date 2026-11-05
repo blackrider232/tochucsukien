@@ -41,9 +41,10 @@ export interface ScopedResource {
 /**
  * Scheduled jobs that run commands with no person behind them (runCommandAsSystem, src/core/auth/cron.ts). A job holds
  * exact (command, permission) pairs, never a role and never a core command: the pipeline runs a command for it only
- * when the pair is listed here, and sce_tcsk_audit_system re-checks the pair from tcsk.system_grants(), which
- * scripts/gen-permissions-sql.ts renders from this table into 0004. `minIntervalSeconds` is the replay window: a
- * second start inside it is refused.
+ * when the pair is listed here, and sce_tcsk_audit_system re-checks the pair from tcsk.system_grants(). That SQL table
+ * is hand-written in the migration that last replaced the function (202611041600) and is not generated: check:contract
+ * rule 4c fails while its latest definition differs from this table, so a change here ships a new migration with it.
+ * `minIntervalSeconds` is the replay window: a second start inside it is refused.
  */
 export const SYSTEM_JOBS = {
   'rsvp-sync': {
