@@ -283,6 +283,22 @@ export interface SelectProps<K extends string> {
   label?: string;
   disabled?: boolean;
 }
+/**
+ * A file picker with the checks a form needs: it hands over a file only if its type is in `accept` and it is within
+ * `maxBytes`, otherwise it says why (role="alert") and passes null. Shows the file's name and size, with a Clear button.
+ * Inside a Form the file is also the field's value (undefined when none).
+ */
+export interface FileInputProps {
+  name: string;
+  /** As the HTML attribute: '.csv,text/csv', 'image/*'. Also enforced on the chosen file, which a drop can bypass. */
+  accept?: string;
+  maxBytes?: number;
+  /** Accessible name outside a FormField. Inside one, the field's label names it. */
+  label?: string;
+  /** The accepted file, or null when cleared or refused. */
+  onChange: (file: File | null) => void;
+  disabled?: boolean;
+}
 export interface TextareaProps { name: string; placeholder?: string; rows?: number }
 /** Own legend, hint and error, like Checkbox: use it inside a Form directly, not inside FormField. */
 export interface RadioGroupProps<K extends string> {
