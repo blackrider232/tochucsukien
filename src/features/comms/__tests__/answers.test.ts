@@ -3,6 +3,8 @@
 // guest only when it is, as a whole, a Form label or one of the canonical
 // answers. Everything else is 'review', and review never changes a guest.
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { CANONICAL_ANSWERS, normalizeAnswer, parseYesNo, readRsvpAnswer, substituteName } from '../domain/answers';
 import { REVIEWER } from './rsvp-corpus';
@@ -175,6 +177,46 @@ describe('readRsvpAnswer', () => {
     expect(readRsvpAnswer('Có', labels)).toBe('declined');
     expect(readRsvpAnswer('Có, tôi sẽ tham dự nhưng muộn', labels)).toBe('review');
     expect(readRsvpAnswer('Không', labels)).toBe('declined');
+  });
+});
+
+describe('readRsvpAnswer: a line break, a hesitation or an ellipsis is for a person to read', () => {
+  const all = Object.values(EXPECTED_CANONICAL).flat();
+
+  it.each(['\n', '\r\n', '\u2028', '\u2029', '\u0085', '\v', '\f', ' \n '])('two lines are review whatever they say, joined by %j', (sep) => {
+    // "Có\ntham dự" used to confirm and "Không\ntham dự" to decline, because a line break collapses to a space.
+    expect(readRsvpAnswer(`Có${sep}tham dự`)).toBe('review');
+    expect(readRsvpAnswer(`Không${sep}tham dự`)).toBe('review');
+    for (const first of all) for (const second of ['có', 'không', 'tham dự']) expect(readRsvpAnswer(`${first}${sep}${second}`), JSON.stringify(`${first}${sep}${second}`)).toBe('review');
+    // Even a saved Form choice is matched only as one line.
+    expect(readRsvpAnswer(`rất tiếc${sep}tôi bận`, { 'rất tiếc tôi bận': 'declined' })).toBe('review');
+  });
+
+  it('a line break around the answer, not inside it, changes nothing', () => {
+    expect(readRsvpAnswer('Có\n')).toBe('confirmed');
+    expect(readRsvpAnswer('\r\nKhông tham dự\r\n')).toBe('declined');
+    expect(readRsvpAnswer('Có tham dự')).toBe('confirmed');
+    expect(readRsvpAnswer('Có\u00a0tham dự')).toBe('confirmed');
+  });
+
+  it.each(['Không à', 'Không ah', 'Có à', 'Có ah', 'khong a?', 'Không...', 'Không…', 'Có…', 'Có..', 'Không tham dự...', 'Có ạ…', 'Không . . .', 'Không ......', 'Không…\n'])(
+    '%j is review: hesitation is not an answer',
+    (raw) => {
+      expect(readRsvpAnswer(raw)).toBe('review');
+    },
+  );
+
+  it.each([['Không.', 'declined'], ['Có!', 'confirmed'], ['Không tham dự.', 'declined'], ['Có ạ.', 'confirmed'], ['Không ạ', 'declined'], ['Có nhé!', 'confirmed']] as const)(
+    '%j stays canonical',
+    (raw, expected) => {
+      expect(readRsvpAnswer(raw)).toBe(expected);
+    },
+  );
+
+  it('the status doc lists every canonical answer', () => {
+    const doc = readFileSync(join(process.cwd(), 'docs', 'rewrite', 'status', 'comms.md'), 'utf8');
+    const missing = all.filter((a) => !doc.includes(`\`${a}\``));
+    expect(missing).toEqual([]);
   });
 });
 

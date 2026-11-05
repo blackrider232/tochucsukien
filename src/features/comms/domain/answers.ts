@@ -37,7 +37,8 @@ const BANQUET_ANSWERS: { readonly yes: ReadonlyArray<string>; readonly no: Reado
   no: ['không', 'dạ không', 'không dự tiệc', 'không tham dự tiệc', 'không tham dự'],
 };
 
-const PARTICLES = ['ạ', 'a', 'nhé', 'nhe', 'nha', 'nhen', 'ah', 'ạh', 'à'];
+// "à" and "ah" are not here: "Không à" is a hesitation, not a polite ending.
+const PARTICLES = ['ạ', 'a', 'nhé', 'nhe', 'nha', 'nhen', 'ạh'];
 const SHORTHAND_NO = ['ko', 'k', 'hok', 'khg'];
 /** New-style tone placement to the old style the lists are written in (ui-rules 18). */
 const OLD_STYLE: ReadonlyArray<readonly [RegExp, string]> = [
@@ -47,6 +48,9 @@ const OLD_STYLE: ReadonlyArray<readonly [RegExp, string]> = [
 ];
 const CONTROLS = /[\u0000-\u0008\u000e-\u001f\u007f-\u009f]/g;
 const INVISIBLES = /[\u200b-\u200f\u2060-\u2064\u202a-\u202e\u2066-\u2069\ufeff]/g;
+const EDGE_SPACE = /^[\s\u0085]+|[\s\u0085]+$/g;
+const LINE_BREAK = /[\n\r\v\f\u0085\u2028\u2029]/;
+const ELLIPSIS = /(?:…|\.\s*\.)[\s.…!]*$/u;
 const TRAILING = new RegExp(`(?:\\s*[.!…]+|\\s+(?:${PARTICLES.join('|')}))+$`, 'u');
 
 /** An answer as the lists compare it: NFC, lower case, old-style marks, single spaces, no trailing particle or full stop. */
@@ -87,7 +91,10 @@ const BANQUET = lookup<boolean>([...BANQUET_ANSWERS.yes.map((a) => [a, true] as 
 
 /** The RSVP cell: a Form label (by identity) or a canonical answer applies; anything else is review. */
 export function readRsvpAnswer(raw: string, labels: AnswerLabels = {}): RsvpReading {
-  if (!raw.trim()) return 'empty';
+  const whole = raw.replace(EDGE_SPACE, '');
+  if (!whole) return 'empty';
+  // Lines are never joined into one answer, and a trailing ellipsis is hesitation: a person reads both.
+  if (LINE_BREAK.test(whole) || ELLIPSIS.test(whole)) return 'review';
   const n = normalizeAnswer(raw);
   return (Object.hasOwn(labels, n) ? labels[n] : undefined) ?? read(RSVP, n) ?? 'review';
 }
