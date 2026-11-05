@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import type { EnumRegistry } from '@/core/vocab';
 import { Badge, StatusBadge } from '../badge';
+import { Icon } from '../icons';
 import { KpiCard } from '../kpi-card';
 import { ProgressBar, progressPercent } from '../progress-bar';
 import { LinkTabs, Tabs } from '../tabs';
@@ -89,5 +90,16 @@ describe('KpiCard', () => {
     expect(screen.getByText('/ 150')).toBeInTheDocument();
     expect(screen.getByText('Ổn định')).toBeInTheDocument();
     expect(screen.getAllByRole('button')).toHaveLength(1);
+  });
+});
+
+describe('Icon', () => {
+  it('is decorative by default and a named image with a label', () => {
+    const { container } = renderUi(<><Icon name="star" /><Icon name="siren" label="Khẩn cấp" /></>);
+    const [plain, named] = Array.from(container.querySelectorAll('svg'));
+    expect(plain).toHaveAttribute('aria-hidden', 'true');
+    expect(plain).not.toHaveAttribute('role');
+    expect(named).not.toHaveAttribute('aria-hidden');
+    expect(screen.getByRole('img', { name: 'Khẩn cấp' })).toBe(named);
   });
 });

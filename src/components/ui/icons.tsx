@@ -78,10 +78,19 @@ const ICONS: Readonly<Record<IconName, LucideIcon>> = {
 
 export const ICON_NAMES = Object.keys(ICONS) as ReadonlyArray<IconName>;
 
-/** Decorative by default (aria-hidden); the surrounding control carries the name. */
-export function Icon({ name, size = 16, className }: { name: IconName; size?: number; className?: string }) {
+/** Decorative by default (aria-hidden); the surrounding control carries the name. With `label` it is an image with that name. */
+export function Icon({ name, size = 16, className, label }: { name: IconName; size?: number; className?: string; label?: string }) {
   const Cmp = ICONS[name];
-  return <Cmp aria-hidden="true" focusable="false" width={size} height={size} className={className} />;
+  const named = label !== undefined && label !== '';
+  return (
+    <Cmp
+      {...(named ? { role: 'img', 'aria-label': label } : { 'aria-hidden': true })}
+      focusable="false"
+      width={size}
+      height={size}
+      className={className}
+    />
+  );
 }
 
 /** The busy indicator of Button and DataTable. Decorative: the control says what is loading. */
