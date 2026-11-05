@@ -1,7 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { CampaignId, Email, EventId, GuestId, HHmm, Instant, IsoDate, MailboxId, RsvpResponseId, Version } from '@/core/brand';
-import { CommandFeedbackProvider } from '@/core/commands/client';
+import { CommandFeedbackProvider } from '@/core/commands';
 import { DEFAULT_SETTINGS, orgIdentity } from '@/core/settings';
 import { renderUi, withAppContext } from '@/components/ui/__tests__/helpers';
 import { DeliveryLog } from '../components/delivery-log';

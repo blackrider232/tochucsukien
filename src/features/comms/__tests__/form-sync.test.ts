@@ -399,7 +399,6 @@ describe('comms.saveAnswerLabels: the Form’s own choices', () => {
     expect(summary).toContain('"rất tiếc xxx');
     expect(summary).toContain('= từ chối');
     expect(summary).not.toContain(long);
-    // eslint-disable-next-line no-control-regex
     expect(summary).not.toMatch(/[\u0000-\u001f\u202e]/);
     expect(summary.length).toBeLessThan(500);
   });

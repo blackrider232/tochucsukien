@@ -45,7 +45,6 @@ const OLD_STYLE: ReadonlyArray<readonly [RegExp, string]> = [
   [/oà/g, 'òa'], [/oá/g, 'óa'], [/oả/g, 'ỏa'], [/oã/g, 'õa'], [/oạ/g, 'ọa'],
   [/oè/g, 'òe'], [/oé/g, 'óe'], [/oẻ/g, 'ỏe'], [/oẽ/g, 'õe'], [/oẹ/g, 'ọe'],
 ];
-// eslint-disable-next-line no-control-regex
 const CONTROLS = /[\u0000-\u0008\u000e-\u001f\u007f-\u009f]/g;
 const INVISIBLES = /[\u200b-\u200f\u2060-\u2064\u202a-\u202e\u2066-\u2069\ufeff]/g;
 const TRAILING = new RegExp(`(?:\\s*[.!…]+|\\s+(?:${PARTICLES.join('|')}))+$`, 'u');
