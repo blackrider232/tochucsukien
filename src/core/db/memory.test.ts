@@ -394,6 +394,8 @@ describe('memoryAuditWriter (sce_tcsk_audit_command, 202611041320_core_audit_wri
     ...[coreAction, coreAction.toLowerCase(), ` ${coreAction.replace(/ /g, '  ')}\t`, coreAction.normalize('NFD'), coreAction.replace(/ /g, '\u00a0'),
       coreAction.replace('QUYỀN', 'QU\u200bYỀN'), coreAction.replace(/[A-Z]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0xfee0)), '\ufeffTẠO BẢN SAO LƯU']
       .map((action): [string, ReturnType<typeof testActor>, Partial<CommandAuditRow>] => [`the core action ${JSON.stringify(action)}`, testActor('user', XTDT), { action }]),
+    ...['CHẠY TÁC VỤ HỆ THỐNG', 'chạy tác vụ hệ thống', ' CHẠY  TÁC VỤ HỆ THỐNG\t']
+      .map((action): [string, ReturnType<typeof testActor>, Partial<CommandAuditRow>] => [`the system-run action ${JSON.stringify(action)}, which only sce_tcsk_start_system_run writes`, testActor('user', XTDT), { action }]),
     ...['Profile', ' BACKUP ', 'pro\u200dfile', 'ｓｅｔｔｉｎｇｓ'].map((entity): [string, ReturnType<typeof testActor>, Partial<CommandAuditRow>] => [`the core entity ${JSON.stringify(entity)}`, testActor('user', XTDT), { entity }]),
     ['an empty action', testActor('user', XTDT), { action: ' \u200b ' }],
     ...[coreAction.replace('P', '\u0420'), coreAction.replace('O', '\u041e'), ...['\u2066', '\u2067', '\u2068', '\u2069', '\u034f', '\u3164'].map((c) => coreAction.replace(' ', ` ${c}`)),

@@ -471,10 +471,12 @@ const NOT_BACKED_UP = new Set(['sce_tcsk_profiles', 'sce_tcsk_role_permissions',
 const isBackedUp = (table: string) => Boolean(loadCatalog().get(table)?.owner) && !NOT_BACKED_UP.has(table);
 const vnDay = (at: unknown) => todayVN(String(at) as Instant);
 
-// The audit rows of 202611041100_core_audit_in_functions.sql, word for word.
+// The audit rows of 202611041100_core_audit_in_functions.sql, word for word, and the system run of 202611041610.
 const CORE_AUDIT_ACTIONS = new Set([
   'CẬP NHẬT THAM SỐ HỆ THỐNG', 'CẬP NHẬT NGÀY NGHỈ LỄ', 'CẬP NHẬT HỒ SƠ', 'PHÂN QUYỀN TÀI KHOẢN', 'CHUYỂN PHÒNG BAN', 'DUYỆT/MỞ KHÓA TÀI KHOẢN',
   'KHÓA TÀI KHOẢN', 'TẠO TÀI KHOẢN', 'TẠO BẢN SAO LƯU', 'KHÔI PHỤC SAO LƯU', 'TẢI BẢN SAO LƯU', 'KHỞI TẠO QUẢN TRỊ VIÊN',
+  // 202611041600/1610: only sce_tcsk_start_system_run writes it, as the system actor.
+  'CHẠY TÁC VỤ HỆ THỐNG',
 ]);
 const CORE_AUDIT_ENTITIES = new Set(['profile', 'backup', 'settings', 'holidays']);
 const CORE_AUDIT_ACTIONS_FOLDED = new Set([...CORE_AUDIT_ACTIONS].map((a) => a.toLowerCase()));
