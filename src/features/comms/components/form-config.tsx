@@ -121,6 +121,13 @@ const MEANINGS: ReadonlyArray<{ value: AnswerStatus | 'review'; label: string }>
  * The Form's own RSVP choices: each answer waiting for review, once, and each choice already saved. An answer that is
  * exactly a saved choice is applied with its meaning from the next sync on; a longer answer still waits for review.
  */
+// An answer is up to 2000 characters of anything: shown shortened, without the marks that reorder the text around it.
+const BIDI_MARKS = /[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;
+const displayAnswer = (text: string) => {
+  const clean = text.replace(BIDI_MARKS, '');
+  return clean.length > 200 ? `${clean.slice(0, 200)}…` : clean;
+};
+
 export function AnswerLabelsCard({ eventId, form, waiting, canManage }: { eventId: EventId; form: FormView; waiting: ReadonlyArray<ResponseView>; canManage: boolean }) {
   const run = useCommand();
   const choices = new Map<string, { text: string; count: number }>();
@@ -147,9 +154,12 @@ export function AnswerLabelsCard({ eventId, form, waiting, canManage }: { eventI
           {keys.map((k, i) => {
             const c = choices.get(k)!;
             return (
-              <FormField key={k} label={c.text} name={field(i)} hint={c.count > 0 ? `${c.count} phản hồi đang chờ xem lại` : 'Đã lưu'}>
-                <Select name={field(i)} options={MEANINGS} />
-              </FormField>
+              // A label is plain text in the kit: a long answer breaks anywhere and cannot overflow its column.
+              <div key={k} className="min-w-0 break-words [&_label]:[overflow-wrap:anywhere]">
+                <FormField label={displayAnswer(c.text)} name={field(i)} hint={c.count > 0 ? `${c.count} phản hồi đang chờ xem lại` : 'Đã lưu'}>
+                  <Select name={field(i)} options={MEANINGS} />
+                </FormField>
+              </div>
             );
           })}
         </div>

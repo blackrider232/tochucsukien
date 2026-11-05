@@ -89,7 +89,7 @@ function AnswersToDecide({ data, rows }: { data: FormScreenData; rows: ReadonlyA
               <p className="text-xs text-ink-muted">{formatVNTime(r.respondedAt, { withDate: true })}</p>
             </div>
             <p className="text-xs text-ink-2 break-words">Người trả lời: {[r.name, r.organization, r.email].filter(Boolean).join(' · ')}</p>
-            <p className="rounded bg-surface-2 px-3 py-2 text-sm text-ink whitespace-pre-wrap break-words">{r.rsvpAnswer}</p>
+            <p className="rounded bg-surface-2 px-3 py-2 text-sm text-ink whitespace-pre-wrap break-words"><bdi>{r.rsvpAnswer}</bdi></p>
             {data.canManage && (
               <div className="flex flex-wrap gap-2">
                 <Button variant="secondary" icon="circle-check" onClick={() => void decide(r, 'confirmed')}>Xác nhận tham dự</Button>

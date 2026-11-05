@@ -154,7 +154,7 @@ describe('comms screens render untrusted text as text', () => {
     // At 360 px the buttons wrap below the answer and a long answer breaks inside its box.
     const actions = within(list).getByRole('button', { name: 'Từ chối' }).parentElement!;
     expect(actions.className).toContain('flex-wrap');
-    expect(within(list).getByText(`Tham dự ko đc ${XSS}`).className).toContain('break-words');
+    expect(within(list).getByText(`Tham dự ko đc ${XSS}`).closest("p")!.className).toContain('break-words');
     expect(list.querySelector('table')).toBeNull();
   });
 
@@ -187,6 +187,27 @@ describe('comms screens render untrusted text as text', () => {
     await user.selectOptions(within(card).getByRole('combobox', { name: /Có, tôi sẽ tham dự/ }), 'confirmed');
     await user.click(within(card).getByRole('button', { name: 'Lưu lựa chọn' }));
     await vi.waitFor(() => expect(dispatched).toHaveBeenCalledWith('comms.saveAnswerLabels', { eventId: event.id, version: 7, labels: { 'có, tôi sẽ tham dự': 'confirmed', 'rất tiếc, tôi bận': 'declined' } }));
+  });
+
+  it('a long answer breaks inside the choices card and a bidi override in an answer is isolated, in both lists', () => {
+    const form = { formUrl: null, sheetCsvUrl: null, autoSync: false, autoAddNewGuests: false, columnMap: null, detectedMap: {}, sheetHeaders: [], lastSyncAt: null, lastAttemptAt: null, lastSyncError: null, version: 7 as Version, answerLabels: {} };
+    const long = `Có${'x'.repeat(1990)}`;
+    const bidi = 'Không\u202e tham dự';
+    const waiting = (id: string, rsvpAnswer: string) => response({ id: id as RsvpResponseId, applyStatus: 'review', rsvp: null, match: 'email', matchedGuest: { id: 'g1' as GuestId, name: 'B' }, rsvpAnswer });
+    const data: FormScreenData = { event, form, responses: [waiting('r1', long), waiting('r2', bidi)], guests: [], canManage: true, serverSync: false };
+    renderUi(withAppContext(<FormPage data={data} />));
+    const card = screen.getByText('Lựa chọn trả lời của Form').closest('section')!;
+    const labels = [...card.querySelectorAll('label')];
+    expect(labels).toHaveLength(2);
+    for (const label of labels) {
+      expect(label.closest('div[class*="break-words"]'), 'a label wraps').not.toBeNull();
+      expect(label.textContent!.length).toBeLessThan(260);
+      expect(label.textContent).not.toMatch(/[\u202a-\u202e\u2066-\u2069]/);
+    }
+    const list = screen.getByText('Câu trả lời cần xem lại').closest('section')!;
+    const shown = [...list.querySelectorAll('p')].filter((p) => p.textContent === long || p.textContent === bidi);
+    expect(shown).toHaveLength(2);
+    for (const p of shown) expect(p.querySelector('bdi'), 'the answer is isolated').not.toBeNull();
   });
 
   it('a read-only officer sees the answers waiting for review, with no decision buttons', () => {
