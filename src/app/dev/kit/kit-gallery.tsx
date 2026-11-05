@@ -17,7 +17,7 @@ import {
   Alert, Badge, Button, Checkbox, CodeScanner, Combobox, DataTable, DateInput, Dialog, EmptyState, FileInput, FilterBar, Form, FormField,
   ICON_NAMES, Icon, IconButton, KpiCard, LinkTabs, MoneyInput, Nd30Header, NumberInput, PrintLink, PrintPage, ProgressBar,
   QrCode, RadioGroup, RichEditor, RichHtml, RowMenu, SectionCard, Select, SignatureBlock, StatusBadge, Switch, Tabs, Textarea, TextInput,
-  ThemeToggle, TimeInput, downloadBlob, downloadWordHtml, downloadXlsx, qrPngDataUrl, useBeep, useDialogs, useTheme, useToast,
+  ThemeToggle, TimeInput, downloadBlob, downloadWordHtml, downloadXlsx, qrPngDataUrl, useBeep, useDialogs, useOnline, useRichEditor, useSubTabCount, useTheme, useToast,
   useZodForm, xlsxSheet,
   type Column,
 } from '@/components/ui';
@@ -208,6 +208,18 @@ function QrPng() {
   );
 }
 
+function InsertTableTool() {
+  const editor = useRichEditor();
+  return <IconButton icon="table" label="Chèn bảng" onClick={() => editor.insertHtml('<table border="1"><tr><td>Ô</td></tr></table>' as SanitizedHtml)} />;
+}
+
+/** useOnline and useSubTabCount: the shell's own gallery has no sub-tabs, so the count is shown where a page would set it. */
+function OnlineAndCounts() {
+  const online = useOnline();
+  useSubTabCount('gallery', 4);
+  return <p className="text-sm text-ink-2">{online ? 'Đang có mạng (useOnline)' : 'Ngoại tuyến (useOnline)'}. useSubTabCount('mã-phân-mục', '4/10') gắn số đếm lên phân mục của trang.</p>;
+}
+
 function Specimens() {
   const [tab, setTab] = useState('a');
   const [q, setQ] = useState('');
@@ -338,8 +350,11 @@ function Specimens() {
           <QrPng />
         </div>
       </Spec>
-      <Spec kit="RichEditor" title="RichEditor: thanh định dạng, bàn phím, dán đã làm sạch">
-        <RichEditor label="Nội dung mẫu" initialHtml="<p>Kính gửi: <b>Sở Tài chính</b></p>" onChange={() => {}} />
+      <Spec kit="RichEditor useRichEditor" title="RichEditor: thanh định dạng, bàn phím, dán đã làm sạch, công cụ thêm">
+        <RichEditor label="Nội dung mẫu" initialHtml="<p>Kính gửi: <b>Sở Tài chính</b></p>" onChange={() => {}} toolbarExtras={<InsertTableTool />} />
+      </Spec>
+      <Spec kit="useOnline useSubTabCount" title="useOnline, useSubTabCount">
+        <OnlineAndCounts />
       </Spec>
       <Spec kit="FileInput" title="FileInput: loại tệp, dung lượng, xóa">
         <FileInput name="demoFile" label="Tệp CSV" accept=".csv,text/csv" maxBytes={1024 * 1024} onChange={() => {}} />

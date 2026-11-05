@@ -185,6 +185,48 @@ Each fix has a test that fails on the code before it.
 | 5. Holidays move existing deadlines (note) | `d932fd3` failing test, `8ac08e4` alert |
 | 6. Status docs | this commit |
 
+## Foundation-A (branch `t3/foundation-a-kit-core`, from `dev` at `8215cee`, merged with `dev` at `f854c32`)
+
+Owned: `src/components/**` (kit and shell), `src/core/db/**`, `src/core/text/**`, test infrastructure. Each item has a failing-before test, shown red before the fix.
+
+**Core and test infrastructure**
+
+| Item | Commit | Failing-before test |
+|---|---|---|
+| The lint guard test pays the cold ESLint start under its own timeout | `fbe4a4b` | `guards-lint.test.ts` timed out on a cold run |
+| `pnpm typecheck` regenerates `.next/types` instead of reading stale ones | `4b7d674` | none (script) |
+| Tests and scripts resolve `server-only` by its package name | `bef856c` | `scripts/server-only-alias.test.ts` |
+| The sanitizer bounds every length and sees hex alpha | `479c8b7` | `text.test.ts` (`#0000`, `text-indent: 99999px`, `100cqw`, ...) |
+| `tcsk.audit_text` collapses Unicode White_Space, in SQL and in memory | `69e2854` (`202611041530_core_audit_text_white_space.sql`) | `audit-text.sql.test.ts` (U+0085 and U+1680) |
+| memoryDb `insertMany` is linear and all or nothing | `c628551` | "inserts thousands of rows in linear time" (4636 ms against 1500) |
+| memoryDb deletes follow the migrations' foreign keys, `created_at` keeps insert order | `61b99d5` | cascade, set-null and ordering cases in `memory.test.ts` |
+| memoryDb reads `security_invoker` views (guests' change request 1) | `310fe91` | view cases in `memory.test.ts`. Guests' own join in `readRoster` stays until its owner switches. |
+| `declareGuard` mirrors one CHECK, restrictive policy or trigger rule on a test seed | `1fb0043` | two cases in `memory.test.ts` |
+| `DraftOf` leaves DB-default columns optional: `defineTable<Row, 'checkinCode'>({ defaulted: [...] })`; memoryDb refuses a def naming a column with no default | `3e2ba8d` | `memory.test.ts` "defaulted columns" (and a `@ts-expect-error` that a column without a default stays required). Guests and directory still cast; they can switch when their owners next touch them. |
+| memoryDb's human audit writer refuses `CHẠY TÁC VỤ HỆ THỐNG`, as `sce_tcsk_audit_command` does since `202611041600` | `6bbc15d` | `memory.test.ts` "the system-run action …" (three spellings; all fail without the entry) |
+
+**Kit** (`src/components/ui`, specimens at `/dev/kit`, rules in `docs/rewrite/ui-rules.md`)
+
+| Item | Commit | Failing-before test |
+|---|---|---|
+| `Icon label` | `b1061c0` | `display.test.tsx` "Icon" |
+| `Select` outside a form, controlled or not, with `label` and `disabled` | `b61c7c8` | `form.test.tsx` "Select outside a form" |
+| `Badge` wraps long text | `4351fc3` | `display.test.tsx` "Badge with long text" (class check; jsdom has no layout) |
+| `Combobox` opens on focus and click, `matchText`, `inputLabel`, `emptyMessage` | `59bc4da` | three new cases in `combobox.test.tsx` |
+| `FilterBar` `search.onSubmit` on Enter | `b1f472f` | `display.test.tsx` "FilterBar" |
+| `DataTable` select-all semantics documented on `selection` | `77048fd` | pinned by a test that already passed: it covers only the rows given and keeps other selected keys |
+| `Tabs`/`LinkTabs` count chips are `relative` | `3656b56` | `display.test.tsx` "tab counts at 360 px". In headless Chrome at 360 px the page measured 352 of 352 with and without templates' clip wrapper, so the 757 px did not reproduce here. The wrapper is gone. |
+| `useOnline` exported; live drops its copy | `4d7cf19` | `use-online.test.tsx` |
+| `CodeScanner` (live's camera decoder, every state in words); live uses it | `6536fa8` | `code-scanner.test.tsx`. Live's strings for the failure states changed slightly (the fallback text is a prop). |
+| `useSubTabCount(subTabId, count)`; `TabItem.count` may be text ('4/10') | `93a5277` | `shell.test.tsx` "shows the count a page gives its sub-tab". No feature calls it yet. |
+| `FileInput` (type and size checked, name and size shown, Clear, keyboard); directory's CSV import picks a file | `3d36439`, `88d5b59` | `file-input.test.tsx`; `directory/__tests__/rendering.test.tsx` "the CSV file picker". Guests' custom tent background (change request 3) still needs image storage, which this does not give. |
+| `RichEditor` with `bold`, `italic`, `underline`, `align-*` and `table` icons; `IconButton pressed`; templates' editor is built on it | `9a20ec8` | `rich-editor.test.tsx` (jsdom has no `execCommand`: the tests stub it) |
+| `PrintPage type="nd30"`: `--font-print` and the `--text-nd30*` pt tokens | `1bc954a` | `print.test.tsx`; `reports/__tests__/nd30-tokens.test.ts` ties the tokens to reports' `ND30_PT`. Reports keeps its own sheet: its rendering tests pin that stylesheet's text, so moving it is not mechanical. |
+
+**Docs**: `design.md` now says the pipeline writes through a service-role audit writer that calls `sce_tcsk_audit_command`, and lists the current `RpcMap`; `ui-rules.md` rules 9 and 21; `src/features/README.md` "Columns with a SQL default"; `ui-kit-audit.md` "Additions".
+
+**Not verified**: `RichEditor` with a real browser's editing commands, `FileInput` with a real file dialog, `CodeScanner` with a real camera, screen readers, `useSubTabCount` in a running shell.
+
 ## Screenshots
 
 `/private/tmp/claude-501/-Users-ngotuananh-ProjectCode-SEC-tochucsukien/f9cf2612-e9a6-4262-826e-d594e5255aff/scratchpad/core/`, at 360 and 1440 px, light and dark. They cover users (admin, leader, dept_leader), settings, backups (admin, leader), audit, profile, login (empty, invalid, failed), register (empty, invalid), reset, pending, locked, and the flow states (settings invalid, holiday dialog, backup prompt, restore confirm, after restore, audit filtered, last-admin menu, role dialog, create-account errors).
