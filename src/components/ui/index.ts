@@ -21,6 +21,7 @@ export { TextInput, NumberInput, MoneyInput, DateInput, TimeInput, Select, Texta
 export { Alert } from './alert';
 export { RowMenu } from './row-menu';
 export { Combobox } from './combobox';
+export { CodeScanner } from './code-scanner';
 export { PrintPage, Nd30Header, SignatureBlock, PrintLink } from './print';
 export { QrCode, qrPngDataUrl } from './qr';
 export { RichHtml } from './rich-html';

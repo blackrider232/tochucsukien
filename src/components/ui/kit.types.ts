@@ -318,6 +318,16 @@ export interface ComboboxProps<T> {
   renderItem?: (t: T) => ReactNode;
   onPick: (t: T) => void;
 }
+/**
+ * A camera viewfinder that decodes QR and bar codes with the browser's BarcodeDetector. It says in words why it cannot
+ * (no https, no decoder, permission refused, no camera) and never shows a fake viewfinder. Pair it with a typed field.
+ */
+export interface CodeScannerProps {
+  /** Each decoded string; the same code is reported once per 2.5 s. */
+  onCode: (raw: string) => void;
+  /** What to do instead when the camera cannot work, appended to those messages. Defaults to 'Dùng cách nhập mã khác.' */
+  fallback?: string;
+}
 export interface CheckboxProps {
   name: string;
   label: string;
