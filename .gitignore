@@ -38,3 +38,4 @@ next-env.d.ts
 
 # next dev writes this file on every start
 /AGENTS.md
+.vercel
