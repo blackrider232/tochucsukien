@@ -127,3 +127,32 @@ describe('GET /api/cron/rsvp-sync in dev memory, as the system actor', () => {
     expect(await audits()).toEqual(before);
   });
 });
+
+describe('the Form screen’s server sync flag', () => {
+  const screen = async () => {
+    vi.resetModules();
+    const { resetDevRuntime, devContext } = await import('@/core/dev/runtime');
+    await resetDevRuntime();
+    const dev = await devContext({ role: 'admin', department: null });
+    if (!dev.ok) throw new Error('no dev context');
+    const { formsTable } = await import('../server/tables');
+    const { buildWorkCalendar, nowInstant } = await import('@/core/dates');
+    const { formScreenData } = await import('../server/screen-data');
+    const ctx = { actor: dev.actor, db: dev.db, settings: dev.settings, calendar: buildWorkCalendar(dev.holidays), now: nowInstant() };
+    return formScreenData(ctx, (await dev.db.table(formsTable).list())[0]!.eventId);
+  };
+
+  // The production rows (the service key, 31 characters) are serverSyncReady's own tests in cron-fetch.test.ts; a screen
+  // can be read from the dev store only.
+  it.each([
+    ['a 32-character secret', SECRET, true],
+    ['a short secret', 'short', false],
+  ])('in dev memory with %s the page gets only the boolean %s', async (_, secret, expected) => {
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('SCE_DEV_MEMORY', '1');
+    vi.stubEnv('CRON_SECRET', secret);
+    const data = await screen();
+    expect(data?.serverSync).toBe(expected);
+    expect(JSON.stringify(data)).not.toContain(secret);
+  });
+});
