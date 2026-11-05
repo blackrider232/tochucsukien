@@ -9,7 +9,7 @@ import type { EventPlan } from '../contract';
 import type { PlanScreenData } from '../components/plan-context';
 import { CHAIR_DEPARTMENTS } from '../domain/schemas';
 
-export function screenData(ctx: RequestContext, plans: ReadonlyArray<EventPlan>): PlanScreenData {
+export function screenData(ctx: RequestContext, plans: ReadonlyArray<EventPlan>, templates: PlanScreenData['templates']): PlanScreenData {
   const { actor } = ctx;
   return {
     plans,
@@ -23,5 +23,6 @@ export function screenData(ctx: RequestContext, plans: ReadonlyArray<EventPlan>)
       }];
     })),
     createDepartments: CHAIR_DEPARTMENTS.filter((d) => can(actor, 'progress.create', { departments: [d] })),
+    templates,
   };
 }

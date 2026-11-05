@@ -11,6 +11,7 @@ import { Dialog, useDialogs } from '@/components/ui';
 import type { EventId, GroupId, IsoDate, StepId } from '@/core/brand';
 import { useCommand } from '@/core/commands';
 import { EVENT_TYPES, type DepartmentName } from '@/core/vocab';
+import type { DocumentTemplate } from '@/features/templates';
 import type { EventPlan, SceEvent, Step, TaskGroup } from '../contract';
 import { templateStepCount } from '../domain/instantiate';
 import { EventForm } from './event-form';
@@ -30,6 +31,8 @@ export interface PlanScreenData {
   today: IsoDate;
   /** Departments the actor may create an event for; empty when they may not create. */
   createDepartments: ReadonlyArray<DepartmentName>;
+  /** The templates the actor can read (listTemplates), for the step's form picker and for links to deleted custom ones. */
+  templates: ReadonlyArray<Pick<DocumentTemplate, 'id' | 'code' | 'title' | 'origin'>>;
 }
 
 type Target =
@@ -143,7 +146,7 @@ export function PlanProvider({ data, children, afterDelete }: { data: PlanScreen
       case 'step': {
         const group = findGroup(target.groupId);
         const step = target.stepId ? findStep(target.stepId) : undefined;
-        if (group && (step || !target.stepId)) dialog = <StepDialog event={event} group={group} step={step} nextSort={nextSort(group.steps)} onClose={close} />;
+        if (group && (step || !target.stepId)) dialog = <StepDialog event={event} group={group} step={step} nextSort={nextSort(group.steps)} templates={data.templates} onClose={close} />;
         break;
       }
       case 'subtasks':

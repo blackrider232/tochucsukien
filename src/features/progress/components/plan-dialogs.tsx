@@ -7,7 +7,9 @@ import { useCalendar } from '@/core/auth';
 import { newId } from '@/core/brand';
 import { useCommand } from '@/core/commands';
 import { formatVNDate } from '@/core/dates';
+import { resolveTemplateKey, templateKeyOptions } from '@/features/templates';
 import type { SceEvent, Step, TaskGroup } from '../contract';
+import type { PlanScreenData } from './plan-context';
 import { deadlineOf, offsetLabel } from '../domain/schedule';
 import { groupFields, groupNoteFields, linkFields, stepDraftSchema, subTaskFields, type GroupDraft, type StepDraft } from '../domain/schemas';
 
@@ -21,12 +23,26 @@ const DAY_TYPE_OPTIONS = [
   { value: 'calendar' as const, label: 'Ngày lịch (liên tục)' },
 ];
 
-export function StepDialog({ event, group, step, nextSort, onClose }: { event: SceEvent; group: TaskGroup; step?: Step; nextSort: number; onClose: () => void }) {
+/**
+ * The forms a step can be attached to. A legacy key opens on the form it maps to; a key the library does not know (or a
+ * custom template that was deleted) stays as its own option, so opening the dialog and saving never blanks it silently.
+ */
+function templateChoices(catalog: PlanScreenData['templates'], key: string) {
+  const options = templateKeyOptions(catalog);
+  const current = resolveTemplateKey(key, catalog) ?? key;
+  const known = current === '' || options.some((o) => o.value === current);
+  return { current, options: known ? options : [...options, { value: current, label: `Mã hiện tại (chưa gắn biểu mẫu): ${current}` }] };
+}
+
+export function StepDialog({ event, group, step, nextSort, templates: catalog, onClose }: {
+  event: SceEvent; group: TaskGroup; step?: Step; nextSort: number; templates: PlanScreenData['templates']; onClose: () => void;
+}) {
   const run = useCommand();
   const cal = useCalendar();
+  const templates = templateChoices(catalog, step?.templateKey ?? '');
   const form = useZodForm(stepDraftSchema, {
     defaultValues: step
-      ? { name: step.name, requirement: step.requirement, targetPhase: step.targetPhase, offsetDays: step.offsetDays, dayType: step.dayType, assignee: step.assignee, templateKey: step.templateKey }
+      ? { name: step.name, requirement: step.requirement, targetPhase: step.targetPhase, offsetDays: step.offsetDays, dayType: step.dayType, assignee: step.assignee, templateKey: templates.current }
       : { name: '', requirement: '', targetPhase: 'before', offsetDays: 5, dayType: 'workday', assignee: '', templateKey: '' },
   });
   const [phase, offset, dayType] = useWatch({ control: form.control, name: ['targetPhase', 'offsetDays', 'dayType'] });
@@ -67,8 +83,8 @@ export function StepDialog({ event, group, step, nextSort, onClose }: { event: S
           <FormField label="Cách Tính Ngày" name="dayType"><Select name="dayType" options={DAY_TYPE_OPTIONS} /></FormField>
         )}
         <FormField label="Cán Bộ Phụ Trách" name="assignee"><TextInput name="assignee" placeholder="Ví dụ: Trần Thị B" /></FormField>
-        <FormField label="Mã Biểu Mẫu Liên Kết" name="templateKey" hint="Mã trong Kho biểu mẫu, ví dụ form_dskhach, form_giaymoi">
-          <TextInput name="templateKey" placeholder="Ví dụ: form_dskhach, form_giaymoi..." />
+        <FormField label="Mã Biểu Mẫu Liên Kết" name="templateKey" hint="Biểu mẫu trong Kho biểu mẫu mà bước này dùng">
+          <Select name="templateKey" options={templates.options} placeholder="Chưa gắn biểu mẫu" />
         </FormField>
         <p className="rounded-control bg-surface-2 px-3 py-2 text-sm text-ink-2 sm:col-span-2" aria-live="polite">
           Hạn chót: <strong>{formatVNDate(deadlineOf(cal, event.eventDate, timing), { weekday: true })}</strong> · {offsetLabel(timing)}

@@ -10,7 +10,7 @@ import { resolveTemplateKey, templateHref } from '@/features/templates';
 import type { SceEvent, Step } from '../contract';
 import { stepsByDeadline, type PlanGroup, type PlanSummary } from '../domain/dashboard';
 import { countdownBadge, deadlineOf, offsetLabel, stepState, stepStateBadge } from '../domain/schedule';
-import { usePlan } from './plan-context';
+import { usePlan, type PlanScreenData } from './plan-context';
 
 export interface Expansion {
   isOpen(id: string): boolean;
@@ -18,15 +18,8 @@ export interface Expansion {
 }
 export const ALWAYS_OPEN: Expansion = { isOpen: () => true, toggle: () => {} };
 
-/** The step's form in the template library, or null while it is unknown there or that library is not available. */
-function templateLink(key: string, eventId: EventId): string | null {
-  try {
-    const id = resolveTemplateKey(key);
-    return id ? templateHref(id, eventId) : null;
-  } catch {
-    return null;
-  }
-}
+/** The step's form in the template library, or null while the key is unknown there or names a template that was deleted. */
+const templateLink = (key: string, eventId: EventId, catalog: PlanScreenData['templates']): string | null => templateHref(resolveTemplateKey(key, catalog), eventId);
 
 function cardTone(s: PlanSummary): Tone | undefined {
   if (s.progress.overdue > 0) return 'amber';
@@ -225,14 +218,14 @@ function GroupSection({ event, group, expansion }: { event: SceEvent; group: Pla
 }
 
 export function StepRow({ event, groupId, step }: { event: SceEvent; groupId: GroupId; step: Step }) {
-  const { permsOf, today, toggleStep, setSubTask, openStep, openSubTasks, openLinks, deleteStep } = usePlan();
+  const { data, permsOf, today, toggleStep, setSubTask, openStep, openSubTasks, openLinks, deleteStep } = usePlan();
   const cal = useCalendar();
   const perms = permsOf(event.id);
   const deadline = deadlineOf(cal, event.eventDate, step);
   const state = stepState(cal, event.eventDate, step, today);
   const badge = stepStateBadge(state, calendarDaysBetween(today, deadline));
   const done = step.completedAt !== null;
-  const href = step.templateKey ? templateLink(step.templateKey, event.id) : null;
+  const href = step.templateKey ? templateLink(step.templateKey, event.id, data.templates) : null;
   const subDone = step.subTasks.filter((t) => t.completed).length;
 
   return (
