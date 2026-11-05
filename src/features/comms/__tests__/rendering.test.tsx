@@ -154,7 +154,7 @@ describe('comms screens render untrusted text as text', () => {
     // At 360 px the buttons wrap below the answer and a long answer breaks inside its box.
     const actions = within(list).getByRole('button', { name: 'Từ chối' }).parentElement!;
     expect(actions.className).toContain('flex-wrap');
-    expect(within(list).getByText(`Tham dự ko đc ${XSS}`).closest("p")!.className).toContain('break-words');
+    expect(within(list).getByText(`Tham dự ko đc ${XSS}`).closest('p')!.className).toContain('break-words');
     expect(list.querySelector('table')).toBeNull();
   });
 

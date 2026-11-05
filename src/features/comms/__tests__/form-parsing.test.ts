@@ -20,6 +20,12 @@ describe('parseCsv', () => {
   ])('%s', (_, input, rows) => {
     expect(parseCsv(input)).toEqual(rows);
   });
+  it('drops control characters a Postgres text column cannot hold (NUL, escape, DEL), keeping tab and line breaks', () => {
+    expect(parseCsv('a\u0000b,"c\u0000\u001bd"\n\u007fe,f\tg\u000b')).toEqual([['ab', 'cd'], ['e', 'f\tg']]);
+    expect(parseCsv('"x\ny\u0000",z')).toEqual([['x\ny', 'z']]);
+    expect(parseCsv('\u0000\n')).toEqual([]);
+  });
+
   it('refuses an unterminated quote', () => {
     expect(() => parseCsv('"abc,1\n2')).toThrow(CsvError);
   });

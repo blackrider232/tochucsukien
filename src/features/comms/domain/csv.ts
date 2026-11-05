@@ -7,8 +7,11 @@ export class CsvError extends Error {}
 export const MAX_CSV_ROWS = 20_000;
 export const MAX_CSV_COLUMNS = 200;
 
+// A NUL makes a Postgres text insert fail, which would halt every sync; the other C0 controls and DEL carry no text. Tab, LF and CR stay.
+const UNSTORABLE = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g;
+
 export function parseCsv(input: string): string[][] {
-  const text = input.charCodeAt(0) === 0xfeff ? input.slice(1) : input;
+  const text = (input.charCodeAt(0) === 0xfeff ? input.slice(1) : input).replace(UNSTORABLE, '');
   const rows: string[][] = [];
   let row: string[] = [];
   let cell = '';
