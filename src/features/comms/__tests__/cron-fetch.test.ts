@@ -1,50 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { EventId } from '@/core/brand';
-import { bearerMatches, handleCronSync, serverSyncReady } from '../server/cron';
+import { handleCronSync, serverSyncReady } from '../server/cron';
 import { DEV_SHEET_URL } from '../server/dev-sheets';
 import { fetchSheetCsv, isAllowedHop } from '../server/sheet-fetch';
 import { defaultSheetSource, FAKE_UNKNOWN_SHEET } from '../server/sheet-source';
 import { admin, harness, xtdtUser } from './harness';
 
-const SECRET = 'a-long-random-cron-secret-value';
+const SECRET = 'a-long-random-cron-secret-value-0123';
 const ID = '1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789';
 const CSV_URL = `https://docs.google.com/spreadsheets/d/${ID}/export?format=csv`;
 
-describe('cron route auth', () => {
-  const deps = (h: ReturnType<typeof harness>, sync = vi.fn(async () => ({ ok: true as const, value: { status: 'error' as const, message: 'x' } }))) => ({
-    secret: SECRET,
-    systemContext: async () => h.ctx(admin),
-    sync,
-  });
-  const req = (auth?: string) => new Request('http://localhost/api/cron/rsvp-sync', { headers: auth ? { authorization: auth } : {} });
-
-  it.each([
-    ['missing', undefined, 401],
-    ['wrong', `Bearer ${SECRET}x`, 401],
-    ['without Bearer', SECRET, 401],
-    ['under another 7-character scheme', `Token: ${SECRET}`, 401],
-    ['with a lower-case scheme', `bearer ${SECRET}`, 401],
-    ['empty bearer', 'Bearer ', 401],
-    ['right', `Bearer ${SECRET}`, 200],
-  ])('%s secret (header %j) -> %i', async (_, auth, status) => {
-    const h = harness();
-    const sync = vi.fn(async () => ({ ok: true as const, value: { status: 'error' as const, message: 'x' } }));
-    const res = await handleCronSync(req(auth), deps(h, sync));
-    expect(res.status).toBe(status);
-    if (status === 401) expect(sync).not.toHaveBeenCalled();
-  });
-
-  it('refuses to run when CRON_SECRET is unset or short', async () => {
-    const h = harness();
-    expect((await handleCronSync(req('Bearer '), { ...deps(h), secret: undefined })).status).toBe(503);
-    expect((await handleCronSync(req('Bearer short'), { ...deps(h), secret: 'short' })).status).toBe(503);
-  });
-
-  it('answers 503 when the deployment has no system identity', async () => {
-    const h = harness();
-    expect((await handleCronSync(req(`Bearer ${SECRET}`), { ...deps(h), systemContext: async () => null })).status).toBe(503);
-  });
-
+describe('handleCronSync', () => {
   it('syncs every event with auto sync on and a sheet, and only those', async () => {
     const h = harness();
     const [a, b, c] = [await h.createEvent(), await h.createEvent(), await h.createEvent()];
@@ -54,15 +20,21 @@ describe('cron route auth', () => {
     await save(b, false, CSV_URL);
     await save(c, true, null);
     const sync = vi.fn(async () => ({ ok: true as const, value: { status: 'error' as const, message: 'x' } }));
-    const res = await handleCronSync(req(`Bearer ${SECRET}`), deps(h, sync));
+    const res = await handleCronSync({ ctx: h.ctx(admin), sync });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toBe('no-store');
     expect(await res.json()).toMatchObject({ synced: 1, results: [{ eventId: a }] });
     expect(sync.mock.calls.map((call) => (call as unknown[])[1])).toEqual([a]);
   });
 
-  it('compares the bearer in constant time over equal-length digests', () => {
-    expect(bearerMatches(`Bearer ${SECRET}`, SECRET)).toBe(true);
-    expect(bearerMatches(`Bearer ${SECRET.slice(0, -1)}`, SECRET)).toBe(false);
-    expect(bearerMatches(null, SECRET)).toBe(false);
+  it('reports a failed event and goes on with the next', async () => {
+    const h = harness();
+    const [a, b] = [await h.createEvent(), await h.createEvent()];
+    for (const e of [a, b]) await h.ok(xtdtUser, 'comms.saveForm', { eventId: e, version: null, config: { formUrl: null, sheetUrl: CSV_URL, autoSync: true, autoAddNewGuests: false } } as never);
+    const sync = vi.fn(async (_: unknown, eventId: EventId) => (eventId === a ? ({ ok: false as const, kind: 'conflict' as const, message: 'bận' }) : ({ ok: true as const, value: { status: 'error' as const, message: 'x' } })));
+    const res = await handleCronSync({ ctx: h.ctx(admin), sync: sync as never });
+    expect(await res.json()).toMatchObject({ synced: 2, results: expect.arrayContaining([{ eventId: a, status: 'error', message: 'bận' }]) });
+    expect(sync).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -83,16 +55,24 @@ const redirect = (location: string) => () => new Response(null, { status: 307, h
 
 describe('serverSyncReady', () => {
   afterEach(() => vi.unstubAllEnvs());
-  it('is false in production, which has no system identity yet, whatever the secret', () => {
+  const SERVICE = { CRON_SECRET: SECRET, SUPABASE_SERVICE_ROLE_KEY: 'service-key' };
+
+  it('in production needs a CRON_SECRET of 32+ characters and the service key', () => {
     vi.stubEnv('SCE_DEV_MEMORY', '');
-    expect(serverSyncReady(SECRET)).toBe(false);
+    expect(serverSyncReady(SERVICE)).toBe(true);
+    expect(serverSyncReady({ ...SERVICE, CRON_SECRET: 'x'.repeat(31) })).toBe(false);
+    expect(serverSyncReady({ ...SERVICE, CRON_SECRET: ` ${'x'.repeat(31)} ` })).toBe(false);
+    expect(serverSyncReady({ ...SERVICE, CRON_SECRET: undefined })).toBe(false);
+    expect(serverSyncReady({ ...SERVICE, SUPABASE_SERVICE_ROLE_KEY: '' })).toBe(false);
+    expect(serverSyncReady({ ...SERVICE, SUPABASE_SERVICE_ROLE_KEY: undefined })).toBe(false);
+    expect(serverSyncReady({})).toBe(false);
   });
-  it('needs a valid secret where the identity exists (dev memory)', () => {
+  it('in dev memory the service key is not needed, the secret still is', () => {
     vi.stubEnv('SCE_DEV_MEMORY', '1');
     vi.stubEnv('NODE_ENV', 'development');
-    expect(serverSyncReady(SECRET)).toBe(true);
-    expect(serverSyncReady('short')).toBe(false);
-    expect(serverSyncReady(undefined)).toBe(false);
+    expect(serverSyncReady({ CRON_SECRET: SECRET })).toBe(true);
+    expect(serverSyncReady({ CRON_SECRET: 'short' })).toBe(false);
+    expect(serverSyncReady({})).toBe(false);
   });
 });
 

@@ -7,6 +7,8 @@
 // after a crash; retry rules. Any network call fails the test.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { RequestContext } from '@/core/auth';
+import { buildWorkCalendar, nowInstant } from '@/core/dates';
 import { newId, type Email, type EventId, type Instant } from '@/core/brand';
 import type { CommandId, InputOf, OutputOf } from '@/core/commands';
 import { commandLookup, runCommand } from '@/core/commands/pipeline';
@@ -18,7 +20,6 @@ import { TransportError, type SendFailure } from '../domain/dispatcher';
 import { emailTemplate } from '../domain/email-templates';
 import { fakeTransport, type GmailTransport } from '../domain/transport';
 import { createCommands } from '../server/commands';
-import { cronSystemContext } from '../server/cron';
 import { DEV_SHEET_URL, DEV_SHEETS } from '../server/dev-sheets';
 import { fakeSheetSource } from '../server/sheet-source';
 import { deliveryLogData, formScreenData, invitationScreenData } from '../server/screen-data';
@@ -46,7 +47,10 @@ afterEach(() => {
 });
 
 async function scenario() {
-  const ctx = (await cronSystemContext())!;
+  const { devContext } = await import('@/core/dev/runtime');
+  const dev = await devContext({ role: 'admin', department: null });
+  if (!dev.ok) throw new Error('no dev context');
+  const ctx: RequestContext = { actor: dev.actor, db: dev.db, settings: dev.settings, calendar: buildWorkCalendar(dev.holidays), now: nowInstant() };
   /** The context of a request made now: the clock moves on between requests, as in the app. */
   const at = () => ({ ...ctx, now: new Date().toISOString() as Instant });
   const run = async <K extends CommandId>(id: K, input: InputOf<K>): Promise<OutputOf<K>> => {
