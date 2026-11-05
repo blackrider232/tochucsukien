@@ -11,7 +11,7 @@ import { CommandError, type CommandContext, type CommandSpec, type InputOf, type
 import { DbError, type DraftOf } from '@/core/db';
 import { normalizePhone } from '@/core/text';
 import { readRoster, type GuestDraft, type RosterEntry } from '@/features/guests/server';
-import { readRsvpAnswer, substituteName, type AnswerLabels, type AnswerStatus, type RsvpReading } from '../domain/answers';
+import { normalizeAnswer, readRsvpAnswer, substituteName, type AnswerLabels, type AnswerStatus, type RsvpReading } from '../domain/answers';
 import { canIdentify, detectColumns, hasPhrase, words } from '../domain/columns';
 import { CsvError, parseCsv } from '../domain/csv';
 import { buildMatchIndex, matchResponse, type MatchIndex } from '../domain/matching';
@@ -74,6 +74,10 @@ export const saveColumnMap: CommandSpec<InputOf<'comms.saveColumnMap'>, FormRow>
   },
 };
 
+const MEANING: Record<AnswerStatus, string> = { confirmed: 'tham dự', declined: 'từ chối', substituted: 'cử người thay' };
+/** A label for a message or an audit row: no control or bidi characters (normalizeAnswer drops them) and at most 40 characters. */
+const shortLabel = (label: string) => (label.length > 40 ? `${label.slice(0, 40)}…` : label);
+
 const answerStatus = z.enum(['confirmed', 'declined', 'substituted']);
 
 export const saveAnswerLabels: CommandSpec<InputOf<'comms.saveAnswerLabels'>, FormRow> = {
@@ -89,12 +93,24 @@ export const saveAnswerLabels: CommandSpec<InputOf<'comms.saveAnswerLabels'>, Fo
   async run(ctx, { eventId, version, labels }) {
     const before = await formOf(ctx, eventId);
     if (!before) throw new DbError('not_found');
+    const seen = new Set<string>();
+    for (const [label, status] of Object.entries(labels)) {
+      const key = normalizeAnswer(label);
+      if (seen.has(key)) throw new CommandError('invalid', `Hai lựa chọn trùng nhau sau khi chuẩn hóa: "${shortLabel(key)}". Mỗi câu trả lời chỉ có một nghĩa.`);
+      seen.add(key);
+      // The canonical lists decide every plain "Không" or "Có": a label may not turn one around.
+      const canonical = readRsvpAnswer(key);
+      if (canonical !== 'review' && canonical !== 'empty' && canonical !== status) {
+        throw new CommandError('invalid', `"${shortLabel(key)}" đã có nghĩa ${MEANING[canonical]} ở mọi nơi khác; không thể lưu thành ${MEANING[status]}.`);
+      }
+    }
     const answerLabels = parseAnswerLabels(labels);
     const row = await ctx.db.table(formsTable).update(before.id, { answerLabels }, { expectedVersion: version });
     const count = (s: AnswerStatus) => Object.values(answerLabels).filter((v) => v === s).length;
+    const named = Object.entries(answerLabels).map(([label, status]) => `"${shortLabel(label)}" = ${MEANING[status]}`).join('; ');
     return {
       value: row,
-      audit: audit('CẤU HÌNH GOOGLE FORM', `Lựa chọn trả lời của Form: ${Object.keys(answerLabels).length} lựa chọn (${count('confirmed')} tham dự, ${count('declined')} từ chối, ${count('substituted')} cử người thay)`, eventId, 'rsvp_form', row.id),
+      audit: audit('CẤU HÌNH GOOGLE FORM', `Lựa chọn trả lời của Form: ${Object.keys(answerLabels).length} lựa chọn (${count('confirmed')} tham dự, ${count('declined')} từ chối, ${count('substituted')} cử người thay)${named ? `: ${named.slice(0, 600)}` : ''}`, eventId, 'rsvp_form', row.id),
       inverse: inverse('comms.saveAnswerLabels', { eventId, version: row.version, labels: parseAnswerLabels(before.answerLabels) }, 'Lựa chọn trả lời của Form'),
     };
   },

@@ -352,7 +352,7 @@ describe('comms.saveAnswerLabels: the Form’s own choices', () => {
     const form = h.rows('sce_tcsk_rsvp_forms')[0] as { version: number };
     const saved = await h.ok(xtdtUser, 'comms.saveAnswerLabels', { eventId, version: form.version as never, labels: { '  CÓ, tôi sẽ tham dự. ': 'confirmed' } });
     expect(saved.value.answerLabels).toEqual({ 'có, tôi sẽ tham dự': 'confirmed' });
-    expect(h.audits().at(-1)).toMatchObject({ action: 'CẤU HÌNH GOOGLE FORM', summary: 'Lựa chọn trả lời của Form: 1 lựa chọn (1 tham dự, 0 từ chối, 0 cử người thay)' });
+    expect(h.audits().at(-1)).toMatchObject({ action: 'CẤU HÌNH GOOGLE FORM', summary: 'Lựa chọn trả lời của Form: 1 lựa chọn (1 tham dự, 0 từ chối, 0 cử người thay): "có, tôi sẽ tham dự" = tham dự' });
     expect(await sync()).toMatchObject({ fresh: 0, applied: 1, review: 0 });
     expect((await h.guest(eventId, a.id)).rsvpStatus).toBe('confirmed');
     expect((await h.guest(eventId, b.id)).rsvpStatus).toBe('pending');
@@ -370,6 +370,38 @@ describe('comms.saveAnswerLabels: the Form’s own choices', () => {
     expect(await h.run(xtdtUser, 'comms.saveAnswerLabels', { eventId, version: form.version as never, labels: {} })).toMatchObject({ ok: false, kind: 'conflict' });
     expect((await h.undo(xtdtUser, saved.inverse)).ok).toBe(true);
     expect((h.rows('sce_tcsk_rsvp_forms')[0] as { answer_labels: unknown }).answer_labels).toEqual({});
+  });
+
+  it('refuses a label that contradicts a canonical answer, and a pair of labels that read the same', async () => {
+    const { h, eventId } = await setup();
+    const form = h.rows('sce_tcsk_rsvp_forms')[0] as { version: number };
+    const save = (labels: Record<string, string>) => h.run(xtdtUser, 'comms.saveAnswerLabels', { eventId, version: form.version as never, labels: labels as never });
+    const audits = h.audits().length;
+    // "Không" is a decline everywhere else: it must not confirm here (nor "không ạ", nor plain-typed "khong").
+    for (const label of ['Không', 'không ạ', 'Khong', 'Ko', 'Tham dự ạ.']) {
+      const wrong = label === 'Tham dự ạ.' ? 'declined' : 'confirmed';
+      expect(await save({ [label]: wrong }), label).toMatchObject({ ok: false, kind: 'invalid', message: expect.stringContaining('đã có nghĩa') });
+    }
+    expect(await save({ 'Rất tiếc, tôi bận': 'declined', 'rất tiếc, tôi bận.': 'confirmed' })).toMatchObject({ ok: false, kind: 'invalid', message: expect.stringContaining('trùng nhau') });
+    expect((h.rows('sce_tcsk_rsvp_forms')[0] as { answer_labels: unknown }).answer_labels).toEqual({});
+    expect(h.audits().length).toBe(audits);
+    // A label that agrees with the canonical meaning is harmless.
+    expect(await save({ Không: 'declined' })).toMatchObject({ ok: true });
+  });
+
+  it('names the labels it saved in the audit, shortened and without control characters', async () => {
+    const { h, eventId } = await setup();
+    const form = h.rows('sce_tcsk_rsvp_forms')[0] as { version: number };
+    const long = `Rất tiếc ${'x'.repeat(120)}`;
+    await h.ok(xtdtUser, 'comms.saveAnswerLabels', { eventId, version: form.version as never, labels: { 'Có, tôi sẽ tham dự\u0000\u202e': 'confirmed', [long]: 'declined' } });
+    const summary = h.audits().at(-1)!.summary;
+    expect(summary).toContain('"có, tôi sẽ tham dự" = tham dự');
+    expect(summary).toContain('"rất tiếc xxx');
+    expect(summary).toContain('= từ chối');
+    expect(summary).not.toContain(long);
+    // eslint-disable-next-line no-control-regex
+    expect(summary).not.toMatch(/[\u0000-\u001f\u202e]/);
+    expect(summary.length).toBeLessThan(500);
   });
 
   it('refuses a choice that means anything but the three answers', async () => {
