@@ -78,3 +78,13 @@ comms writes its partial-failure rows itself at five places on its branch. Its o
 ## What memoryDb does not read from your migration
 
 Tests and `SCE_DEV_MEMORY=1` run on `memoryDb`, which reads tables, defaults, unique keys, foreign keys, `register_table` policies and simple `security_invoker` views from the migrations. It cannot run your CHECK constraints, restrictive policies or triggers. When a test depends on one, mirror that one rule on the test's seed with `declareGuard(seed, 'sce_tcsk_<table>', ({ op, row, before, actor }) => …)` from `@/core/db/memory`, and throw `new DbError('constraint', { table, constraint: '<its SQL name>' })` as Postgres would. Keep the real check in SQL and prove it on PGlite, as `src/features/reports/__tests__/sql.test.ts` does.
+
+## Columns with a SQL default
+
+`DraftOf<Row>` asks for every field the DB does not manage, so a column such as `checkin_code` (generated) or `rsvp_status` (default `'pending'`) would need a cast on every insert. Name those fields in `defineTable`'s second type argument and in `defaulted`, and a draft may leave them out:
+
+```ts
+export const guestsTable = defineTable<GuestRow, 'checkinCode' | 'rsvpStatus'>({ name: 'sce_tcsk_guests', owner: 'guests', eventScoped: true, row: guestRowSchema, defaulted: ['checkinCode', 'rsvpStatus'] });
+```
+
+`memoryDb` throws on `table(def)` when a listed column has no `default` in your migration, so the list cannot drift from the SQL.

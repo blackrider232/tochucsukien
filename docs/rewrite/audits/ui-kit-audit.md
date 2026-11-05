@@ -123,6 +123,15 @@ UI rules (from docs/rewrite/audits/ui-kit-audit.md)
 
 **Not applied**, because they govern faux marketing scenes: bars as filler and word budgets (a real app shows real data), framing, crop and stage composition, cursor choreography and the motion timing tables, device and window chrome, "no real headings" (a real app needs a heading outline), product-name and masthead rules, the bento and page-of-demos rules, `text-box: trim` centring (worth a later look, not a defect here), and the advice to pick an icon set on purpose (the product already chose Lucide, which is fine).
 
+## Additions after the module reviews (foundation-A)
+
+Requested by the modules' foundation feedback. Each has a failing-before test in `src/components/ui/__tests__/`.
+
+- `RichEditor` (with `bold`, `italic`, `underline`, `align-*` and `table` icons), `FileInput`, `CodeScanner`, `useOnline`, `useSubTabCount`, `Select` outside a form, `Icon label`, `Combobox` `matchText`, `inputLabel` and `emptyMessage`, `FilterBar` `search.onSubmit`, `PrintPage type="nd30"`.
+- `Badge` wraps long text (`max-w-full break-words`). The count chips of `Tabs` and `LinkTabs` are `relative`, so their `sr-only` text stays inside the scroller. In headless Chrome at 360 px the page measured 352 of 352 with and without templates' old clip wrapper, so that workaround is gone; the 757 px of the first report did not reproduce.
+- `DataTable` select-all covers only the rows it is given and keeps other selected keys. This is documented on `selection` and pinned by a test.
+- Not verified: `RichEditor` and `FileInput` with a real browser's editing commands and file dialog. jsdom has neither, so the tests stub `execCommand` and drive `change` events. Screen readers were not run.
+
 ## Not audited
 
 - Feature screens. None is on this base.
