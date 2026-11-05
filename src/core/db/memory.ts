@@ -26,7 +26,7 @@ import { DbError } from './errors';
 import { draftMatches, filtersOf, fromColumns, toColumns, columnOf, type Filter } from './mapping';
 import { parseAuditRow, parseBackupRow, settingsPatchColumns } from './rpc';
 import { parseCatalog, parseViews, type CatalogTable, type CatalogView } from './sql-catalog';
-import type { AnyTable, AnyTableDef, AuditWriter, BaseRow, CommandAuditRow, Db, DraftOf, RpcMap, Table, TableDef, Where, WriteGuard } from './index';
+import type { AnyTable, AnyTableDef, AuditWriter, BaseRow, CommandAuditRow, Db, DraftOf, RpcMap, TableDef, Where, WriteGuard } from './index';
 
 type Row = Record<string, unknown>;
 type Seed = Readonly<Record<string, ReadonlyArray<Record<string, unknown>>>>;

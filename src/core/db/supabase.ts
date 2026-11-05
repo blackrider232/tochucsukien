@@ -7,7 +7,7 @@ import type { Actor } from '@/core/auth';
 import { DbError } from './errors';
 import { draftMatches, filtersOf, fromColumns, toColumns, columnOf, type Filter } from './mapping';
 import { RPC_ALLOWLIST } from './rpc';
-import type { AnyTable, AnyTableDef, AuditWriter, BaseRow, Db, DraftOf, RpcMap, Table, Where, WriteGuard } from './index';
+import type { AnyTable, AnyTableDef, AuditWriter, BaseRow, Db, DraftOf, RpcMap, Where, WriteGuard } from './index';
 
 export interface PgError {
   code?: string;
