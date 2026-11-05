@@ -33,7 +33,8 @@ function TabContent({ item, onPrimary }: { item: TabItem; onPrimary: boolean }) 
       {item.count !== undefined && (
         <span
           className={cn(
-            'rounded-full px-1.5 text-2xs font-bold tabular-nums',
+            // relative: the sr-only text is absolute, and without a positioned parent inside the scroller it escapes the clip and widens the page.
+            'relative rounded-full px-1.5 text-2xs font-bold tabular-nums',
             onPrimary ? 'bg-on-primary text-primary' : 'bg-surface-3 text-ink-2',
           )}
         >

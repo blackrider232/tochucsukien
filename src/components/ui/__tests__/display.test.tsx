@@ -129,3 +129,18 @@ describe('FilterBar', () => {
     expect(onSubmit).toHaveBeenCalledExactlyOnceWith('an');
   });
 });
+
+describe('tab counts at 360 px', () => {
+  it('keep their screen-reader text inside a positioned chip, so the scroller clips it', () => {
+    const items = [{ id: 'a', label: 'Tất cả', count: 5, href: '/a' }, { id: 'b', label: 'Đã mời', count: 12, href: '/b' }];
+    renderUi(
+      <>
+        <LinkTabs items={items} activeId="a" label="Một" />
+        <Tabs items={items} value="a" onChange={() => {}} />
+      </>,
+    );
+    const hidden = document.querySelectorAll('.sr-only');
+    expect(hidden).toHaveLength(4);
+    for (const el of hidden) expect(el.parentElement?.className).toMatch(/(^|\s)relative(\s|$)/);
+  });
+});

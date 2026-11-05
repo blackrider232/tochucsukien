@@ -76,18 +76,15 @@ export function TemplateStudio({ templates, events, today, isAdmin, params }: St
         }
       />
 
-      {/* The kit's tab list does not contain its screen-reader counts, which widen the page on a phone; clipping here does. */}
-      <div className="relative overflow-x-clip">
-        <Tabs
-          variant="pill"
-          value={state.level}
-          onChange={(level) => change({ level: level as StudioState['level'] })}
-          items={[
-            { id: 'all', label: 'Tất cả biểu mẫu', count: counts.total },
-            ...TEMPLATE_LEVEL_VALUES.map((l) => ({ id: l, label: TEMPLATE_LEVELS[l].short, icon: TEMPLATE_LEVELS[l].icon, count: counts.byLevel[l] })),
-          ]}
-        />
-      </div>
+      <Tabs
+        variant="pill"
+        value={state.level}
+        onChange={(level) => change({ level: level as StudioState['level'] })}
+        items={[
+          { id: 'all', label: 'Tất cả biểu mẫu', count: counts.total },
+          ...TEMPLATE_LEVEL_VALUES.map((l) => ({ id: l, label: TEMPLATE_LEVELS[l].short, icon: TEMPLATE_LEVELS[l].icon, count: counts.byLevel[l] })),
+        ]}
+      />
 
       <div className="grid gap-4 lg:grid-cols-12">
         <div className="lg:col-span-4">
