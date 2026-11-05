@@ -414,6 +414,7 @@ for (const action of [coreAction, coreAction.toLowerCase(), `  ${coreAction.repl
   coreAction.replace('QUYỀN', 'QU​YỀN'), coreAction.replace(/[A-Z]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0xfee0)), 'Khôi Phục Sao Lưu', '﻿TẠO BẢN SAO LƯU']) {
   await refusedRow(`the core action ${JSON.stringify(action)}`, { action });
 }
+await refusedRow('the run action of the system claim (202611041610)', { action: 'CHẠY TÁC VỤ HỆ THỐNG' });
 for (const entity of ['profile', 'Profile', ' BACKUP ', 'pro‍file', 'ｓｅｔｔｉｎｇｓ', 'Holidays']) await refusedRow(`the core entity ${JSON.stringify(entity)}`, { entity });
 for (const action of ['', '   ', '​​']) await refusedRow(`an empty action ${JSON.stringify(action)}`, { action });
 // Look-alikes of a core action: only Vietnamese letters, digits, spaces and plain punctuation are an action (third review LOW1).
@@ -577,6 +578,7 @@ await refusedSystemRow('the core action "PHÂN QUYỀN TÀI KHOẢN"', { action:
 await refusedSystemRow('a core action look-alike', { action: 'PHÂN QUYỀN TÀI KHOẢN'.replace('P', 'Р') });
 await refusedSystemRow('the core entity "profile"', { entity: 'Profile' });
 await refusedSystemRow('the run action of the claim', { action: 'CHẠY TÁC VỤ HỆ THỐNG' });
+for (const entity of ['gu est', 'guest;', 'gue\u0301st', 'guest/x', '\u0433uest']) await refusedSystemRow(`the entity ${JSON.stringify(entity)}, which is not an identifier`, { entity });
 for (const key of ['job', 'command', 'perm', 'action']) await refusedSystemRow(`a null ${key}`, { [key]: null });
 
 const startRun = (job) => asService(() => db.query(`select public.sce_tcsk_start_system_run($1) as ok`, [job]));
@@ -588,9 +590,26 @@ assert.equal((await startRun('rsvp-sync')).rows[0].ok, false, 'a replay inside t
 assert.equal((await runRows()).length, 1, 'and writes no row');
 await asService(() => assert.rejects(db.query(`select public.sce_tcsk_start_system_run('backup')`), /forbidden/, 'an unknown job cannot start'));
 await asService(() => assert.rejects(db.query(`select public.sce_tcsk_start_system_run(null)`), /forbidden/, 'a null job cannot start'));
-// Age the start past the window. The audit log refuses UPDATE by trigger, so this test steps around the triggers.
-await db.exec(`set session_replication_role = replica; update public.sce_tcsk_audit_logs set created_at = created_at - interval '241 seconds' where action = 'CHẠY TÁC VỤ HỆ THỐNG'; set session_replication_role = origin`);
+// The window is one row per job, claimed by an atomic upsert (a second caller waits for the row, then sees the new
+// start). PGlite has one connection, so what is tested is the predicate: a start inside the window leaves the row alone.
+const claimRows = async () => (await db.query(`select job, started_at from tcsk.system_runs`)).rows;
+const firstClaim = (await claimRows())[0];
+assert.equal(firstClaim.job, 'rsvp-sync', 'the claim is one row for the job');
+assert.equal((await startRun('rsvp-sync')).rows[0].ok, false, 'a second replay inside the window does not run either');
+assert.deepEqual(await claimRows(), [firstClaim], 'and leaves the claim as it was');
+assert.deepEqual((await db.query(`select has_table_privilege('authenticated', 'tcsk.system_runs', 'select') as u, has_table_privilege('anon', 'tcsk.system_runs', 'select') as a, has_table_privilege('service_role', 'tcsk.system_runs', 'insert') as s`)).rows[0],
+  { u: false, a: false, s: false }, 'only the claim function reads or writes the window');
+await db.exec(`update tcsk.system_runs set started_at = started_at - interval '241 seconds'`);
 assert.equal((await startRun('rsvp-sync')).rows[0].ok, true, 'the next scheduled start after the window runs');
+assert.equal((await claimRows()).length, 1, 'and takes over the same row');
+assert.equal((await runRows()).length, 2, 'each start that ran is audited once');
 await as(ids.xtdt, 'aal1', () => assert.rejects(db.query(`select public.sce_tcsk_start_system_run('rsvp-sync')`), /permission denied/, 'a signed-in user cannot start a job'));
+
+// A SECURITY DEFINER function without a pinned search_path runs with the caller's: a schema the caller controls could shadow
+// tcsk.* or public.* (Q13). Every one in the app's schemas pins it to empty.
+assert.deepEqual((await db.query(`select p.oid::regprocedure::text as f from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+  where n.nspname in ('public', 'tcsk') and p.prosecdef and not coalesce(p.proconfig @> array['search_path=""'], false) order by 1`)).rows, [],
+  'every security definer function in public and tcsk sets search_path = \'\'');
+assert.ok((await db.query(`select 1 from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.prosecdef`)).rows.length > 10, 'the search_path check sees the security definer functions');
 
 console.log('all RLS and function checks passed');
