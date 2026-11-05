@@ -270,6 +270,12 @@ export interface SelectProps<K extends string> {
   placeholder?: string;
   /** For a plain form post without useZodForm; inside a Form, use the form's defaultValues. */
   defaultValue?: K;
+  /** Controlled use outside a Form (a filter, an inline choice): pass value and onChange together. '' is the placeholder. */
+  value?: K | '';
+  onChange?: (next: K | '') => void;
+  /** Accessible name for a Select outside a FormField. Inside one, the field's label names it. */
+  label?: string;
+  disabled?: boolean;
 }
 export interface TextareaProps { name: string; placeholder?: string; rows?: number }
 /** Own legend, hint and error, like Checkbox: use it inside a Form directly, not inside FormField. */

@@ -1,4 +1,5 @@
 import { screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { Checkbox, DateInput, MoneyInput, NumberInput, Select, TextInput } from '../controls';
@@ -102,5 +103,38 @@ describe('forms', () => {
     }
     renderUi(withAppContext(<DateForm />, testAppContext([{ date: '2026-09-02' as IsoDate, name: 'Quốc khánh', kind: 'holiday' }])));
     expect(await screen.findByText('Ngày nghỉ lễ: Quốc khánh')).toBeInTheDocument();
+  });
+});
+
+describe('Select outside a form', () => {
+  const options = [{ value: 'a', label: 'Một' }, { value: 'b', label: 'Hai' }] as const;
+
+  it('is controlled with value and onChange, and names itself with label', async () => {
+    const seen: string[] = [];
+    function Harness({ lock }: { lock: boolean }) {
+      const [value, setValue] = useState<'a' | 'b' | ''>('a');
+      return <Select name="s" label="Trạng thái" options={options} placeholder="Tất cả" value={value} onChange={(v) => { seen.push(v); if (!lock) setValue(v); }} />;
+    }
+    const first = renderUi(<Harness lock />);
+    const locked = screen.getByRole('combobox', { name: 'Trạng thái' });
+    await first.user.selectOptions(locked, 'b');
+    expect(seen).toEqual(['b']);
+    expect(locked).toHaveValue('a');
+    first.unmount();
+    const { user } = renderUi(<Harness lock={false} />);
+    const select = screen.getByRole('combobox', { name: 'Trạng thái' });
+    await user.selectOptions(select, 'b');
+    expect(select).toHaveValue('b');
+    await user.selectOptions(select, '');
+    expect(seen).toEqual(['b', 'b', '']);
+    expect(select).toHaveValue('');
+  });
+
+  it('is uncontrolled with defaultValue and can be disabled', async () => {
+    const { user } = renderUi(<><Select name="u" label="Nhóm" options={options} defaultValue="b" /><Select name="d" label="Khóa" options={options} disabled /></>);
+    expect(screen.getByRole('combobox', { name: 'Nhóm' })).toHaveValue('b');
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Nhóm' }), 'a');
+    expect(screen.getByRole('combobox', { name: 'Nhóm' })).toHaveValue('a');
+    expect(screen.getByRole('combobox', { name: 'Khóa' })).toBeDisabled();
   });
 });

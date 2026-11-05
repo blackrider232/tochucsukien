@@ -120,10 +120,12 @@ export function TimeInput({ name, defaultValue }: TimeInputProps) {
   return <input id={id} type="time" step={60} defaultValue={defaultValue} className={controlClass} {...register} {...aria} />;
 }
 
-export function Select<K extends string>({ name, options, placeholder, defaultValue }: SelectProps<K>) {
+export function Select<K extends string>({ name, options, placeholder, defaultValue, value, onChange, label, disabled }: SelectProps<K>) {
   const { id, form, register, aria } = useControl(name);
+  // Inside a Form the form owns the value; value and onChange are for a Select used on its own.
+  const bound = form || value === undefined ? register : { name, value, onChange: (e: ChangeEvent<HTMLSelectElement>) => onChange?.(e.target.value as K | '') };
   return (
-    <select id={id} className={controlClass} defaultValue={form ? undefined : defaultValue} {...register} {...aria}>
+    <select id={id} aria-label={label} disabled={disabled} className={controlClass} defaultValue={form || value !== undefined ? undefined : defaultValue} {...bound} {...aria}>
       {placeholder !== undefined && <option value="">{placeholder}</option>}
       {options.map((o) => (
         <option key={o.value} value={o.value}>{o.label}</option>
