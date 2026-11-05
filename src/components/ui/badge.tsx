@@ -8,7 +8,7 @@ export function Badge({ tone, pulse, icon, children }: BadgeProps) {
     <span
       data-tone={tone}
       className={cn(
-        'inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-(--tone-bd) bg-(--tone-bg) px-2 py-0.5 text-xs font-semibold text-(--tone-fg)',
+        'inline-flex max-w-full items-center gap-1 break-words rounded-full border border-(--tone-bd) bg-(--tone-bg) px-2 py-0.5 text-left text-xs font-semibold text-(--tone-fg)',
         pulse && 'animate-pulse-soft',
       )}
     >

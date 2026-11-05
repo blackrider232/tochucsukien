@@ -103,3 +103,13 @@ describe('Icon', () => {
     expect(screen.getByRole('img', { name: 'Khẩn cấp' })).toBe(named);
   });
 });
+
+describe('Badge with long text', () => {
+  it('wraps inside its container instead of forcing the page wider', () => {
+    renderUi(<Badge tone="blue">Đã xác nhận tham dự, chờ bố trí chỗ ngồi và thẻ đại biểu của đơn vị</Badge>);
+    const chip = screen.getByText(/Đã xác nhận tham dự/);
+    expect(chip.className).not.toMatch(/whitespace-nowrap/);
+    expect(chip.className).toMatch(/max-w-full/);
+    expect(chip.className).toMatch(/break-words/);
+  });
+});
