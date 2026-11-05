@@ -168,8 +168,40 @@ describe('the no-double-send rules on Postgres, for an officer writing to the ta
     const id = await claim('g7@x.vn');
     await update(OFFICER, id, `status = 'unknown', error = 'mất kết nối', claim_proof = '${RUN}'`);
     await expect(update(COLLEAGUE, id, `status = 'queued', claim_token = ${hashOf(OTHER_RUN)}`)).rejects.toThrow(/belongs to another run/);
+    await age(id, 31);
     await update(COLLEAGUE, id, `status = 'error', error = 'Cán bộ đã kiểm tra: thư chưa được gửi'`);
+    await age(id, 31);
     await expect(update(COLLEAGUE, id, `status = 'queued', error = null, claim_token = ${hashOf(OTHER_RUN)}`)).resolves.toBeDefined();
+  });
+
+  it('the wait after a take-over is the database’s too: a colleague cannot turn unknown into an error, or take the error, before the lease is over', async () => {
+    const id = await claim('g21@x.vn');
+    await update(OFFICER, id, `status = 'sending', claim_proof = '${RUN}'`);
+    await update(OFFICER, id, `status = 'unknown', error = 'Phiên gửi trước đã được tiếp quản', claim_proof = '${RUN}'`);
+    // D3: within the lease, a colleague's unknown -> error is refused, so no new token can follow.
+    await expect(update(COLLEAGUE, id, `status = 'error', error = 'x'`)).rejects.toThrow(/not this run/);
+    expect(await row(id)).toMatchObject({ status: 'unknown' });
+    // The first run may still record the message it was sending.
+    await expect(update(OFFICER, id, `status = 'sent', sent_at = now(), provider_message_id = 'msg-g21', claim_proof = '${RUN}'`)).resolves.toBeDefined();
+    // D4: once the lease has lapsed the colleague may.
+    const later = await claim('g22@x.vn');
+    await update(OFFICER, later, `status = 'unknown', error = 'x', claim_proof = '${RUN}'`);
+    await age(later, 31);
+    await expect(update(COLLEAGUE, later, `status = 'error', error = 'Cán bộ đã kiểm tra: thư chưa được gửi'`)).resolves.toBeDefined();
+  });
+
+  it('an error is taken by a new token only by the officer who wrote it, or once it has lapsed', async () => {
+    const id = await claim('g23@x.vn');
+    await update(OFFICER, id, `status = 'unknown', error = 'x', claim_proof = '${RUN}'`);
+    await update(OFFICER, id, `status = 'error', error = 'Cán bộ đã kiểm tra: thư chưa được gửi'`);
+    // D5: the colleague must wait; the officer who wrote the error may retry at once.
+    await expect(update(COLLEAGUE, id, `status = 'queued', error = null, claim_token = ${hashOf(OTHER_RUN)}`)).rejects.toThrow(/belongs to another run/);
+    await expect(update(OFFICER, id, `status = 'queued', error = null, claim_token = ${hashOf(OTHER_RUN)}`)).resolves.toBeDefined();
+    const second = await claim('g24@x.vn');
+    await update(OFFICER, second, `status = 'unknown', error = 'x', claim_proof = '${RUN}'`);
+    await update(OFFICER, second, `status = 'error', error = 'Cán bộ đã kiểm tra: thư chưa được gửi'`);
+    await age(second, 31);
+    await expect(update(COLLEAGUE, second, `status = 'queued', error = null, claim_token = ${hashOf(OTHER_RUN)}`)).resolves.toBeDefined();
   });
 
   it('a message confirmed unsent carries no evidence of a send: unknown becomes an error only without a Gmail id or time', async () => {
@@ -177,6 +209,7 @@ describe('the no-double-send rules on Postgres, for an officer writing to the ta
     await update(OFFICER, id, `status = 'unknown', error = 'mất kết nối', claim_proof = '${RUN}'`);
     await expect(update(COLLEAGUE, id, `status = 'error', error = 'x', provider_message_id = 'made-up-id'`)).rejects.toThrow(/not this run/);
     await expect(update(COLLEAGUE, id, `status = 'error', error = 'x', sent_at = now()`)).rejects.toThrow(/not this run/);
+    await age(id, 31);
     await update(COLLEAGUE, id, `status = 'error', error = 'Cán bộ đã kiểm tra: thư chưa được gửi'`);
     expect(await row(id)).toMatchObject({ status: 'error', provider_message_id: null });
   });
