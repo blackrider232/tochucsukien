@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Email, EventId, Instant } from '@/core/brand';
 import { MESSAGES } from '@/core/commands/pipeline';
-import { DbError, type AuditWriter } from '@/core/db';
+import { DbError, type AuditWriter, type Db } from '@/core/db';
 import type { SyncReport } from '../domain/sync-report';
 import type { SheetSource } from '../server/sheet-source';
 import type { ResponseRow } from '../server/tables';
@@ -236,6 +236,32 @@ describe('comms.syncForm', () => {
     expect(r).toMatchObject({ ok: false });
     expect(h.audits()).toHaveLength(audits);
     expect(responses()).toEqual([]);
+  });
+
+  it('one row the table refuses is counted as failed and does not halt the sync of the others', async () => {
+    const { h, eventId, responses } = await setup();
+    const good = await h.addGuest(eventId, { email: 'an@a.vn' as Email });
+    sheet.text = csv('04/11/2026 10:00:00,Nguyễn Văn An,Công ty A,an@a.vn,,Có,,', '04/11/2026 10:00:00,Hỏng Dòng,Công ty B,hong@a.vn,,Có,,', '04/11/2026 10:00:00,Lê Thị Bình,Công ty C,binh@a.vn,,Có,,');
+    // The table refuses any write that carries this row, as Postgres refuses a value it cannot store.
+    const refusing = (db: Db): Db => ({
+      rpc: db.rpc.bind(db),
+      table(def) {
+        const t = db.table(def);
+        if (def.name !== 'sce_tcsk_rsvp_responses') return t;
+        const bad = (d: { name?: unknown }) => d.name === 'Hỏng Dòng';
+        return {
+          ...t,
+          insert: (d, ...rest) => (bad(d as { name?: unknown }) ? Promise.reject(new DbError('unavailable')) : t.insert(d, ...rest)),
+          insertMany: (ds, ...rest) => (ds.some((d) => bad(d as { name?: unknown })) ? Promise.reject(new DbError('unavailable')) : t.insertMany(ds, ...rest)),
+        };
+      },
+    });
+    const audits = h.audits().length;
+    const r = await h.runWith(refusing, xtdtUser, 'comms.syncForm', { eventId });
+    expect(r).toMatchObject({ ok: true, value: { status: 'ok', rows: 3, fresh: 2, applied: 1, failed: 1, failures: [expect.stringContaining('Hỏng Dòng')] } });
+    expect((await h.guest(eventId, good.id)).rsvpStatus).toBe('confirmed');
+    expect(responses().map((x) => x.name).sort()).toEqual(['Lê Thị Bình', 'Nguyễn Văn An']);
+    expect(h.audits().slice(audits).filter((a) => a.action === 'ĐỒNG BỘ GOOGLE FORM')).toEqual([expect.objectContaining({ summary: expect.stringContaining('lỗi 1') })]);
   });
 
   it('applies the later of two answers by the same guest last', async () => {

@@ -301,14 +301,29 @@ export const syncFormWith = (sheets: SheetSource): CommandSpec<InputOf<'comms.sy
     }));
     // Claim the new rows before any guest effect: a second sync running at once fails here and changes nothing.
     let inserted: ResponseRow[] = [];
+    const t = emptyTally();
     try {
       inserted = drafts.length > 0 ? await ctx.db.table(responsesTable).insertMany(drafts) : [];
     } catch (e) {
       if (e instanceof DbError && (e.kind === 'conflict' || e.kind === 'constraint')) throw new CommandError('conflict', 'Một lần đồng bộ khác đang chạy. Vui lòng thử lại sau ít phút.');
-      throw e;
+      // The batch is one write, so one row the table cannot store would stop every other response: store the rows one
+      // by one, count the ones that fail, and fail the sync only when none can be stored.
+      if (drafts.length < 2) throw e;
+      const failedTally = emptyTally();
+      for (const draft of drafts) {
+        try {
+          inserted.push(await ctx.db.table(responsesTable).insert(draft));
+        } catch (rowError) {
+          if (rowError instanceof DbError && (rowError.kind === 'conflict' || rowError.kind === 'constraint')) throw new CommandError('conflict', 'Một lần đồng bộ khác đang chạy. Vui lòng thử lại sau ít phút.');
+          failedTally.failed += 1;
+          failedTally.failures.push(`${draft.name || draft.email || 'Phản hồi'}: không lưu được dòng này`);
+        }
+      }
+      if (inserted.length === 0) throw e;
+      t.failed += failedTally.failed;
+      t.failures.push(...failedTally.failures);
     }
 
-    const t = emptyTally();
     let retimed = 0;
     try {
       // A row stored while the sheet's date order could not be told (or read another way), not applied yet, gets the
