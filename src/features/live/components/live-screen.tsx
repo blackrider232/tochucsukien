@@ -6,7 +6,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Alert, Badge, Button, KpiCard, PrintLink, useEventChanges } from '@/components/ui';
+import { Alert, Badge, Button, KpiCard, PrintLink, useEventChanges, useOnline } from '@/components/ui';
 import { liveKpis } from '../domain/desk';
 import type { LiveScreenData, LiveTab } from '../domain/screen';
 import { CheckinDesk } from './checkin-desk';
@@ -15,7 +15,6 @@ import { DutyRoster } from './duty-roster';
 import { IncidentDialog, IncidentLog } from './incident-log';
 import { ScanDialog } from './scan-dialog';
 import { SeatMonitor } from './seat-monitor';
-import { useOnline } from './use-online';
 import { WalkInDialog } from './walk-in-dialog';
 
 const LIVE_TABLES = ['sce_tcsk_checkins', 'sce_tcsk_guests', 'sce_tcsk_seat_assignments', 'sce_tcsk_duty_staff', 'sce_tcsk_incidents'] as const;

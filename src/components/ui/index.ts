@@ -26,6 +26,7 @@ export { QrCode, qrPngDataUrl } from './qr';
 export { RichHtml } from './rich-html';
 export { downloadBlob, downloadXlsx, downloadWordHtml, xlsxSheet } from './files';
 export { useBeep } from './beep';
+export { useOnline } from './use-online';
 export { ThemeToggle, useTheme } from './theme';
 export { cn } from './cn';
 
