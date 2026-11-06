@@ -21,19 +21,19 @@ export const coreManifest = defineFeature({
       id: 'admin', section: 'admin', order: 10, label: 'Cài đặt', icon: 'settings', accent: 'slate',
       tooltip: 'Cài đặt: Quản lý phòng ban, tham số định mức, sao lưu & nhật ký',
       href: { kind: 'static', path: '/admin/settings' }, permission: 'core.settings.edit', legacyTabIds: ['tab-admin', 'tab-settings', 'tab-module1'],
-      header: { title: 'Cài Đặt Hệ Thống & Tham Số Định Mức', subtitle: 'Quản lý phòng ban, tham số định mức, sao lưu dữ liệu và nhật ký kiểm toán.', badge: 'Hệ Thống SCE' },
+      header: { title: 'Cài đặt hệ thống & tham số định mức', subtitle: 'Quản lý phòng ban, tham số định mức, sao lưu dữ liệu và nhật ký kiểm toán.', badge: 'Hệ Thống SCE' },
     },
     {
       id: 'users', section: 'admin', order: 20, label: 'Tài khoản', icon: 'user-cog', accent: 'cyan',
       tooltip: 'Tài khoản: Tạo lập & phê duyệt tài khoản cán bộ',
       href: { kind: 'static', path: '/admin/users' }, permission: 'core.users.read', legacyTabIds: ['tab-users'],
-      header: { title: 'Quản Lý Tài Khoản & Phân Quyền', subtitle: 'Tạo lập tài khoản, phê duyệt cán bộ và quản trị ma trận phân quyền RBAC 4 phòng ban.', badge: '4 Phòng Ban' },
+      header: { title: 'Quản lý tài khoản & phân quyền', subtitle: 'Tạo lập tài khoản, phê duyệt cán bộ và quản trị ma trận phân quyền RBAC 4 phòng ban.', badge: '4 Phòng Ban' },
     },
     {
       id: 'profile', section: 'admin', order: 90, label: 'Hồ sơ của tôi', icon: 'shield', accent: 'slate',
       tooltip: 'Hồ sơ của tôi: tên hiển thị, mật khẩu và xác thực hai lớp',
       href: { kind: 'static', path: '/profile' }, permission: 'core.profile.edit', legacyTabIds: [],
-      header: { title: 'Hồ Sơ & Xác Thực 2 Yếu Tố (2FA)', subtitle: 'Tên hiển thị, mật khẩu đăng nhập và mã xác thực trên điện thoại của bạn.' },
+      header: { title: 'Hồ sơ & xác thực 2 yếu tố (2FA)', subtitle: 'Tên hiển thị, mật khẩu đăng nhập và mã xác thực trên điện thoại của bạn.' },
     },
   ],
   subTabs: [

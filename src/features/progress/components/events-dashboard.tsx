@@ -106,12 +106,12 @@ function Dashboard({ initialPopup }: { initialPopup: KpiPopup | null }) {
   return (
     <div className="space-y-4">
       <SectionCard
-        title="Bảng Điều Khiển Sự Kiện"
+        title="Bảng điều khiển sự kiện"
         icon="calendar-check"
         accent="blue"
         actions={
           <>
-            {canCreate && <Button icon="plus" href="/events/new">Tạo Sự Kiện</Button>}
+            {canCreate && <Button icon="plus" href="/events/new">Tạo sự kiện</Button>}
             <PrintLink href="/events/summary" label="In tổng hợp" />
             <Button variant="secondary" icon="file-spreadsheet" onClick={() => void exportXlsx()}>Xuất Excel</Button>
             <Button variant="secondary" icon="download" onClick={exportCsv}>CSV</Button>
@@ -119,12 +119,12 @@ function Dashboard({ initialPopup }: { initialPopup: KpiPopup | null }) {
         }
       >
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <KpiCard label="Tổng Sự Kiện" value={kpis.totalEvents} icon="calendar-check" accent="blue" caption="Xem tất cả sự kiện" onClick={() => setPopup('all')} />
-          <KpiCard label="Báo Cáo Hàng Ngày" value={kpis.dailyReport} icon="bell" accent="rose" highlight={kpis.dailyReport > 0}
+          <KpiCard label="Tổng sự kiện" value={kpis.totalEvents} icon="calendar-check" accent="blue" caption="Xem tất cả sự kiện" onClick={() => setPopup('all')} />
+          <KpiCard label="Báo cáo hàng ngày" value={kpis.dailyReport} icon="bell" accent="rose" highlight={kpis.dailyReport > 0}
             caption={`Trong mốc ${settings.dailyReportThresholdDays} ngày làm việc`} onClick={() => setPopup('daily')} />
-          <KpiCard label="Việc Hoàn Thành" value={kpis.completedSteps} ofTotal={kpis.totalSteps} icon="check" accent="emerald"
+          <KpiCard label="Việc hoàn thành" value={kpis.completedSteps} ofTotal={kpis.totalSteps} icon="check" accent="emerald"
             progress={{ value: kpis.completedSteps, max: kpis.totalSteps }} onClick={() => setPopup('completed')} />
-          <KpiCard label="Việc Chậm Tiến Độ" value={kpis.overdueSteps} icon="alert-triangle" accent="amber" highlight={kpis.overdueSteps > 0}
+          <KpiCard label="Việc chậm tiến độ" value={kpis.overdueSteps} icon="alert-triangle" accent="amber" highlight={kpis.overdueSteps > 0}
             caption="Cần xử lý gấp" onClick={() => setPopup('overdue')} />
         </div>
       </SectionCard>
@@ -149,8 +149,8 @@ function Dashboard({ initialPopup }: { initialPopup: KpiPopup | null }) {
           <EmptyState
             icon="calendar-check"
             title={summaries.length === 0 ? 'Chưa có sự kiện nào' : 'Không tìm thấy sự kiện nào'}
-            text={summaries.length === 0 ? 'Bấm Tạo Sự Kiện Mới để bắt đầu lập kế hoạch.' : 'Vui lòng điều chỉnh lại từ khóa tìm kiếm hoặc bộ lọc.'}
-            action={summaries.length === 0 && canCreate ? <Button icon="plus" href="/events/new">Tạo Sự Kiện Mới</Button>
+            text={summaries.length === 0 ? 'Bấm Tạo sự kiện mới để bắt đầu lập kế hoạch.' : 'Vui lòng điều chỉnh lại từ khóa tìm kiếm hoặc bộ lọc.'}
+            action={summaries.length === 0 && canCreate ? <Button icon="plus" href="/events/new">Tạo sự kiện mới</Button>
               : filtered ? <Button variant="secondary" onClick={() => setFilter(NO_FILTER)}>Xóa bộ lọc</Button> : undefined}
           />
         </div>

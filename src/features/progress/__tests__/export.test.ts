@@ -21,7 +21,7 @@ describe('events CSV export (m2 §4.4, BUG-41)', () => {
   it('has the legacy columns and neutralises formula prefixes', async () => {
     const text = await eventsCsv(rows(plan('=HYPERLINK("http://evil","x")'), plan('+cmd|calc', 'Phòng Phát triển doanh nghiệp'))).text();
     const [header, first, second] = text.replace(/^﻿/, '').split('\r\n');
-    expect(header).toBe('STT,Tên Sự Kiện,Loại Hình,Ngày Tổ Chức T0,Địa Điểm,Phòng Ban Chủ Trì,Người Phụ Trách,Tổng Bước,Đã Hoàn Thành,Việc Chậm,Tỷ Lệ %,Trạng Thái');
+    expect(header).toBe('STT,Tên Sự Kiện,Loại Hình,Ngày tổ chức T0,Địa Điểm,Phòng ban chủ trì,Người Phụ Trách,Tổng Bước,Đã Hoàn Thành,Việc Chậm,Tỷ Lệ %,Trạng Thái');
     expect(first).toBe(`1,"'=HYPERLINK(""http://evil"",""x"")",Hội chợ,2026-12-15,'@Hà Nội,Phòng Xúc tiến đầu tư,'-Lead,0,0,0,0%,Đang chuẩn bị`);
     expect(second!.startsWith("2,'+cmd|calc,")).toBe(true);
   });

@@ -131,7 +131,7 @@ function EventBody({ summary, groups, expansion }: { summary: PlanSummary; group
       <PhaseSection event={event} phase="phase_prepare" tone="blue" title="Giai Đoạn I: Chuẩn Bị Trước Sự Kiện" caption={`${prepare.length} nhóm công việc`} groups={prepare} expansion={expansion} />
       <PhaseSection
         event={event} phase="phase_dday" tone="rose" groups={dday} expansion={expansion} caption={`${ddaySteps} bước tác nghiệp`}
-        title={`Giai Đoạn II: Tác Nghiệp Hiện Trường Ngày Diễn Ra & Sau Sự Kiện (T0 − ${settings.fieldPresenceHours}h${afterDays > 0 ? ` đến T+${afterDays}` : ''})`}
+        title={`Giai Đoạn II: Tác nghiệp hiện trường ngày diễn ra & sau sự kiện (T0 − ${settings.fieldPresenceHours}h${afterDays > 0 ? ` đến T+${afterDays}` : ''})`}
       />
     </>
   );
@@ -145,7 +145,7 @@ function PhaseSection({ event, phase, tone, title, caption, groups, expansion }:
     <section aria-label={title} className="space-y-2">
       <header className="flex flex-wrap items-center gap-2">
         <span data-tone={tone} aria-hidden="true" className="size-2.5 rounded-full bg-(--tone-solid)" />
-        <h3 className="min-w-0 flex-1 text-sm font-bold uppercase tracking-wide text-ink-2">{title}</h3>
+        <h3 className="min-w-0 flex-1 text-sm font-bold text-ink">{title}</h3>
         <span className="text-xs text-ink-muted">{caption}</span>
         {permsOf(event.id).write && <Button variant="ghost" icon="plus" onClick={() => openGroup(event.id, phase)}>Thêm nhóm việc</Button>}
       </header>
@@ -183,7 +183,7 @@ function GroupSection({ event, group, expansion }: { event: SceEvent; group: Pla
             <p className="min-w-0 flex-1 basis-56 text-sm text-ink-2">Phụ trách nhóm: <strong>{group.leadPerson || 'Đội chuyên trách'}</strong></p>
             {perms.write && (
               <>
-                {!group.note && <Button variant="ghost" icon="pencil" onClick={() => openNote(event.id, group.id)}>Thêm Ghi chú nhanh</Button>}
+                {!group.note && <Button variant="ghost" icon="pencil" onClick={() => openNote(event.id, group.id)}>Thêm ghi chú nhanh</Button>}
                 <Button variant="secondary" icon="plus" onClick={() => openStep(event.id, group.id)}>Thêm bước việc</Button>
                 <IconButton icon="pencil" label={`Sửa nhóm "${group.name}"`} onClick={() => openGroup(event.id, group.phase, group.id)} />
                 <IconButton icon="trash" tone="rose" label={`Xóa nhóm "${group.name}"`} onClick={() => void deleteGroup(event, group)} />
@@ -193,7 +193,7 @@ function GroupSection({ event, group, expansion }: { event: SceEvent; group: Pla
           {group.note && (
             <div data-tone="amber" className="flex items-start gap-2 rounded-control border border-(--tone-bd) bg-(--tone-bg) px-3 py-2 text-(--tone-fg)">
               <div className="min-w-0 flex-1 text-sm">
-                <p className="text-xs font-bold uppercase">Ghi chú &amp; lưu ý đặc biệt của nhóm:</p>
+                <p className="text-xs font-bold">Ghi chú &amp; lưu ý đặc biệt của nhóm:</p>
                 <p className="whitespace-pre-line">{group.note}</p>
               </div>
               {perms.write && (
@@ -265,7 +265,7 @@ export function StepRow({ event, groupId, step }: { event: SceEvent; groupId: Gr
         {step.templateKey && (
           href ? (
             <Link href={href} className="inline-flex items-center gap-1 text-xs font-semibold text-link hover:underline">
-              <Icon name="file-signature" size={14} /> Xem Biểu Mẫu: <code>{step.templateKey}</code>
+              <Icon name="file-signature" size={14} /> Xem biểu mẫu: <code>{step.templateKey}</code>
             </Link>
           ) : (
             <p className="text-xs text-ink-muted">Biểu mẫu <code>{step.templateKey}</code>: Chưa gắn biểu mẫu</p>
@@ -274,7 +274,7 @@ export function StepRow({ event, groupId, step }: { event: SceEvent; groupId: Gr
       </div>
       <div className="flex shrink-0 flex-col gap-1 md:w-52">
         <div data-tone={done ? 'emerald' : 'slate'} className="rounded-control border border-(--tone-bd) bg-(--tone-bg) px-2">
-          <Checkbox name={`step-${step.id}`} checked={done} disabled={!perms.write} label={done ? 'Đã Xong' : 'Chưa Xong'} onChange={(v) => void toggleStep(event.id, step, v)} />
+          <Checkbox name={`step-${step.id}`} checked={done} disabled={!perms.write} label={done ? 'Đã xong' : 'Chưa xong'} onChange={(v) => void toggleStep(event.id, step, v)} />
         </div>
         <p className="text-xs text-ink-muted">Phụ trách: <span className="text-ink-2">{step.assignee || 'Chuyên viên'}</span></p>
         {done && step.completedBy && <p className="text-xs text-success-ink">Bởi: {step.completedBy}</p>}

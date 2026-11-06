@@ -16,7 +16,7 @@ export const progressManifest = defineFeature({
     {
       id: 'events', section: 'main', order: 10, label: 'Tiến độ', icon: 'calendar-check', accent: 'blue',
       href: { kind: 'static', path: '/events' }, permission: 'progress.read', legacyTabIds: ['tab-events', 'tab-module2'],
-      header: { title: 'Tiến Độ Tổ Chức Sự Kiện', subtitle: 'Theo dõi tiến độ, phân công nhiệm vụ và cập nhật trạng thái thực hiện các sự kiện.' },
+      header: { title: 'Tiến độ tổ chức sự kiện', subtitle: 'Theo dõi tiến độ, phân công nhiệm vụ và cập nhật trạng thái thực hiện các sự kiện.' },
     },
   ],
   subTabs: [],

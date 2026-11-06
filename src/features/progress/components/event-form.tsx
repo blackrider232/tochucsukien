@@ -87,36 +87,36 @@ export function EventForm({ event, departments, today, onDone, onCancel }: {
   return (
     <Form form={form} onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
       <div className="sm:col-span-2">
-        <FormField label="Tên Sự Kiện / Chương Trình" name="name" required>
+        <FormField label="Tên sự kiện / chương trình" name="name" required>
           <TextInput name="name" placeholder="Ví dụ: Hội nghị Xúc tiến Đầu tư Hà Nội - Hoa Kỳ 2026" />
         </FormField>
       </div>
-      <FormField label="Loại Hình Sự Kiện" name="type" required hint={event && chosenType !== event.type ? 'Đổi loại hình không đổi các bước đã có. Dùng "Áp dụng quy trình chuẩn" nếu cần thêm nhóm việc của loại hình mới.' : undefined}>
+      <FormField label="Loại hình sự kiện" name="type" required hint={event && chosenType !== event.type ? 'Đổi loại hình không đổi các bước đã có. Dùng "Áp dụng quy trình chuẩn" nếu cần thêm nhóm việc của loại hình mới.' : undefined}>
         <Select name="type" options={TYPE_OPTIONS} />
       </FormField>
-      <FormField label="Phòng Ban Chủ Trì" name="department" required>
+      <FormField label="Phòng ban chủ trì" name="department" required>
         <Select name="department" options={options} />
       </FormField>
-      <FormField label="Ngày Tổ Chức" name="eventDate" required hint="Hạn chót của mọi bước được tính lại theo ngày này.">
+      <FormField label="Ngày tổ chức" name="eventDate" required hint="Hạn chót của mọi bước được tính lại theo ngày này.">
         <DateInput name="eventDate" showHolidays />
       </FormField>
-      <FormField label="Giờ Khai Mạc" name="eventTime">
+      <FormField label="Giờ khai mạc" name="eventTime">
         <TimeInput name="eventTime" />
       </FormField>
-      <FormField label="Địa Điểm Tổ Chức" name="location">
+      <FormField label="Địa điểm tổ chức" name="location">
         <TextInput name="location" placeholder="Ví dụ: Trung tâm Hội nghị Quốc tế, 11 Lê Hồng Phong" />
       </FormField>
-      <FormField label="Cán Bộ Chủ Trì / Phụ Trách" name="leadPerson">
+      <FormField label="Cán bộ chủ trì / phụ trách" name="leadPerson">
         <TextInput name="leadPerson" placeholder="Ví dụ: Nguyễn Văn A" />
       </FormField>
-      <FormField label="Số Lượng Khách Dự Kiến (Đại biểu)" name="targetGuests" required>
+      <FormField label="Số lượng khách dự kiến (đại biểu)" name="targetGuests" required>
         <NumberInput name="targetGuests" min={1} />
       </FormField>
-      <FormField label="Kinh Phí Dự Kiến (VNĐ)" name="budget">
+      <FormField label="Kinh phí dự kiến (VNĐ)" name="budget">
         <MoneyInput name="budget" />
       </FormField>
       <fieldset className="sm:col-span-2">
-        <legend className="text-sm font-semibold text-ink">Phòng Ban Phối Hợp</legend>
+        <legend className="text-sm font-semibold text-ink">Phòng ban phối hợp</legend>
         <p className="text-xs text-ink-muted">Cán bộ các phòng phối hợp cùng cập nhật tiến độ của sự kiện.</p>
         <div className="grid gap-x-4 sm:grid-cols-2">
           {CHAIR_DEPARTMENTS.filter((d) => d !== chosenLead).map((d) => (
@@ -134,13 +134,13 @@ export function EventForm({ event, departments, today, onDone, onCancel }: {
         </div>
       )}
       <div className="sm:col-span-2">
-        <FormField label="Ghi Chú Chung" name="note">
+        <FormField label="Ghi chú chung" name="note">
           <Textarea name="note" placeholder="Lưu ý quan trọng từ Lãnh đạo hoặc Ban Giám đốc..." />
         </FormField>
       </div>
       <div className="flex flex-wrap justify-end gap-2 sm:col-span-2">
         <Button variant="secondary" onClick={onCancel}>Hủy</Button>
-        <Button type="submit" icon="check" loading={form.formState.isSubmitting}>Lưu Sự Kiện</Button>
+        <Button type="submit" icon="check" loading={form.formState.isSubmitting}>Lưu sự kiện</Button>
       </div>
     </Form>
   );

@@ -83,17 +83,17 @@ describe('the step dialog picks a template from the library (templates change re
 describe('a step’s template link follows the readable catalog (templates change request D)', () => {
   it('links a live built-in and a live custom template to the library', () => {
     show(LIVE_CUSTOM);
-    expect(screen.getByRole('link', { name: /Xem Biểu Mẫu/ })).toHaveAttribute('href', `/templates?t=${LIVE_CUSTOM}&event=${E}`);
+    expect(screen.getByRole('link', { name: /Xem biểu mẫu/ })).toHaveAttribute('href', `/templates?t=${LIVE_CUSTOM}&event=${E}`);
   });
 
   it('says "Chưa gắn biểu mẫu" for a custom template that was deleted, instead of linking to a page that no longer exists', () => {
     show(DELETED_CUSTOM);
-    expect(screen.queryByRole('link', { name: /Xem Biểu Mẫu/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: /Xem biểu mẫu/ })).toBeNull();
     expect(screen.getByText(/Chưa gắn biểu mẫu/)).toBeInTheDocument();
   });
 
   it('keeps linking a legacy key through the alias table', () => {
     show('form_giaymoi');
-    expect(screen.getByRole('link', { name: /Xem Biểu Mẫu/ })).toHaveAttribute('href', `/templates?t=form_giaymoi_vip&event=${E}`);
+    expect(screen.getByRole('link', { name: /Xem biểu mẫu/ })).toHaveAttribute('href', `/templates?t=form_giaymoi_vip&event=${E}`);
   });
 });

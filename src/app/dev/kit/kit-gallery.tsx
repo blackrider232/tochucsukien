@@ -375,7 +375,7 @@ function Specimens() {
       <Spec kit="shell" title="Khung ứng dụng: thanh trên, thanh bên, đầu trang sự kiện">
         <div className="space-y-3">
           <div className="overflow-hidden rounded-card border border-line">
-            <TopBar title="Khách Mời & Sơ Đồ Chỗ Ngồi" subtitle="Hội nghị Xúc tiến đầu tư 2026" headerActions={[]} onOpenMenu={() => toast.info('Mở menu')} badge={<Badge tone="rose">3</Badge>} />
+            <TopBar title="Khách mời & sơ đồ chỗ ngồi" subtitle="Hội nghị Xúc tiến đầu tư 2026" headerActions={[]} onOpenMenu={() => toast.info('Mở menu')} badge={<Badge tone="rose">3</Badge>} />
           </div>
           <div className="flex flex-col gap-3 lg:flex-row">
             <div className="h-112 w-64 shrink-0 overflow-hidden rounded-card bg-sidebar">

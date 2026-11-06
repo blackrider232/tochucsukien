@@ -15,7 +15,7 @@ export const guestsManifest = defineFeature({
       id: 'guests', section: 'main', order: 30, label: 'Khách mời & Chỗ ngồi', icon: 'users', accent: 'amber',
       href: { kind: 'event', segment: 'guests' }, permission: 'guests.read', legacyTabIds: ['tab-guests', 'tab-module4'],
       header: {
-        title: 'Khách Mời & Sơ Đồ Chỗ Ngồi',
+        title: 'Khách mời & sơ đồ chỗ ngồi',
         subtitle: 'Quản lý danh sách khách mời, xác nhận RSVP, in Biển tên chữ A, Thẻ đại biểu QR và phân khu hội trường.',
         badge: 'Hội Trường & VIP',
       },

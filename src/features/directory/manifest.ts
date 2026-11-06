@@ -16,7 +16,7 @@ export const directoryManifest = defineFeature({
       tooltip: 'Quản trị CSDL khách & doanh nghiệp dùng chung (Master Directory)',
       href: { kind: 'static', path: '/admin/directory' }, permission: 'directory.read', legacyTabIds: ['tab-admin-guests'],
       header: {
-        title: 'Cơ Sở Dữ Liệu Khách Mời & Doanh Nghiệp',
+        title: 'Cơ sở dữ liệu khách mời & doanh nghiệp',
         subtitle: 'CSDL danh bạ dùng chung 5 nhóm đối tượng chuẩn hóa phục vụ tra cứu và tự động gợi ý.',
         badge: 'Master Directory',
       },

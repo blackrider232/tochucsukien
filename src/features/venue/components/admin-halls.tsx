@@ -69,7 +69,7 @@ export function AdminHalls({ templates, usage }: { templates: ReadonlyArray<Hall
                     <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-3 text-sm font-bold text-ink-2">{i + 1}</span>
                     <div className="min-w-0 flex-1 basis-60 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h3 id={`hall-${t.id}`} className="font-bold text-ink">{t.name}</h3>
+                        <h3 id={`hall-${t.id}`} className="text-sm font-bold text-ink">{t.name}</h3>
                         <Badge tone="indigo">{formatCount(hallCapacity(t.zones))} ghế</Badge>
                         {(usage[t.id] ?? 0) > 0 && <Badge tone="slate">{usage[t.id]} sự kiện đang dùng</Badge>}
                       </div>

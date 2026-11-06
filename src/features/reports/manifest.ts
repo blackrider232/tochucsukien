@@ -16,7 +16,7 @@ export const reportsManifest = defineFeature({
       id: 'reports', section: 'main', order: 60, label: 'Báo cáo & Tổng kết', icon: 'chart-line', accent: 'rose',
       href: { kind: 'event', segment: 'reports' }, permission: 'reports.read', legacyTabIds: ['tab-reports', 'tab-module6'],
       header: {
-        title: 'Báo Cáo & Tổng Kết Sự Kiện',
+        title: 'Báo cáo & tổng kết sự kiện',
         subtitle: 'Xuất báo cáo tự động trình UBND Thành phố, Ban Giám đốc và tổng hợp kết quả truyền thông.',
         badge: 'Trình UBND TP',
       },

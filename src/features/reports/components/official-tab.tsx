@@ -33,7 +33,7 @@ export function OfficialTab({ data }: { data: ReportsScreenData }) {
           return (
             <li key={o.key} className="flex flex-col gap-3 border-b border-line pb-4 md:border-b-0 md:pb-0">
               <Badge tone={o.tone}>{o.when}</Badge>
-              <h3 className="font-semibold text-ink">{o.title}</h3>
+              <h3 className="text-sm font-bold text-ink">{o.title}</h3>
               <p className="flex-1 text-sm text-ink-2">{o.text}</p>
               {id ? (
                 <div className="flex flex-wrap gap-2">

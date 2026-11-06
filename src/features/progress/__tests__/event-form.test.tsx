@@ -15,11 +15,11 @@ const form = (profile: ReturnType<typeof testActor>['profile']) =>
 describe('event wizard default department (m2 §1.7, review finding 4)', () => {
   it('is Phòng Xúc tiến đầu tư for an actor with no department, such as an admin', () => {
     form(testActor('admin', null).profile);
-    expect(screen.getByRole('combobox', { name: /Phòng Ban Chủ Trì/ })).toHaveValue('Phòng Xúc tiến đầu tư');
+    expect(screen.getByRole('combobox', { name: /Phòng ban chủ trì/ })).toHaveValue('Phòng Xúc tiến đầu tư');
   });
 
   it("is the actor's own department when they have one", () => {
     form(testActor('user', PTDN).profile);
-    expect(screen.getByRole('combobox', { name: /Phòng Ban Chủ Trì/ })).toHaveValue(PTDN);
+    expect(screen.getByRole('combobox', { name: /Phòng ban chủ trì/ })).toHaveValue(PTDN);
   });
 });

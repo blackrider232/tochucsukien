@@ -78,7 +78,7 @@ export interface FeatureSlots {
   navBadges?: Readonly<Record<string, Component<{ eventId: EventId | null }>>>;
   /** Top-bar badge area when one of this feature's nav entries is active (daily report bell). */
   topBarBadge?: Component<{ eventId: EventId | null }>;
-  /** Global header buttons (Tạo Sự Kiện Mới, Báo cáo tiến độ). Client components. */
+  /** Global header buttons (Tạo sự kiện mới, Báo cáo tiến độ). Client components. */
   headerActions?: ReadonlyArray<{ id: string; order: number; permission: Permission; render: Component<Record<string, never>> }>;
   /** Sections on /admin/settings (comms: Hòm thư Google). */
   settingsSections?: ReadonlyArray<{ id: string; order: number; permission: Permission; render: Component<Record<string, never>> }>;

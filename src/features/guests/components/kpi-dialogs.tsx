@@ -117,7 +117,7 @@ function PrintSetsDialog({ eventId, seatLinks, sets, onClose, close }: { eventId
         {tab === 'namecards' ? (
           <GuestList rows={sets.namecards} search="Tìm theo tên, chức vụ, đơn vị..." empty={{ icon: 'star', title: 'Không có biển tên VIP nào.' }}
             columns={[
-              { id: 'name', header: 'Đại biểu VIP', cell: (g) => <span className="font-semibold uppercase text-ink">{g.name}</span> },
+              { id: 'name', header: 'Đại biểu VIP', cell: (g) => <span className="font-semibold text-ink">{g.name}</span> },
               { id: 'org', header: 'Chức vụ & đơn vị', cell: (g) => <OrgCell g={g} />, hideOnMobile: true },
               { id: 'seat', header: 'Vị trí ghế', cell: (g) => <SeatCell g={g} empty="Hàng VIP" linked={seatLinks} />, hideOnMobile: true },
               { id: 'print', header: 'In riêng', align: 'right', cell: (g) => <PrintLink href={printHref(eventId, 'namecards', { guest: g.id })} label="In biển" /> },

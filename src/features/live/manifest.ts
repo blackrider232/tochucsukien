@@ -16,7 +16,7 @@ export const liveManifest = defineFeature({
       id: 'live', section: 'main', order: 50, label: 'Tổ chức sự kiện', icon: 'smartphone', accent: 'teal',
       href: { kind: 'event', segment: 'live' }, permission: 'live.read', legacyTabIds: ['tab-live', 'tab-module5'],
       header: {
-        title: 'Tác Nghiệp Hiện Trường Ngày Sự Kiện (Giờ G)',
+        title: 'Tác nghiệp hiện trường ngày sự kiện (giờ G)',
         subtitle: 'Điều hành tác nghiệp thời gian thực từ T0 - 2h, kiểm tra kỹ thuật, check-in QR và điều phối hội trường.',
         badge: 'T0 - 2h Hiện Trường',
       },

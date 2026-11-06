@@ -37,7 +37,7 @@ export function KpiDialog({ popup, summaries, onClose, onFocus }: {
   if (popup === 'daily') {
     const urgent = summaries.filter((s) => s.inDailyWindow);
     return (
-      <Dialog open onClose={onClose} size="xl" icon="bell" accent="rose" title={`Việc Cần Báo Cáo Hàng Ngày Trình Lãnh Đạo (${urgent.length} sự kiện)`}
+      <Dialog open onClose={onClose} size="xl" icon="bell" accent="rose" title={`Việc Cần Báo cáo hàng ngày Trình Lãnh Đạo (${urgent.length} sự kiện)`}
         subtitle={`Các sự kiện sắp diễn ra trong vòng ${n} ngày làm việc cần cập nhật tiến độ liên tục`}
         footer={<><p className="mr-auto text-xs text-ink-muted">Áp dụng chế độ báo cáo khẩn cấp mốc {n} ngày làm việc</p>{close}</>}>
         {urgent.length === 0 ? (
@@ -77,7 +77,7 @@ export function KpiDialog({ popup, summaries, onClose, onFocus }: {
                   <div className="flex flex-wrap justify-end gap-2">
                     <Button variant="secondary" onClick={() => onFocus(event.id)}>Xem Chi Tiết Sự Kiện</Button>
                     <Link href={`/events/${event.id}/reports`} className="inline-flex min-h-touch items-center rounded-control bg-primary px-4 text-sm font-semibold text-on-primary hover:bg-primary-hover">
-                      Xuất Báo Cáo Hàng Ngày
+                      Xuất Báo cáo hàng ngày
                     </Link>
                   </div>
                 </li>
@@ -123,7 +123,7 @@ export function KpiDialog({ popup, summaries, onClose, onFocus }: {
   const isOverdue = popup === 'overdue';
   return (
     <Dialog open onClose={onClose} size="xl" icon={isOverdue ? 'alert-triangle' : 'check'} accent={isOverdue ? 'amber' : 'emerald'}
-      title={isOverdue ? `Danh Sách Việc Chậm Tiến Độ (${refs.length} việc)` : `Danh Sách Việc Đã Hoàn Thành (${refs.length} việc)`}
+      title={isOverdue ? `Danh Sách Việc chậm tiến độ (${refs.length} việc)` : `Danh Sách Việc Đã Hoàn Thành (${refs.length} việc)`}
       subtitle={isOverdue ? 'Các công việc đã quá hạn chót cần xử lý gấp và đôn đốc thực hiện' : 'Các công việc và bước chi tiết đã được nghiệm thu hoàn thành'}
       footer={<><p className="mr-auto text-xs text-ink-muted">{isOverdue ? 'Ưu tiên xử lý các việc trễ hạn nhiều ngày nhất' : 'Cập nhật theo dữ liệu mới nhất'}</p>{close}</>}>
       {refs.length === 0 ? (

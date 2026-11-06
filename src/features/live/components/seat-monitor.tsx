@@ -42,7 +42,7 @@ function ZoneSection({ z, now }: { z: MonitorZone; now: LiveScreenData['now'] })
     <section aria-labelledby={`live-zone-${z.zone.key}`} className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         <Badge tone={ZONE_COLORS[z.zone.color].tone}>{z.zone.prefix}</Badge>
-        <h3 id={`live-zone-${z.zone.key}`} className="min-w-0 break-words text-sm font-semibold text-ink">{z.zone.name}</h3>
+        <h3 id={`live-zone-${z.zone.key}`} className="min-w-0 break-words text-sm font-bold text-ink">{z.zone.name}</h3>
         {z.zone.vipZone && <Badge tone="amber" icon="star">Khu VIP</Badge>}
         <span className="ml-auto text-sm font-semibold tabular-nums text-ink-2">{z.arrived}/{z.assigned} đã có mặt • {z.seats} ghế</span>
       </div>

@@ -107,7 +107,7 @@ export function DataTable<Row>({
         </div>
       ) : (
         <div
-          className="overflow-auto rounded-card border border-line bg-surface md:max-h-(--table-max) md:shadow-card"
+          className="relative overflow-auto rounded-card border border-line bg-surface md:max-h-(--table-max) md:shadow-card"
           style={tableMax ? ({ '--table-max': tableMax } as CSSProperties) : undefined}
         >
           <div

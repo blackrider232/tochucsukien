@@ -15,7 +15,7 @@ async function DailyReportBell() {
   const n = (await listEvents(ctx)).filter((e) => isInDailyReportWindow(ctx.calendar, e, today, ctx.settings)).length;
   return (
     <span className="inline-flex items-center gap-1">
-      <IconButton icon="bell" tone={n > 0 ? 'rose' : undefined} label={`Báo Cáo Hàng Ngày: ${n} sự kiện`} href="/events?popup=daily" />
+      <IconButton icon="bell" tone={n > 0 ? 'rose' : undefined} label={`Báo cáo hàng ngày: ${n} sự kiện`} href="/events?popup=daily" />
       {n > 0 && <Badge tone="rose" pulse>{n}</Badge>}
     </span>
   );

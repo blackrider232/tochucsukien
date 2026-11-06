@@ -19,7 +19,7 @@ export const venueManifest = defineFeature({
       id: 'booths', section: 'main', order: 40, label: 'Gian hàng Hội chợ', icon: 'store', accent: 'emerald',
       href: { kind: 'event', segment: 'booths' }, permission: 'venue.booths.read', legacyTabIds: ['tab-booths'],
       header: {
-        title: 'Quản Lý Gian Hàng Hội Chợ',
+        title: 'Quản lý gian hàng hội chợ',
         subtitle: 'Sơ đồ phân lô mặt bằng 3m x 3m, hồ sơ doanh nghiệp tham gia, kinh phí hỗ trợ và phân công cán bộ trực SCE.',
         badge: 'Hội Chợ Triển Lãm',
       },
@@ -28,7 +28,7 @@ export const venueManifest = defineFeature({
       id: 'admin-halls', section: 'admin', order: 40, label: 'Quản trị Hội trường', icon: 'building', accent: 'indigo',
       tooltip: 'Quản trị Hội trường tổ chức sự kiện & phân khu',
       href: { kind: 'static', path: '/admin/halls' }, permission: 'venue.halls.admin', legacyTabIds: ['tab-admin-halls'],
-      header: { title: 'Quản Trị Hội Trường Tổ Chức Sự Kiện', subtitle: 'Quản lý danh mục hội trường mẫu, thiết lập phân khu và ma trận vị trí chỗ ngồi.', badge: 'Mẫu Hội Trường' },
+      header: { title: 'Quản trị hội trường tổ chức sự kiện', subtitle: 'Quản lý danh mục hội trường mẫu, thiết lập phân khu và ma trận vị trí chỗ ngồi.', badge: 'Mẫu Hội Trường' },
     },
   ],
   subTabs: [
