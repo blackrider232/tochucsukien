@@ -61,10 +61,20 @@ function rawGuest(blob: LegacyBlob, legacyEventId: string, legacyKey: string): O
   return (list.filter((g) => isObj(g) && str(g.id) === rawId)[Number(nth) - 1] as Obj | undefined) ?? null;
 }
 
+/** The desk a legacy check-in staff name stands at on that event's roster, as the check-in's desk text; null when the name is not on it. */
+function deskOfStaff(blob: LegacyBlob, legacyEventId: string, staff: string): string | null {
+  const roster = isObj(blob.eventDutyRoster) ? blob.eventDutyRoster[legacyEventId] : null;
+  if (!Array.isArray(roster) || !staff) return null;
+  const entry = roster.find((s) => isObj(s) && str(s.name).toLowerCase() === staff.toLowerCase());
+  const desk = isObj(entry) ? deskOfLegacyRole(str(entry.role)) : null;
+  return desk === null ? null : DUTY_DESKS[desk].short;
+}
+
 function planCheckins(blob: LegacyBlob, ctx: ImportContext, events: ReadonlyMap<string, ImportedEvent>, issues: Issues): Row[] {
   const byId = new Map([...events.values()].map((e) => [e.id, e]));
   const rows: Row[] = [];
-  let staffed = 0;
+  let atDesk = 0;
+  let unplaced = 0;
   for (const c of legacyCheckins(blob, ctx)) {
     const event = byId.get(c.eventId)!;
     const raw = rawGuest(blob, event.legacyId, c.legacyGuestId);
@@ -84,19 +94,23 @@ function planCheckins(blob: LegacyBlob, ctx: ImportContext, events: ReadonlyMap<
       continue;
     }
     if (c.checkedInAtCoerced) issues.add('coerced', 'eventGuests', c.legacyGuestId, `Giờ check-in "${rawTime}" của "${name}" được ghép với ngày sự kiện ${event.date} theo giờ Việt Nam.`);
-    if (c.staff) staffed += 1;
+    const desk = deskOfStaff(blob, event.legacyId, c.staff);
+    if (desk) atDesk += 1;
+    else if (c.staff) unplaced += 1;
     rows.push({
       id: ctx.ids.idFor('Checkin', c.guestId),
       event_id: c.eventId,
       guest_id: c.guestId,
       checked_in_at: at,
       checked_in_by: null,
-      desk: null,
+      desk,
       // The legacy app kept no time for the welcome pack; the check-in time stands in for it.
       gift_given_at: c.giftGiven ? at : null,
     });
   }
-  if (staffed > 0) issues.add('coerced', 'eventGuests', null, `${staffed} check-in cũ ghi người check-in bằng chữ (email hoặc tên); không lưu vì người check-in là tài khoản đăng nhập.`);
+  // checked_in_by is a login account and the legacy staff was typed text, so the roster's desk is what survives.
+  if (atDesk > 0) issues.add('coerced', 'eventGuests', null, `${atDesk} check-in cũ ghi người check-in bằng chữ; lưu thành bàn trực của người đó trong danh sách trực (người check-in là tài khoản đăng nhập nên không lưu tên).`);
+  if (unplaced > 0) issues.add('coerced', 'eventGuests', null, `${unplaced} check-in cũ ghi người check-in không có trong danh sách trực; không lưu bàn và người check-in.`);
   return rows;
 }
 
@@ -121,11 +135,22 @@ function* perEvent(blob: LegacyBlob, key: string, events: ReadonlyMap<string, Im
   }
 }
 
+/** Opening time minus the presence hours, as 'HH:MM' on the same clock (the day wraps; a typed '06:30' compares as text). */
+function presenceFrom(opening: HHmm, hours: number): HHmm | null {
+  const at = parseHHmm(opening);
+  if (!at) return null;
+  const [h, m] = at.split(':').map(Number) as [number, number];
+  const minutes = (((h * 60 + m - Math.round(hours * 60)) % 1440) + 1440) % 1440;
+  return parseHHmm(`${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`);
+}
+
 function planDuty(blob: LegacyBlob, ctx: ImportContext, events: ReadonlyMap<string, ImportedEvent>, issues: Issues): Row[] {
   const KEY = 'eventDutyRoster';
   const rows: Row[] = [];
+  const settings = isObj(blob.systemSettings) ? blob.systemSettings : {};
+  const presenceHours = Number(settings.fieldPresenceHours) > 0 ? Number(settings.fieldPresenceHours) : 2;
   for (const [event, list] of perEvent(blob, KEY, events, issues)) {
-    let freeTextTimes = 0;
+    let differingTimes = 0;
     list.forEach((s, i) => {
       const legacyId = str(s.id) || `index-${i + 1}`;
       const name = str(s.name);
@@ -140,7 +165,9 @@ function planDuty(blob: LegacyBlob, ctx: ImportContext, events: ReadonlyMap<stri
       const checkedInAt = checkedText ? wallClock(checkedText, event.date) : null;
       if (checkedText && !checkedInAt) issues.add('coerced', KEY, legacyId, `Giờ điểm danh "${checkedText}" của "${name}" không đọc được; để chưa điểm danh.`);
       if (checkedInAt && !parseInstant(checkedText)) issues.add('coerced', KEY, legacyId, `Giờ điểm danh "${checkedText}" của "${name}" được ghép với ngày sự kiện ${event.date} theo giờ Việt Nam.`);
-      if (str(s.requiredTime)) freeTextTimes += 1;
+      const typed = /^(\d{1,2}:\d{2})/.exec(str(s.requiredTime));
+      const typedAt = typed ? parseHHmm(typed[1]) : null;
+      if (str(s.requiredTime) && (typedAt === null || typedAt !== presenceFrom(event.time, presenceHours))) differingTimes += 1;
       rows.push({
         id: ctx.ids.idFor('DutyStaff', legacyId, event.legacyId),
         event_id: event.id,
@@ -154,8 +181,8 @@ function planDuty(blob: LegacyBlob, ctx: ImportContext, events: ReadonlyMap<stri
         checked_in_at: checkedInAt,
       });
     });
-    if (freeTextTimes > 0) {
-      issues.add('coerced', KEY, event.legacyId, `${freeTextTimes} giờ quy định nhập tay của sự kiện ${event.legacyId} không được nhập; nay tính từ giờ khai mạc trừ số giờ có mặt trong cấu hình.`);
+    if (differingTimes > 0) {
+      issues.add('coerced', KEY, event.legacyId, `${differingTimes} giờ quy định nhập tay của sự kiện ${event.legacyId} khác giờ khai mạc ${event.time} trừ ${presenceHours} giờ có mặt; nay lấy theo công thức, không lấy giờ nhập tay.`);
     }
   }
   return rows;
