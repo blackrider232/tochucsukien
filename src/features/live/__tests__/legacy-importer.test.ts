@@ -45,7 +45,25 @@ describe('live legacy importer', () => {
     ]);
     expect(issues('skipped_demo').map((i) => i.legacyId)).toContain('duty_01');
     expect(issues('orphan').map((i) => i.legacyId)).toContain('evt_missing');
-    expect(plan().issues.map((i) => i.message)).toContain('1 giờ quy định nhập tay của sự kiện evt_real không được nhập; nay tính từ giờ khai mạc trừ số giờ có mặt trong cấu hình.');
+  });
+
+  it('says nothing about a typed required time that equals the opening minus the presence hours, and flags one that does not', () => {
+    const mentions = (b = blob) => legacyImporter.plan(b, ctx).issues.filter((i) => i.message.includes('giờ quy định nhập tay'));
+    expect(mentions()).toEqual([]);
+    const later = structuredClone(blob) as typeof blob;
+    (later.eventDutyRoster as Record<string, Array<Record<string, unknown>>>).evt_real![1]!.requiredTime = '07:15 (Muộn)';
+    expect(mentions(later).map((i) => i.message)).toEqual(['1 giờ quy định nhập tay của sự kiện evt_real khác giờ khai mạc 08:30 trừ 2 giờ có mặt; nay lấy theo công thức, không lấy giờ nhập tay.']);
+  });
+
+  it('keeps the desk of a check-in staff named on the roster, and reports a staff who is not on it', () => {
+    expect(rows('sce_tcsk_checkins').map((r) => r.desk)).toEqual([null, null]);
+    expect(plan().issues.map((i) => i.message)).toContain('1 check-in cũ ghi người check-in không có trong danh sách trực; không lưu bàn và người check-in.');
+    const named = structuredClone(blob) as typeof blob;
+    const guests = (named.eventGuests as Record<string, Array<Record<string, unknown>>>).evt_real!;
+    guests.find((g) => g.id === 'gst_real_1')!.checkInStaff = 'đinh thị trực';
+    const p = legacyImporter.plan(named, ctx);
+    expect(rows('sce_tcsk_checkins', p).map((r) => r.desk)).toEqual(['Bàn 3: Điều phối sân khấu', null]);
+    expect(p.issues.map((i) => i.message)).toContain('1 check-in cũ ghi người check-in bằng chữ; lưu thành bàn trực của người đó trong danh sách trực (người check-in là tài khoản đăng nhập nên không lưu tên).');
   });
 
   it('imports incidents with the seq from SC-NN, a fresh number for a duplicate or missing code, and consistent resolution times', () => {
