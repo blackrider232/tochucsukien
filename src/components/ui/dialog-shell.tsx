@@ -179,7 +179,7 @@ function DialogView({
             </span>
           )}
           <div className="min-w-0 flex-1">
-            <h2 id={titleId} className="text-base font-bold leading-6 text-ink">{title}</h2>
+            <h2 id={titleId} className="font-heading text-base font-bold leading-6 text-ink">{title}</h2>
             {subtitle && <p id={subtitleId} className="text-sm text-ink-muted">{subtitle}</p>}
           </div>
           {!hideClose && <IconButton icon="x" label="Đóng" onClick={onRequestClose} />}

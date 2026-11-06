@@ -24,7 +24,7 @@ export function TopBar({
           <IconButton icon="menu" label="Mở menu" onClick={onOpenMenu} />
         </div>
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-base font-bold leading-snug text-ink sm:text-lg">{title}</h1>
+          <h1 className="truncate font-heading text-base font-bold leading-snug text-ink sm:text-lg">{title}</h1>
           {subtitle && <p className="mt-0.5 truncate text-xs text-ink-muted">{subtitle}</p>}
         </div>
         {badge}

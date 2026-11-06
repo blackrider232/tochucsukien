@@ -14,7 +14,7 @@ export function SectionCard({ title, subtitle, icon, actions, children }: Sectio
           </span>
         )}
         <div className="min-w-0 flex-1">
-          <h2 id={titleId} className="text-base font-bold text-ink">{title}</h2>
+          <h2 id={titleId} className="font-heading text-base font-bold text-ink">{title}</h2>
           {subtitle && <p className="text-sm text-ink-muted">{subtitle}</p>}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}

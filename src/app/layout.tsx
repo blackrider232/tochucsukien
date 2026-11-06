@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { Bai_Jamjuree, Be_Vietnam_Pro } from 'next/font/google';
 import Script from 'next/script';
 import type { ReactNode } from 'react';
 import { SkipLink, UiProviders } from '@/components/ui';
@@ -7,9 +7,17 @@ import { UpdatePrompt } from '@/components/shell/update-prompt';
 import { THEME_BOOT_SCRIPT } from '@/core/prefs/boot';
 import './globals.css';
 
-const inter = Inter({
+// The same pair as dautuhanoi.hanoi.gov.vn: Be Vietnam Pro for text, Bai Jamjuree for headings.
+const beVietnam = Be_Vietnam_Pro({
   subsets: ['latin', 'latin-ext', 'vietnamese'],
-  variable: '--font-inter',
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-be-vietnam',
+  display: 'swap',
+});
+const baiJamjuree = Bai_Jamjuree({
+  subsets: ['latin', 'latin-ext', 'vietnamese'],
+  weight: ['600', '700'],
+  variable: '--font-bai-jamjuree',
   display: 'swap',
 });
 
@@ -28,12 +36,12 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#0e5a63',
+  themeColor: '#1a2b4c',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="vi" className={inter.variable} suppressHydrationWarning>
+    <html lang="vi" className={`${beVietnam.variable} ${baiJamjuree.variable}`} suppressHydrationWarning>
       <body className="min-h-dvh antialiased">
         <Script id="theme-boot" strategy="beforeInteractive">
           {THEME_BOOT_SCRIPT}

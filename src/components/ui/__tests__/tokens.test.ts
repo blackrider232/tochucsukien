@@ -20,9 +20,9 @@ describe('design tokens meet WCAG 2.1 AA in both themes', () => {
   });
 
   it('fails when a token regresses to the audited values', () => {
-    const lightControl = globalsCss.replace('--control-border: #7b7463;', '--control-border: #cdc6b5;');
-    expect(failures(lightControl)).toContain('light control-border on surface: 1.69 < 3');
-    const darkHover = globalsCss.replace('--primary-hover: #0c5a63;\n  --on-primary: #ffffff;\n  --link: #7cc4cc;', '--primary-hover: #5fb3bd;\n  --on-primary: #ffffff;\n  --link: #7cc4cc;');
-    expect(failures(darkHover)).toContain('dark on-primary on primary-hover: 2.42 < 4.5');
+    const lightControl = globalsCss.replace('--control-border: #7d8798;', '--control-border: #c5cdd9;');
+    expect(failures(lightControl)).toContain('light control-border on surface: 1.60 < 3');
+    const darkHover = globalsCss.replace('--primary-hover: #0a58d1;\n  --on-primary: #ffffff;\n  --link: #8ab8ff;', '--primary-hover: #5b93ff;\n  --on-primary: #ffffff;\n  --link: #8ab8ff;');
+    expect(failures(darkHover)).toContain('dark on-primary on primary-hover: 2.97 < 4.5');
   });
 });

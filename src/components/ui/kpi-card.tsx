@@ -23,7 +23,7 @@ export function KpiCard({ label, value, icon, accent, ofTotal, caption, progress
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-semibold text-ink-muted">{label}</p>
-          <p className="mt-1 flex items-baseline gap-1.5 text-2xl font-bold tabular-nums text-ink">
+          <p className="mt-1 flex items-baseline gap-1.5 font-heading text-2xl font-bold tabular-nums text-ink">
             {value}
             {ofTotal !== undefined && <span className="text-sm font-medium text-ink-muted">/ {ofTotal}</span>}
           </p>
