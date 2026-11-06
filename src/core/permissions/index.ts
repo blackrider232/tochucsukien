@@ -5,6 +5,7 @@
 // the generated SQL is stale.
 
 import type { Actor } from '@/core/auth';
+import { mfaEnforced } from '@/core/auth/mfa-policy';
 import { registry } from '@/core/registry';
 import { ROLES, type DepartmentName, type Role } from '@/core/vocab';
 
@@ -92,7 +93,7 @@ export function grantOf(actor: Actor, def: PermissionDef): Grant {
 
 /** tcsk.aal_ok(): AAL2 when TOTP is verified or the role requires it, AAL1 otherwise. */
 export function aalOk(actor: Actor): boolean {
-  if (actor.aal === 'aal2') return true;
+  if (!mfaEnforced() || actor.aal === 'aal2') return true;
   return !actor.hasVerifiedTotp && !ROLES[actor.profile.role].requiresMfa;
 }
 

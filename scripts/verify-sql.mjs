@@ -408,6 +408,20 @@ await db.exec(`insert into auth.mfa_factors (user_id, status) values ('${ids.ptd
 await refusedRow('a user with a verified factor at aal1', { actor: ids.ptdn, aal: 'aal1' });
 await writtenRow('a user with a verified factor at aal2', { actor: ids.ptdn, aal: 'aal2' });
 await db.exec(`delete from auth.mfa_factors where user_id = '${ids.ptdn}'`);
+// The MFA switch (202611061000): off means no requirement for anyone, on is the default and refuses again.
+assert.equal((await db.query(`select value from tcsk.flags where key = 'mfa_enforced'`)).rows[0].value, 'on', 'MFA is enforced by default');
+await db.exec(`update tcsk.flags set value = 'off' where key = 'mfa_enforced'`);
+await writtenRow('an admin at aal1 with the MFA switch off', { actor: ids.admin, aal: 'aal1', command: 'templates.create', perm: 'templates.admin', event: null, entity: 'template' });
+assert.ok((await as(ids.admin, 'aal1', () => db.query(`select id from public.sce_tcsk_events`))).rows.length > 0, 'admin at aal1 reads with the MFA switch off');
+await db.exec(`insert into auth.mfa_factors (user_id, status) values ('${ids.ptdn}', 'verified')`);
+await writtenRow('a user with a verified factor at aal1 with the MFA switch off', { actor: ids.ptdn, aal: 'aal1' });
+await db.exec(`delete from auth.mfa_factors where user_id = '${ids.ptdn}'`);
+await db.exec(`update tcsk.flags set value = 'on' where key = 'mfa_enforced'`);
+await refusedRow('an admin at aal1 with the MFA switch back on', { actor: ids.admin, aal: 'aal1', command: 'templates.create', perm: 'templates.admin', event: null, entity: 'template' });
+assert.equal((await as(ids.admin, 'aal1', () => db.query(`select id from public.sce_tcsk_events`))).rows.length, 0, 'admin at aal1 is refused again with the switch on');
+await db.exec(`update tcsk.flags set value = 'garbage' where key = 'mfa_enforced'`);
+await refusedRow('an admin at aal1 with an unknown switch value (only off disables)', { actor: ids.admin, aal: 'aal1', command: 'templates.create', perm: 'templates.admin', event: null, entity: 'template' });
+await db.exec(`update tcsk.flags set value = 'on' where key = 'mfa_enforced'`);
 await writtenRow('the one cross-feature permission on the allowlist', { command: 'directory.importToEvent', perm: 'guests.write', action: 'NHẬP TỪ CSDL KHÁCH MỜI VÀO SỰ KIỆN' });
 const coreAction = 'PHÂN QUYỀN TÀI KHOẢN';
 for (const action of [coreAction, coreAction.toLowerCase(), `  ${coreAction.replace(/ /g, '   ')}\t`, coreAction.normalize('NFD'), coreAction.replace(/ /g, ' '),

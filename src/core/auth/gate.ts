@@ -1,5 +1,6 @@
 import { ROLES } from '@/core/vocab';
 import type { Aal, Gate, Profile } from './index';
+import { mfaEnforced } from './mfa-policy';
 
 export function gateFor(input: {
   hasSession: boolean;
@@ -10,6 +11,7 @@ export function gateFor(input: {
   if (!input.hasSession) return { kind: 'login' };
   if (!input.profile || input.profile.status === 'pending') return { kind: 'pending' };
   if (input.profile.status === 'locked') return { kind: 'locked' };
+  if (!mfaEnforced()) return { kind: 'ok' };
   if (ROLES[input.profile.role].requiresMfa && !input.hasVerifiedTotp) return { kind: 'mfa_enroll' };
   if (input.hasVerifiedTotp && input.aal !== 'aal2') return { kind: 'mfa_challenge' };
   return { kind: 'ok' };
