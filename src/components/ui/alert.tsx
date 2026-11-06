@@ -19,7 +19,7 @@ export function Alert({ tone, title, children, action }: AlertProps) {
       className="flex flex-wrap items-start gap-3 rounded-card border border-(--tone-bd) bg-(--tone-bg) p-3 text-(--tone-fg) sm:flex-nowrap"
     >
       <Icon name={look.icon} size={20} className="mt-0.5 shrink-0" />
-      <div className="min-w-0 flex-1 text-sm">
+      <div className="min-w-0 flex-1 basis-56 text-sm">
         <span className="sr-only">{look.label}: </span>
         {title && <p className="font-semibold">{title}</p>}
         <div>{children}</div>

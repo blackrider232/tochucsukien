@@ -54,7 +54,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       <div
         role="region"
         aria-label="Thông báo"
-        className="pointer-events-none fixed inset-x-0 top-0 z-60 flex flex-col items-end gap-2 p-3 sm:p-4"
+        className="pointer-events-none fixed inset-x-0 top-14 z-60 flex flex-col items-end gap-2 p-3 sm:p-4"
         data-no-print
       >
         {items.map((t) => (

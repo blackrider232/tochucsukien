@@ -164,8 +164,8 @@ export function DataTable<Row>({
                       aria-selected={selection ? selected : undefined}
                       data-tone={tone ?? undefined}
                       className={cn(
-                        'border-b border-line last:border-b-0 hover:bg-surface-2 max-md:px-3 max-md:py-2 md:grid md:grid-cols-(--cols)',
-                        tone && 'bg-(--tone-bg) shadow-[inset_4px_0_0_var(--tone-solid)]',
+                        'border-b border-line last:border-b-0 hover:bg-surface-3 max-md:px-3 max-md:py-2 md:grid md:grid-cols-(--cols)',
+                        tone && 'shadow-[inset_4px_0_0_var(--tone-solid)]',
                         selected && 'bg-selected',
                       )}
                     >

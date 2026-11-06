@@ -15,7 +15,7 @@ const LIST: Record<Variant, string> = {
 };
 
 function itemClass(variant: Variant, active: boolean): string {
-  const base = 'inline-flex min-h-touch shrink-0 items-center gap-1.5 whitespace-nowrap px-3.5 text-sm font-semibold transition-colors';
+  const base = 'inline-flex min-h-touch shrink-0 items-center gap-1.5 whitespace-nowrap px-3.5 text-sm font-semibold transition-colors focus-visible:-outline-offset-2';
   if (variant === 'pill') {
     return cn(base, 'rounded-full', active ? 'bg-primary text-on-primary' : 'text-ink-2 hover:bg-surface-3');
   }

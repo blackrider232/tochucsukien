@@ -53,7 +53,7 @@ function NavSection({
                 className={cn(
                   'flex min-h-touch items-center gap-3 rounded-control px-3 text-sm font-semibold transition-colors',
                   collapsed && 'justify-center px-0',
-                  active ? 'bg-sidebar-active text-on-primary shadow-card' : 'text-sidebar-ink hover:bg-sidebar-hover',
+                  active ? 'bg-sidebar-active text-on-primary' : 'text-sidebar-ink hover:bg-sidebar-hover',
                 )}
               >
                 <span className={cn('flex w-5 shrink-0 justify-center', active ? 'text-on-primary' : 'text-sidebar-muted')}>
